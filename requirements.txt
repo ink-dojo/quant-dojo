@@ -1,0 +1,33 @@
+# Core
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+
+# Visualization
+matplotlib>=3.7
+seaborn>=0.12
+plotly>=5.14
+
+# Finance
+yfinance>=0.2          # 免费数据（海外）
+akshare>=1.10          # 免费A股数据
+tushare>=1.2           # A股数据（需token）
+
+# Backtesting
+backtrader>=1.9        # 回测框架
+empyrical>=0.5         # 绩效指标
+
+# Stats & ML
+statsmodels>=0.14
+scikit-learn>=1.3
+
+# Jupyter
+jupyter>=1.0
+ipykernel>=6.0
+ipywidgets>=8.0
+
+# Utilities
+pyyaml>=6.0
+python-dotenv>=1.0
+tqdm>=4.65
+loguru>=0.7

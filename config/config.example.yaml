@@ -1,0 +1,29 @@
+# 配置模板 — 复制为 config.yaml 并填入真实值（不要提交 config.yaml！）
+
+# 数据源
+data:
+  tushare_token: "YOUR_TUSHARE_TOKEN"       # https://tushare.pro
+  joinquant_user: "YOUR_JQ_USERNAME"        # 聚宽
+  joinquant_pass: "YOUR_JQ_PASSWORD"
+  jukuan_token: "YOUR_JUKUAN_TOKEN"         # 掘金量化
+
+# 回测默认参数
+backtest:
+  initial_capital: 1_000_000               # 初始资金（元）
+  commission: 0.0003                        # 手续费率（双边）
+  slippage: 0.001                           # 滑点（0.1%）
+  benchmark: "000300.SH"                   # 基准：沪深300
+
+# 风控参数
+risk:
+  max_position_pct: 0.30                   # 单策略最大仓位比例
+  max_drawdown_warning: 0.15               # 回撤预警线
+  max_drawdown_stop: 0.20                  # 回撤熔断线
+
+# 股票池
+universe:
+  default: "hs300"                          # 默认股票池：沪深300
+  options:
+    - "hs300"                              # 沪深300
+    - "zz500"                              # 中证500
+    - "zz1000"                             # 中证1000
