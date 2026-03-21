@@ -102,6 +102,59 @@ gh pr create \
 
 ---
 
+## 开工前环境自检（必跑）
+
+```bash
+pip install -e . -q
+python -c "import quant_dojo; print('✅ env ok')"
+```
+
+失败就先修环境，不要直接开始写代码。
+
+---
+
+## 写代码前先搜索
+
+写任何新函数前，先确认 `utils/` 里没有现成的：
+
+```bash
+grep -r "关键词" utils/ strategies/ agents/
+```
+
+已有的直接复用，不要重复实现。
+
+---
+
+## 数据质量门（每次 load 数据后必查）
+
+```python
+assert df.shape[0] > 100, f"数据行数异常: {df.shape[0]}"
+assert df.isnull().mean().max() < 0.1, f"缺失值过多: {df.isnull().mean().max():.1%}"
+assert df.index.is_monotonic_increasing, "日期未排序"
+print(f"✅ 数据质量 OK | 行数: {df.shape[0]} | 时间: {df.index[0].date()} ~ {df.index[-1].date()}")
+```
+
+---
+
+## 小步提交原则
+
+- 每完成一个函数 / 一个 notebook section 就 commit
+- 不要等整个任务做完再一次性提交
+- commit message 用中文，说清楚做了什么、为什么
+
+---
+
+## 工作结束前更新 journal
+
+每次工作结束，在 `journal/weekly/` 当周文件里追加：
+- 做了什么
+- 发现了什么（结论/异常/坑）
+- 下一步计划
+
+格式参考 `journal/weekly/2026-W12.md`。
+
+---
+
 ## 代码规则
 
 ### 语言和风格
