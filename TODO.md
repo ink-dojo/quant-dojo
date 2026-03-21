@@ -30,18 +30,18 @@
 ## 🟡 优先级 2 — agents/ 模块骨架
 
 ### 2.1 新建 `agents/base.py`
-- [ ] 定义 `LLMClient` 类：
+- [x] 定义 `LLMClient` 类：
       — 优先用 `claude -p`（subprocess 调用）
       — 如果 claude 不在 PATH，fallback 到 Ollama（`http://localhost:11434`）
       — `complete(prompt: str) -> str` 方法
       — `complete_json(prompt: str) -> dict` 方法（自动解析 JSON，失败时返回 `{"error": ...}`）
-- [ ] 定义 `BaseAgent` 抽象类：
+- [x] 定义 `BaseAgent` 抽象类：
       — `__init__(self, llm: LLMClient)`
       — `analyze(self, **kwargs) -> dict` 抽象方法
       — `format_report(self, result: dict) -> str` 默认实现（Markdown 格式）
 
 ### 2.2 新建 `agents/debate.py`
-- [ ] 实现 `BullBearDebate` 类：
+- [x] 实现 `BullBearDebate` 类：
       ```
       输入：topic（因子名/股票代码），context（IC结果/价格数据摘要）
       流程：
@@ -50,15 +50,15 @@
         3. Moderator prompt → 综合结论 + 置信度（0-1）
       输出：dict {bull_args, bear_args, conclusion, confidence}
       ```
-- [ ] 实现 `debate_factor(factor_name: str, ic_summary: dict) -> dict`
+- [x] 实现 `debate_factor(factor_name: str, ic_summary: dict) -> dict`
       — 把 `utils/factor_analysis.ic_summary()` 的输出喂给辩论
       — 返回结构化报告
 
 ### 2.3 新建 `agents/__init__.py`
-- [ ] 暴露 `LLMClient`, `BullBearDebate`
+- [x] 暴露 `LLMClient`, `BullBearDebate`
 
 ### 2.4 快速测试
-- [ ] 在 `agents/` 目录下写 `test_debate.py`：
+- [x] 在 `agents/` 目录下写 `test_debate.py`：
       用极坐标价量因子（IC均值 -0.031，ICIR -0.28）作为 context 跑一次辩论
       打印输出，确认能正常运行（不要求 LLM 结果完美，能跑通就行）
 
@@ -67,18 +67,18 @@
 ## 🟢 优先级 3 — 动量因子研究
 
 ### 3.1 新建 `research/factors/momentum/`
-- [ ] 新建 `momentum_factor.py`：
+- [x] 新建 `momentum_factor.py`：
       — `compute_momentum(price_wide: pd.DataFrame, lookback: int, skip: int = 1) -> pd.DataFrame`
         lookback 窗口收益率，skip=1 跳过最近1天（避免反转噪音）
       — 支持多周期：`[5, 10, 20, 60, 120]` 日
-- [ ] 新建 `05_momentum_factor.ipynb`（放在 `research/notebooks/`）：
+- [x] 新建 `05_momentum_factor.ipynb`（放在 `research/notebooks/`）：
       结构：
         1. 计算多周期动量因子
         2. IC/ICIR 分析（复用 `utils/factor_analysis.compute_ic_series`）
         3. 分层回测（十分位）
         4. 与极坐标因子相关性（两者是否正交？）
         5. 结论：A 股动量 vs 反转，哪个更显著？
-- [ ] 在 `research/factors/momentum/README.md` 写研究结论（仿照 polar_pv_factor/README.md 的格式）
+- [x] 在 `research/factors/momentum/README.md` 写研究结论（仿照 polar_pv_factor/README.md 的格式）
 
 ---
 
@@ -97,4 +97,6 @@
 - `pyproject.toml` 的包结构
 
 ---
+
+> 完成时间：2026-03-21
 
