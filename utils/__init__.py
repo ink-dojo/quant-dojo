@@ -37,7 +37,14 @@ from utils.factor_analysis import (
     quintile_backtest,
     factor_summary_table,
     neutralize_factor,
+    ic_weighted_composite as ic_weighted_composite_legacy,
+)
+from utils.multi_factor import (
+    zscore_normalize,
+    rank_normalize,
+    equal_weight_composite,
     ic_weighted_composite,
+    score_composite,
 )
 
 __all__ = [
@@ -75,5 +82,11 @@ __all__ = [
     "quintile_backtest",
     "factor_summary_table",
     "neutralize_factor",
+    "ic_weighted_composite_legacy",
+    # 多因子合成
+    "zscore_normalize",
+    "rank_normalize",
+    "equal_weight_composite",
     "ic_weighted_composite",
+    "score_composite",
 ]
