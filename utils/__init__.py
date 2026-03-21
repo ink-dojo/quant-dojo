@@ -23,6 +23,11 @@ from utils.universe import (
     build_universe,
     filter_st,
 )
+from utils.fundamental_loader import (
+    get_pe_pb,
+    get_financials,
+    get_industry_classification,
+)
 from utils.factor_analysis import (
     winsorize,
     cross_section_rank,
@@ -48,6 +53,10 @@ __all__ = [
     "get_all_ashare_symbols",
     "build_universe",
     "filter_st",
+    # 财务数据
+    "get_pe_pb",
+    "get_financials",
+    "get_industry_classification",
     # 策略绩效
     "annualized_return",
     "annualized_volatility",

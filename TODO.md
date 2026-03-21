@@ -8,22 +8,22 @@
 ## 🔴 优先级 1 — 财务数据管道
 
 ### 1.1 新建 `utils/fundamental_loader.py`
-- [ ] 实现 `get_pe_pb(symbol: str, start: str, end: str) -> pd.DataFrame`
+- [x] 实现 `get_pe_pb(symbol: str, start: str, end: str) -> pd.DataFrame`
       — 用 `ak.stock_zh_valuation_baidu` 获取 PE_TTM/PB/PS（stock_a_indicator_lg 已下线）
       — 列名标准化：date, pe_ttm, pb, ps_ttm
       — 带 parquet 缓存，缓存路径 `data/raw/fundamentals/{symbol}_pe_pb.parquet`
-- [ ] 实现 `get_financials(symbol: str, periods: int = 8) -> pd.DataFrame`
+- [x] 实现 `get_financials(symbol: str, periods: int = 8) -> pd.DataFrame`
       — 用 `ak.stock_financial_analysis_indicator` 获取财务指标（新浪财经）
       — 提取：ROE、毛利率、资产负债率、净利润增速、营收增速等
       — 列名全部改为英文 snake_case
-- [ ] 实现 `get_industry_classification(symbols: list) -> pd.DataFrame`
+- [x] 实现 `get_industry_classification(symbols: list) -> pd.DataFrame`
       — 用 `ak.stock_individual_info_em` 逐只获取行业分类（带重试+增量缓存）
       — 返回 DataFrame: symbol, industry_name
-- [ ] 在模块末尾加 `if __name__ == "__main__":` 快速验证（用 000001 平安银行测试）
-- [ ] 确认 `from utils.fundamental_loader import get_pe_pb` 可以正常 import
+- [x] 在模块末尾加 `if __name__ == "__main__":` 快速验证（用 000001 平安银行测试）
+- [x] 确认 `from utils.fundamental_loader import get_pe_pb` 可以正常 import
 
 ### 1.2 更新 `utils/__init__.py`
-- [ ] 把 `fundamental_loader` 的主要函数暴露出来（和现有 data_loader 一致）
+- [x] 把 `fundamental_loader` 的主要函数暴露出来（和现有 data_loader 一致）
 
 ---
 
