@@ -24,7 +24,7 @@ def get_pe_pb(
     use_cache: bool = True,
 ) -> pd.DataFrame:
     """
-    获取个股估值指标时序数据（PE_TTM, PB, PS_TTM）
+    获取个股估值指标时序数据（PE_TTM, PB, PCF）
 
     参数:
         symbol   : 股票代码，如 "000001"
@@ -33,8 +33,8 @@ def get_pe_pb(
         use_cache: 是否使用 parquet 缓存
 
     返回:
-        DataFrame，列：date, pe_ttm, pb, ps_ttm
-        index 为 date（DatetimeIndex）
+        DataFrame，列：pe_ttm, pb, pcf（市现率）
+        index 为 date（DatetimeIndex），forward-fill 对齐
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = RAW_DIR / f"{symbol}_pe_pb.parquet"
@@ -47,7 +47,7 @@ def get_pe_pb(
     indicator_map = {
         "市盈率(TTM)": "pe_ttm",
         "市净率": "pb",
-        "市现率": "ps_ttm",  # 市现率近似替代市销率
+        "市现率": "pcf",  # 市现率 Price/Cash Flow（非市销率）
     }
 
     dfs = []
@@ -67,9 +67,11 @@ def get_pe_pb(
             warnings.warn(f"获取 {symbol} {cn_name} 失败: {e}")
 
     if not dfs:
-        return pd.DataFrame(columns=["pe_ttm", "pb", "ps_ttm"])
+        return pd.DataFrame(columns=["pe_ttm", "pb", "pcf"])
 
+    # 合并后 forward-fill 对齐（估值指标在非交易日不变）
     result = pd.concat(dfs, axis=1, sort=True).sort_index()
+    result = result.ffill()
 
     # 缓存完整数据
     result.to_parquet(cache_path)
@@ -95,12 +97,16 @@ def get_financials(
 
     返回:
         DataFrame，列：
-            report_date    报告期
-            net_profit     净利润（元）
-            revenue        营业总收入（元）
-            roe            净资产收益率（%）
-            gross_margin   销售毛利率（%）
-            debt_ratio     资产负债率（%）
+            report_date          报告期
+            roe                  净资产收益率（%）
+            roa                  总资产净利润率（%）
+            debt_ratio           资产负债率（%）
+            total_assets         总资产（元）
+            operating_profit     主营业务利润（元）
+            net_profit_growth    净利润增长率（%）
+            revenue_growth       营收增长率（%，非银行股有效）
+            net_margin           销售净利率（%，非银行股有效）
+            net_asset_growth     净资产增长率（%）
         index 为 report_date
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -114,16 +120,18 @@ def get_financials(
     raw = ak.stock_financial_analysis_indicator(symbol=symbol, start_year="2018")
 
     # 列名映射：中文 → 英文 snake_case
+    # 注：银行股的 销售净利率/销售毛利率/主营业务收入增长率 天然为 NaN，属正常
     col_map = {
         "日期": "report_date",
         "净资产收益率(%)": "roe",
-        "销售毛利率(%)": "gross_margin",
+        "总资产净利润率(%)": "roa",
         "资产负债率(%)": "debt_ratio",
         "总资产(元)": "total_assets",
         "主营业务利润(元)": "operating_profit",
         "净利润增长率(%)": "net_profit_growth",
         "主营业务收入增长率(%)": "revenue_growth",
         "销售净利率(%)": "net_margin",
+        "净资产增长率(%)": "net_asset_growth",
     }
 
     # 只保留存在的列
@@ -148,59 +156,39 @@ def get_financials(
 # ─────────────────────────────────────────────
 
 def get_industry_classification(
-    symbols: list,
+    symbols: list = None,
     use_cache: bool = True,
 ) -> pd.DataFrame:
     """
-    批量获取个股行业分类
+    获取个股申万行业分类（一次拉取全量，速度快）
 
     参数:
-        symbols  : 股票代码列表，如 ["000001", "600519"]
+        symbols  : 股票代码列表，如 ["000001", "600519"]；为 None 返回全部
         use_cache: 是否使用缓存
 
     返回:
-        DataFrame，列：symbol, industry_name
+        DataFrame，列：symbol, industry_code
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    cache_path = RAW_DIR / "industry_classification.parquet"
+    cache_path = RAW_DIR / "industry_sw.parquet"
 
-    # 读取已有缓存，增量更新
     if use_cache and cache_path.exists():
-        cached = pd.read_parquet(cache_path)
-        cached_syms = set(cached["symbol"])
-        missing = [s for s in symbols if s not in cached_syms]
-        if not missing:
-            return cached[cached["symbol"].isin(symbols)].reset_index(drop=True)
+        df = pd.read_parquet(cache_path)
     else:
-        cached = pd.DataFrame(columns=["symbol", "industry_name"])
-        missing = list(symbols)
+        # 申万行业分类：一次调用返回全部A股的行业归属历史
+        raw = ak.stock_industry_clf_hist_sw()
+        # 每只股票取最新的行业分类（按 start_date 最新）
+        df = (
+            raw.sort_values("start_date")
+            .drop_duplicates(subset="symbol", keep="last")
+            [["symbol", "industry_code"]]
+            .reset_index(drop=True)
+        )
+        df.to_parquet(cache_path, index=False)
 
-    # 逐只获取行业信息（用东方财富个股信息接口，带重试）
-    new_rows = []
-    for sym in missing:
-        industry_name = "未知"
-        for attempt in range(3):
-            try:
-                info = ak.stock_individual_info_em(symbol=sym)
-                # info 是 item/value 格式，行业在 "行业" 行
-                industry = info.loc[info["item"] == "行业", "value"].values
-                industry_name = industry[0] if len(industry) > 0 else "未知"
-                break
-            except Exception as e:
-                if attempt < 2:
-                    time.sleep(1.0 * (attempt + 1))
-                else:
-                    warnings.warn(f"获取 {sym} 行业分类失败: {e}")
-        new_rows.append({"symbol": sym, "industry_name": industry_name})
-        time.sleep(0.3)
-
-    if new_rows:
-        new_df = pd.DataFrame(new_rows)
-        cached = pd.concat([cached, new_df], ignore_index=True)
-        cached = cached.drop_duplicates(subset="symbol", keep="last")
-        cached.to_parquet(cache_path, index=False)
-
-    return cached[cached["symbol"].isin(symbols)].reset_index(drop=True)
+    if symbols is not None:
+        return df[df["symbol"].isin(symbols)].reset_index(drop=True)
+    return df
 
 
 if __name__ == "__main__":
@@ -226,6 +214,8 @@ if __name__ == "__main__":
     print("=" * 40)
     ind = get_industry_classification(["000001", "600519"], use_cache=False)
     print(ind.to_string())
+    assert len(ind) == 2, f"应返回2行，实际{len(ind)}"
+    assert "industry_code" in ind.columns
     print()
 
     print("✅ 全部测试通过")
