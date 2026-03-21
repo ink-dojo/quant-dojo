@@ -104,7 +104,7 @@ refactor: 重构
 ## Git 署名规则
 
 - **禁止**在 commit message 里添加 `Co-Authored-By: Claude` 或任何 AI 署名
-- commit 只署 jialong 的名字
+- commit 只署 jialong和xingyu 的名字
 - 不经过明确同意，不得以任何形式在提交记录里留下 AI 的痕迹
 
 ---
