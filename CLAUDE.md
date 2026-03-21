@@ -12,13 +12,93 @@ A 股量化研究项目，目标是做出真正盈利的系统化策略。
 
 ---
 
-## 读文件的顺序
+## 每次开始工作的强制流程
 
-进入项目后，按这个顺序建立上下文：
-1. `ROADMAP.md` — 当前在哪个阶段，下一步是什么
+**不允许跳过任何一步，按顺序执行：**
+
+### Step 1 — 拉取最新代码
+```bash
+git pull origin main
+```
+如果有冲突，解决后再继续。
+
+### Step 2 — 读上下文文件
+按顺序读：
+1. `ROADMAP.md` — 当前在哪个阶段
 2. `TODO.md` — 当前具体任务
 3. `WORKFLOW.md` — 代码和 git 规范
-4. `BRAINSTORM.md` — 设计决策和研究背景
+4. `BRAINSTORM.md` — 设计决策背景
+
+### Step 3 — 为即将开始的任务创建 GitHub Issue
+
+每个任务开工前必须先创建 Issue，然后移到 In Progress：
+
+```bash
+# 1. 创建 issue
+ISSUE_URL=$(gh issue create \
+  --repo ink-dojo/quant-dojo \
+  --title "任务标题" \
+  --body "## 目标\n\n## 完成标准\n\n## 关联 TODO\nTODO.md 第X项" \
+  --label "research"  # 或 feat / fix / docs \
+)
+ISSUE_NUM=$(echo $ISSUE_URL | grep -o '[0-9]*$')
+
+# 2. 加入 kanban
+ITEM_ID=$(gh project item-add 2 \
+  --owner ink-dojo \
+  --url $ISSUE_URL \
+  --format json | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+
+# 3. 移到 In Progress
+gh project item-edit \
+  --project-id PVT_kwDOEAhsB84BSCnq \
+  --id $ITEM_ID \
+  --field-id PVTSSF_lADOEAhsB84BSCnqzg_sOx8 \
+  --single-select-option-id 47fc9ee4
+```
+
+### Step 4 — 创建对应分支再开始写代码
+```bash
+git checkout -b feature/issue-{编号}-{简短描述}
+# 或 research/issue-{编号}-{主题}
+```
+
+### Step 5 — 完成后移到 In Review 并提 PR
+```bash
+# 移到 In Review
+gh project item-edit \
+  --project-id PVT_kwDOEAhsB84BSCnq \
+  --id $ITEM_ID \
+  --field-id PVTSSF_lADOEAhsB84BSCnqzg_sOx8 \
+  --single-select-option-id df73e18b
+
+# 提 PR（Closes #编号 会在合并时自动关闭 Issue 并移到 Done）
+gh pr create \
+  --title "标题" \
+  --body "Closes #${ISSUE_NUM}\n\n## 做了什么\n\n## 怎么测试"
+```
+
+---
+
+## Kanban 参考信息
+
+- **Project ID**: `PVT_kwDOEAhsB84BSCnq`
+- **Project URL**: https://github.com/orgs/ink-dojo/projects/2
+- **Status Field ID**: `PVTSSF_lADOEAhsB84BSCnqzg_sOx8`
+
+| 状态 | Option ID |
+|------|-----------|
+| Backlog | `f75ad846` |
+| Ready | `61e4505c` |
+| In Progress | `47fc9ee4` |
+| In Review | `df73e18b` |
+| Done | `98236657` |
+
+| 优先级 Field ID | `PVTSSF_lADOEAhsB84BSCnqzg_sO4Y` |
+|---|---|
+| P0 | `79628723` |
+| P1 | `0a877460` |
+| P2 | `da944a9c` |
 
 ---
 
