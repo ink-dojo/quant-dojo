@@ -53,7 +53,7 @@
 ## Phase 3：因子研究（第9-16周）
 
 ### 经典因子
-- [x] 动量因子（Momentum）— 已实现多周期计算 + notebook + README
+- [ ] 动量因子（Momentum）
 - [ ] 价值因子（PE, PB, PS）— 财务数据管道已就绪（fundamental_loader.py）
 - [ ] 质量因子（ROE, 盈利稳定性）
 - [ ] 低波动因子（Beta, Volatility）
