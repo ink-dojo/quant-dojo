@@ -9,16 +9,16 @@
 
 ### 1.1 新建 `utils/fundamental_loader.py`
 - [ ] 实现 `get_pe_pb(symbol: str, start: str, end: str) -> pd.DataFrame`
-      — 用 `ak.stock_a_indicator_lg(symbol=symbol)` 获取 PE/PB/PS/股息率
-      — 列名标准化：date, pe_ttm, pb, ps_ttm, dv_ratio
+      — 用 `ak.stock_zh_valuation_baidu` 获取 PE_TTM/PB/PS（stock_a_indicator_lg 已下线）
+      — 列名标准化：date, pe_ttm, pb, ps_ttm
       — 带 parquet 缓存，缓存路径 `data/raw/fundamentals/{symbol}_pe_pb.parquet`
 - [ ] 实现 `get_financials(symbol: str, periods: int = 8) -> pd.DataFrame`
-      — 用 `ak.stock_financial_abstract_ths(symbol=symbol)` 获取财务摘要
-      — 提取：净利润、营收、ROE、毛利率、资产负债率（最近 periods 个季度）
+      — 用 `ak.stock_financial_analysis_indicator` 获取财务指标（新浪财经）
+      — 提取：ROE、毛利率、资产负债率、净利润增速、营收增速等
       — 列名全部改为英文 snake_case
 - [ ] 实现 `get_industry_classification(symbols: list) -> pd.DataFrame`
-      — 用 `ak.stock_board_industry_cons_em(symbol=...)` 批量获取行业分类
-      — 返回 DataFrame: symbol, industry_name, industry_code
+      — 用 `ak.stock_individual_info_em` 逐只获取行业分类（带重试+增量缓存）
+      — 返回 DataFrame: symbol, industry_name
 - [ ] 在模块末尾加 `if __name__ == "__main__":` 快速验证（用 000001 平安银行测试）
 - [ ] 确认 `from utils.fundamental_loader import get_pe_pb` 可以正常 import
 
@@ -95,3 +95,6 @@
 - `backtest/engine.py` 的对外接口（`BacktestEngine` 类的 `__init__` 和 `run` 签名）
 - `research/factors/polar_pv_factor/` 下的任何文件
 - `pyproject.toml` 的包结构
+
+---
+
