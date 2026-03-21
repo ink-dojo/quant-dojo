@@ -1,6 +1,6 @@
 """
 数据加载模块
-支持 akshare（免费，无需注册）和 tushare（需token）
+支持 baostock（免费无限速，推荐批量）、akshare（免费但限速）
 """
 import time
 import warnings
@@ -92,7 +92,124 @@ def calc_returns(prices: pd.Series) -> pd.Series:
 
 
 # ─────────────────────────────────────────────
-# 批量下载
+# BaoStock 批量下载（免费无限速，推荐）
+# ─────────────────────────────────────────────
+
+def _symbol_to_baostock(symbol: str) -> str:
+    """6位代码转 baostock 格式：000001 → sz.000001，600519 → sh.600519"""
+    if symbol.startswith(("6", "9")):
+        return f"sh.{symbol}"
+    return f"sz.{symbol}"
+
+
+def _get_stock_history_baostock(
+    symbol: str,
+    start: str,
+    end: str,
+    adjust: str = "qfq",
+    use_cache: bool = True,
+) -> pd.DataFrame:
+    """
+    用 baostock 获取单只股票日线数据
+
+    参数:
+        symbol : 6位代码，如 "000001"
+        start  : "2019-01-01"
+        end    : "2023-12-31"
+        adjust : "qfq"=前复权, "hfq"=后复权, ""=不复权
+
+    返回:
+        DataFrame，列和 get_stock_history 一致
+    """
+    import baostock as bs
+
+    cache_path = RAW_DIR / f"{symbol}_{start}_{end}_{adjust}.parquet"
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+
+    if use_cache and cache_path.exists():
+        return pd.read_parquet(cache_path)
+
+    adjustflag_map = {"qfq": "2", "hfq": "1", "": "3"}
+    adjustflag = adjustflag_map.get(adjust, "2")
+
+    bs_symbol = _symbol_to_baostock(symbol)
+    rs = bs.query_history_k_data_plus(
+        bs_symbol,
+        "date,open,high,low,close,volume,amount",
+        start_date=start,
+        end_date=end,
+        frequency="d",
+        adjustflag=adjustflag,
+    )
+    df = pd.DataFrame(rs.get_data(), columns=rs.fields)
+
+    if df.empty:
+        return pd.DataFrame()
+
+    # 转换数据类型
+    df["date"] = pd.to_datetime(df["date"])
+    for col in ["open", "high", "low", "close", "volume", "amount"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df = df.set_index("date").sort_index()
+
+    # 去掉全 0 行（停牌日）
+    df = df[df["close"] > 0]
+
+    df.to_parquet(cache_path)
+    return df
+
+
+def batch_download_baostock(
+    symbols: list,
+    start: str,
+    end: str,
+    adjust: str = "qfq",
+    show_progress: bool = True,
+) -> dict:
+    """
+    用 baostock 批量下载（无限速，串行即可秒级完成）
+
+    参数:
+        symbols     : 6位代码列表
+        start, end  : 日期范围
+        adjust      : 复权方式
+
+    返回:
+        {symbol: DataFrame}
+    """
+    import baostock as bs
+    bs.login()
+
+    results = {}
+    errors = []
+    iter_ = symbols
+    if show_progress:
+        iter_ = tqdm(symbols, desc="BaoStock 下载中", ncols=80)
+
+    for sym in iter_:
+        try:
+            df = _get_stock_history_baostock(sym, start, end, adjust=adjust)
+            if df is not None and not df.empty:
+                results[sym] = df
+            else:
+                errors.append(sym)
+        except Exception:
+            errors.append(sym)
+
+    bs.logout()
+
+    if errors:
+        warnings.warn(
+            f"{len(errors)} 只股票下载失败: "
+            f"{errors[:5]}{'...' if len(errors) > 5 else ''}"
+        )
+
+    print(f"✅ 成功: {len(results)}/{len(symbols)} 只")
+    return results
+
+
+# ─────────────────────────────────────────────
+# AkShare 批量下载（有限速，备用）
 # ─────────────────────────────────────────────
 
 def batch_download(
@@ -165,6 +282,7 @@ def build_price_matrix(
     col: str = "close",
     use_cache: bool = True,
     max_workers: int = 4,
+    source: str = "baostock",
 ) -> pd.DataFrame:
     """
     构建价格宽表（date × symbol），因子研究的基础数据
@@ -174,7 +292,8 @@ def build_price_matrix(
         start, end  : 日期范围
         col         : 提取的列，默认 'close'（收盘价）
         use_cache   : 是否读本地缓存
-        max_workers : 并发线程数
+        max_workers : 并发线程数（仅 akshare 生效）
+        source      : 'baostock'（推荐，无限速）或 'akshare'
 
     返回:
         DataFrame，index=日期，columns=股票代码
@@ -185,10 +304,18 @@ def build_price_matrix(
     cache_path = PROCESSED_DIR / cache_name
 
     if use_cache and cache_path.exists():
-        print(f"读取缓存: {cache_name}")
-        return pd.read_parquet(cache_path)
+        cached = pd.read_parquet(cache_path)
+        # 验证缓存完整性（实际列数 ≥ 请求数量的 80%）
+        if cached.shape[1] >= n * 0.8:
+            print(f"读取缓存: {cache_name}  ({cached.shape[1]}/{n} 只)")
+            return cached
+        else:
+            print(f"⚠️ 缓存不完整 ({cached.shape[1]}/{n} 只)，重新下载...")
 
-    stock_data = batch_download(symbols, start, end, adjust=adjust, max_workers=max_workers)
+    if source == "baostock":
+        stock_data = batch_download_baostock(symbols, start, end, adjust=adjust)
+    else:
+        stock_data = batch_download(symbols, start, end, adjust=adjust, max_workers=max_workers)
 
     price_dict = {
         sym: df[col]
@@ -198,8 +325,15 @@ def build_price_matrix(
     price_wide = pd.DataFrame(price_dict).sort_index()
     price_wide.index = pd.to_datetime(price_wide.index)
 
-    price_wide.to_parquet(cache_path)
-    print(f"✅ 价格宽表已缓存: {cache_name}  形状: {price_wide.shape}")
+    # 用实际成功数量命名缓存
+    actual_n = price_wide.shape[1]
+    actual_cache_name = f"price_wide_{col}_{start}_{end}_{adjust}_{actual_n}stocks.parquet"
+    actual_cache_path = PROCESSED_DIR / actual_cache_name
+    price_wide.to_parquet(actual_cache_path)
+    # 同时保存一份以请求数量命名的（方便后续按原参数读取）
+    if actual_n >= n * 0.8:
+        price_wide.to_parquet(cache_path)
+    print(f"✅ 价格宽表已缓存: {actual_cache_name}  形状: {price_wide.shape}")
     return price_wide
 
 

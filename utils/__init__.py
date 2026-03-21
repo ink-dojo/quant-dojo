@@ -13,6 +13,7 @@ from utils.data_loader import (
     get_index_history,
     calc_returns,
     batch_download,
+    batch_download_baostock,
     build_price_matrix,
     build_return_matrix,
     load_price_matrix,
