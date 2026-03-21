@@ -294,6 +294,80 @@ def neutralize_factor(
 # IC 加权合成
 # ─────────────────────────────────────────────
 
+def factor_decay_analysis(
+    factor_wide: pd.DataFrame,
+    ret_wide: pd.DataFrame,
+    horizons: list = [1, 5, 10, 20, 60],
+    method: str = "spearman",
+) -> pd.DataFrame:
+    """
+    因子衰减分析：计算不同持有期下的 IC、ICIR 和 t 统计量
+
+    对每个持有期 h，计算因子与未来 h 日累计收益的截面相关性（IC）。
+    使用 ret_wide.rolling(h).sum().shift(-h) 构造前视收益率（注意：
+    shift(-h) 会将未来数据对齐到当前日，需用因子当日值与之计算 IC，
+    实际交易中因子信号在 t 日已知，h 日收益在 t+1 到 t+h，不构成前视偏差）。
+
+    参数:
+        factor_wide : 因子宽表 (date × symbol)
+        ret_wide    : 日收益率宽表 (date × symbol)
+        horizons    : 持有期列表（天数），默认 [1, 5, 10, 20, 60]
+        method      : 'spearman'（Rank IC）或 'pearson'（IC），推荐 spearman
+
+    返回:
+        decay_df : DataFrame，index 为 ['mean_ic', 'icir', 't_stat']，
+                   columns 为各 horizon，便于绘制因子衰减曲线
+    """
+    results = {}
+
+    common_stocks = factor_wide.columns.intersection(ret_wide.columns)
+    fac = factor_wide[common_stocks]
+    ret = ret_wide[common_stocks]
+
+    for h in horizons:
+        # 构造 h 日累计收益：rolling(h).sum() 得到过去 h 日之和，shift(-h) 对齐到当日
+        # 含义：在 t 日建仓，持有到 t+h 日的累计收益
+        forward_ret = ret.rolling(h).sum().shift(-h)
+
+        common_dates = fac.index.intersection(forward_ret.index)
+        fac_aligned = fac.loc[common_dates]
+        fwd_aligned = forward_ret.loc[common_dates]
+
+        ic_list = []
+        for date in common_dates:
+            f_vals = fac_aligned.loc[date].dropna()
+            r_vals = fwd_aligned.loc[date].dropna()
+            common_idx = f_vals.index.intersection(r_vals.index)
+
+            if len(common_idx) < 30:
+                continue
+
+            f_cross = f_vals[common_idx]
+            r_cross = r_vals[common_idx]
+
+            if method == "pearson":
+                corr, _ = stats.pearsonr(f_cross, r_cross)
+            else:
+                corr, _ = stats.spearmanr(f_cross, r_cross)
+
+            ic_list.append(corr)
+
+        if len(ic_list) < 10:
+            results[h] = {"mean_ic": np.nan, "icir": np.nan, "t_stat": np.nan}
+            continue
+
+        ic_arr = np.array(ic_list)
+        mean_ic = np.nanmean(ic_arr)
+        std_ic = np.nanstd(ic_arr)
+        icir = mean_ic / std_ic if std_ic > 0 else np.nan
+        t_stat = mean_ic / (std_ic / np.sqrt(len(ic_arr))) if std_ic > 0 else np.nan
+
+        results[h] = {"mean_ic": mean_ic, "icir": icir, "t_stat": t_stat}
+
+    decay_df = pd.DataFrame(results, index=["mean_ic", "icir", "t_stat"])
+    return decay_df
+
+
 def ic_weighted_composite(
     factor_dict: dict,
     ic_series_dict: dict,
