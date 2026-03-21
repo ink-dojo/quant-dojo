@@ -8,7 +8,7 @@
 
 A 股量化研究项目，目标是做出真正盈利的系统化策略。
 三人团队：jialong（金融逻辑/因子设计）、xingyu（代码实现/框架）。
-当前阶段：Phase 1（统计基础），详见 ROADMAP.md。
+当前阶段：Phase 3（因子研究），详见 ROADMAP.md。
 
 ---
 
@@ -18,6 +18,8 @@ A 股量化研究项目，目标是做出真正盈利的系统化策略。
 
 ### Step 1 — 拉取最新代码
 ```bash
+# 确保用 SSH（HTTPS 在这台机器不行）
+git remote set-url origin git@github.com:ink-dojo/quant-dojo.git
 git pull origin main
 ```
 如果有冲突，解决后再继续。
@@ -106,7 +108,7 @@ gh pr create \
 
 ```bash
 pip install -e . -q
-python -c "import quant_dojo; print('✅ env ok')"
+python -c "from utils import get_stock_history; from agents import LLMClient; print('✅ env ok')"
 ```
 
 失败就先修环境，不要直接开始写代码。
@@ -207,8 +209,8 @@ docs: 文档更新
 refactor: 重构
 ```
 
-- 从 `dev` 切 `feature/` 或 `research/` 分支
-- 不要直接 push 到 `main`，除非是文档类小改动
+- 日常开发直接在 `main` 上 commit + push
+- 大型重构或实验性功能才切 `feature/` 分支
 - `data/` 目录已在 `.gitignore`，不要强制 add
 
 ---

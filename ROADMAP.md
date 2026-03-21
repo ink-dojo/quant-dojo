@@ -5,55 +5,55 @@
 
 ---
 
-## Phase 0：环境搭建（第1周）
+## Phase 0：环境搭建（第1周） ✅
 
-- [ ] Git 工作流熟悉（分支、PR、review）
-- [ ] Python 环境配置（conda/venv）
-- [ ] 数据源接入（聚宽 or 掘金，申请账号）
-- [ ] 跑通 `research/notebooks/01_getting_started.ipynb`
+- [x] Git 工作流熟悉（分支、PR、review）
+- [x] Python 环境配置（venv + pip install -e .）
+- [x] 数据源接入（akshare 免费接入，无需申请）
+- [x] 跑通 `research/notebooks/01_getting_started.ipynb`
 
 **交付物：** 本地环境可以拉数据、画图、跑简单计算
 
 ---
 
-## Phase 1：基础建设（第2-4周）
+## Phase 1：基础建设（第2-4周） ✅
 
 ### 数学与统计
-- [ ] 收益率计算（简单收益率 vs 对数收益率）
-- [ ] 统计描述：均值、标准差、偏度、峰度
-- [ ] 相关性分析
-- [ ] 假设检验基础（t-test, p-value）
+- [x] 收益率计算（简单收益率 vs 对数收益率）
+- [x] 统计描述：均值、标准差、偏度、峰度
+- [x] 相关性分析
+- [x] 假设检验基础（t-test, p-value）
 
 ### 金融知识（jialong 主导）
-- [ ] A股市场机制（交易规则、涨跌停、T+1）
-- [ ] 常用数据：OHLCV、财务数据、行业分类
-- [ ] 基准指数理解（沪深300、中证500）
+- [x] A股市场机制（交易规则、涨跌停、T+1）
+- [x] 常用数据：OHLCV、财务数据、行业分类
+- [x] 基准指数理解（沪深300、中证500）
 
 ### 代码基础（xingyu 主导）
-- [ ] pandas 数据处理熟练
-- [ ] `utils/data_loader.py` 完善
-- [ ] `utils/metrics.py` 实现核心指标
+- [x] pandas 数据处理熟练
+- [x] `utils/data_loader.py` 完善
+- [x] `utils/metrics.py` 实现核心指标
 
 **交付物：** 能用代码分析任意一只股票的历史数据
 
 ---
 
-## Phase 2：回测体系（第5-8周）
+## Phase 2：回测体系（第5-8周） ✅
 
-- [ ] 理解回测框架原理（事件驱动 vs 向量化）
-- [ ] 搭建 `backtest/engine.py`
-- [ ] 实现第一个完整策略：双均线（MA Cross）
-- [ ] 绩效评估体系：夏普、最大回撤、胜率、盈亏比
-- [ ] 识别常见回测陷阱：未来函数、幸存者偏差、交易成本
+- [x] 理解回测框架原理（事件驱动 vs 向量化）
+- [x] 搭建 `backtest/engine.py`
+- [x] 实现第一个完整策略：双均线（MA Cross）
+- [x] 绩效评估体系：夏普、最大回撤、胜率、盈亏比
+- [x] 识别常见回测陷阱：未来函数、幸存者偏差、交易成本
 
 **交付物：** `strategies/examples/dual_ma.py` 跑通，有完整绩效报告
 
 ---
 
-## Phase 3：因子研究（第9-16周）
+## Phase 3：因子研究（第9-16周） 🔄 进行中
 
 ### 经典因子
-- [ ] 动量因子（Momentum）
+- [x] 动量因子（Momentum）— momentum_factor.py + notebook 已完成
 - [ ] 价值因子（PE, PB, PS）— 财务数据管道已就绪（fundamental_loader.py）
 - [ ] 质量因子（ROE, 盈利稳定性）
 - [ ] 低波动因子（Beta, Volatility）
@@ -62,7 +62,7 @@
 - [x] IC/ICIR 分析（信息系数）— utils/factor_analysis.py 已完成
 - [x] 分层回测（十分位组合）— utils/factor_analysis.py 已完成
 - [ ] 因子衰减分析
-- [ ] 多因子合成（等权 / 打分法 / 回归法）
+- [x] 多因子合成（等权 / 打分法 / 回归法）— ic_weighted_composite 已完成
 
 **交付物：** `research/factors/` 下有至少3个有效因子的完整分析报告
 
