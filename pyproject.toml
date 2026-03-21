@@ -9,4 +9,4 @@ requires-python = ">=3.11"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["utils*", "strategies*", "backtest*", "research*"]
+include = ["utils*", "strategies*", "backtest*", "research*", "agents*"]
