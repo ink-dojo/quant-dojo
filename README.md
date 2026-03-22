@@ -1,5 +1,21 @@
 # quant-dojo 量化道场
 
+## 量化工作台（Dashboard）
+
+```bash
+# 启动量化工作台
+cd quant-dojo
+source venv/bin/activate
+python -m dashboard.app
+# 自动打开 http://localhost:8888
+```
+
+- 默认地址：`http://localhost:8888`
+- 首次启动会自动打开浏览器
+- 若 AI 不可用，需要启动 Ollama 或配置 `claude -p`
+
+---
+
 > 目标：**真正盈利**。
 
 jialong x xingyu x lexi。

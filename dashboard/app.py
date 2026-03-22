@@ -85,13 +85,9 @@ def index() -> FileResponse:
     return FileResponse(str(_STATIC_DIR / "index.html"))
 
 
-@app.on_event("startup")
-async def on_startup() -> None:
-    """应用启动时自动在浏览器打开仪表盘页面。"""
-    webbrowser.open("http://localhost:8888")
-
-
 if __name__ == "__main__":
+    import threading
     import uvicorn
 
-    uvicorn.run("dashboard.app:app", host="0.0.0.0", port=8888, reload=True)
+    threading.Timer(1.0, lambda: webbrowser.open("http://localhost:8888")).start()
+    uvicorn.run(app, host="0.0.0.0", port=8888)

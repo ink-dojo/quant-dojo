@@ -12,7 +12,7 @@ from dashboard.services.portfolio_service import get_nav_history, get_portfolio_
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 def portfolio_summary() -> dict:
     """返回当前持仓列表和绩效摘要（nav/return/sharpe/drawdown）。"""
     return get_portfolio_summary()
