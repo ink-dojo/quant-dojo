@@ -96,8 +96,9 @@ class MultiFactorStrategy(BaseStrategy):
         if not all_scores:
             raise ValueError("factors 字典为空，无法生成信号")
 
-        # 对齐日期索引后等权平均
-        composite = pd.concat(all_scores, axis=0).groupby(level=0).mean()
+        # 对齐索引后沿 axis=0（factor维度）等权平均
+        # pd.concat(..., keys=...) 产生多层索引，mean(level=1) 得到 date×symbol
+        composite = pd.concat(all_scores, keys=list(self.factors.keys())).groupby(level=1).mean()
         composite = composite.sort_index()
 
         return composite
