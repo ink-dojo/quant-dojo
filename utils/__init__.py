@@ -13,7 +13,6 @@ from utils.data_loader import (
     get_index_history,
     calc_returns,
     batch_download,
-    batch_download_baostock,
     build_price_matrix,
     build_return_matrix,
     load_price_matrix,
@@ -37,14 +36,13 @@ from utils.factor_analysis import (
     quintile_backtest,
     factor_summary_table,
     neutralize_factor,
-    ic_weighted_composite as ic_weighted_composite_legacy,
-)
-from utils.multi_factor import (
-    zscore_normalize,
-    rank_normalize,
-    equal_weight_composite,
     ic_weighted_composite,
-    score_composite,
+)
+from utils.local_data_loader import (
+    get_all_symbols,
+    load_local_stock,
+    load_price_wide,
+    load_factor_wide,
 )
 
 __all__ = [
@@ -74,6 +72,11 @@ __all__ = [
     "win_rate",
     "profit_loss_ratio",
     "performance_summary",
+    # 本地数据加载
+    "get_all_symbols",
+    "load_local_stock",
+    "load_price_wide",
+    "load_factor_wide",
     # 因子分析
     "winsorize",
     "cross_section_rank",
@@ -82,11 +85,5 @@ __all__ = [
     "quintile_backtest",
     "factor_summary_table",
     "neutralize_factor",
-    "ic_weighted_composite_legacy",
-    # 多因子合成
-    "zscore_normalize",
-    "rank_normalize",
-    "equal_weight_composite",
     "ic_weighted_composite",
-    "score_composite",
 ]
