@@ -226,7 +226,134 @@ def walk_forward_test(
 
 ---
 
-### 7. 更新 ROADMAP.md 和 journal
+### 7. 压力测试 `research/notebooks/11_stress_test.ipynb`
+
+模拟三段历史极端行情，检验策略鲁棒性：
+
+| 时段 | 事件 | 考察点 |
+|------|------|--------|
+| 2015-06 ~ 2015-09 | 股灾熔断 | 最大回撤、流动性危机 |
+| 2018-01 ~ 2018-12 | 贸易战熊市 | 持续下跌中的防御性 |
+| 2020-01 ~ 2020-03 | 疫情暴跌 | 极端波动中的回撤控制 |
+
+对每段极端行情输出：
+- 策略收益 vs 沪深300收益
+- 最大回撤 vs 基准最大回撤
+- 超额收益是否为正
+
+---
+
+### 8. 因子换手率分析（加入 `09_factor_validation.ipynb` Section 6）
+
+在因子验证 notebook 末尾新增一个 section：
+
+```python
+def compute_factor_turnover(signal_wide: pd.DataFrame) -> pd.Series:
+    """
+    计算因子信号的月度换手率
+    换手率 = 每月持仓变化的股票数 / 总持仓数
+    换手率 > 80% 说明因子不稳定，交易成本会很高
+    """
+```
+
+对每个因子输出换手率，判断是否"稳定可交易"。
+
+---
+
+### 9. 仓位管理对比 `utils/position_sizing.py`
+
+实现两种仓位分配方式并对比效果：
+
+```python
+def equal_weight(selected: list) -> dict:
+    """等权：每只股票 1/N 仓位"""
+
+def risk_parity(selected: list, vol_wide: pd.DataFrame) -> dict:
+    """
+    风险平价：按波动率倒数加权
+    低波动股票分配更多仓位，使每只股票的风险贡献相等
+    权重 = (1/vol_i) / sum(1/vol_j)
+    """
+
+def max_single_stock(weights: dict, cap: float = 0.1) -> dict:
+    """单票仓位上限控制（不超过 cap，默认10%）"""
+```
+
+在 `09_factor_validation.ipynb` 的 Section 4 对比：等权 vs 风险平价的夏普、最大回撤差异。
+
+---
+
+### 10. 止损机制 `utils/stop_loss.py`
+
+```python
+def trailing_stop(
+    portfolio_ret: pd.Series,
+    threshold: float = -0.10,
+) -> pd.Series:
+    """
+    个股跌幅止损
+    当个股从最近高点回撤超过 threshold 时强制清仓
+    返回加入止损后的组合收益序列
+    """
+
+def portfolio_stop(
+    portfolio_ret: pd.Series,
+    max_drawdown: float = -0.20,
+) -> pd.Series:
+    """
+    组合止损：整体回撤超过 max_drawdown 时全部清仓转现金
+    直到回撤修复才重新建仓
+    """
+```
+
+在 `09_factor_validation.ipynb` 新增 Section 7：对比有无止损机制对最大回撤的改善。
+
+---
+
+### 11. 参数敏感性分析（加入 `09_factor_validation.ipynb` Section 8）
+
+网格搜索以下参数组合，找出最优配置：
+
+```python
+n_stocks_grid = [20, 30, 50, 100]        # 持仓数
+rebalance_grid = ["monthly", "quarterly"] # 调仓频率
+cost_grid = [0.001, 0.003, 0.005]        # 单边交易成本
+```
+
+输出热力图：x轴=持仓数，y轴=调仓频率，颜色=夏普比率
+**警告**：发现最优参数后必须在样本外（2025年）验证，防止过拟合。
+
+---
+
+### 12. 完整策略报告 `research/notebooks/12_strategy_report.ipynb`
+
+汇总所有分析结果，生成一份可以展示给他人的完整报告：
+
+**Section 1：因子有效性总结**
+- 表格：各因子 IC均值 / ICIR / 换手率 / 是否入选
+
+**Section 2：策略绩效（样本内 2015-2024）**
+- 累计收益曲线 vs 沪深300
+- 分年度收益表（2015, 2016, ..., 2024）
+- 绩效指标：年化收益、夏普、最大回撤、胜率
+
+**Section 3：样本外表现（2025全年）**
+- 累计收益曲线
+- 月度收益柱状图
+
+**Section 4：压力测试结果**
+- 三段极端行情对比表
+
+**Section 5：Walk-forward 稳定性**
+- 滚动夏普分布图
+
+**Section 6：结论与 Phase 5 建议**
+- 策略是否达到进入模拟盘的门槛（年化>15%，夏普>0.8，最大回撤<30%）
+- 如果未达标，指出哪个环节需要改进
+
+---
+
+### 13. 更新 ROADMAP.md 和 journal
 
 - 把 Phase 4 已完成的条目标 [x]
 - 在 `journal/weekly/` 当周文件追加工作记录
@@ -286,4 +413,16 @@ python -c "from strategies.multi_factor import MultiFactorStrategy; print('✅ s
 
 # 6. Walk-forward 可导入
 python -c "from utils.walk_forward import walk_forward_test; print('✅ walk_forward OK')"
+
+# 7. 仓位管理可导入
+python -c "from utils.position_sizing import equal_weight, risk_parity; print('✅ position_sizing OK')"
+
+# 8. 止损机制可导入
+python -c "from utils.stop_loss import trailing_stop, portfolio_stop; print('✅ stop_loss OK')"
+
+# 9. 压力测试 notebook 存在
+ls research/notebooks/11_stress_test.ipynb
+
+# 10. 完整报告 notebook 存在
+ls research/notebooks/12_strategy_report.ipynb
 ```
