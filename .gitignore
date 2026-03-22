@@ -51,3 +51,12 @@ logs/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# 模拟盘运行时数据（不上传）
+live/portfolio/
+live/signals/
+live/factor_snapshot/
+
+# Dev artifacts
+venv 2/
+push_phase5.sh
