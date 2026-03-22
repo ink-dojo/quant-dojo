@@ -2,9 +2,708 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>量化工作台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>quant-dojo 量化工作台</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    /* SSE 进度文字动画 */
+    .pulse-dot::after {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      margin-left: 6px;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    /* 卡片悬停效果 */
+    .stat-card { transition: transform 0.15s, box-shadow 0.15s; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    /* AI 阶段标签 */
+    .stage-bull   { border-left: 3px solid #10b981; }
+    .stage-bear   { border-left: 3px solid #ef4444; }
+    .stage-mod    { border-left: 3px solid #f59e0b; }
+    .stage-result { border-left: 3px solid #6366f1; }
+  </style>
 </head>
-<body>
-  <h1>量化工作台仪表盘（开发中）</h1>
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen">
+
+<!-- ═══════════════════════ 顶部导航栏 ═══════════════════════ -->
+<header class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+  <div class="flex items-center gap-3">
+    <span class="text-indigo-400 font-bold text-lg">⚡ quant-dojo</span>
+    <span class="text-gray-500 text-sm">量化工作台</span>
+  </div>
+  <div class="flex items-center gap-4 text-sm">
+    <!-- 数据日期 + 新鲜度指示器 -->
+    <div id="data-freshness" class="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full">
+      <span id="freshness-icon" class="text-base">⏳</span>
+      <span id="freshness-date" class="text-gray-400">加载中...</span>
+    </div>
+    <!-- 最后刷新时间 -->
+    <span id="last-refresh" class="text-gray-600 text-xs">-</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════ 主内容区 ═══════════════════════ -->
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- ── 顶部 4 卡片 ────────────────────────────────────────── -->
+  <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+    <!-- 持仓概览 -->
+    <div class="stat-card bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">持仓概览</div>
+      <div id="card-portfolio" class="space-y-1">
+        <div class="text-gray-600 text-sm">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 今日选股（前5） -->
+    <div class="stat-card bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">今日选股 Top5</div>
+      <div id="card-signals" class="space-y-1">
+        <div class="text-gray-600 text-sm">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 因子健康 -->
+    <div class="stat-card bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">因子健康</div>
+      <div id="card-factors" class="space-y-1">
+        <div class="text-gray-600 text-sm">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 风险预警 -->
+    <div class="stat-card bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">风险预警</div>
+      <div id="card-risk" class="space-y-1">
+        <div class="text-gray-600 text-sm">加载中...</div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── NAV 折线图 ──────────────────────────────────────────── -->
+  <section class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-semibold text-gray-200">净值走势</h2>
+      <!-- 时间范围切换按钮 -->
+      <div class="flex gap-2">
+        <button onclick="switchRange('1M')" data-range="1M"
+          class="range-btn px-3 py-1 text-xs rounded-lg bg-indigo-600 text-white">1M</button>
+        <button onclick="switchRange('3M')" data-range="3M"
+          class="range-btn px-3 py-1 text-xs rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700">3M</button>
+        <button onclick="switchRange('6M')" data-range="6M"
+          class="range-btn px-3 py-1 text-xs rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700">6M</button>
+        <button onclick="switchRange('ALL')" data-range="ALL"
+          class="range-btn px-3 py-1 text-xs rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700">全部</button>
+      </div>
+    </div>
+    <div id="nav-empty" class="hidden text-center text-gray-600 py-8">暂无历史数据</div>
+    <div style="height:260px; position:relative;">
+      <canvas id="nav-chart"></canvas>
+    </div>
+  </section>
+
+  <!-- ── 下方两列：AI 分析 + Pipeline ────────────────────────── -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+    <!-- AI 分析区 -->
+    <section class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+      <h2 class="font-semibold text-gray-200">AI 分析</h2>
+
+      <!-- 输入区 -->
+      <div class="space-y-2">
+        <div class="flex gap-2">
+          <input id="ai-symbol" type="text" placeholder="股票代码，如 000001"
+            class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm
+                   text-gray-200 placeholder-gray-600 focus:outline-none focus:border-indigo-500" />
+        </div>
+        <textarea id="ai-context" rows="2" placeholder="可选：背景数据（PE、PB、ROE 等）"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm
+                 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+        <div class="flex gap-2">
+          <button onclick="runAnalyze()" id="btn-analyze"
+            class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium
+                   py-2 rounded-lg transition-colors disabled:opacity-50">
+            分析
+          </button>
+          <button onclick="runDebate()" id="btn-debate"
+            class="flex-1 bg-purple-700 hover:bg-purple-600 text-white text-sm font-medium
+                   py-2 rounded-lg transition-colors disabled:opacity-50">
+            辩论
+          </button>
+        </div>
+      </div>
+
+      <!-- AI 结果展示区 -->
+      <div id="ai-result" class="space-y-3 max-h-80 overflow-y-auto pr-1"></div>
+    </section>
+
+    <!-- Pipeline 触发区 -->
+    <section class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+      <h2 class="font-semibold text-gray-200">Pipeline 控制</h2>
+
+      <div class="space-y-3">
+        <div class="flex gap-2 items-center">
+          <input id="pipeline-date" type="date"
+            class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm
+                   text-gray-200 focus:outline-none focus:border-indigo-500" />
+          <button onclick="runPipeline()" id="btn-pipeline"
+            class="bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-medium
+                   px-4 py-2 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap">
+            运行今日选股
+          </button>
+        </div>
+
+        <!-- 进度区：显示文字进度，不只有进度条 -->
+        <div id="pipeline-progress" class="space-y-2 max-h-64 overflow-y-auto"></div>
+
+        <!-- 选股结果 -->
+        <div id="pipeline-result" class="hidden">
+          <div class="text-xs text-gray-500 mb-2">选股结果（前10）</div>
+          <div id="pipeline-picks" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+</main>
+
+<!-- ═══════════════════════ JavaScript ═══════════════════════ -->
+<script>
+// ═══════════════════════════════════════════════════════════════
+// 全局状态
+// ═══════════════════════════════════════════════════════════════
+let navChart = null;       // Chart.js 实例
+let navAllData = null;     // 完整 NAV 数据（含 hs300 对比线）
+let currentRange = '1M';   // 当前时间范围
+
+// ═══════════════════════════════════════════════════════════════
+// SSE 工具：用 fetch + ReadableStream 解析（不用 EventSource）
+// ═══════════════════════════════════════════════════════════════
+async function fetchSSE(url, body, onEvent, onDone) {
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    onEvent({ stage: 'error', content: `网络错误: ${e.message}` });
+    onDone && onDone();
+    return;
+  }
+
+  if (!resp.ok) {
+    onEvent({ stage: 'error', content: `服务端错误 HTTP ${resp.status}` });
+    onDone && onDone();
+    return;
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  // 逐块读取并解析 SSE 数据行
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // 以空行分割 SSE 块
+    const chunks = buffer.split('\n\n');
+    buffer = chunks.pop(); // 保留最后一个未完成的块
+
+    for (const chunk of chunks) {
+      const line = chunk.trim();
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const data = JSON.parse(line.slice(6));
+        onEvent(data);
+      } catch (_) { /* 忽略非 JSON 行 */ }
+    }
+  }
+
+  onDone && onDone();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 工具函数
+// ═══════════════════════════════════════════════════════════════
+
+/** 生成 HTML 徽章 */
+function badge(text, colorClass) {
+  return `<span class="inline-block px-2 py-0.5 text-xs rounded-full ${colorClass}">${text}</span>`;
+}
+
+/** 安全取值 */
+function safeVal(v, fmt) {
+  if (v === null || v === undefined || (typeof v === 'number' && isNaN(v))) return '—';
+  return fmt ? fmt(v) : v;
+}
+
+/** 格式化百分比 */
+function pct(v) { return safeVal(v, x => `${(x * 100).toFixed(2)}%`); }
+
+/** 格式化两位小数 */
+function fix2(v) { return safeVal(v, x => x.toFixed(2)); }
+
+// ═══════════════════════════════════════════════════════════════
+// 数据新鲜度指示器
+// ═══════════════════════════════════════════════════════════════
+async function loadFreshness() {
+  try {
+    const resp = await fetch('/api/data/status');
+    if (!resp.ok) throw new Error(resp.status);
+    const d = await resp.json();
+    const fresh = d.is_fresh !== false;
+    document.getElementById('freshness-icon').textContent = fresh ? '✅' : '❌';
+    document.getElementById('freshness-date').textContent = d.latest_date || '未知';
+    document.getElementById('freshness-date').className =
+      fresh ? 'text-emerald-400 text-sm' : 'text-red-400 text-sm';
+  } catch (_) {
+    document.getElementById('freshness-icon').textContent = '⚠️';
+    document.getElementById('freshness-date').textContent = '数据状态获取失败';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 持仓概览卡片
+// ═══════════════════════════════════════════════════════════════
+async function loadPortfolio() {
+  const el = document.getElementById('card-portfolio');
+  try {
+    const resp = await fetch('/api/portfolio/');
+    if (!resp.ok) throw new Error(resp.status);
+    const d = await resp.json();
+    const retColor = (d.total_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400';
+    el.innerHTML = `
+      <div class="text-2xl font-bold text-white">${safeVal(d.nav, x => x.toFixed(4))}</div>
+      <div class="text-xs ${retColor}">${pct(d.total_return)} 总收益</div>
+      <div class="flex gap-3 mt-2 text-xs text-gray-400">
+        <span>夏普 ${fix2(d.sharpe)}</span>
+        <span>回撤 ${pct(d.max_drawdown)}</span>
+        <span>${safeVal(d.n_positions, x => x + ' 只')}持仓</span>
+      </div>`;
+  } catch (_) {
+    el.innerHTML = '<div class="text-gray-600 text-sm">暂无数据</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 今日选股 Top5 卡片
+// ═══════════════════════════════════════════════════════════════
+async function loadSignals() {
+  const el = document.getElementById('card-signals');
+  try {
+    const resp = await fetch('/api/signals/');
+    if (!resp.ok) throw new Error(resp.status);
+    const d = await resp.json();
+    const picks = (d.picks || []).slice(0, 5);
+    if (!picks.length) {
+      el.innerHTML = '<div class="text-gray-600 text-sm">暂无数据</div>';
+      return;
+    }
+    el.innerHTML = picks.map((p, i) =>
+      `<div class="flex items-center justify-between text-sm">
+        <span class="text-gray-300">${i + 1}. ${p.symbol || p}</span>
+        ${p.score != null ? `<span class="text-indigo-300 text-xs">${fix2(p.score)}</span>` : ''}
+      </div>`
+    ).join('');
+  } catch (_) {
+    el.innerHTML = '<div class="text-gray-600 text-sm">暂无数据</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 因子健康卡片
+// ═══════════════════════════════════════════════════════════════
+async function loadFactors() {
+  const el = document.getElementById('card-factors');
+  try {
+    const resp = await fetch('/api/factors/health');
+    if (!resp.ok) throw new Error(resp.status);
+    const d = await resp.json();
+    const items = Array.isArray(d) ? d : (d.factors || []);
+    if (!items.length) {
+      el.innerHTML = '<div class="text-gray-600 text-sm">暂无数据</div>';
+      return;
+    }
+    el.innerHTML = items.slice(0, 4).map(f => {
+      const ok = f.status === 'healthy' || f.icir > 0.3;
+      return `<div class="flex items-center gap-2 text-sm">
+        <span class="${ok ? 'text-emerald-400' : 'text-yellow-400'}">${ok ? '●' : '○'}</span>
+        <span class="text-gray-300 truncate">${f.name || f.factor_name || '—'}</span>
+        ${f.icir != null ? `<span class="ml-auto text-xs text-gray-500">ICIR ${fix2(f.icir)}</span>` : ''}
+      </div>`;
+    }).join('');
+  } catch (_) {
+    el.innerHTML = '<div class="text-gray-600 text-sm">暂无数据</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 风险预警卡片
+// ═══════════════════════════════════════════════════════════════
+async function loadRisk() {
+  const el = document.getElementById('card-risk');
+  try {
+    const resp = await fetch('/api/risk/alerts');
+    if (!resp.ok) throw new Error(resp.status);
+    const d = await resp.json();
+    const alerts = Array.isArray(d) ? d : (d.alerts || []);
+    if (!alerts.length) {
+      el.innerHTML = `<div class="flex items-center gap-2">
+        <span class="text-emerald-400 text-lg">✅</span>
+        <span class="text-gray-400 text-sm">无风险预警</span>
+      </div>`;
+      return;
+    }
+    el.innerHTML = alerts.slice(0, 3).map(a => {
+      const lvl = a.level || 'warning';
+      const color = lvl === 'critical' ? 'text-red-400' : 'text-yellow-400';
+      return `<div class="flex items-start gap-2 text-sm">
+        <span class="${color}">⚠</span>
+        <span class="text-gray-300 text-xs leading-tight">${a.message || a.msg || JSON.stringify(a)}</span>
+      </div>`;
+    }).join('');
+  } catch (_) {
+    el.innerHTML = '<div class="text-gray-600 text-sm">暂无数据</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAV 折线图
+// ═══════════════════════════════════════════════════════════════
+
+/** 根据时间范围过滤数据 */
+function filterByRange(data, range) {
+  if (range === 'ALL' || !data || !data.length) return data;
+  const daysMap = { '1M': 30, '3M': 90, '6M': 180 };
+  const days = daysMap[range] || 30;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return data.filter(row => new Date(row.date) >= cutoff);
+}
+
+/** 切换时间范围 */
+function switchRange(range) {
+  currentRange = range;
+  // 更新按钮样式
+  document.querySelectorAll('.range-btn').forEach(btn => {
+    const active = btn.dataset.range === range;
+    btn.className = btn.className.replace(
+      /bg-(indigo|gray)-\w+ text-(white|gray-400)/g, ''
+    );
+    btn.classList.remove('bg-indigo-600', 'text-white', 'bg-gray-800', 'text-gray-400');
+    if (active) {
+      btn.classList.add('bg-indigo-600', 'text-white');
+    } else {
+      btn.classList.add('bg-gray-800', 'text-gray-400', 'hover:bg-gray-700');
+    }
+  });
+
+  if (navAllData) renderNavChart(filterByRange(navAllData, range));
+}
+
+/** 渲染 NAV Chart */
+function renderNavChart(rows) {
+  const ctx = document.getElementById('nav-chart').getContext('2d');
+  if (navChart) navChart.destroy();
+
+  if (!rows || !rows.length) {
+    document.getElementById('nav-empty').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('nav-empty').classList.add('hidden');
+
+  const labels  = rows.map(r => r.date);
+  const navVals = rows.map(r => r.nav);
+  const hs300   = rows.map(r => r.hs300 !== undefined ? r.hs300 : null);
+  const hasHS300 = hs300.some(v => v !== null);
+
+  const datasets = [{
+    label: '策略净值',
+    data: navVals,
+    borderColor: '#6366f1',
+    backgroundColor: 'rgba(99,102,241,0.1)',
+    borderWidth: 2,
+    pointRadius: 0,
+    fill: true,
+    tension: 0.3,
+  }];
+
+  if (hasHS300) {
+    datasets.push({
+      label: '沪深300',
+      data: hs300,
+      borderColor: '#f59e0b',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: false,
+      borderDash: [4, 4],
+      tension: 0.3,
+    });
+  }
+
+  navChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#9ca3af', boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: '#1f2937',
+          borderColor: '#374151',
+          borderWidth: 1,
+          titleColor: '#e5e7eb',
+          bodyColor: '#d1d5db',
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#6b7280', maxTicksLimit: 8 },
+          grid: { color: '#1f2937' },
+        },
+        y: {
+          ticks: { color: '#6b7280' },
+          grid: { color: '#1f2937' },
+        },
+      },
+    },
+  });
+}
+
+/** 加载 NAV 数据 */
+async function loadNav() {
+  try {
+    const resp = await fetch('/api/portfolio/nav');
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    if (!data || !data.length) {
+      document.getElementById('nav-empty').classList.remove('hidden');
+      return;
+    }
+    navAllData = data;
+    renderNavChart(filterByRange(data, currentRange));
+  } catch (_) {
+    document.getElementById('nav-empty').classList.remove('hidden');
+    renderNavChart([]); // 后端不可用时显示占位
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AI 分析区
+// ═══════════════════════════════════════════════════════════════
+
+/** 禁用/启用 AI 按钮 */
+function setAIBusy(busy) {
+  document.getElementById('btn-analyze').disabled = busy;
+  document.getElementById('btn-debate').disabled = busy;
+}
+
+/** 清空并准备 AI 结果区 */
+function clearAIResult() {
+  document.getElementById('ai-result').innerHTML = '';
+}
+
+/** 向 AI 结果区追加一个块 */
+function appendAIBlock(cls, title, content) {
+  const el = document.getElementById('ai-result');
+  const div = document.createElement('div');
+  div.className = `${cls} bg-gray-800 rounded-lg p-3 pl-4 text-sm`;
+  div.innerHTML = `<div class="text-xs text-gray-500 mb-1">${title}</div>
+    <div class="text-gray-200 leading-relaxed">${content}</div>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+/** 处理 AI SSE 事件 */
+function handleAIEvent(data) {
+  const { stage, content, rebuttals, confidence, key_factors } = data;
+  if (stage === 'start') {
+    appendAIBlock('stage-result', '⚡ 开始', content);
+  } else if (stage === 'analyzing') {
+    appendAIBlock('stage-result', '🔍 分析中', content);
+  } else if (stage === 'bull') {
+    const items = Array.isArray(content) ? content.map(s => `<li>${s}</li>`).join('') : content;
+    appendAIBlock('stage-bull', '🟢 看多', `<ul class="list-disc list-inside space-y-1">${items}</ul>`);
+  } else if (stage === 'bear') {
+    const bearItems = Array.isArray(content) ? content.map(s => `<li>${s}</li>`).join('') : content;
+    const rebuttalItems = Array.isArray(rebuttals)
+      ? rebuttals.map(s => `<li class="text-gray-400">${s}</li>`).join('')
+      : '';
+    let html = `<ul class="list-disc list-inside space-y-1">${bearItems}</ul>`;
+    if (rebuttalItems) html += `<div class="mt-2 text-xs text-gray-500">反驳</div>
+      <ul class="list-disc list-inside space-y-1 text-xs">${rebuttalItems}</ul>`;
+    appendAIBlock('stage-bear', '🔴 看空', html);
+  } else if (stage === 'moderator') {
+    const conf = confidence != null ? `(置信度 ${(confidence * 100).toFixed(0)}%)` : '';
+    const factors = Array.isArray(key_factors) && key_factors.length
+      ? `<div class="mt-1 text-xs text-gray-400">关键因素: ${key_factors.join(' / ')}</div>` : '';
+    appendAIBlock('stage-mod', `🏛 结论 ${conf}`, `${content}${factors}`);
+  } else if (stage === 'result') {
+    // StockAnalyst 全量结果
+    const summary = content.price_summary || {};
+    const debate  = content.debate || {};
+    let html = '';
+    if (summary.latest_price) {
+      html += `<div>最新价: <b>${summary.latest_price}</b> `;
+      html += `| 年化收益: ${pct(summary.annualized_return)} `;
+      html += `| Sharpe: ${fix2(summary.sharpe)}</div>`;
+    }
+    if (debate.conclusion) {
+      html += `<div class="mt-2 text-yellow-300">结论: ${debate.conclusion}</div>`;
+      if (debate.confidence != null)
+        html += `<div class="text-xs text-gray-400">置信度 ${(debate.confidence * 100).toFixed(0)}%</div>`;
+    }
+    if (!html) html = '<pre class="text-xs overflow-auto">' + JSON.stringify(content, null, 2) + '</pre>';
+    appendAIBlock('stage-result', '📊 分析结果', html);
+  } else if (stage === 'error') {
+    appendAIBlock('stage-bear', '❌ 错误', content);
+  } else if (stage === 'done') {
+    appendAIBlock('stage-mod', '✅ 完成', '分析已完成');
+  }
+}
+
+/** 运行 AI 分析 */
+async function runAnalyze() {
+  const symbol = document.getElementById('ai-symbol').value.trim();
+  if (!symbol) { alert('请输入股票代码'); return; }
+  clearAIResult();
+  setAIBusy(true);
+  try {
+    await fetchSSE('/api/ai/analyze', { symbol }, handleAIEvent);
+  } finally {
+    setAIBusy(false);
+  }
+}
+
+/** 运行牛熊辩论 */
+async function runDebate() {
+  const symbol  = document.getElementById('ai-symbol').value.trim();
+  const context = document.getElementById('ai-context').value.trim();
+  if (!symbol) { alert('请输入股票代码'); return; }
+  clearAIResult();
+  setAIBusy(true);
+  try {
+    await fetchSSE('/api/ai/debate', { symbol, context }, handleAIEvent);
+  } finally {
+    setAIBusy(false);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Pipeline 触发区
+// ═══════════════════════════════════════════════════════════════
+
+/** 追加 Pipeline 进度行 */
+function appendPipelineStep(text, type) {
+  const el = document.getElementById('pipeline-progress');
+  const div = document.createElement('div');
+  const colorMap = { error: 'text-red-400', done: 'text-emerald-400', start: 'text-indigo-400' };
+  const color = colorMap[type] || 'text-gray-300';
+  div.className = `flex items-start gap-2 text-sm ${color} ${type === 'loading' ? 'pulse-dot' : ''}`;
+  div.innerHTML = `<span class="text-gray-600 text-xs mt-0.5">${new Date().toLocaleTimeString()}</span>
+    <span>${text}</span>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+/** 运行 Pipeline */
+async function runPipeline() {
+  const dateEl = document.getElementById('pipeline-date');
+  const date = dateEl.value || new Date().toISOString().split('T')[0];
+  const btn = document.getElementById('btn-pipeline');
+
+  document.getElementById('pipeline-progress').innerHTML = '';
+  document.getElementById('pipeline-result').classList.add('hidden');
+  document.getElementById('pipeline-picks').innerHTML = '';
+  btn.disabled = true;
+
+  try {
+    await fetchSSE('/api/pipeline/run', { date }, (data) => {
+      const { stage, content, picks, n_total } = data;
+
+      if (stage === 'start')    appendPipelineStep(content, 'start');
+      else if (stage === 'loading')   appendPipelineStep(content, 'loading');
+      else if (stage === 'computing') appendPipelineStep(content, 'loading');
+      else if (stage === 'filtering') appendPipelineStep(content, 'loading');
+      else if (stage === 'error')     appendPipelineStep(`错误: ${content}`, 'error');
+      else if (stage === 'done') {
+        appendPipelineStep(content, 'done');
+        // 显示选股结果
+        if (picks && picks.length) {
+          const picksEl = document.getElementById('pipeline-picks');
+          picks.forEach(sym => {
+            const span = document.createElement('span');
+            span.className = 'bg-indigo-900 text-indigo-200 px-2 py-1 text-xs rounded-lg';
+            span.textContent = typeof sym === 'string' ? sym : sym.symbol || JSON.stringify(sym);
+            picksEl.appendChild(span);
+          });
+          if (n_total > picks.length) {
+            const more = document.createElement('span');
+            more.className = 'text-gray-500 text-xs py-1';
+            more.textContent = `...共 ${n_total} 只`;
+            picksEl.appendChild(more);
+          }
+          document.getElementById('pipeline-result').classList.remove('hidden');
+        }
+      }
+    });
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 初始化与自动刷新
+// ═══════════════════════════════════════════════════════════════
+
+/** 加载所有只读数据 */
+async function loadAll() {
+  // 每个模块独立 try/catch，互不影响
+  await Promise.allSettled([
+    loadFreshness(),
+    loadPortfolio(),
+    loadSignals(),
+    loadFactors(),
+    loadRisk(),
+    loadNav(),
+  ]);
+  document.getElementById('last-refresh').textContent =
+    `上次刷新: ${new Date().toLocaleTimeString()}`;
+}
+
+/** 初始化 pipeline 日期默认值（今日） */
+function initPipelineDate() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('pipeline-date').value = today;
+}
+
+// 页面加载时执行
+document.addEventListener('DOMContentLoaded', () => {
+  initPipelineDate();
+  loadAll();
+  // 每 5 分钟自动刷新只读数据
+  setInterval(loadAll, 5 * 60 * 1000);
+});
+</script>
+
 </body>
 </html>
