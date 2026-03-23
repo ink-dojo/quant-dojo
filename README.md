@@ -1,5 +1,7 @@
 # quant-dojo 量化道场
 
+> 总工作计划入口：[`WORKPLAN.md`](./WORKPLAN.md)
+
 ## 量化工作台（Dashboard）
 
 ```bash
