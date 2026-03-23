@@ -56,17 +56,20 @@ class TestSignalStructure(unittest.TestCase):
         from pipeline.daily_signal import run_daily_pipeline
 
         price_df = self._fake_price_df()
+        test_date = price_df.index[-1].strftime("%Y-%m-%d")
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            with (
-                patch("pipeline.daily_signal.get_all_symbols", return_value=self.SYMBOLS),
-                patch("pipeline.daily_signal.load_price_wide", return_value=price_df),
-                # 因子数据不可用时函数会 warn 并跳过，仍应正常返回
-                patch("pipeline.daily_signal.load_factor_wide", side_effect=Exception("无数据")),
-                patch("pipeline.daily_signal.SIGNAL_DIR", tmp_path / "signals"),
-                patch("pipeline.daily_signal.SNAPSHOT_DIR", tmp_path / "snapshots"),
-            ):
-                result = run_daily_pipeline(date="2026-03-20", n_stocks=2)
+            # to_parquet 需要 pyarrow（测试环境可能未安装），用 side_effect 创建空文件以使后续 rename 成功
+            def _fake_to_parquet(path, **kwargs):
+                Path(path).touch()
+
+            with patch("pipeline.daily_signal.get_all_symbols", return_value=self.SYMBOLS), \
+                 patch("pipeline.daily_signal.load_price_wide", return_value=price_df), \
+                 patch("pipeline.daily_signal.load_factor_wide", side_effect=Exception("无数据")), \
+                 patch("pipeline.daily_signal.SIGNAL_DIR", tmp_path / "signals"), \
+                 patch("pipeline.daily_signal.SNAPSHOT_DIR", tmp_path / "snapshots"), \
+                 patch("pandas.DataFrame.to_parquet", side_effect=_fake_to_parquet):
+                result = run_daily_pipeline(date=test_date, n_stocks=2)
 
         required_keys = {"date", "picks", "scores", "factor_values", "excluded"}
         for key in required_keys:
@@ -80,13 +83,9 @@ class TestSignalStructure(unittest.TestCase):
         """
         from pipeline.daily_signal import run_daily_pipeline
 
-        with (
-            patch("pipeline.daily_signal.get_all_symbols", return_value=self.SYMBOLS),
-            patch(
-                "pipeline.daily_signal.load_price_wide",
-                side_effect=FileNotFoundError("parquet 文件不存在"),
-            ),
-        ):
+        with patch("pipeline.daily_signal.get_all_symbols", return_value=self.SYMBOLS), \
+             patch("pipeline.daily_signal.load_price_wide",
+                   side_effect=FileNotFoundError("parquet 文件不存在")):
             result = run_daily_pipeline(date="2026-03-20")
 
         self.assertIn("error", result, "数据加载失败时应返回 error key")
@@ -98,14 +97,10 @@ class TestSignalStructure(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             signal_dir = Path(tmp) / "signals"
-            with (
-                patch("pipeline.daily_signal.get_all_symbols", return_value=self.SYMBOLS),
-                patch(
-                    "pipeline.daily_signal.load_price_wide",
-                    side_effect=FileNotFoundError("无数据"),
-                ),
-                patch("pipeline.daily_signal.SIGNAL_DIR", signal_dir),
-            ):
+            with patch("pipeline.daily_signal.get_all_symbols", return_value=self.SYMBOLS), \
+                 patch("pipeline.daily_signal.load_price_wide",
+                       side_effect=FileNotFoundError("无数据")), \
+                 patch("pipeline.daily_signal.SIGNAL_DIR", signal_dir):
                 run_daily_pipeline(date="2026-03-20")
 
             # 目录不存在，或存在但为空 → 均视为未写入
@@ -139,12 +134,10 @@ class TestPaperTraderInit(unittest.TestCase):
     def _patch_portfolio_dir(self):
         """将 paper_trader 模块的文件路径全部重定向到临时目录。"""
         d = self._d
-        with (
-            patch("live.paper_trader.PORTFOLIO_DIR", d),
-            patch("live.paper_trader.POSITIONS_FILE", d / "positions.json"),
-            patch("live.paper_trader.TRADES_FILE", d / "trades.json"),
-            patch("live.paper_trader.NAV_FILE", d / "nav.csv"),
-        ):
+        with patch("live.paper_trader.PORTFOLIO_DIR", d), \
+             patch("live.paper_trader.POSITIONS_FILE", d / "positions.json"), \
+             patch("live.paper_trader.TRADES_FILE", d / "trades.json"), \
+             patch("live.paper_trader.NAV_FILE", d / "nav.csv"):
             yield d
 
     def test_cash_key_in_positions(self):
@@ -201,10 +194,8 @@ class TestRiskMonitorInterface(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             nav_file = Path(tmp) / "nav.csv"  # 故意不创建
-            with (
-                patch("live.risk_monitor.NAV_FILE", nav_file),
-                patch("live.risk_monitor._log_decision"),  # 避免写 .claude/decisions.md
-            ):
+            with patch("live.risk_monitor.NAV_FILE", nav_file), \
+                 patch("live.risk_monitor._log_decision"):
                 result = check_risk_alerts(self._make_portfolio())
 
         self.assertIsInstance(result, list)
@@ -224,10 +215,8 @@ class TestRiskMonitorInterface(unittest.TestCase):
                 "nav":  [100_000,      110_000,      85_000],
             }).to_csv(nav_file, index=False)
 
-            with (
-                patch("live.risk_monitor.NAV_FILE", nav_file),
-                patch("live.risk_monitor._log_decision"),
-            ):
+            with patch("live.risk_monitor.NAV_FILE", nav_file), \
+                 patch("live.risk_monitor._log_decision"):
                 alerts = check_risk_alerts(self._make_portfolio())
 
         self.assertIsInstance(alerts, list)
@@ -247,10 +236,8 @@ class TestRiskMonitorInterface(unittest.TestCase):
                 "nav":  [100_000,      110_000,      85_000],
             }).to_csv(nav_file, index=False)
 
-            with (
-                patch("live.risk_monitor.NAV_FILE", nav_file),
-                patch("live.risk_monitor._log_decision"),
-            ):
+            with patch("live.risk_monitor.NAV_FILE", nav_file), \
+                 patch("live.risk_monitor._log_decision"):
                 alerts = check_risk_alerts(self._make_portfolio())
 
         valid_levels = {"warning", "critical"}

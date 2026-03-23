@@ -9,7 +9,7 @@ config/config.example.yaml，最终降级到硬编码默认值。
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -37,7 +37,7 @@ _DEFAULTS = {
 }
 
 # 模块级缓存，避免重复读取磁盘
-_config_cache: dict | None = None
+_config_cache: Optional[dict] = None
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
