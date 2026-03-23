@@ -126,6 +126,9 @@ Dashboard 的位置很明确：
 
 这一步是从“很多工具”升级到“量化操作系统”的关键。
 
+详细执行计划见：
+- [GOAL_control_plane.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_control_plane.md)
+
 ### Long-Term Direction: Agentic Portfolio Manager
 
 长期目标不是做一个会说话的 dashboard，而是建立一套有门禁的 agentic workflow：
@@ -223,6 +226,7 @@ AI 提议研究方向
 说明：
 - CLI 统一所有策略回测、比较、信号、调仓、周报、风险检查
 - Dashboard 展示运行结果、策略比较、组合状态、风险告警、AI 解释
+- 详细计划见 [GOAL_control_plane.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_control_plane.md)
 
 ### Agentic Track
 定位：AI 从研究助手升级到有门禁的研究操作员  
