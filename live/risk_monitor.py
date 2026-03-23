@@ -6,6 +6,7 @@ risk_monitor.py — 实时风险监控
 
 import os
 from pathlib import Path
+from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ import pandas as pd
 # nav.csv 路径（与 paper_trader.py 保持一致）
 NAV_FILE = Path(__file__).parent / "portfolio" / "nav.csv"
 
-def _load_risk_thresholds() -> tuple[float, float, float]:
+def _load_risk_thresholds() -> Tuple[float, float, float]:
     """
     从运行时配置加载风险阈值。
 
@@ -54,7 +55,7 @@ def _log_decision(msg: str):
         f.write(f"\n- [{datetime.now().strftime('%Y-%m-%d %H:%M')}] {msg}\n")
 
 
-def _compute_current_drawdown() -> float | None:
+def _compute_current_drawdown() -> Optional[float]:
     """
     从 nav.csv 计算当前回撤（相对历史最高净值）。
 
@@ -77,7 +78,7 @@ def _compute_current_drawdown() -> float | None:
     return float(current_drawdown)
 
 
-def check_risk_alerts(portfolio, price_data: dict | None = None) -> list:
+def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
     """
     检查当前持仓的各类风险指标，返回预警列表。
 
