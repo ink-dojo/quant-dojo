@@ -129,6 +129,7 @@ def cmd_rebalance(args):
         args: argparse 命名空间，包含必需的 date 字段
     """
     import importlib
+    import pandas as pd
 
     date = args.date
     print(f"正在执行 {date} 调仓...")
@@ -137,12 +138,19 @@ def cmd_rebalance(args):
     daily_signal = importlib.import_module("pipeline.daily_signal")
     result = daily_signal.run_daily_pipeline(date)
     picks = result.get("picks", [])
-    factor_values = result.get("factor_values", {})
+    if result.get("error"):
+        raise RuntimeError(result["error"])
 
-    # 从因子值中提取当日价格（如有）
-    prices = {}
-    if "close" in factor_values:
-        prices = factor_values["close"]
+    local_loader = importlib.import_module("utils.local_data_loader")
+    load_price_wide = local_loader.load_price_wide
+    price_wide = load_price_wide(picks, date, date, field="close")
+    if price_wide.empty:
+        raise RuntimeError(f"无法加载 {date} 的收盘价，调仓中止")
+    prices = {
+        symbol: float(price_wide.iloc[-1][symbol])
+        for symbol in price_wide.columns
+        if pd.notna(price_wide.iloc[-1][symbol])
+    }
 
     # 2. 执行调仓
     paper_trader_mod = importlib.import_module("live.paper_trader")
@@ -174,21 +182,18 @@ def cmd_performance(args):
     if isinstance(perf, dict):
         label_map = {
             "total_return": "总收益率",
-            "annual_return": "年化收益率",
-            "sharpe_ratio": "夏普比率",
+            "annualized_return": "年化收益率",
+            "sharpe": "夏普比率",
             "max_drawdown": "最大回撤",
-            "win_rate": "胜率",
-            "start_date": "开始日期",
-            "end_date": "结束日期",
-            "initial_capital": "初始资金",
-            "current_value": "当前净值",
+            "n_trades": "交易笔数",
+            "running_days": "运行天数",
         }
         for key, val in perf.items():
             label = label_map.get(key, key)
             if isinstance(val, float):
-                if key in ("total_return", "annual_return", "max_drawdown", "win_rate"):
+                if key in ("total_return", "annualized_return", "max_drawdown"):
                     print(f"  {label:<12}: {val*100:+.2f}%")
-                elif key in ("sharpe_ratio",):
+                elif key in ("sharpe",):
                     print(f"  {label:<12}: {val:.4f}")
                 else:
                     print(f"  {label:<12}: {val:,.2f}")
@@ -215,13 +220,13 @@ def cmd_factor_health(args):
     report = factor_monitor.factor_health_report()
 
     if isinstance(report, dict):
-        print(f"{'因子':<20} {'近期IC均值':>12} {'IC_IR':>8} {'状态':>10}")
-        print("-" * 55)
+        print(f"{'因子':<20} {'近期IC均值':>12} {'状态':>10}")
+        print("-" * 45)
         for factor, metrics in report.items():
-            ic_mean = metrics.get("ic_mean", 0)
-            ic_ir = metrics.get("ic_ir", 0)
+            ic_mean = metrics.get("rolling_ic", 0)
             status = metrics.get("status", "-")
-            print(f"{factor:<20} {ic_mean:>12.4f} {ic_ir:>8.4f} {status:>10}")
+            ic_display = f"{ic_mean:.4f}" if ic_mean == ic_mean else "nan"
+            print(f"{factor:<20} {ic_display:>12} {status:>10}")
     elif isinstance(report, str):
         print(report)
     else:
@@ -267,9 +272,9 @@ def cmd_risk_check(args):
             print("✅ 当前无风险预警")
         else:
             for alert in alerts:
-                level = alert.get("level", "INFO")
-                msg = alert.get("message", str(alert))
-                icon = "🔴" if level == "ERROR" else "🟡" if level == "WARNING" else "ℹ️"
+                level = str(alert.get("level", "info")).lower()
+                msg = alert.get("msg", str(alert))
+                icon = "🔴" if level == "critical" else "🟡" if level == "warning" else "ℹ️"
                 print(f"{icon} [{level}] {msg}")
     elif isinstance(alerts, dict):
         for key, val in alerts.items():

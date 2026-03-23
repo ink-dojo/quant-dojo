@@ -7,11 +7,12 @@ factor_monitor.py — 因子健康度监控
 
 import warnings
 from pathlib import Path
-from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+from utils.local_data_loader import load_price_wide
 
 # 因子快照存储路径
 FACTOR_SNAPSHOT_DIR = Path(__file__).parent.parent / "live" / "factor_snapshot"
@@ -24,7 +25,7 @@ def compute_rolling_ic(
     """
     计算因子的滚动 IC（信息系数）
 
-    从 live/factor_snapshot/ 加载因子快照，计算每日的秩相关系数与次日收益的关系。
+    从 live/factor_snapshot/ 加载因子快照，并用本地价格数据计算次日收益。
 
     参数:
         factor_name    : 因子名称（e.g. "momentum_20", "ep", "low_vol", "turnover"）
@@ -71,7 +72,6 @@ def compute_rolling_ic(
             )
             continue
 
-        # 快照应包含 factor 列（因子值）和 next_return 列（次日收益）
         if factor_name not in df_snap.columns:
             warnings.warn(
                 f"快照 {snap_file.name} 中不包含因子 {factor_name}，跳过",
@@ -80,17 +80,42 @@ def compute_rolling_ic(
             )
             continue
 
-        if "next_return" not in df_snap.columns:
-            warnings.warn(
-                f"快照 {snap_file.name} 中不包含 next_return，跳过",
-                RuntimeWarning,
-                stacklevel=2,
-            )
+        factor_vals = df_snap[factor_name].dropna()
+        if factor_vals.empty:
             continue
 
-        # 提取因子值和收益，去掉 NaN
-        factor_vals = df_snap[factor_name].dropna()
-        returns_vals = df_snap["next_return"].dropna()
+        dates_list.append(pd.Timestamp(snap_file.stem))
+        ic_list.append((snap_file, factor_vals))
+
+    if not ic_list:
+        warnings.warn(
+            f"因子 {factor_name} 未能读取到任何有效快照，返回空 Series",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return pd.Series(dtype=float, name=f"IC_{factor_name}")
+
+    symbols = sorted({symbol for _, factor_vals in ic_list for symbol in factor_vals.index})
+    start = min(dates_list).strftime("%Y-%m-%d")
+    end = (max(dates_list) + pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    price_wide = load_price_wide(symbols, start, end, field="close")
+    if price_wide.empty:
+        warnings.warn(
+            f"无法加载价格数据计算因子 {factor_name} 的次日收益，返回空 Series",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return pd.Series(dtype=float, name=f"IC_{factor_name}")
+
+    next_return_wide = price_wide.pct_change().shift(-1)
+
+    ic_values = []
+    ic_dates = []
+    for snap_file, factor_vals in ic_list:
+        snap_date = pd.Timestamp(snap_file.stem)
+        if snap_date not in next_return_wide.index:
+            continue
+        returns_vals = next_return_wide.loc[snap_date].dropna()
 
         # 取交集
         common_idx = factor_vals.index.intersection(returns_vals.index)
@@ -104,10 +129,8 @@ def compute_rolling_ic(
         try:
             corr, _ = stats.spearmanr(factor_cross, returns_cross)
             if not np.isnan(corr):
-                ic_list.append(float(corr))
-                # 使用文件名（YYYYMMDD.parquet）作为日期
-                date_str = snap_file.stem  # 去掉 .parquet 后缀
-                dates_list.append(pd.Timestamp(date_str))
+                ic_values.append(float(corr))
+                ic_dates.append(snap_date)
         except Exception as e:
             warnings.warn(
                 f"计算 {snap_file.name} 的 IC 失败: {e}",
@@ -116,7 +139,7 @@ def compute_rolling_ic(
             )
             continue
 
-    if not ic_list:
+    if not ic_values:
         warnings.warn(
             f"因子 {factor_name} 未能计算出任何有效的 IC，返回空 Series",
             RuntimeWarning,
@@ -124,7 +147,7 @@ def compute_rolling_ic(
         )
         return pd.Series(dtype=float, name=f"IC_{factor_name}")
 
-    ic_series = pd.Series(ic_list, index=dates_list, name=f"IC_{factor_name}")
+    ic_series = pd.Series(ic_values, index=ic_dates, name=f"IC_{factor_name}")
     return ic_series.sort_index()
 
 
@@ -150,7 +173,7 @@ def factor_health_report() -> dict:
             ...
         }
     """
-    factors_to_check = ["momentum_20", "ep", "low_vol", "turnover"]
+    factors_to_check = ["momentum_20", "ep", "low_vol", "turnover_rev"]
     report = {}
 
     for factor_name in factors_to_check:

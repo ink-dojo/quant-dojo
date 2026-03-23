@@ -58,7 +58,7 @@ def _compute_current_drawdown() -> float | None:
     return float(current_drawdown)
 
 
-def check_risk_alerts(portfolio, price_data: dict) -> list:
+def check_risk_alerts(portfolio, price_data: dict | None = None) -> list:
     """
     检查当前持仓的各类风险指标，返回预警列表。
 
@@ -76,6 +76,7 @@ def check_risk_alerts(portfolio, price_data: dict) -> list:
         预警列表，每项为 {"level": "warning"|"critical", "msg": "...", "symbol": "..."}
     """
     alerts = []
+    price_data = price_data or {}
 
     # --- 1. 回撤检查 ---
     drawdown = _compute_current_drawdown()
@@ -122,7 +123,8 @@ def check_risk_alerts(portfolio, price_data: dict) -> list:
     try:
         from pipeline.factor_monitor import factor_health_report  # type: ignore
         health = factor_health_report()
-        for factor_name, status in health.items():
+        for factor_name, info in health.items():
+            status = info.get("status")
             if status in ("degraded", "dead"):
                 alerts.append({
                     "level": "warning" if status == "degraded" else "critical",

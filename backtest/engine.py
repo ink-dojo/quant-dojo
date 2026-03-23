@@ -33,7 +33,13 @@ class BacktestEngine:
     def run(self) -> pd.DataFrame:
         """执行回测，返回绩效报告"""
         self.results = self.strategy.run(self.data)
-        strategy_returns = self.results["returns"]
+
+        if "returns" in self.results.columns:
+            strategy_returns = self.results["returns"]
+        elif "portfolio_return" in self.results.columns:
+            strategy_returns = self.results["portfolio_return"]
+        else:
+            strategy_returns = self.strategy.get_returns()
 
         returns_dict = {"策略": strategy_returns}
         if self.benchmark_returns is not None:
@@ -59,7 +65,12 @@ class BacktestEngine:
         if self.results is None:
             raise RuntimeError("请先调用 run()")
 
-        strategy_returns = self.results["returns"]
+        if "returns" in self.results.columns:
+            strategy_returns = self.results["returns"]
+        elif "portfolio_return" in self.results.columns:
+            strategy_returns = self.results["portfolio_return"]
+        else:
+            strategy_returns = self.strategy.get_returns()
 
         returns_dict = {"策略": strategy_returns}
         if self.benchmark_returns is not None:

@@ -115,6 +115,17 @@ class PaperTrader:
         row = pd.DataFrame([{"date": trade_date, "nav": nav}])
         row.to_csv(NAV_FILE, mode="a", header=False, index=False)
 
+    def _record_trade(self, trade_date: str, symbol: str, action: str, shares: int, price: float):
+        """记录一笔交易。"""
+        self.trades.append({
+            "date": trade_date,
+            "symbol": symbol,
+            "action": action,
+            "shares": int(shares),
+            "price": float(price),
+            "cost": float(shares * price * TRANSACTION_COST_RATE),
+        })
+
     # ------------------------------------------------------------------
     # 核心接口
     # ------------------------------------------------------------------
@@ -132,6 +143,10 @@ class PaperTrader:
             date: 交易日期字符串，格式 YYYY-MM-DD
         """
         if not new_picks:
+            nav = self._portfolio_value(prices or {})
+            self._append_nav(date, nav)
+            self._save_positions()
+            self._save_trades()
             return
 
         current_symbols = set(
@@ -139,65 +154,99 @@ class PaperTrader:
         )
         target_symbols = set(new_picks)
 
+        tradable_symbols = [
+            sym for sym in new_picks
+            if prices.get(sym) is not None and prices.get(sym, 0) > 0
+        ]
+        if not tradable_symbols:
+            nav = self._portfolio_value(prices)
+            self._append_nav(date, nav)
+            self._save_positions()
+            self._save_trades()
+            return
+
         # --- 先卖出不在目标中的持仓 ---
-        sells = current_symbols - target_symbols
+        sells = current_symbols - set(tradable_symbols)
         for sym in sells:
             info = self.positions[sym]
             sell_price = prices.get(sym, info["current_price"])
-            proceeds = info["shares"] * sell_price * (1 - TRANSACTION_COST_RATE)
+            shares_to_sell = int(info["shares"])
+            if shares_to_sell <= 0 or sell_price <= 0:
+                continue
+            proceeds = shares_to_sell * sell_price * (1 - TRANSACTION_COST_RATE)
             self._set_cash(self._get_cash() + proceeds)
-
-            self.trades.append({
-                "date": date,
-                "symbol": sym,
-                "action": "sell",
-                "shares": info["shares"],
-                "price": sell_price,
-                "cost": info["shares"] * sell_price * TRANSACTION_COST_RATE,
-            })
+            self._record_trade(date, sym, "sell", shares_to_sell, sell_price)
             del self.positions[sym]
 
-        # --- 计算每只股票的目标市值（等权） ---
+        # --- 再把保留仓位降到目标等权以下 ---
         total_value = self._portfolio_value(prices)
-        n_picks = len(new_picks)
-        target_value_per_stock = total_value / n_picks
+        target_value_per_stock = total_value / len(tradable_symbols)
 
-        # --- 买入不在当前持仓中的标的 ---
-        buys = target_symbols - current_symbols
-        for sym in buys:
-            buy_price = prices.get(sym)
-            if buy_price is None or buy_price <= 0:
+        for sym in list(current_symbols & set(tradable_symbols)):
+            info = self.positions.get(sym)
+            if info is None:
+                continue
+            price = prices.get(sym, info["current_price"])
+            if price <= 0:
+                continue
+            current_value = info["shares"] * price
+            excess_value = current_value - target_value_per_stock
+            if excess_value <= price:
+                continue
+            shares_to_sell = min(info["shares"], math.floor(excess_value / price))
+            if shares_to_sell <= 0:
+                continue
+            proceeds = shares_to_sell * price * (1 - TRANSACTION_COST_RATE)
+            self._set_cash(self._get_cash() + proceeds)
+            info["shares"] -= shares_to_sell
+            info["current_price"] = price
+            self._record_trade(date, sym, "sell", shares_to_sell, price)
+            if info["shares"] <= 0:
+                del self.positions[sym]
+
+        # --- 最后把所有目标仓位补到等权 ---
+        for sym in tradable_symbols:
+            price = prices[sym]
+            if price <= 0:
+                continue
+
+            info = self.positions.get(sym)
+            current_shares = int(info["shares"]) if info else 0
+            current_value = current_shares * price
+            gap_value = target_value_per_stock - current_value
+            if gap_value <= price:
+                if info is not None:
+                    info["current_price"] = price
                 continue
 
             cash = self._get_cash()
-            # 每只股票分配等权份额，但不超过当前现金
-            alloc = min(target_value_per_stock, cash)
-            if alloc <= 0:
+            max_affordable_shares = math.floor(cash / (price * (1 + TRANSACTION_COST_RATE)))
+            target_shares = math.floor(gap_value / price)
+            shares_to_buy = min(target_shares, max_affordable_shares)
+            if shares_to_buy <= 0:
+                if info is not None:
+                    info["current_price"] = price
                 continue
 
-            # 扣除交易成本后实际可买入的金额
-            invest_amount = alloc / (1 + TRANSACTION_COST_RATE)
-            shares = math.floor(invest_amount / buy_price)
-            if shares <= 0:
-                continue
-
-            actual_cost = shares * buy_price * (1 + TRANSACTION_COST_RATE)
+            actual_cost = shares_to_buy * price * (1 + TRANSACTION_COST_RATE)
             self._set_cash(self._get_cash() - actual_cost)
 
-            self.positions[sym] = {
-                "shares": shares,
-                "cost_price": buy_price,
-                "current_price": buy_price,
-            }
+            if info is None:
+                self.positions[sym] = {
+                    "shares": shares_to_buy,
+                    "cost_price": price,
+                    "current_price": price,
+                }
+            else:
+                total_shares = info["shares"] + shares_to_buy
+                if total_shares > 0:
+                    info["cost_price"] = (
+                        info["cost_price"] * info["shares"] + shares_to_buy * price
+                    ) / total_shares
+                info["shares"] = total_shares
+                info["current_price"] = price
 
-            self.trades.append({
-                "date": date,
-                "symbol": sym,
-                "action": "buy",
-                "shares": shares,
-                "price": buy_price,
-                "cost": shares * buy_price * TRANSACTION_COST_RATE,
-            })
+            self._record_trade(date, sym, "buy", shares_to_buy, price)
 
         # --- 更新持仓的当前价格 ---
         for sym in list(self.positions.keys()):
