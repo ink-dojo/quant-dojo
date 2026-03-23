@@ -54,16 +54,35 @@ class PaperTrader:
 
         if NAV_FILE.exists():
             nav_df = pd.read_csv(NAV_FILE)
-            # 最新 NAV 中的现金要从 NAV 减去持仓市值推算
-            # 直接从文件读取，cash 单独记录在 positions 里的 "__cash__" 键
-            pass
         else:
             # 写入 nav.csv 表头和初始净值
-            pd.DataFrame(columns=["date", "nav"]).to_csv(NAV_FILE, index=False)
+            nav_df = pd.DataFrame(columns=["date", "nav"])
+            nav_df.to_csv(NAV_FILE, index=False)
 
         # 现金用 __cash__ 键存在 positions 里，方便序列化
         if "__cash__" not in self.positions:
             self.positions["__cash__"] = initial_capital
+
+        # 加载后做状态校验，打印任何警告
+        warnings = self._validate_state()
+        for w in warnings:
+            print(f"[PaperTrader WARNING] {w}")
+
+        # 自一致性校验：用 current_price 推算 NAV，与 nav.csv 最后一行对比
+        if not nav_df.empty:
+            last_nav = float(nav_df["nav"].iloc[-1])
+            expected_nav = self._get_cash() + sum(
+                info["shares"] * info.get("current_price", 0)
+                for sym, info in self.positions.items()
+                if sym != "__cash__"
+            )
+            if last_nav > 0:
+                diff_pct = abs(expected_nav - last_nav) / last_nav
+                if diff_pct > 0.01:
+                    print(
+                        f"[PaperTrader WARNING] 状态不一致：持仓推算 NAV={expected_nav:,.2f}，"
+                        f"csv 记录 NAV={last_nav:,.2f}，偏差={diff_pct:.2%}（可能来自上次运行的过时数据）"
+                    )
 
     # ------------------------------------------------------------------
     # 内部辅助
@@ -106,14 +125,53 @@ class PaperTrader:
 
     def _append_nav(self, trade_date: str, nav: float):
         """
-        追加一条净值记录到 nav.csv。
+        写入一条净值记录到 nav.csv，若该日期已存在则覆盖，避免重复行。
 
         参数:
             trade_date: 交易日期字符串，格式 YYYY-MM-DD
             nav: 当日净值
         """
-        row = pd.DataFrame([{"date": trade_date, "nav": nav}])
-        row.to_csv(NAV_FILE, mode="a", header=False, index=False)
+        if NAV_FILE.exists():
+            nav_df = pd.read_csv(NAV_FILE)
+        else:
+            nav_df = pd.DataFrame(columns=["date", "nav"])
+
+        if trade_date in nav_df["date"].values:
+            # 覆盖已有行，避免 NAV 重复记录
+            nav_df.loc[nav_df["date"] == trade_date, "nav"] = nav
+        else:
+            new_row = pd.DataFrame([{"date": trade_date, "nav": nav}])
+            nav_df = pd.concat([nav_df, new_row], ignore_index=True)
+
+        nav_df.to_csv(NAV_FILE, index=False)
+
+    def _validate_state(self) -> list:
+        """
+        校验持仓状态完整性，返回警告信息列表（空列表表示无异常）。
+
+        检查项:
+          - 现金余额不得为负
+          - 每个持仓必须包含 shares、cost_price、current_price 三个键
+        返回:
+            list[str]: 警告信息列表，空列表表示状态正常
+        """
+        warnings = []
+        cash = self._get_cash()
+        if cash < 0:
+            warnings.append(f"现金余额为负: {cash:,.2f}")
+
+        required_keys = {"shares", "cost_price", "current_price"}
+        for sym, info in self.positions.items():
+            if sym == "__cash__":
+                continue
+            if not isinstance(info, dict):
+                warnings.append(f"持仓 {sym} 数据格式异常（非字典）")
+                continue
+            missing = required_keys - info.keys()
+            if missing:
+                warnings.append(f"持仓 {sym} 缺少字段: {missing}")
+
+        return warnings
 
     def _record_trade(self, trade_date: str, symbol: str, action: str, shares: int, price: float):
         """记录一笔交易。"""
@@ -142,12 +200,24 @@ class PaperTrader:
             prices: {symbol: price} 当日价格字典
             date: 交易日期字符串，格式 YYYY-MM-DD
         """
+        # 记录调仓前组合价值（用于计算换手率）
+        portfolio_value_before = self._portfolio_value(prices or {})
+        # 记录本次调仓新增的交易笔数基准
+        trades_before = len(self.trades)
+
         if not new_picks:
             nav = self._portfolio_value(prices or {})
             self._append_nav(date, nav)
             self._save_positions()
             self._save_trades()
-            return
+            return {
+                "date": date,
+                "n_buys": 0,
+                "n_sells": 0,
+                "turnover": 0.0,
+                "cash_after": self._get_cash(),
+                "nav_after": nav,
+            }
 
         current_symbols = set(
             sym for sym in self.positions if sym != "__cash__"
@@ -163,7 +233,14 @@ class PaperTrader:
             self._append_nav(date, nav)
             self._save_positions()
             self._save_trades()
-            return
+            return {
+                "date": date,
+                "n_buys": 0,
+                "n_sells": 0,
+                "turnover": 0.0,
+                "cash_after": self._get_cash(),
+                "nav_after": nav,
+            }
 
         # --- 先卖出不在目标中的持仓 ---
         sells = current_symbols - set(tradable_symbols)
@@ -262,6 +339,22 @@ class PaperTrader:
         # --- 持久化 ---
         self._save_positions()
         self._save_trades()
+
+        # --- 统计本次调仓摘要 ---
+        new_trades = self.trades[trades_before:]
+        n_buys = sum(1 for t in new_trades if t["action"] == "buy")
+        n_sells = sum(1 for t in new_trades if t["action"] == "sell")
+        trade_volume = sum(t["shares"] * t["price"] for t in new_trades)
+        turnover = trade_volume / portfolio_value_before if portfolio_value_before > 0 else 0.0
+
+        return {
+            "date": date,
+            "n_buys": n_buys,
+            "n_sells": n_sells,
+            "turnover": round(turnover, 4),
+            "cash_after": round(self._get_cash(), 2),
+            "nav_after": round(nav, 2),
+        }
 
     def get_performance(self) -> dict:
         """
