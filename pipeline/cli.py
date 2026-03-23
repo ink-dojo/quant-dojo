@@ -156,9 +156,16 @@ def cmd_rebalance(args):
     paper_trader_mod = importlib.import_module("live.paper_trader")
     PaperTrader = paper_trader_mod.PaperTrader
     trader = PaperTrader()
-    trader.rebalance(picks, prices, date)
+    summary = trader.rebalance(picks, prices, date)
 
-    print(f"✅ 调仓完成：{len(picks)} 只股票，日期 {date}")
+    print(f"\n{'='*50}")
+    print(f"调仓完成 | {date}")
+    print(f"{'='*50}")
+    print(f"  买入数量：{summary.get('n_buys', 0)} 笔")
+    print(f"  卖出数量：{summary.get('n_sells', 0)} 笔")
+    print(f"  换手率：{summary.get('turnover', 0)*100:.2f}%")
+    print(f"  剩余现金：¥ {summary.get('cash_after', 0):,.2f}")
+    print(f"  净值：¥ {summary.get('nav_after', 0):,.2f}")
 
 
 def cmd_performance(args):
