@@ -240,7 +240,7 @@ class TestRiskMonitorInterface(unittest.TestCase):
                  patch("live.risk_monitor._log_decision"):
                 alerts = check_risk_alerts(self._make_portfolio())
 
-        valid_levels = {"warning", "critical"}
+        valid_levels = {"warning", "critical", "info"}
         for alert in alerts:
             self.assertIn(
                 alert.get("level"),

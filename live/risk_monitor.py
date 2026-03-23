@@ -145,6 +145,13 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
         "行业集中度检查：当前无 sector 映射数据，跳过该检查项。"
         "待接入行业分类数据后启用（参考 utils/fundamental_loader.py）"
     )
+    alerts.append({
+        "level": "info",
+        "code": "SECTOR_CHECK_SKIPPED",
+        "msg": "行业集中度检查跳过：无 sector 映射数据，待接入行业分类数据后启用",
+        "symbol": "",
+        "as_of_date": date.today().isoformat(),
+    })
 
     # --- 4. 因子 IC 衰减检查 ---
     try:
