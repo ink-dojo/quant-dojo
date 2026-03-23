@@ -50,10 +50,27 @@ class PaperTrader:
         else:
             self.trades = []
 
-        if NAV_FILE.exists():
+        has_positions = POSITIONS_FILE.exists()
+        has_nav = NAV_FILE.exists()
+
+        if has_positions and not has_nav:
+            # 持仓在但净值丢失 — 从持仓重建 nav.csv
+            nav_df = self._reconstruct_nav_from_positions()
+            print("[PaperTrader] nav.csv 缺失，已从 positions.json 重建")
+        elif not has_positions and has_nav:
+            # 净值在但持仓丢失 — 从净值重建空持仓（只恢复现金 = 最后 NAV）
+            nav_df = pd.read_csv(NAV_FILE)
+            if not nav_df.empty:
+                last_nav = float(nav_df["nav"].iloc[-1])
+                self.positions = {"__cash__": last_nav}
+                self._save_positions()
+                print(f"[PaperTrader] positions.json 缺失，已从 nav.csv 末行重建（现金={last_nav:,.2f}）")
+            else:
+                nav_df = pd.DataFrame(columns=["date", "nav"])
+        elif has_nav:
             nav_df = pd.read_csv(NAV_FILE)
         else:
-            # 写入 nav.csv 表头和初始净值
+            # 两者都不存在 — 全新启动
             nav_df = pd.DataFrame(columns=["date", "nav"])
             nav_df.to_csv(NAV_FILE, index=False)
 
@@ -171,6 +188,18 @@ class PaperTrader:
 
         return warnings
 
+    def _reconstruct_nav_from_positions(self) -> pd.DataFrame:
+        """从 positions.json 重建 nav.csv（单行，日期取今天，NAV 取持仓推算值）。"""
+        nav_value = self._get_cash() + sum(
+            info["shares"] * info.get("current_price", 0)
+            for sym, info in self.positions.items()
+            if sym != "__cash__"
+        )
+        today_str = date.today().isoformat()
+        nav_df = pd.DataFrame([{"date": today_str, "nav": nav_value}])
+        nav_df.to_csv(NAV_FILE, index=False)
+        return nav_df
+
     def _record_trade(self, trade_date: str, symbol: str, action: str, shares: int, price: float):
         """记录一笔交易。"""
         self.trades.append({
@@ -192,12 +221,31 @@ class PaperTrader:
 
         等权分配资金：卖出不在新选股中的持仓，买入新选股中未持有的标的。
         扣除双边 0.3% 交易成本。
+        若当日已执行过调仓，跳过重复执行并返回已有摘要。
 
         参数:
             new_picks: 目标持仓股票代码列表
             prices: {symbol: price} 当日价格字典
             date: 交易日期字符串，格式 YYYY-MM-DD
+        返回:
+            dict: 调仓摘要，含 date/n_buys/n_sells/turnover/cash_after/nav_after
         """
+        # --- 同日防重：检查是否已有当日交易记录 ---
+        existing_today = [t for t in self.trades if t.get("date") == date]
+        if existing_today:
+            print(f"⚠ 当日已执行过调仓 ({date})，跳过重复执行")
+            nav = self._portfolio_value(prices or {})
+            n_buys = sum(1 for t in existing_today if t["action"] == "buy")
+            n_sells = sum(1 for t in existing_today if t["action"] == "sell")
+            return {
+                "date": date,
+                "n_buys": n_buys,
+                "n_sells": n_sells,
+                "turnover": 0.0,
+                "cash_after": round(self._get_cash(), 2),
+                "nav_after": round(nav, 2),
+            }
+
         # 记录调仓前组合价值（用于计算换手率）
         portfolio_value_before = self._portfolio_value(prices or {})
         # 记录本次调仓新增的交易笔数基准
@@ -279,7 +327,8 @@ class PaperTrader:
             if info["shares"] <= 0:
                 del self.positions[sym]
 
-        # --- 最后把所有目标仓位补到等权 ---
+        # --- 最后把所有目标仓位补到等权（现金不足时跳过剩余买入） ---
+        skipped_symbols = []
         for sym in tradable_symbols:
             price = prices[sym]
             if price <= 0:
@@ -295,15 +344,27 @@ class PaperTrader:
                 continue
 
             cash = self._get_cash()
+            if cash <= 0:
+                skipped_symbols.append(sym)
+                continue
+
             max_affordable_shares = math.floor(cash / (price * (1 + get_transaction_cost_rate())))
             target_shares = math.floor(gap_value / price)
             shares_to_buy = min(target_shares, max_affordable_shares)
             if shares_to_buy <= 0:
+                skipped_symbols.append(sym)
                 if info is not None:
                     info["current_price"] = price
                 continue
 
             actual_cost = shares_to_buy * price * (1 + get_transaction_cost_rate())
+            if self._get_cash() - actual_cost < 0:
+                # 现金不足以完成本笔买入，跳过
+                skipped_symbols.append(sym)
+                if info is not None:
+                    info["current_price"] = price
+                continue
+
             self._set_cash(self._get_cash() - actual_cost)
 
             if info is None:
@@ -322,6 +383,14 @@ class PaperTrader:
                 info["current_price"] = price
 
             self._record_trade(date, sym, "buy", shares_to_buy, price)
+
+        if skipped_symbols:
+            print(f"[PaperTrader] 现金不足，跳过买入: {skipped_symbols}")
+
+        # --- 现金保护断言 ---
+        assert self._get_cash() >= 0, (
+            f"调仓后现金为负 ({self._get_cash():,.2f})，逻辑异常"
+        )
 
         # --- 更新持仓的当前价格 ---
         for sym in list(self.positions.keys()):
