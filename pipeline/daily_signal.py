@@ -5,7 +5,7 @@
 import json
 import os
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date as _date
 from pathlib import Path
 
 import numpy as np
@@ -20,35 +20,62 @@ from utils.local_data_loader import (
 SIGNAL_DIR = Path(__file__).parent.parent / "live" / "signals"
 SNAPSHOT_DIR = Path(__file__).parent.parent / "live" / "factor_snapshot"
 
-# 过滤参数常量
-_MIN_PRICE = 2.0
-_MIN_LISTING_DAYS = 60
+
+def _get_filter_params():
+    """
+    从运行时配置读取过滤参数。
+    降级策略：runtime_config → 硬编码默认值
+
+    返回:
+        tuple: (min_price, min_listing_days, signal_n_stocks)
+    """
+    try:
+        from utils.runtime_config import (
+            get_min_price,
+            get_min_listing_days,
+            get_signal_n_stocks,
+        )
+        return (
+            get_min_price(),
+            get_min_listing_days(),
+            get_signal_n_stocks(),
+        )
+    except Exception:
+        # 降级到硬编码默认值
+        return 2.0, 60, 30
 
 
 def run_daily_pipeline(
     date: str = None,
-    n_stocks: int = 30,
+    n_stocks: int = None,
     symbols: list = None,
 ) -> dict:
     """
     生成当日选股信号
 
     参数:
-        date     : 信号日期，如 "2026-03-20"，默认取数据最新日期；
+        date     : 信号日期，如 "2026-03-20"，默认取当日日期；
                    若指定日期在数据中不存在则抛出 ValueError
-        n_stocks : 选股数量，默认 30
+        n_stocks : 选股数量，默认从运行时配置读取；若明确指定则使用指定值
         symbols  : 股票池，默认全 A 股
 
     返回:
         dict，包含 date, picks, scores, factor_values, excluded, metadata
     """
+    # 读取运行时配置的过滤参数
+    min_price, min_listing_days, default_n_stocks = _get_filter_params()
+
+    # 若 n_stocks 未指定，使用配置值；否则使用显式指定的值
+    if n_stocks is None:
+        n_stocks = default_n_stocks
+
     if symbols is None:
         symbols = get_all_symbols()
 
     n_input_symbols = len(symbols)
 
     # 确定日期范围（因子计算需要回看窗口）
-    end = date or "2026-03-20"
+    end = date or datetime.now().strftime("%Y-%m-%d")
     start = str(int(end[:4]) - 1) + end[4:]  # 回看1年
 
     # ── 加载数据 ──────────────────────────────────────────────
@@ -121,15 +148,15 @@ def run_daily_pipeline(
     except Exception:
         pass
 
-    # 排除上市不足 _MIN_LISTING_DAYS 日
+    # 排除上市不足 min_listing_days 日
     valid_days = price_wide.notna().sum()
-    new_mask = valid_days < _MIN_LISTING_DAYS
+    new_mask = valid_days < min_listing_days
     excluded["new_listing"] = int(new_mask.sum())
     composite[new_mask.reindex(composite.index, fill_value=False)] = np.nan
 
-    # 排除价格 < _MIN_PRICE 元
+    # 排除价格 < min_price 元
     last_price = price_wide.iloc[-1]
-    low_mask = last_price < _MIN_PRICE
+    low_mask = last_price < min_price
     excluded["low_price"] = int(low_mask.sum())
     composite[low_mask.reindex(composite.index, fill_value=False)] = np.nan
 
@@ -154,8 +181,8 @@ def run_daily_pipeline(
         "n_after_filters": n_after_filters,
         "config_snapshot": {
             "n_stocks": n_stocks,
-            "min_price": _MIN_PRICE,
-            "min_listing_days": _MIN_LISTING_DAYS,
+            "min_price": min_price,
+            "min_listing_days": min_listing_days,
         },
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
