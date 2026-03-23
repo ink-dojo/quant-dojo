@@ -178,24 +178,32 @@ def run_daily_pipeline(
     snapshot_path = SNAPSHOT_DIR / f"{actual_date}.parquet"
     snapshot_tmp = snapshot_path.with_suffix(".tmp")
 
+    # ── JSON 信号写入（必须成功） ──────────────────
     try:
         # 写信号 JSON 到临时文件
         with open(signal_tmp, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
         signal_tmp.rename(signal_path)
+    except Exception as e:
+        # 清理 JSON 临时文件，避免留下损坏数据
+        if signal_tmp.exists():
+            signal_tmp.unlink()
+        raise
 
-        # 写因子快照到临时文件
+    # ── 因子快照写入（可选，失败时仅警告） ──────────────────
+    try:
         snapshot = pd.DataFrame(factor_dict)
         snapshot.to_parquet(snapshot_tmp)
         snapshot_tmp.rename(snapshot_path)
-
-    except Exception:
-        # 清理半写文件，避免留下损坏数据
-        if signal_tmp.exists():
-            signal_tmp.unlink()
+    except Exception as e:
+        # 清理快照临时文件
         if snapshot_tmp.exists():
             snapshot_tmp.unlink()
-        raise
+        # 发出警告但不中断主流程
+        warnings.warn(
+            f"因子快照写入失败（通常因 pyarrow 未安装）: {e}",
+            stacklevel=2
+        )
 
     print(f"✅ 信号已生成: {actual_date}")
     print(f"   选股 {len(picks)} 只，排除 ST={excluded['st']} 次新={excluded['new_listing']} 低价={excluded['low_price']}")
