@@ -5,6 +5,7 @@ risk_monitor.py — 实时风险监控
 """
 
 import os
+from datetime import date
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -104,14 +105,18 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
         if drawdown <= DRAWDOWN_CRITICAL:
             alerts.append({
                 "level": "critical",
+                "code": "DRAWDOWN_CRITICAL",
                 "msg": f"净值回撤已达 {drawdown:.1%}，超过 {DRAWDOWN_CRITICAL:.0%} 临界线，请立即检查持仓",
                 "symbol": "",
+                "as_of_date": date.today().isoformat(),
             })
         elif drawdown <= DRAWDOWN_WARNING:
             alerts.append({
                 "level": "warning",
+                "code": "DRAWDOWN_WARNING",
                 "msg": f"净值回撤 {drawdown:.1%}，已超过 {DRAWDOWN_WARNING:.0%} 预警线",
                 "symbol": "",
+                "as_of_date": date.today().isoformat(),
             })
 
     # --- 2. 单股集中度检查 ---
@@ -127,8 +132,10 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
                 if weight > CONCENTRATION_LIMIT:
                     alerts.append({
                         "level": "warning",
+                        "code": "CONCENTRATION_EXCEEDED",
                         "msg": f"{sym} 占组合 {weight:.1%}，超过单股集中度上限 {CONCENTRATION_LIMIT:.0%}",
                         "symbol": sym,
+                        "as_of_date": date.today().isoformat(),
                     })
     except Exception as e:
         _log_decision(f"集中度检查失败，跳过: {e}")
@@ -146,10 +153,13 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
         for factor_name, info in health.items():
             status = info.get("status")
             if status in ("degraded", "dead"):
+                code = "FACTOR_DEGRADED" if status == "degraded" else "FACTOR_DEAD"
                 alerts.append({
                     "level": "warning" if status == "degraded" else "critical",
+                    "code": code,
                     "msg": f"因子 {factor_name} 状态: {status}，IC 已衰减，请检查因子有效性",
                     "symbol": "",
+                    "as_of_date": date.today().isoformat(),
                 })
     except ImportError:
         # pipeline 模块尚未安装，属于预期情况，记录决策后跳过
@@ -185,15 +195,17 @@ def format_risk_report(alerts: list) -> str:
     if critical_alerts:
         lines.append("### 🔴 Critical")
         for a in critical_alerts:
+            code_tag = f"[{a['code']}] " if a.get("code") else ""
             sym_tag = f" `[{a['symbol']}]`" if a["symbol"] else ""
-            lines.append(f"- {a['msg']}{sym_tag}")
+            lines.append(f"- {code_tag}{a['msg']}{sym_tag}")
         lines.append("")
 
     if warning_alerts:
         lines.append("### 🟡 Warning")
         for a in warning_alerts:
+            code_tag = f"[{a['code']}] " if a.get("code") else ""
             sym_tag = f" `[{a['symbol']}]`" if a["symbol"] else ""
-            lines.append(f"- {a['msg']}{sym_tag}")
+            lines.append(f"- {code_tag}{a['msg']}{sym_tag}")
         lines.append("")
 
     lines.append(f"_共 {len(alerts)} 条预警（{len(critical_alerts)} critical / {len(warning_alerts)} warning）_")
