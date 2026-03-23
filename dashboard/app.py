@@ -75,6 +75,13 @@ def _register_routers() -> None:
     except (ImportError, Exception):
         pass
 
+    # 回测管理路由（策略注册表 + 运行记录）
+    try:
+        from dashboard.routers import backtest
+        app.include_router(backtest.router, prefix="/api/backtest")
+    except (ImportError, Exception):
+        pass
+
 
 _register_routers()
 

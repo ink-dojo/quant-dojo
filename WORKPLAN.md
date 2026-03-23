@@ -43,11 +43,15 @@
    目标：让 `signal -> rebalance -> positions -> performance -> risk -> weekly report` 成为可信闭环。
    详细计划见 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
 
-2. **P1: Dashboard Integration**
+2. **P0.5: Control Plane** ✅ 已完成
+   目标：统一 CLI 命令树 + 策略注册表 + 运行记录 + Dashboard 集成 + AI-safe 控制面。
+   详细计划见 [GOAL_control_plane.md](GOAL_control_plane.md)
+
+3. **P1: Dashboard Integration**
    目标：把已稳定的数据与操作统一展示在本地工作台里，而不是继续手工翻文件和跑脚本。
    详细计划见 [GOAL_dashboard.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_dashboard.md)
 
-3. **P2: Phase 5 Operational Maturity**
+4. **P2: Phase 5 Operational Maturity**
    目标：在基础设施稳定后，进入连续模拟运行、周报、风险回顾、数据 freshness 管控。
    这部分以 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md) 后半段的验收和周报机制为基础，不单独拆新目标，直到 P0 真正完成。
 
@@ -55,9 +59,10 @@
    目标：只有在模拟盘主链路可信后，才继续扩策略、增强因子和研究方法。
    历史背景与已完成内容见 [GOAL_phase4.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase4.md) 和 [GOAL.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL.md)
 
-5. **P4: Control Plane**
+5. **P4: Control Plane** ✅ 已完成
    目标：把分散脚本、回测、模拟盘、周报、风控整合成一个统一操作面。
    原则：CLI 负责执行，Dashboard 负责展示与批准，不反过来。
+   详细计划见 [GOAL_control_plane.md](GOAL_control_plane.md)
 
 6. **P5: Agentic Research And Execution**
    目标：让 AI 从“分析助手”升级为“有门禁的研究操作员”，能提议实验、批量跑回测、汇总比较结果，但不能绕过风控和人工批准。
@@ -220,13 +225,17 @@ AI 提议研究方向
 详情：
 - [GOAL_dashboard.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_dashboard.md)
 
-### Control Plane Track
-定位：统一 CLI 执行面 + Dashboard 观察面  
-状态：未来主方向，需在 Phase 5 infra 和 Dashboard 主骨架稳定后启动  
-说明：
-- CLI 统一所有策略回测、比较、信号、调仓、周报、风险检查
-- Dashboard 展示运行结果、策略比较、组合状态、风险告警、AI 解释
-- 详细计划见 [GOAL_control_plane.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_control_plane.md)
+### Control Plane Track ✅ 已完成
+定位：统一 CLI 执行面 + Dashboard 观察面
+状态：已完成（2026-03-23）
+交付物：
+- `pipeline/strategy_registry.py` — 策略注册表
+- `pipeline/run_store.py` — 运行记录存储
+- `pipeline/control_surface.py` — AI-safe 控制面
+- `pipeline/cli.py` — 层级 CLI 命令树
+- Dashboard 回测端点 + 前端面板
+- 27 个自动化测试
+- 详细计划见 [GOAL_control_plane.md](GOAL_control_plane.md)
 
 ### Agentic Track
 定位：AI 从研究助手升级到有门禁的研究操作员  

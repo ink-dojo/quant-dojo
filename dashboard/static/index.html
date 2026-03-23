@@ -114,6 +114,46 @@
     </div>
   </section>
 
+  <!-- ── 回测历史 + 策略列表 ─────────────────────────────────── -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- 策略注册表 -->
+    <section class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
+      <h2 class="font-semibold text-gray-200">策略注册表</h2>
+      <div id="strategy-list" class="space-y-2">
+        <div class="text-gray-600 text-sm">加载中...</div>
+      </div>
+    </section>
+
+    <!-- 最近回测 -->
+    <section class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold text-gray-200">最近回测</h2>
+        <span id="runs-count" class="text-xs text-gray-600"></span>
+      </div>
+      <div id="runs-empty" class="hidden text-center text-gray-600 py-4 text-sm">
+        暂无回测记录。通过 CLI 运行: <code class="bg-gray-800 px-2 py-0.5 rounded text-xs">python -m pipeline.cli backtest run multi_factor --start 2023-01-01 --end 2024-12-31</code>
+      </div>
+      <div class="overflow-x-auto">
+        <table id="runs-table" class="hidden w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-gray-500 border-b border-gray-800">
+              <th class="py-2 pr-3">策略</th>
+              <th class="py-2 pr-3">区间</th>
+              <th class="py-2 pr-3 text-right">年化</th>
+              <th class="py-2 pr-3 text-right">夏普</th>
+              <th class="py-2 pr-3 text-right">回撤</th>
+              <th class="py-2 pr-3 text-right">状态</th>
+              <th class="py-2 text-right">时间</th>
+            </tr>
+          </thead>
+          <tbody id="runs-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
   <!-- ── 下方两列：AI 分析 + Pipeline ────────────────────────── -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
@@ -508,6 +548,83 @@ async function loadNav() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 策略注册表
+// ═══════════════════════════════════════════════════════════════
+async function loadStrategies() {
+  const el = document.getElementById('strategy-list');
+  try {
+    const resp = await fetch('/api/backtest/strategies');
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    if (!data.length) {
+      el.innerHTML = '<div class="text-gray-600 text-sm">暂无策略</div>';
+      return;
+    }
+    el.innerHTML = data.map(s => `
+      <div class="bg-gray-800 rounded-lg p-3 space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="text-indigo-300 font-mono text-xs">${s.id}</span>
+        </div>
+        <div class="text-gray-200 text-sm">${s.name}</div>
+        <div class="text-gray-500 text-xs">${s.description}</div>
+        ${s.params.length ? `<div class="text-xs text-gray-600 mt-1">${s.params.map(p =>
+          `<span class="inline-block mr-2">${p.name}=${p.default}</span>`
+        ).join('')}</div>` : ''}
+      </div>
+    `).join('');
+  } catch (_) {
+    el.innerHTML = '<div class="text-gray-600 text-sm">加载失败</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 最近回测
+// ═══════════════════════════════════════════════════════════════
+async function loadRuns() {
+  const tbody = document.getElementById('runs-tbody');
+  const table = document.getElementById('runs-table');
+  const empty = document.getElementById('runs-empty');
+  const count = document.getElementById('runs-count');
+  try {
+    const resp = await fetch('/api/backtest/runs?limit=10');
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    if (!data.length) {
+      empty.classList.remove('hidden');
+      table.classList.add('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    table.classList.remove('hidden');
+    count.textContent = `${data.length} 条`;
+    tbody.innerHTML = data.map(r => {
+      const m = r.metrics || {};
+      const annRet = m.annualized_return != null ? `${(m.annualized_return * 100).toFixed(1)}%` : '—';
+      const sharpe = m.sharpe != null ? m.sharpe.toFixed(2) : '—';
+      const mdd = m.max_drawdown != null ? `${(m.max_drawdown * 100).toFixed(1)}%` : '—';
+      const retColor = (m.annualized_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400';
+      const statusIcon = r.status === 'success' ? '✅' : '❌';
+      const createdAt = r.created_at ? r.created_at.split('T')[0] : '—';
+      return `<tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="py-2 pr-3">
+          <div class="text-gray-200">${r.strategy_name || r.strategy_id}</div>
+          <div class="text-xs text-gray-600 font-mono">${r.run_id.slice(0, 25)}...</div>
+        </td>
+        <td class="py-2 pr-3 text-gray-400 text-xs">${r.start_date} ~ ${r.end_date}</td>
+        <td class="py-2 pr-3 text-right ${retColor}">${annRet}</td>
+        <td class="py-2 pr-3 text-right text-gray-300">${sharpe}</td>
+        <td class="py-2 pr-3 text-right text-yellow-400">${mdd}</td>
+        <td class="py-2 pr-3 text-right">${statusIcon}</td>
+        <td class="py-2 text-right text-gray-600 text-xs">${createdAt}</td>
+      </tr>`;
+    }).join('');
+  } catch (_) {
+    empty.classList.remove('hidden');
+    table.classList.add('hidden');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // AI 分析区
 // ═══════════════════════════════════════════════════════════════
 
@@ -685,6 +802,8 @@ async function loadAll() {
     loadFactors(),
     loadRisk(),
     loadNav(),
+    loadStrategies(),
+    loadRuns(),
   ]);
   document.getElementById('last-refresh').textContent =
     `上次刷新: ${new Date().toLocaleTimeString()}`;
