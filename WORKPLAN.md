@@ -55,7 +55,14 @@
    目标：只有在模拟盘主链路可信后，才继续扩策略、增强因子和研究方法。
    历史背景与已完成内容见 [GOAL_phase4.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase4.md) 和 [GOAL.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL.md)
 
-5. **P4: Future Real-Money Readiness**
+5. **P4: Control Plane**
+   目标：把分散脚本、回测、模拟盘、周报、风控整合成一个统一操作面。
+   原则：CLI 负责执行，Dashboard 负责展示与批准，不反过来。
+
+6. **P5: Agentic Research And Execution**
+   目标：让 AI 从“分析助手”升级为“有门禁的研究操作员”，能提议实验、批量跑回测、汇总比较结果，但不能绕过风控和人工批准。
+
+7. **P6: Future Real-Money Readiness**
    目标：配置治理、执行纪律、连续模拟结果、资金管理、实盘前审查。
    当前只记录方向，不开做。
 
@@ -103,6 +110,42 @@ Dashboard 的位置很明确：
 详细计划见：
 - [GOAL_dashboard.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_dashboard.md)
 
+### Next After Dashboard: Control Plane
+
+下一阶段不应该是“继续加零散页面”，而应该是建立统一控制面：
+
+- **Terminal / CLI 是主执行面**
+  - 统一所有策略回测、信号生成、调仓、周报、风险检查入口
+  - AI agent 将来优先调用 CLI，而不是直接 import 各种模块
+- **Dashboard 是主观察面**
+  - 展示策略列表、回测结果、运行历史、当前组合、风险状态、周报摘要
+  - 提供手动触发按钮，但不复制底层业务逻辑
+- **核心目标**
+  - 一个终端完成所有策略回测和运行
+  - 一个 dashboard 看清所有策略和运行状态
+
+这一步是从“很多工具”升级到“量化操作系统”的关键。
+
+### Long-Term Direction: Agentic Portfolio Manager
+
+长期目标不是做一个会说话的 dashboard，而是建立一套有门禁的 agentic workflow：
+
+```text
+AI 提议研究方向
+→ 系统批量运行标准化回测
+→ 自动汇总关键指标与差异
+→ 风险门禁检查
+→ 人工批准
+→ 模拟盘执行
+→ 周报与复盘
+```
+
+当前判断：
+
+- 离“AI 全权自己交易”还远
+- 离“AI 帮你跑研究、比较策略、给出执行建议”已经不远
+- 因此近期应做的是 **AI 助手 + 人工批准**，不是 **AI 自主交易**
+
 ---
 
 ## 6. Future Work Buckets
@@ -129,12 +172,21 @@ Dashboard 的位置很明确：
 - Dashboard 完整化
 - AI stock analyst / bull-bear debate 的工作台整合
 - 手动触发 pipeline 与流式进度
+- Backtest run 历史、参数版本、结果对比
+- 统一 CLI / dashboard 控制面
 
 ### Bucket E: Real Money Readiness
 - 资金管理规则固化
 - 模拟盘连续表现门槛
 - 实盘前 checklist
 - 券商 API 评估
+
+### Bucket F: Agentic Ops
+- Experiment planner：AI 生成待验证实验
+- Batch runner：批量跑标准化 backtest
+- Result judge：AI 总结优劣与失效原因
+- Risk gate：不满足风险门槛时禁止进入模拟盘
+- Approval workflow：保留人工最终批准
 
 ---
 
@@ -164,6 +216,21 @@ Dashboard 的位置很明确：
 状态：次优先级，依赖 Phase 5 infra 稳定  
 详情：
 - [GOAL_dashboard.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_dashboard.md)
+
+### Control Plane Track
+定位：统一 CLI 执行面 + Dashboard 观察面  
+状态：未来主方向，需在 Phase 5 infra 和 Dashboard 主骨架稳定后启动  
+说明：
+- CLI 统一所有策略回测、比较、信号、调仓、周报、风险检查
+- Dashboard 展示运行结果、策略比较、组合状态、风险告警、AI 解释
+
+### Agentic Track
+定位：AI 从研究助手升级到有门禁的研究操作员  
+状态：中长期方向，必须建立在 Control Plane 之上  
+说明：
+- 先做 AI 提议与批量实验
+- 后做风险门禁与批准流
+- 最后才考虑更高自动化
 
 ---
 
