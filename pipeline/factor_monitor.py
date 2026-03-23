@@ -13,9 +13,25 @@ import pandas as pd
 from scipy import stats
 
 from utils.local_data_loader import load_price_wide
+from utils.runtime_config import get_config
+
+
+def _get_factor_snapshot_dir() -> Path:
+    """
+    获取因子快照目录路径。
+
+    优先从 runtime_config 读取 snapshot_dir，若配置不存在则使用默认路径。
+    """
+    cfg = get_config()
+    snapshot_dir = cfg.get("phase5", {}).get("snapshot_dir")
+    if snapshot_dir:
+        return Path(snapshot_dir)
+    # 回退到默认路径
+    return Path(__file__).parent.parent / "live" / "factor_snapshot"
+
 
 # 因子快照存储路径
-FACTOR_SNAPSHOT_DIR = Path(__file__).parent.parent / "live" / "factor_snapshot"
+FACTOR_SNAPSHOT_DIR = _get_factor_snapshot_dir()
 
 
 def compute_rolling_ic(
