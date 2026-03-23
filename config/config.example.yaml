@@ -27,3 +27,14 @@ universe:
     - "hs300"                              # 沪深300
     - "zz500"                              # 中证500
     - "zz1000"                             # 中证1000
+
+# Phase 5 运行时参数（实盘/模拟盘通用配置）
+phase5:
+  local_data_dir: "/Users/karan/Desktop/20260320"  # 本地 CSV 行情数据目录（按机器修改）
+  signal_n_stocks: 30                    # 每次信号选股数量上限
+  min_listing_days: 60                   # 最小上市天数过滤（剔除次新股）
+  min_price: 2.0                         # 最低股价过滤阈值（元，剔除仙股）
+  transaction_cost_rate: 0.003           # 交易成本率（双边，即单边 0.15%）
+  drawdown_warning: -0.05                # 净值回撤预警线（-5%）
+  drawdown_critical: -0.10               # 净值回撤临界线（-10%，需立即处理）
+  concentration_limit: 0.15             # 单只股票占组合市值上限（15%）

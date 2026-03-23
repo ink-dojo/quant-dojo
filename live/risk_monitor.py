@@ -13,10 +13,29 @@ import pandas as pd
 # nav.csv 路径（与 paper_trader.py 保持一致）
 NAV_FILE = Path(__file__).parent / "portfolio" / "nav.csv"
 
-# 风险阈值
-DRAWDOWN_WARNING = -0.05   # 回撤超过 5% 发出 warning
-DRAWDOWN_CRITICAL = -0.10  # 回撤超过 10% 发出 critical
-CONCENTRATION_LIMIT = 0.15  # 单只股票占比超过 15% 触发警告
+def _load_risk_thresholds() -> tuple[float, float, float]:
+    """
+    从运行时配置加载风险阈值。
+
+    优先读取 config/config.yaml 的 phase5 节；
+    若配置不可用，降级为硬编码默认值。
+
+    返回:
+        (drawdown_warning, drawdown_critical, concentration_limit) 三元组
+    """
+    try:
+        from utils.runtime_config import (
+            get_concentration_limit,
+            get_drawdown_critical,
+            get_drawdown_warning,
+        )
+        return get_drawdown_warning(), get_drawdown_critical(), get_concentration_limit()
+    except Exception:
+        return -0.05, -0.10, 0.15
+
+
+# 风险阈值（从运行时配置读取，不存在时使用默认值）
+DRAWDOWN_WARNING, DRAWDOWN_CRITICAL, CONCENTRATION_LIMIT = _load_risk_thresholds()
 
 # 决策日志路径
 DECISIONS_LOG = Path(__file__).parent.parent / ".claude" / "decisions.md"

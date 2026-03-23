@@ -14,8 +14,47 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# 本地数据目录
-LOCAL_DATA_DIR = Path("/Users/karan/Desktop/20260320")
+# 本地数据目录（硬编码默认值，仅在 runtime_config 不可用时使用）
+_HARDCODED_DATA_DIR = Path("/Users/karan/Desktop/20260320")
+
+
+def _resolve_local_data_dir() -> Path:
+    """
+    懒加载本地数据目录路径。
+
+    优先从 utils.runtime_config.get_local_data_dir() 读取；
+    若模块不可用则降级到硬编码默认路径。
+    若最终路径不存在，打印清晰错误提示。
+
+    返回:
+        Path 对象，指向本地行情数据目录
+    """
+    try:
+        from utils.runtime_config import get_local_data_dir
+        return get_local_data_dir()
+    except Exception:
+        path = _HARDCODED_DATA_DIR
+        if not path.exists():
+            logger.error(
+                "本地数据目录不存在: %s\n"
+                "  请确认数据已下载，或在 config/config.yaml 的 phase5.local_data_dir 中修改路径。",
+                path,
+            )
+        return path
+
+
+def _get_local_data_dir() -> Path:
+    """
+    获取本地数据目录（模块级懒加载入口）。
+
+    返回:
+        Path 对象
+    """
+    return _resolve_local_data_dir()
+
+
+# 保持向后兼容：LOCAL_DATA_DIR 属性访问仍可用，但建议用 _get_local_data_dir()
+LOCAL_DATA_DIR = _HARDCODED_DATA_DIR
 
 # parquet 缓存目录
 _CACHE_DIR = Path("data/cache/local")
@@ -50,12 +89,13 @@ def get_all_symbols() -> list:
     Returns:
         list: 6 位股票代码列表，例如 ['600000', '000001', ...]
     """
-    if not LOCAL_DATA_DIR.exists():
-        logger.warning("本地数据目录不存在: %s", LOCAL_DATA_DIR)
+    data_dir = _get_local_data_dir()
+    if not data_dir.exists():
+        logger.warning("本地数据目录不存在: %s", data_dir)
         return []
 
     symbols = []
-    for csv_file in sorted(LOCAL_DATA_DIR.glob("*.csv")):
+    for csv_file in sorted(data_dir.glob("*.csv")):
         stem = csv_file.stem  # e.g. "sh.600000" or "sz.000001"
         # 去掉 sh. / sz. 前缀
         if "." in stem:
@@ -87,21 +127,22 @@ def load_local_stock(symbol: str) -> pd.DataFrame:
         return df
 
     # 查找 CSV 文件（尝试 sh. 和 sz. 前缀）
+    data_dir = _get_local_data_dir()
     csv_path = None
     for prefix in ("sh", "sz"):
-        candidate = LOCAL_DATA_DIR / f"{prefix}.{symbol}.csv"
+        candidate = data_dir / f"{prefix}.{symbol}.csv"
         if candidate.exists():
             csv_path = candidate
             break
 
     if csv_path is None:
         # 模糊匹配（以防命名规则不一致）
-        matches = list(LOCAL_DATA_DIR.glob(f"*.{symbol}.csv"))
+        matches = list(data_dir.glob(f"*.{symbol}.csv"))
         if matches:
             csv_path = matches[0]
 
     if csv_path is None:
-        raise FileNotFoundError(f"找不到股票 {symbol} 的本地 CSV 文件: {LOCAL_DATA_DIR}")
+        raise FileNotFoundError(f"找不到股票 {symbol} 的本地 CSV 文件: {data_dir}")
 
     # 读 CSV（BOM 兼容）
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
