@@ -14,13 +14,15 @@ from pathlib import Path
 import re
 import random
 
+from utils.runtime_config import get_local_data_dir
 
-def check_data_freshness(data_dir: str = "/Users/karan/Desktop/20260320/") -> dict:
+
+def check_data_freshness(data_dir: str = None) -> dict:
     """
     检查数据目录的新鲜度和完整性。
 
     Args:
-        data_dir: 数据目录路径，默认 /Users/karan/Desktop/20260320/
+        data_dir: 数据目录路径，默认为 None（使用运行时配置 utils.runtime_config.get_local_data_dir()）
 
     Returns:
         dict: {
@@ -32,6 +34,10 @@ def check_data_freshness(data_dir: str = "/Users/karan/Desktop/20260320/") -> di
             'status': 'ok'                 # ok | stale | missing
         }
     """
+
+    # 如果未指定数据目录，从运行时配置读取
+    if data_dir is None:
+        data_dir = str(get_local_data_dir())
 
     # 检查目录是否存在
     if not os.path.exists(data_dir):
