@@ -151,11 +151,9 @@ def _try_risk_alerts() -> Optional[list]:
     """
     try:
         from live.risk_monitor import check_risk_alerts
-        # check_risk_alerts 需要 portfolio 对象；
-        # 这里尝试从 paper_trader 获取
         from live.paper_trader import PaperTrader
-        base_dir = Path(__file__).parent.parent
-        trader = PaperTrader(base_dir=str(base_dir))
+        # PaperTrader 使用模块级 portfolio 路径；这里只需要实例化当前组合状态。
+        trader = PaperTrader()
         return check_risk_alerts(trader)
     except Exception:
         return None
@@ -359,7 +357,12 @@ def _render_risk_section(alerts: Optional[list]) -> str:
         level = alert.get("level", "info")
         msg = alert.get("msg", "")
         symbol = alert.get("symbol", "-")
-        level_label = "CRITICAL" if level == "critical" else "WARNING"
+        if level == "critical":
+            level_label = "CRITICAL"
+        elif level == "warning":
+            level_label = "WARNING"
+        else:
+            level_label = "INFO"
         lines.append(f"| {level_label} | {msg} | {symbol} |")
     lines.append("")
     return "\n".join(lines)

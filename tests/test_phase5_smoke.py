@@ -315,6 +315,19 @@ class TestWeeklyReport(unittest.TestCase):
         self.assertIsInstance(result, str, "即使无数据，也应返回字符串")
         self.assertGreater(len(result), 0, "返回的占位报告应非空")
 
+    def test_try_risk_alerts_uses_default_paper_trader_constructor(self):
+        """_try_risk_alerts() 应直接实例化 PaperTrader()，不能传不存在的 base_dir 参数。"""
+        from pipeline.weekly_report import _try_risk_alerts
+
+        fake_alerts = [{"level": "info", "code": "SECTOR_CHECK_SKIPPED", "msg": "skip", "symbol": "", "as_of_date": "2026-03-23"}]
+
+        with patch("live.paper_trader.PaperTrader") as mock_trader_cls, \
+             patch("live.risk_monitor.check_risk_alerts", return_value=fake_alerts):
+            result = _try_risk_alerts()
+
+        mock_trader_cls.assert_called_once_with()
+        self.assertEqual(result, fake_alerts)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. TestPaperTraderRebalance

@@ -1,7 +1,7 @@
 """
 本地 CSV 数据加载器
 
-从 /Users/karan/Desktop/20260320 目录加载本地 A 股行情数据，
+从本地配置的数据目录加载 A 股行情数据，
 支持 parquet 缓存、并行加载宽表等功能。
 """
 
@@ -14,8 +14,9 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# 本地数据目录（硬编码默认值，仅在 runtime_config 不可用时使用）
-_HARDCODED_DATA_DIR = Path("/Users/karan/Desktop/20260320")
+# 本地数据目录 fallback，仅在 runtime_config 不可用时使用。
+# 与 runtime_config 默认值保持一致，避免绑死到单机路径。
+_DEFAULT_FALLBACK_DATA_DIR = Path.home() / "quant-data"
 
 
 def _resolve_local_data_dir() -> Path:
@@ -23,7 +24,7 @@ def _resolve_local_data_dir() -> Path:
     懒加载本地数据目录路径。
 
     优先从 utils.runtime_config.get_local_data_dir() 读取；
-    若模块不可用则降级到硬编码默认路径。
+    若模块不可用则降级到默认 fallback 路径。
     若最终路径不存在，打印清晰错误提示。
 
     返回:
@@ -33,7 +34,7 @@ def _resolve_local_data_dir() -> Path:
         from utils.runtime_config import get_local_data_dir
         return get_local_data_dir()
     except Exception:
-        path = _HARDCODED_DATA_DIR
+        path = _DEFAULT_FALLBACK_DATA_DIR
         if not path.exists():
             logger.error(
                 "本地数据目录不存在: %s\n"
@@ -54,7 +55,7 @@ def _get_local_data_dir() -> Path:
 
 
 # 保持向后兼容：LOCAL_DATA_DIR 属性访问仍可用，但建议用 _get_local_data_dir()
-LOCAL_DATA_DIR = _HARDCODED_DATA_DIR
+LOCAL_DATA_DIR = _DEFAULT_FALLBACK_DATA_DIR
 
 # parquet 缓存目录
 _CACHE_DIR = Path("data/cache/local")
