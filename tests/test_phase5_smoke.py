@@ -249,5 +249,147 @@ class TestRiskMonitorInterface(unittest.TestCase):
             )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. TestWeeklyReport
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestWeeklyReport(unittest.TestCase):
+    """测试 pipeline.weekly_report.generate_weekly_report() 的返回值和基本功能。"""
+
+    def test_generate_returns_string(self):
+        """调用 generate_weekly_report("2026-W12") 应返回非空字符串，包含 '周报' 或 '2026-W12'。"""
+        from pipeline.weekly_report import generate_weekly_report
+
+        with tempfile.TemporaryDirectory() as tmp:
+            journal_dir = Path(tmp) / "journal" / "weekly"
+            with patch("pipeline.weekly_report.Path") as mock_path:
+                # 让 Path(__file__).parent.parent 返回 tmp 所在的上级目录
+                mock_path.return_value.parent.parent = Path(tmp)
+                # 直接调用，会在 tmp 中创建 journal/weekly 目录
+                result = generate_weekly_report(week="2026-W12")
+
+        self.assertIsInstance(result, str)
+        self.assertGreater(len(result), 0, "返回的周报字符串应非空")
+        # 验证包含周报标识
+        self.assertTrue(
+            "周报" in result or "2026-W12" in result,
+            f"返回的周报应包含 '周报' 或 '2026-W12'，实际内容：{result[:200]}"
+        )
+
+    def test_generate_empty_state_still_returns(self):
+        """调用 generate_weekly_report() 时若无数据，应返回占位报告（非空字符串），不抛异常。"""
+        from pipeline.weekly_report import generate_weekly_report
+
+        with tempfile.TemporaryDirectory() as tmp:
+            # 创建空的数据目录结构，确保 generate_weekly_report 不会因为目录缺失而崩溃
+            signals_dir = Path(tmp) / "live" / "signals"
+            signals_dir.mkdir(parents=True, exist_ok=True)
+            snapshot_dir = Path(tmp) / "live" / "factor_snapshot"
+            snapshot_dir.mkdir(parents=True, exist_ok=True)
+            journal_dir = Path(tmp) / "journal" / "weekly"
+
+            with patch("pipeline.weekly_report.Path") as mock_path_class:
+                # 构造 mock 的 Path 对象
+                mock_path_instance = MagicMock()
+                mock_path_instance.parent.parent = Path(tmp)
+                mock_path_class.return_value = mock_path_instance
+
+                # 也要 patch 直接创建 Path 对象时的行为
+                def _path_side_effect(p):
+                    if isinstance(p, str) and "factor_snapshot" in p:
+                        return snapshot_dir
+                    elif isinstance(p, str) and "signals" in p:
+                        return signals_dir
+                    elif isinstance(p, str) and "journal" in p:
+                        return journal_dir
+                    return Path(p)
+
+                mock_path_class.side_effect = _path_side_effect
+
+                # 调用应不抛异常
+                try:
+                    result = generate_weekly_report(week="2026-W13")
+                except Exception as e:
+                    self.fail(f"generate_weekly_report 无数据时不应抛异常，但得到: {e}")
+
+        self.assertIsInstance(result, str, "即使无数据，也应返回字符串")
+        self.assertGreater(len(result), 0, "返回的占位报告应非空")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. TestPaperTraderRebalance
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestPaperTraderRebalance(unittest.TestCase):
+    """测试 PaperTrader.rebalance() 的调用和返回值。"""
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self._d = Path(self._tmpdir.name)
+
+    def tearDown(self):
+        self._tmpdir.cleanup()
+
+    @contextlib.contextmanager
+    def _patch_portfolio_dir(self):
+        """将 paper_trader 模块的文件路径全部重定向到临时目录。"""
+        d = self._d
+        with patch("live.paper_trader.PORTFOLIO_DIR", d), \
+             patch("live.paper_trader.POSITIONS_FILE", d / "positions.json"), \
+             patch("live.paper_trader.TRADES_FILE", d / "trades.json"), \
+             patch("live.paper_trader.NAV_FILE", d / "nav.csv"):
+            yield d
+
+    def test_rebalance_returns_summary_keys(self):
+        """调用 rebalance() 后，返回字典应包含 n_buys, n_sells, cash_after, nav_after 等关键字段。"""
+        from live.paper_trader import PaperTrader
+
+        with self._patch_portfolio_dir():
+            trader = PaperTrader(initial_capital=100000)
+
+            # 执行再平衡：新增两只股票，各分配 50000
+            result = trader.rebalance(
+                new_picks=["000001.SZ", "000002.SZ"],
+                prices={"000001.SZ": 10.0, "000002.SZ": 20.0},
+                date="2026-03-20"
+            )
+
+        # 验证返回值结构
+        self.assertIsInstance(result, dict, "rebalance() 应返回字典")
+
+        required_keys = {"n_buys", "n_sells", "cash_after", "nav_after"}
+        for key in required_keys:
+            self.assertIn(
+                key, result,
+                f"rebalance() 返回字典应包含键 '{key}'，实际键：{set(result.keys())}"
+            )
+
+        # 验证返回值的合理性（基本健全性检查）
+        self.assertIsInstance(result["n_buys"], int, "n_buys 应为整数")
+        self.assertIsInstance(result["n_sells"], int, "n_sells 应为整数")
+        self.assertGreaterEqual(result["cash_after"], 0, "调仓后现金不应为负")
+        self.assertGreater(result["nav_after"], 0, "调仓后净值应大于 0")
+
+    def test_rebalance_with_empty_picks(self):
+        """调用 rebalance(new_picks=[]) 应成功返回，早期返回不执行买卖，n_buys=0, n_sells=0。"""
+        from live.paper_trader import PaperTrader
+
+        with self._patch_portfolio_dir():
+            trader = PaperTrader(initial_capital=100000)
+
+            # 执行空持仓列表的调仓
+            result = trader.rebalance(
+                new_picks=[],
+                prices={"000001.SZ": 10.0, "000002.SZ": 20.0},
+                date="2026-03-21"
+            )
+
+        # 空持仓列表时，返回早期不执行任何买卖操作
+        self.assertEqual(result["n_buys"], 0, "空持仓时 n_buys 应为 0")
+        self.assertEqual(result["n_sells"], 0, "空持仓时 n_sells 应为 0")
+        # 净值应等于初始现金（无交易成本）
+        self.assertAlmostEqual(result["nav_after"], 100000, places=0)
+
+
 if __name__ == "__main__":
     unittest.main()
