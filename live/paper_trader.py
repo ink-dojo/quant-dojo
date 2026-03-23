@@ -14,15 +14,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from utils.runtime_config import get_transaction_cost_rate
+
 # 投资组合数据存储目录
 PORTFOLIO_DIR = Path(__file__).parent / "portfolio"
 POSITIONS_FILE = PORTFOLIO_DIR / "positions.json"
 TRADES_FILE = PORTFOLIO_DIR / "trades.json"
 NAV_FILE = PORTFOLIO_DIR / "nav.csv"
-
-# 交易成本（双边 0.3%，单边 0.15%）
-TRANSACTION_COST_RATE = 0.003
-
 
 class PaperTrader:
     """模拟盘交易类，用于追踪持仓、记录交易和计算净值。"""
@@ -181,7 +179,7 @@ class PaperTrader:
             "action": action,
             "shares": int(shares),
             "price": float(price),
-            "cost": float(shares * price * TRANSACTION_COST_RATE),
+            "cost": float(shares * price * get_transaction_cost_rate()),
         })
 
     # ------------------------------------------------------------------
@@ -250,7 +248,7 @@ class PaperTrader:
             shares_to_sell = int(info["shares"])
             if shares_to_sell <= 0 or sell_price <= 0:
                 continue
-            proceeds = shares_to_sell * sell_price * (1 - TRANSACTION_COST_RATE)
+            proceeds = shares_to_sell * sell_price * (1 - get_transaction_cost_rate())
             self._set_cash(self._get_cash() + proceeds)
             self._record_trade(date, sym, "sell", shares_to_sell, sell_price)
             del self.positions[sym]
@@ -273,7 +271,7 @@ class PaperTrader:
             shares_to_sell = min(info["shares"], math.floor(excess_value / price))
             if shares_to_sell <= 0:
                 continue
-            proceeds = shares_to_sell * price * (1 - TRANSACTION_COST_RATE)
+            proceeds = shares_to_sell * price * (1 - get_transaction_cost_rate())
             self._set_cash(self._get_cash() + proceeds)
             info["shares"] -= shares_to_sell
             info["current_price"] = price
@@ -297,7 +295,7 @@ class PaperTrader:
                 continue
 
             cash = self._get_cash()
-            max_affordable_shares = math.floor(cash / (price * (1 + TRANSACTION_COST_RATE)))
+            max_affordable_shares = math.floor(cash / (price * (1 + get_transaction_cost_rate())))
             target_shares = math.floor(gap_value / price)
             shares_to_buy = min(target_shares, max_affordable_shares)
             if shares_to_buy <= 0:
@@ -305,7 +303,7 @@ class PaperTrader:
                     info["current_price"] = price
                 continue
 
-            actual_cost = shares_to_buy * price * (1 + TRANSACTION_COST_RATE)
+            actual_cost = shares_to_buy * price * (1 + get_transaction_cost_rate())
             self._set_cash(self._get_cash() - actual_cost)
 
             if info is None:
