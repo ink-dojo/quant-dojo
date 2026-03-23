@@ -1,14 +1,14 @@
 """
-每周周报生成模块
+每周周报生成模块（结构化审计文档）
 
-从 live/signals/、live/portfolio/nav.csv、live/factor_snapshot/ 读取数据，
-生成 Markdown 格式的周报，保存到 journal/weekly/{week}.md。
+从 live/portfolio/ 目录读取交易、持仓、净值数据，
+调用风险监控和因子健康度模块，生成 Markdown 格式的周报，
+保存到 journal/weekly/{YYYY-Www}.md。
 """
 
-import os
-import json
-import glob
 import datetime
+import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -25,47 +25,63 @@ def _get_week_dates(week: str) -> list:
     """
     year, week_num = week.split("-W")
     year, week_num = int(year), int(week_num)
-    # ISO week 第1天是周一
     monday = datetime.date.fromisocalendar(year, week_num, 1)
-    dates = []
-    for i in range(5):  # 周一到周五
-        dates.append((monday + datetime.timedelta(days=i)).strftime("%Y-%m-%d"))
-    return dates
+    return [(monday + datetime.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(5)]
 
 
-def _load_signals_for_week(signals_dir: str, dates: list) -> dict:
+def _load_trades(trades_path: str, dates: list) -> list:
     """
-    加载指定日期列表的信号文件。
+    从 trades.json 中加载指定日期范围内的调仓记录。
 
     参数：
-        signals_dir: live/signals/ 目录路径
-        dates: 日期字符串列表
+        trades_path: trades.json 文件路径
+        dates: 当周工作日列表
 
     返回：
-        dict {date: signal_dict}，仅包含存在的日期
+        list of dict，每条记录包含 date/symbol/action/shares/price/cost
     """
-    signals = {}
-    for date in dates:
-        fpath = os.path.join(signals_dir, f"{date}.json")
-        if os.path.exists(fpath):
-            try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    signals[date] = json.load(f)
-            except Exception:
-                pass
-    return signals
+    if not os.path.exists(trades_path):
+        return []
+    try:
+        with open(trades_path, "r", encoding="utf-8") as f:
+            all_trades = json.load(f)
+    except Exception:
+        return []
+    if not isinstance(all_trades, list):
+        return []
+    date_set = set(dates)
+    return [t for t in all_trades if t.get("date") in date_set]
 
 
-def _load_nav_for_week(nav_path: str, dates: list) -> list:
+def _load_positions(positions_path: str) -> dict:
+    """
+    从 positions.json 中加载当前持仓快照。
+
+    参数：
+        positions_path: positions.json 文件路径
+
+    返回：
+        dict，键为股票代码（或 "__cash__"），值为持仓详情
+    """
+    if not os.path.exists(positions_path):
+        return {}
+    try:
+        with open(positions_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _load_nav(nav_path: str, dates: list) -> list:
     """
     从 nav.csv 中过滤出当周的净值数据。
 
     参数：
-        nav_path: live/portfolio/nav.csv 路径
+        nav_path: nav.csv 文件路径
         dates: 当周日期列表
 
     返回：
-        list of dict，每行包含 date/nav 字段
+        list of dict，每行包含 date/nav 字段，按日期排序
     """
     if not os.path.exists(nav_path):
         return []
@@ -81,106 +97,348 @@ def _load_nav_for_week(nav_path: str, dates: list) -> list:
         date_set = set(dates)
         for line in lines[1:]:
             parts = [p.strip() for p in line.split(",")]
-            if len(parts) > max(date_idx, nav_idx):
-                if parts[date_idx] in date_set:
-                    try:
-                        rows.append({"date": parts[date_idx], "nav": float(parts[nav_idx])})
-                    except ValueError:
-                        pass
+            if len(parts) > max(date_idx, nav_idx) and parts[date_idx] in date_set:
+                try:
+                    rows.append({"date": parts[date_idx], "nav": float(parts[nav_idx])})
+                except ValueError:
+                    pass
     except Exception:
         pass
-    return rows
+    return sorted(rows, key=lambda x: x["date"])
 
 
-def _load_factor_snapshots_for_week(snapshot_dir: str, dates: list) -> dict:
+def _load_all_nav(nav_path: str) -> list:
     """
-    加载当周的因子快照（.parquet 或 .json 格式）。
+    从 nav.csv 加载全部净值数据（用于计算周前净值基准）。
 
     参数：
-        snapshot_dir: live/factor_snapshot/ 目录路径
-        dates: 当周日期列表
+        nav_path: nav.csv 文件路径
 
     返回：
-        dict {date: factor_data}
+        list of dict，按日期排序，每行包含 date/nav
     """
-    snapshots = {}
-    for date in dates:
-        # 尝试 parquet
-        fpath_parquet = os.path.join(snapshot_dir, f"{date}.parquet")
-        fpath_json = os.path.join(snapshot_dir, f"{date}.json")
-        if os.path.exists(fpath_parquet):
-            try:
-                import pandas as pd
-                df = pd.read_parquet(fpath_parquet)
-                snapshots[date] = df.to_dict()
-            except Exception:
-                pass
-        elif os.path.exists(fpath_json):
-            try:
-                with open(fpath_json, "r", encoding="utf-8") as f:
-                    snapshots[date] = json.load(f)
-            except Exception:
-                pass
-    return snapshots
+    if not os.path.exists(nav_path):
+        return []
+    rows = []
+    try:
+        with open(nav_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        if not lines:
+            return []
+        header = [h.strip() for h in lines[0].split(",")]
+        date_idx = header.index("date") if "date" in header else 0
+        nav_idx = header.index("nav") if "nav" in header else 1
+        for line in lines[1:]:
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) > max(date_idx, nav_idx):
+                try:
+                    rows.append({"date": parts[date_idx], "nav": float(parts[nav_idx])})
+                except ValueError:
+                    pass
+    except Exception:
+        pass
+    return sorted(rows, key=lambda x: x["date"])
 
 
-def _compute_position_changes(signals: dict, dates: list) -> dict:
+def _try_risk_alerts() -> Optional[list]:
     """
-    根据本周信号计算持仓变化（买入/卖出）。
+    尝试调用 live.risk_monitor.check_risk_alerts 获取风险预警。
+
+    如果模块不可用或调用失败，返回 None。
+
+    返回：
+        预警列表或 None
+    """
+    try:
+        from live.risk_monitor import check_risk_alerts
+        # check_risk_alerts 需要 portfolio 对象；
+        # 这里尝试从 paper_trader 获取
+        from live.paper_trader import PaperTrader
+        base_dir = Path(__file__).parent.parent
+        trader = PaperTrader(base_dir=str(base_dir))
+        return check_risk_alerts(trader)
+    except Exception:
+        return None
+
+
+def _try_factor_health() -> Optional[dict]:
+    """
+    尝试调用 pipeline.factor_monitor.factor_health_report 获取因子健康度。
+
+    如果模块不可用或调用失败，返回 None。
+
+    返回：
+        因子健康度字典或 None
+    """
+    try:
+        from pipeline.factor_monitor import factor_health_report
+        return factor_health_report()
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# 各报告段落的渲染函数
+# ---------------------------------------------------------------------------
+
+def _render_trades_section(trades: list) -> str:
+    """
+    渲染「本周调仓记录」段落。
 
     参数：
-        signals: {date: signal_dict} 字典
-        dates: 当周日期列表
+        trades: 过滤后的当周交易列表
 
     返回：
-        dict with keys 'buys', 'sells', 'hold'
+        Markdown 字符串
     """
-    sorted_dates = sorted([d for d in dates if d in signals])
-    if not sorted_dates:
-        return {"buys": [], "sells": [], "hold": []}
+    lines = ["## 本周调仓记录\n"]
+    if not trades:
+        lines.append("本周无调仓记录。\n")
+        return "\n".join(lines)
 
-    first_picks = set(signals[sorted_dates[0]].get("picks", []))
-    last_picks = set(signals[sorted_dates[-1]].get("picks", []))
+    buys = [t for t in trades if t.get("action") == "buy"]
+    sells = [t for t in trades if t.get("action") == "sell"]
 
-    if len(sorted_dates) >= 2:
-        prev_picks = set(signals[sorted_dates[-2]].get("picks", []))
-        buys = list(last_picks - prev_picks)
-        sells = list(prev_picks - last_picks)
-        hold = list(last_picks & prev_picks)
+    if buys:
+        lines.append(f"### 买入（{len(buys)} 笔）\n")
+        lines.append("| 日期 | 代码 | 股数 | 价格 | 成本 |")
+        lines.append("|------|------|-----:|-----:|-----:|")
+        for t in buys:
+            lines.append(
+                f"| {t['date']} | {t['symbol']} | {t['shares']} "
+                f"| {t['price']:.2f} | {t['cost']:.2f} |"
+            )
+        lines.append("")
+
+    if sells:
+        lines.append(f"### 卖出（{len(sells)} 笔）\n")
+        lines.append("| 日期 | 代码 | 股数 | 价格 | 成本 |")
+        lines.append("|------|------|-----:|-----:|-----:|")
+        for t in sells:
+            lines.append(
+                f"| {t['date']} | {t['symbol']} | {t['shares']} "
+                f"| {t['price']:.2f} | {t['cost']:.2f} |"
+            )
+        lines.append("")
+
+    total_buy_cost = sum(t.get("cost", 0) for t in buys)
+    total_sell_cost = sum(t.get("cost", 0) for t in sells)
+    lines.append(f"**汇总：** 买入总额 {total_buy_cost:,.2f} 元，卖出总额 {total_sell_cost:,.2f} 元\n")
+    return "\n".join(lines)
+
+
+def _render_positions_section(positions: dict) -> str:
+    """
+    渲染「周末持仓概览」段落。
+
+    参数：
+        positions: positions.json 的内容
+
+    返回：
+        Markdown 字符串
+    """
+    lines = ["## 周末持仓概览\n"]
+
+    # 分离现金与股票持仓
+    cash = positions.get("__cash__", 0)
+    stock_positions = {k: v for k, v in positions.items() if k != "__cash__"}
+
+    if not stock_positions:
+        lines.append("当前无股票持仓。\n")
+        lines.append(f"**现金余额：** {cash:,.2f} 元\n")
+        return "\n".join(lines)
+
+    # 计算总市值
+    total_market_value = sum(
+        p.get("shares", 0) * p.get("current_price", p.get("cost_price", 0))
+        for p in stock_positions.values()
+    )
+    total_value = total_market_value + cash
+
+    lines.append(f"**持仓数量：** {len(stock_positions)} 只 | "
+                 f"**总市值：** {total_market_value:,.2f} 元 | "
+                 f"**现金：** {cash:,.2f} 元 | "
+                 f"**总资产：** {total_value:,.2f} 元\n")
+
+    lines.append("| 代码 | 股数 | 成本价 | 现价 | 市值 | 盈亏% |")
+    lines.append("|------|-----:|-------:|-----:|-----:|------:|")
+
+    # 按市值降序
+    sorted_stocks = sorted(
+        stock_positions.items(),
+        key=lambda kv: kv[1].get("shares", 0) * kv[1].get("current_price", 0),
+        reverse=True,
+    )
+    for symbol, info in sorted_stocks:
+        shares = info.get("shares", 0)
+        cost_price = info.get("cost_price", 0)
+        cur_price = info.get("current_price", cost_price)
+        mkt_val = shares * cur_price
+        pnl_pct = ((cur_price / cost_price) - 1) * 100 if cost_price else 0
+        lines.append(
+            f"| {symbol} | {shares} | {cost_price:.2f} | {cur_price:.2f} "
+            f"| {mkt_val:,.2f} | {pnl_pct:+.2f}% |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _render_nav_section(nav_rows: list, all_nav: list, week_start: str) -> str:
+    """
+    渲染「本周 NAV 表现」段落，计算周收益率。
+
+    参数：
+        nav_rows: 当周净值数据
+        all_nav: 全部历史净值数据（用于找上周末基准）
+        week_start: 当周周一日期字符串
+
+    返回：
+        Markdown 字符串
+    """
+    lines = ["## 本周 NAV 表现\n"]
+
+    if not nav_rows:
+        lines.append("本周无净值数据。\n")
+        return "\n".join(lines)
+
+    # 找上周末（week_start 之前最近的净值）作为基准
+    prev_nav = None
+    for row in all_nav:
+        if row["date"] < week_start:
+            prev_nav = row["nav"]
+        else:
+            break
+
+    lines.append("| 日期 | 净值 |")
+    lines.append("|------|-----:|")
+    for row in nav_rows:
+        lines.append(f"| {row['date']} | {row['nav']:,.2f} |")
+    lines.append("")
+
+    end_nav = nav_rows[-1]["nav"]
+    start_nav = nav_rows[0]["nav"]
+
+    # 周内收益
+    if len(nav_rows) >= 2:
+        intra_ret = (end_nav / start_nav - 1) * 100
+        lines.append(f"**周内收益（首日到末日）：** {intra_ret:+.4f}%\n")
+
+    # 相对上周末
+    if prev_nav is not None and prev_nav > 0:
+        weekly_ret = (end_nav / prev_nav - 1) * 100
+        lines.append(f"**周收益（vs 上周末）：** {weekly_ret:+.4f}%\n")
     else:
-        buys = list(last_picks)
-        sells = []
-        hold = []
+        lines.append("**周收益：** 无上周基准，无法计算\n")
 
-    return {"buys": buys, "sells": sells, "hold": hold}
+    return "\n".join(lines)
 
 
-def _compute_factor_ic_summary(snapshots: dict) -> dict:
+def _render_risk_section(alerts: Optional[list]) -> str:
     """
-    汇总本周各因子的 IC 均值（简单占位实现）。
+    渲染「本周风险预警摘要」段落。
 
     参数：
-        snapshots: {date: factor_data} 字典
+        alerts: check_risk_alerts 返回的预警列表，或 None
 
     返回：
-        dict {factor_name: avg_ic}
+        Markdown 字符串
     """
-    # 如果快照包含 ic 字段，取均值；否则返回空
-    ic_accum: dict = {}
-    ic_count: dict = {}
-    for date, data in snapshots.items():
-        if isinstance(data, dict) and "ic" in data:
-            for factor, ic_val in data["ic"].items():
-                ic_accum[factor] = ic_accum.get(factor, 0.0) + float(ic_val)
-                ic_count[factor] = ic_count.get(factor, 0) + 1
-    if not ic_accum:
-        return {}
-    return {f: ic_accum[f] / ic_count[f] for f in ic_accum}
+    lines = ["## 本周风险预警摘要\n"]
 
+    if alerts is None:
+        lines.append("无持仓/无数据，风险监控模块未能加载。\n")
+        return "\n".join(lines)
+
+    if not alerts:
+        lines.append("本周未触发任何风险预警。\n")
+        return "\n".join(lines)
+
+    lines.append("| 级别 | 预警内容 | 相关标的 |")
+    lines.append("|------|----------|----------|")
+    for alert in alerts:
+        level = alert.get("level", "info")
+        msg = alert.get("msg", "")
+        symbol = alert.get("symbol", "-")
+        level_label = "CRITICAL" if level == "critical" else "WARNING"
+        lines.append(f"| {level_label} | {msg} | {symbol} |")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _render_factor_health_section(health: Optional[dict]) -> str:
+    """
+    渲染「因子健康度摘要」段落。
+
+    参数：
+        health: factor_health_report 返回的字典，或 None
+
+    返回：
+        Markdown 字符串
+    """
+    lines = ["## 因子健康度摘要\n"]
+
+    if health is None:
+        lines.append("无数据，因子监控模块未能加载。\n")
+        return "\n".join(lines)
+
+    if not health:
+        lines.append("无因子快照数据。\n")
+        return "\n".join(lines)
+
+    lines.append("| 因子 | IC 均值 | 状态 |")
+    lines.append("|------|--------:|------|")
+    status_map = {
+        "healthy": "健康",
+        "degraded": "衰减",
+        "dead": "失效",
+        "no_data": "无数据",
+    }
+    for factor, info in health.items():
+        if isinstance(info, dict):
+            ic_mean = info.get("ic_mean")
+            status = info.get("status", "no_data")
+            ic_str = f"{ic_mean:.4f}" if ic_mean is not None else "-"
+            status_str = status_map.get(status, status)
+        else:
+            ic_str = "-"
+            status_str = str(info)
+        lines.append(f"| {factor} | {ic_str} | {status_str} |")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _render_todo_section() -> str:
+    """
+    渲染「下周待确认事项」段落（静态清单）。
+
+    返回：
+        Markdown 字符串
+    """
+    lines = [
+        "## 下周待确认事项\n",
+        "- [ ] 数据更新：确认行情数据源正常拉取",
+        "- [ ] 信号生成：运行因子计算与选股流程",
+        "- [ ] 调仓执行：核对信号并完成调仓操作",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# 主入口
+# ---------------------------------------------------------------------------
 
 def generate_weekly_report(week: Optional[str] = None) -> str:
     """
-    生成指定周的量化策略周报。
+    生成指定周的量化策略周报（结构化审计文档）。
+
+    报告包含六个段落：
+      1. 本周调仓记录
+      2. 周末持仓概览
+      3. 本周 NAV 表现
+      4. 本周风险预警摘要
+      5. 因子健康度摘要
+      6. 下周待确认事项
 
     参数：
         week: ISO 周字符串，如 "2026-W13"。默认为当前周。
@@ -196,9 +454,10 @@ def generate_weekly_report(week: Optional[str] = None) -> str:
 
     # 路径配置
     base_dir = Path(__file__).parent.parent
-    signals_dir = base_dir / "live" / "signals"
-    nav_path = base_dir / "live" / "portfolio" / "nav.csv"
-    snapshot_dir = base_dir / "live" / "factor_snapshot"
+    portfolio_dir = base_dir / "live" / "portfolio"
+    trades_path = portfolio_dir / "trades.json"
+    positions_path = portfolio_dir / "positions.json"
+    nav_path = portfolio_dir / "nav.csv"
     journal_dir = base_dir / "journal" / "weekly"
     journal_dir.mkdir(parents=True, exist_ok=True)
 
@@ -207,165 +466,40 @@ def generate_weekly_report(week: Optional[str] = None) -> str:
     week_start, week_end = dates[0], dates[-1]
 
     # 加载数据
-    signals = _load_signals_for_week(str(signals_dir), dates)
-    nav_rows = _load_nav_for_week(str(nav_path), dates)
-    snapshots = _load_factor_snapshots_for_week(str(snapshot_dir), dates)
+    trades = _load_trades(str(trades_path), dates)
+    positions = _load_positions(str(positions_path))
+    nav_rows = _load_nav(str(nav_path), dates)
+    all_nav = _load_all_nav(str(nav_path))
 
-    # 判断是否有任何真实数据
-    has_data = bool(signals or nav_rows or snapshots)
+    # 尝试加载风险预警和因子健康度
+    risk_alerts = _try_risk_alerts()
+    factor_health = _try_factor_health()
 
     # 构建报告
-    lines = []
-    lines.append(f"# 周报：{week}（{week_start} ~ {week_end}）\n")
-    lines.append(f"> 生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    lines.append("")
+    sections = []
 
-    if not has_data:
-        # 系统刚启动，无历史数据
-        lines.append("## 系统状态\n")
-        lines.append("系统刚启动，暂无历史数据。以下为占位报告，待积累真实运行数据后自动填充。\n")
-        lines.append("")
+    # 标题与元信息
+    sections.append(f"# 周报：{week}（{week_start} ~ {week_end}）\n")
+    sections.append(f"> 生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
-        lines.append("## 持仓变化\n")
-        lines.append("- 买入：暂无数据\n")
-        lines.append("- 卖出：暂无数据\n")
-        lines.append("")
+    # 六个结构化段落
+    sections.append(_render_trades_section(trades))
+    sections.append(_render_positions_section(positions))
+    sections.append(_render_nav_section(nav_rows, all_nav, week_start))
+    sections.append(_render_risk_section(risk_alerts))
+    sections.append(_render_factor_health_section(factor_health))
+    sections.append(_render_todo_section())
 
-        lines.append("## 本周净值 vs HS300\n")
-        lines.append("| 指标 | 本策略 | 沪深300 |\n")
-        lines.append("|------|--------|--------|\n")
-        lines.append("| 本周收益 | - | 0（占位）|\n")
-        lines.append("| 累计净值 | - | - |\n")
-        lines.append("")
+    report = "\n".join(sections)
 
-        lines.append("## 各因子本周 IC\n")
-        lines.append("| 因子 | IC 均值 | 状态 |\n")
-        lines.append("|------|---------|------|\n")
-        lines.append("| momentum_20 | - | 待计算 |\n")
-        lines.append("| ep | - | 待计算 |\n")
-        lines.append("| low_volatility | - | 待计算 |\n")
-        lines.append("| turnover | - | 待计算 |\n")
-        lines.append("")
-
-        lines.append("## 风险预警摘要\n")
-        lines.append("暂无数据，系统未发现风险事件。\n")
-        lines.append("")
-
-        lines.append("## 下周调仓计划\n")
-        lines.append("- 待系统积累数据后自动生成\n")
-        lines.append("")
-
-    else:
-        # 1. 持仓变化
-        position_changes = _compute_position_changes(signals, dates)
-        lines.append("## 持仓变化\n")
-
-        buys = position_changes["buys"]
-        sells = position_changes["sells"]
-        hold = position_changes["hold"]
-
-        if buys:
-            lines.append(f"**买入（{len(buys)} 只）：** {', '.join(buys[:10])}{'...' if len(buys) > 10 else ''}\n")
-        else:
-            lines.append("**买入：** 无新增持仓\n")
-
-        if sells:
-            lines.append(f"**卖出（{len(sells)} 只）：** {', '.join(sells[:10])}{'...' if len(sells) > 10 else ''}\n")
-        else:
-            lines.append("**卖出：** 无减仓操作\n")
-
-        lines.append(f"**持仓不变：** {len(hold)} 只\n")
-        lines.append("")
-
-        # 2. 本周净值 vs HS300
-        lines.append("## 本周净值 vs HS300\n")
-        lines.append("| 日期 | 策略净值 | HS300（占位：0）|\n")
-        lines.append("|------|----------|------------------|\n")
-        if nav_rows:
-            nav_sorted = sorted(nav_rows, key=lambda x: x["date"])
-            start_nav = nav_sorted[0]["nav"]
-            for row in nav_sorted:
-                weekly_ret = (row["nav"] / start_nav - 1) * 100 if start_nav else 0
-                lines.append(f"| {row['date']} | {row['nav']:.4f} | 0（暂无基准）|\n")
-            # 本周收益
-            if len(nav_sorted) >= 2:
-                end_nav = nav_sorted[-1]["nav"]
-                weekly_ret = (end_nav / start_nav - 1) * 100
-                lines.append(f"\n**本周策略收益：** {weekly_ret:+.2f}%  |  **HS300 收益：** 0（占位）\n")
-        else:
-            lines.append("| - | 暂无净值数据 | 0（占位）|\n")
-        lines.append("")
-
-        # 3. 各因子本周 IC
-        lines.append("## 各因子本周 IC\n")
-        ic_summary = _compute_factor_ic_summary(snapshots)
-        lines.append("| 因子 | IC 均值 | 状态 |\n")
-        lines.append("|------|---------|------|\n")
-        if ic_summary:
-            for factor, ic_val in ic_summary.items():
-                status = "✅ 有效" if abs(ic_val) >= 0.02 else "⚠️ 弱信号"
-                lines.append(f"| {factor} | {ic_val:.4f} | {status} |\n")
-        else:
-            default_factors = ["momentum_20", "ep", "low_volatility", "turnover"]
-            for f in default_factors:
-                lines.append(f"| {f} | 暂无数据 | - |\n")
-        lines.append("")
-
-        # 4. 风险预警摘要
-        lines.append("## 风险预警摘要\n")
-        # 简单检查：是否有信号缺失的交易日
-        missing_dates = [d for d in dates if d not in signals]
-        if missing_dates:
-            lines.append(f"⚠️ 以下日期缺少信号数据：{', '.join(missing_dates)}\n")
-        if nav_rows:
-            nav_vals = [r["nav"] for r in sorted(nav_rows, key=lambda x: x["date"])]
-            if len(nav_vals) >= 2:
-                max_nav = max(nav_vals)
-                min_after_max = min(nav_vals[nav_vals.index(max_nav):])
-                drawdown = (min_after_max / max_nav - 1) * 100
-                if drawdown < -5:
-                    lines.append(f"⚠️ 本周内最大回撤：{drawdown:.2f}%（已超过 -5% 警戒线）\n")
-                else:
-                    lines.append(f"✅ 本周最大回撤：{drawdown:.2f}%（正常范围）\n")
-        if not missing_dates and not nav_rows:
-            lines.append("✅ 本周未发现风险预警\n")
-        lines.append("")
-
-        # 5. 下周调仓计划
-        lines.append("## 下周调仓计划\n")
-        # 取最新一天的选股作为下周参考
-        latest_signal_date = max(signals.keys()) if signals else None
-        if latest_signal_date:
-            latest_picks = signals[latest_signal_date].get("picks", [])
-            excluded = signals[latest_signal_date].get("excluded", {})
-            lines.append(f"基于 {latest_signal_date} 信号，下周持仓候选（前10）：\n")
-            lines.append(f"{', '.join(latest_picks[:10])}{'...' if len(latest_picks) > 10 else ''}\n")
-            lines.append("")
-            if excluded:
-                lines.append("**过滤统计：**\n")
-                for reason, count in excluded.items():
-                    lines.append(f"- {reason}：{count} 只\n")
-        else:
-            lines.append("- 待信号生成后更新\n")
-        lines.append("")
-
-    report = "\n".join(lines)
-
-    # 保存到 journal/weekly/{week}.md（已存在则追加）
+    # 保存到 journal/weekly/{week}.md（覆盖写入）
     output_path = journal_dir / f"{week}.md"
-    separator = "\n\n---\n\n"
-    if output_path.exists():
-        with open(output_path, "a", encoding="utf-8") as f:
-            f.write(separator)
-            f.write(report)
-    else:
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(report)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(report)
 
     return report
 
 
 if __name__ == "__main__":
-    # 生成当前周的周报并打印
     report = generate_weekly_report()
     print(report)
