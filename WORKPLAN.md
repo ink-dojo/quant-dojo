@@ -3,6 +3,8 @@
 > 这是仓库的总工作计划入口。所有当前目标、后续目标和未来方向统一从这里进入。
 > 详细设计和执行细节仍保留在各自的 `GOAL_*.md` 文件中，但本文件是**唯一总览**。
 > 更新日期：2026-03-22
+>
+> 新建执行型 goal 时，统一从 [`GOAL_EXECUTION_TEMPLATE.md`](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md) 开始。
 
 ---
 
@@ -180,6 +182,9 @@ Dashboard 的位置很明确：
 ### 如果你要开始做事
 先看：
 - [WORKPLAN.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/WORKPLAN.md)
+
+再用模板起执行文件：
+- [GOAL_EXECUTION_TEMPLATE.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md)
 
 再进入当前主目标：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)

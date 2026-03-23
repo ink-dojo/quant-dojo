@@ -1,6 +1,7 @@
 # quant-dojo 量化道场
 
 > 总工作计划入口：[`WORKPLAN.md`](./WORKPLAN.md)
+> Goal 执行模板：[`GOAL_EXECUTION_TEMPLATE.md`](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md)
 
 ## 量化工作台（Dashboard）
 
@@ -104,3 +105,18 @@ jupyter notebook research/notebooks/01_getting_started.ipynb
 3. **样本外验证** — 所有策略必须通过 walk-forward 测试
 4. **记录一切** — journal 里记录每个决策和复盘
 5. **简单优先** — 简单策略 + 严格执行 > 复杂策略 + 随意执行
+
+---
+
+## Goal Execution
+
+任何重要工作都不要从空白 goal 开始。请优先使用：
+
+- [GOAL_EXECUTION_TEMPLATE.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md)
+
+这份模板适用于“一个主 agent 对任务负责到底”的工作方式，重点是：
+- 明确当前已验证状态
+- 写清楚系统级风险与非目标
+- 定义 `Definition Of Done`
+- 设置 `Exit Gates`
+- 没有收敛时必须写回 blocker 和剩余工作
