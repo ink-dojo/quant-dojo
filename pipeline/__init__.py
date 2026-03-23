@@ -11,11 +11,7 @@ Pipeline 模块入口
 from pipeline.data_checker import check_data_freshness
 from pipeline.weekly_report import generate_weekly_report
 
-# 条件导入：daily_signal 和 factor_monitor 可能还未实现
-try:
-    from pipeline.daily_signal import run_daily_pipeline
-except ImportError:
-    run_daily_pipeline = None
+from pipeline.daily_signal import run_daily_pipeline
 
 try:
     from pipeline.factor_monitor import factor_health_report
