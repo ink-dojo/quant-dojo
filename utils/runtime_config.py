@@ -25,7 +25,7 @@ _CONFIG_PATHS = [
 # 默认值
 _DEFAULTS = {
     "phase5": {
-        "local_data_dir": "/Users/karan/Desktop/20260320",
+        "local_data_dir": str(Path.home() / "quant-data"),
         "signal_n_stocks": 30,
         "min_listing_days": 60,
         "min_price": 2.0,
@@ -123,7 +123,7 @@ def get_local_data_dir() -> Path:
     获取本地行情数据目录路径。
 
     从 config.yaml 的 phase5.local_data_dir 读取；
-    若配置文件不存在，则使用默认路径 /Users/karan/Desktop/20260320。
+    若配置文件不存在，则使用默认路径 ~/quant-data。
 
     返回:
         数据目录的 Path 对象
@@ -132,7 +132,7 @@ def get_local_data_dir() -> Path:
         FileNotFoundError: 如果目录不存在，打印清晰错误提示（不抛出，仅警告）
     """
     raw = _get_phase5("local_data_dir")
-    path = Path(raw)
+    path = Path(raw).expanduser()
     if not path.exists():
         import warnings
         warnings.warn(

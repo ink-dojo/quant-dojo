@@ -30,7 +30,7 @@ universe:
 
 # Phase 5 运行时参数（实盘/模拟盘通用配置）
 phase5:
-  local_data_dir: "/Users/karan/Desktop/20260320"  # 本地 CSV 行情数据目录（按机器修改）
+  local_data_dir: "~/quant-data"                   # 本地 CSV 行情数据目录 — 请改为你自己的路径
   signal_n_stocks: 30                    # 每次信号选股数量上限
   min_listing_days: 60                   # 最小上市天数过滤（剔除次新股）
   min_price: 2.0                         # 最低股价过滤阈值（元，剔除仙股）
