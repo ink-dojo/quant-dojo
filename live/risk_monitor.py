@@ -173,6 +173,53 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
     return alerts
 
 
+def check_price_anomalies(prices: dict) -> list:
+    """
+    检查价格字典中的异常价格，返回预警列表。
+
+    参数:
+        prices: {symbol: price} 价格字典，symbol 为股票代码，price 为最新价格
+    返回:
+        预警列表，每项含 level, code, msg, symbol, as_of_date 字段；
+        prices 为空或 None 时返回空列表
+    """
+    if not prices:
+        return []
+
+    alerts = []
+    today = date.today().isoformat()
+    for sym, price in prices.items():
+        if price <= 0:
+            alerts.append({
+                "level": "critical",
+                "code": "ZERO_PRICE",
+                "msg": f"{sym} 价格异常: {price}，价格不得为零或负值",
+                "symbol": sym,
+                "as_of_date": today,
+            })
+    return alerts
+
+
+def run_risk_check(nav_history=None, positions: dict = None) -> list:
+    """
+    独立风险检查入口，不依赖 PaperTrader 实例。
+
+    参数:
+        nav_history: 净值历史（预留接口，当前未使用），传 None 跳过
+        positions:   {symbol: price} 格式的持仓价格字典；
+                     非空时触发价格异常检查
+    返回:
+        预警列表，结构同 check_risk_alerts 返回值
+    """
+    alerts = []
+    positions = positions or {}
+
+    if positions:
+        alerts.extend(check_price_anomalies(positions))
+
+    return alerts
+
+
 def format_risk_report(alerts: list) -> str:
     """
     将预警列表格式化为 Markdown 风险报告。

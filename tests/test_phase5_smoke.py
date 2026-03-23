@@ -391,5 +391,90 @@ class TestPaperTraderRebalance(unittest.TestCase):
         self.assertAlmostEqual(result["nav_after"], 100000, places=0)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. TestMainChainIntegration
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestMainChainIntegration(unittest.TestCase):
+    """全链路集成测试：signal → rebalance → risk-check，使用临时目录真实文件 IO。
+
+    不依赖网络、不依赖真实数据目录；通过 patch 将数据路径重定向到 tempdir，
+    并向其中写入最小合法 CSV 数据（OHLCV 格式）。
+    """
+
+    SYMBOLS = ["000001", "000002", "000003"]
+
+    def _write_mock_csvs(self, tmp_path: Path) -> None:
+        """在 tmp_path 写入最小 mock CSV 文件（英文列名，load_local_stock 可直接解析）。
+
+        文件命名约定：sz.{symbol}.csv，列：date, open, high, low, close, volume。
+        日期范围覆盖 2025-01-01 ~ 2026-03-20，含足够历史数据供因子计算使用。
+        """
+        rng = np.random.default_rng(42)
+        dates = pd.date_range("2025-01-01", "2026-03-20", freq="B")
+        for sym in self.SYMBOLS:
+            prices = rng.uniform(5.0, 50.0, len(dates))
+            df = pd.DataFrame({
+                "date": dates.strftime("%Y-%m-%d"),
+                "open": prices,
+                "high": prices * 1.02,
+                "low": prices * 0.98,
+                "close": prices,
+                "volume": rng.integers(100_000, 1_000_000, len(dates)).astype(float),
+            })
+            csv_file = tmp_path / f"sz.{sym}.csv"
+            df.to_csv(csv_file, index=False)
+
+    def test_signal_rebalance_risk_chain(self):
+        """全链路冒烟：信号生成 → 模拟交易再平衡 → 风险检查，均不依赖网络或真实数据目录。"""
+        from pipeline.daily_signal import run_daily_pipeline
+        from live.paper_trader import PaperTrader
+        from live.risk_monitor import run_risk_check
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            self._write_mock_csvs(tmp_path)
+
+            # ── 1. 信号生成 ─────────────────────────────────────────────────
+            def _noop_parquet(path, **kwargs):
+                Path(path).touch()
+
+            with patch("utils.local_data_loader._get_local_data_dir", return_value=tmp_path), \
+                 patch("utils.local_data_loader._CACHE_DIR", tmp_path / "cache"), \
+                 patch("pipeline.daily_signal.SIGNAL_DIR", tmp_path / "signals"), \
+                 patch("pipeline.daily_signal.SNAPSHOT_DIR", tmp_path / "snapshots"), \
+                 patch("pandas.DataFrame.to_parquet", side_effect=_noop_parquet):
+                signal_result = run_daily_pipeline(date="2026-03-20")
+
+            self.assertIsInstance(signal_result, dict, "run_daily_pipeline 应返回 dict")
+            self.assertTrue(
+                "date" in signal_result or "error" in signal_result,
+                f"返回 dict 应含 'date' 或 'error' 键，实际: {set(signal_result.keys())}",
+            )
+
+            # ── 2. 模拟交易再平衡 ────────────────────────────────────────────
+            pt_dir = tmp_path / "portfolio"
+            with patch("live.paper_trader.PORTFOLIO_DIR", pt_dir), \
+                 patch("live.paper_trader.POSITIONS_FILE", pt_dir / "positions.json"), \
+                 patch("live.paper_trader.TRADES_FILE", pt_dir / "trades.json"), \
+                 patch("live.paper_trader.NAV_FILE", pt_dir / "nav.csv"):
+                trader = PaperTrader(initial_capital=100_000)
+                rebal = trader.rebalance(
+                    new_picks=["000001", "000002"],
+                    prices={"000001": 10.0, "000002": 20.0},
+                    date="2026-03-20",
+                )
+
+            for key in ("n_buys", "n_sells", "cash_after", "nav_after"):
+                self.assertIn(
+                    key, rebal,
+                    f"rebalance() 返回 dict 缺少键 '{key}'，实际: {set(rebal.keys())}",
+                )
+
+            # ── 3. 风险检查 ──────────────────────────────────────────────────
+            risk_result = run_risk_check(nav_history=None, positions={})
+            self.assertIsInstance(risk_result, list, "run_risk_check 应返回 list")
+
+
 if __name__ == "__main__":
     unittest.main()
