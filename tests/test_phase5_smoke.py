@@ -476,5 +476,265 @@ class TestMainChainIntegration(unittest.TestCase):
             self.assertIsInstance(risk_result, list, "run_risk_check 应返回 list")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. TestPaperTraderRestart — 重启后状态恢复
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestPaperTraderRestart(unittest.TestCase):
+    """验证 PaperTrader 在新实例中能完整恢复持仓、现金和 NAV。"""
+
+    def test_restart_preserves_state(self):
+        """创建 PaperTrader → rebalance → 新实例 → 断言状态一致。"""
+        from live.paper_trader import PaperTrader
+
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            patch_ctx = {
+                "live.paper_trader.PORTFOLIO_DIR": d,
+                "live.paper_trader.POSITIONS_FILE": d / "positions.json",
+                "live.paper_trader.TRADES_FILE": d / "trades.json",
+                "live.paper_trader.NAV_FILE": d / "nav.csv",
+            }
+
+            # 第一次：创建并执行 rebalance
+            with patch.multiple("live.paper_trader", **{
+                "PORTFOLIO_DIR": d,
+                "POSITIONS_FILE": d / "positions.json",
+                "TRADES_FILE": d / "trades.json",
+                "NAV_FILE": d / "nav.csv",
+            }):
+                t1 = PaperTrader(initial_capital=200_000)
+                t1.rebalance(
+                    new_picks=["000001.SZ", "600000.SH"],
+                    prices={"000001.SZ": 15.0, "600000.SH": 8.0},
+                    date="2026-03-20",
+                )
+                pos1 = dict(t1.positions)
+                cash1 = t1._get_cash()
+                nav1 = t1._portfolio_value({"000001.SZ": 15.0, "600000.SH": 8.0})
+
+            # 第二次：新实例，同一临时目录
+            with patch.multiple("live.paper_trader", **{
+                "PORTFOLIO_DIR": d,
+                "POSITIONS_FILE": d / "positions.json",
+                "TRADES_FILE": d / "trades.json",
+                "NAV_FILE": d / "nav.csv",
+            }):
+                t2 = PaperTrader(initial_capital=200_000)
+                pos2 = dict(t2.positions)
+                cash2 = t2._get_cash()
+                nav2 = t2._portfolio_value({"000001.SZ": 15.0, "600000.SH": 8.0})
+
+            # 断言持仓键一致
+            self.assertEqual(set(pos1.keys()), set(pos2.keys()),
+                             "重启后持仓键集合应一致")
+            # 断言现金一致
+            self.assertAlmostEqual(cash1, cash2, places=2,
+                                   msg="重启后现金应一致")
+            # 断言 NAV 一致
+            self.assertAlmostEqual(nav1, nav2, places=2,
+                                   msg="重启后 NAV 应一致")
+            # 断言每只股票的 shares 一致
+            for sym in pos1:
+                if sym == "__cash__":
+                    continue
+                self.assertEqual(pos1[sym]["shares"], pos2[sym]["shares"],
+                                 f"重启后 {sym} shares 应一致")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. TestPaperTraderDuplicateRebalance — 同日重复调仓防重
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestPaperTraderDuplicateRebalance(unittest.TestCase):
+    """验证同一日期连续两次 rebalance 不会产生重复交易。"""
+
+    def test_no_duplicate_trades(self):
+        from live.paper_trader import PaperTrader
+
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            with patch.multiple("live.paper_trader", **{
+                "PORTFOLIO_DIR": d,
+                "POSITIONS_FILE": d / "positions.json",
+                "TRADES_FILE": d / "trades.json",
+                "NAV_FILE": d / "nav.csv",
+            }):
+                trader = PaperTrader(initial_capital=100_000)
+                picks = ["000001.SZ", "000002.SZ"]
+                prices = {"000001.SZ": 10.0, "000002.SZ": 20.0}
+                date_str = "2026-03-20"
+
+                # 第一次 rebalance
+                trader.rebalance(new_picks=picks, prices=prices, date=date_str)
+                trades_after_first = len(trader.trades)
+
+                # 第二次 rebalance（同日、同持仓、同价格）
+                trader.rebalance(new_picks=picks, prices=prices, date=date_str)
+                trades_after_second = len(trader.trades)
+
+            # 第二次不应产生新交易（持仓已到位）
+            self.assertEqual(
+                trades_after_first, trades_after_second,
+                f"同日重复调仓不应新增交易，第一次 {trades_after_first} 笔，"
+                f"第二次 {trades_after_second} 笔",
+            )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. TestSignalReproducibility — 信号可复现性
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSignalReproducibility(unittest.TestCase):
+    """验证相同输入下 run_daily_pipeline 的输出完全一致。"""
+
+    SYMBOLS = ["000001.SZ", "000002.SZ", "600000.SH"]
+
+    def _fake_price_df(self) -> pd.DataFrame:
+        dates = pd.date_range("2025-01-01", periods=100, freq="B")
+        rng = np.random.default_rng(42)
+        data = rng.uniform(5.0, 50.0, (100, len(self.SYMBOLS)))
+        return pd.DataFrame(data, index=dates, columns=self.SYMBOLS)
+
+    def test_same_input_same_output(self):
+        from pipeline.daily_signal import run_daily_pipeline
+
+        price_df = self._fake_price_df()
+        test_date = price_df.index[-1].strftime("%Y-%m-%d")
+
+        results = []
+        for _ in range(2):
+            with tempfile.TemporaryDirectory() as tmp:
+                tmp_path = Path(tmp)
+
+                def _fake_to_parquet(path, **kwargs):
+                    Path(path).touch()
+
+                with patch("pipeline.daily_signal.get_all_symbols", return_value=self.SYMBOLS), \
+                     patch("pipeline.daily_signal.load_price_wide", return_value=price_df), \
+                     patch("pipeline.daily_signal.load_factor_wide", side_effect=Exception("无数据")), \
+                     patch("pipeline.daily_signal.SIGNAL_DIR", tmp_path / "signals"), \
+                     patch("pipeline.daily_signal.SNAPSHOT_DIR", tmp_path / "snapshots"), \
+                     patch("pandas.DataFrame.to_parquet", side_effect=_fake_to_parquet):
+                    result = run_daily_pipeline(date=test_date, n_stocks=2)
+                    results.append(result)
+
+        self.assertEqual(results[0]["picks"], results[1]["picks"],
+                         "两次运行的 picks 应完全一致")
+        self.assertEqual(results[0]["scores"], results[1]["scores"],
+                         "两次运行的 scores 应完全一致")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10. TestRiskAlertStructure — 预警字段完整性
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestRiskAlertStructure(unittest.TestCase):
+    """验证风险预警的每条 alert 都包含全部 5 个必要字段。"""
+
+    REQUIRED_FIELDS = {"level", "code", "msg", "symbol", "as_of_date"}
+
+    def test_drawdown_alert_has_all_fields(self):
+        """用大幅回撤净值触发 critical 预警，验证字段完整。"""
+        from live.risk_monitor import check_risk_alerts
+
+        portfolio = MagicMock()
+        portfolio.positions = {"__cash__": 100_000}
+        portfolio._portfolio_value.return_value = 100_000
+
+        with tempfile.TemporaryDirectory() as tmp:
+            nav_file = Path(tmp) / "nav.csv"
+            pd.DataFrame({
+                "date": ["2026-01-01", "2026-02-01", "2026-03-01"],
+                "nav":  [100_000,      110_000,      85_000],
+            }).to_csv(nav_file, index=False)
+
+            with patch("live.risk_monitor.NAV_FILE", nav_file), \
+                 patch("live.risk_monitor._log_decision"):
+                alerts = check_risk_alerts(portfolio)
+
+        self.assertGreater(len(alerts), 0, "回撤超 10% 时应至少有一条预警")
+        for alert in alerts:
+            missing = self.REQUIRED_FIELDS - set(alert.keys())
+            self.assertFalse(
+                missing,
+                f"预警缺少必要字段 {missing}，实际字段: {set(alert.keys())}，内容: {alert}",
+            )
+
+    def test_concentration_alert_has_all_fields(self):
+        """用超集中度持仓触发 warning 预警，验证字段完整。"""
+        from live.risk_monitor import check_risk_alerts
+
+        # 构造持仓：一只股票占比 > CONCENTRATION_LIMIT
+        portfolio = MagicMock()
+        portfolio.positions = {
+            "__cash__": 1_000,
+            "000001.SZ": {"shares": 10000, "current_price": 50.0},
+        }
+        portfolio._portfolio_value.return_value = 501_000  # 1000 cash + 500000 stock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            nav_file = Path(tmp) / "nav.csv"
+            # 不写 nav 文件 — 只测集中度
+            with patch("live.risk_monitor.NAV_FILE", nav_file), \
+                 patch("live.risk_monitor._log_decision"):
+                alerts = check_risk_alerts(
+                    portfolio,
+                    price_data={"000001.SZ": 50.0},
+                )
+
+        concentration_alerts = [a for a in alerts if a.get("code") == "CONCENTRATION_EXCEEDED"]
+        self.assertGreater(len(concentration_alerts), 0,
+                           "单股占比接近 100% 时应触发集中度预警")
+        for alert in concentration_alerts:
+            missing = self.REQUIRED_FIELDS - set(alert.keys())
+            self.assertFalse(
+                missing,
+                f"集中度预警缺少字段 {missing}，内容: {alert}",
+            )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11. TestWeeklyReportEmpty — 空数据周报
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestWeeklyReportEmpty(unittest.TestCase):
+    """验证在无任何交易/持仓/净值数据时，周报仍能正常生成。"""
+
+    def test_empty_state_returns_nonempty_string(self):
+        """无数据目录下调用 generate_weekly_report，应返回非空字符串且不崩溃。"""
+        from pipeline.weekly_report import generate_weekly_report
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            # 创建空的目录结构（模拟项目根目录）
+            (tmp_path / "live" / "signals").mkdir(parents=True)
+            (tmp_path / "live" / "portfolio").mkdir(parents=True)
+            (tmp_path / "live" / "factor_snapshot").mkdir(parents=True)
+            (tmp_path / "journal" / "weekly").mkdir(parents=True)
+
+            # patch base_dir 使 generate_weekly_report 指向空的临时目录
+            with patch("pipeline.weekly_report.Path") as mock_path_cls:
+                # Path(__file__).parent.parent 返回 tmp_path
+                mock_file_path = MagicMock()
+                mock_file_path.parent.parent = tmp_path
+                mock_path_cls.return_value = mock_file_path
+
+                # 但 Path(str) 的常规调用仍需正常工作
+                original_path = Path
+
+                def _path_side_effect(*args, **kwargs):
+                    if not args:
+                        return mock_file_path
+                    return original_path(*args, **kwargs)
+
+                mock_path_cls.side_effect = _path_side_effect
+
+                result = generate_weekly_report(week="2026-W01")
+
+        self.assertIsInstance(result, str, "返回值应为字符串")
+        self.assertGreater(len(result), 0, "空数据时应返回非空的占位周报")
+
+
 if __name__ == "__main__":
     unittest.main()
