@@ -9,6 +9,8 @@ quant-dojo 控制面 CLI — 统一的操作命令入口
   rebalance run --date
   risk check
   report weekly [--week]
+  data status
+  data update [--end-date] [--symbols] [--dry-run]
   positions
   performance
   factor-health
@@ -378,6 +380,102 @@ def cmd_report_weekly(args):
 
 
 # ══════════════════════════════════════════════════════════════
+# data 命令组
+# ══════════════════════════════════════════════════════════════
+
+def cmd_data_status(args):
+    """
+    查看本地数据 freshness 状态
+
+    参数:
+        args: argparse 命名空间
+    """
+    from pipeline.data_checker import check_data_freshness
+
+    result = check_data_freshness()
+    status = result.get("status", "unknown")
+    latest_date = result.get("latest_date", "未知")
+    days_stale = result.get("days_stale")
+    missing_count = result.get("missing_count", 0)
+
+    # 颜色 ANSI 码
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    RED = "\033[31m"
+    RESET = "\033[0m"
+
+    if status == "ok":
+        color = GREEN
+        icon = "✅"
+    elif status == "stale":
+        color = YELLOW
+        icon = "⚠️ "
+    else:
+        color = RED
+        icon = "❌"
+
+    print(f"\n{'='*50}")
+    print("数据状态检查")
+    print(f"{'='*50}")
+    print(f"  状态      ：{color}{icon} {status.upper()}{RESET}")
+    print(f"  最新日期  ：{latest_date}")
+    if days_stale is not None:
+        print(f"  陈旧天数  ：{days_stale} 天")
+    print(f"  缺失股票数：{missing_count}")
+    print(f"{'='*50}\n")
+
+    if status != "ok":
+        sys.exit(1)
+
+
+def cmd_data_update(args):
+    """
+    更新本地 A 股日线数据
+
+    参数:
+        args: argparse 命名空间，包含 end_date, symbols, dry_run
+    """
+    try:
+        from pipeline.data_update import run_update
+    except ImportError as e:
+        print(f"❌ pipeline.data_update 模块未找到：{e}", file=sys.stderr)
+        print("请先实现 pipeline/data_update.py 并提供 run_update() 函数", file=sys.stderr)
+        sys.exit(1)
+
+    end_date = getattr(args, "end_date", None)
+    symbols_str = getattr(args, "symbols", None)
+    dry_run = getattr(args, "dry_run", False)
+
+    symbol_list = symbols_str.split(",") if symbols_str else None
+
+    if dry_run:
+        print("[dry-run] 模拟更新，不写文件")
+    print(f"正在更新数据...")
+    if end_date:
+        print(f"  截止日期：{end_date}")
+    if symbol_list:
+        print(f"  股票范围：{len(symbol_list)} 只")
+    print()
+
+    result = run_update(symbols=symbol_list, end_date=end_date, dry_run=dry_run)
+
+    updated = result.get("updated", 0)
+    skipped = result.get("skipped", 0)
+    failed = result.get("failed", 0)
+
+    print(f"{'='*50}")
+    print(f"数据更新完成")
+    print(f"{'='*50}")
+    print(f"  已更新：{updated} 只")
+    print(f"  已跳过：{skipped} 只")
+    print(f"  失败  ：{failed} 只")
+    print(f"{'='*50}\n")
+
+    if failed > 0:
+        sys.exit(1)
+
+
+# ══════════════════════════════════════════════════════════════
 # 独立命令
 # ══════════════════════════════════════════════════════════════
 
@@ -600,6 +698,8 @@ def main():
   %(prog)s rebalance run --date 2026-03-20         执行调仓
   %(prog)s risk check                              风险检查
   %(prog)s report weekly --week 2026-W12           生成周报
+  %(prog)s data status                             查看数据新鲜度
+  %(prog)s data update --end-date 2026-03-24       更新数据
   %(prog)s doctor                                  系统诊断
 """,
     )
@@ -655,6 +755,20 @@ def main():
 
     p_rep_weekly = rep_sub.add_parser("weekly", help="生成每周周报")
     p_rep_weekly.add_argument("--week", type=str, default=None, help="周 YYYY-Www（默认当周）")
+
+    # ── data ─────────────────────────────────────────────────
+    p_data = subparsers.add_parser("data", help="数据管理（状态/更新）")
+    data_sub = p_data.add_subparsers(dest="data_action")
+
+    data_sub.add_parser("status", help="查看本地数据 freshness 状态")
+
+    p_data_update = data_sub.add_parser("update", help="更新本地 A 股日线数据")
+    p_data_update.add_argument("--end-date", dest="end_date", type=str, default=None,
+                               help="更新截止日期 YYYY-MM-DD")
+    p_data_update.add_argument("--symbols", type=str, default=None,
+                               help="逗号分隔的股票代码，不填则全量")
+    p_data_update.add_argument("--dry-run", dest="dry_run", action="store_true",
+                               help="只打印，不写文件")
 
     # ── 独立命令 ─────────────────────────────────────────────
     subparsers.add_parser("positions", help="查看当前模拟盘持仓")
@@ -745,6 +859,15 @@ def main():
             p_rep.print_help()
             sys.exit(0)
         handler = {"weekly": cmd_report_weekly}.get(action)
+    elif args.command == "data":
+        action = getattr(args, "data_action", None)
+        if action is None:
+            p_data.print_help()
+            sys.exit(0)
+        handler = {
+            "status": cmd_data_status,
+            "update": cmd_data_update,
+        }.get(action)
     else:
         handler = None
 
