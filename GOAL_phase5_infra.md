@@ -1,6 +1,10 @@
 # GOAL — quant-dojo Phase 5 Infrastructure Execution Plan
 
 > 给 `/autoloop` 的可执行工作计划。当前日期：2026-03-22
+>
+> 当前 active subgoal：
+> [`GOAL_phase5_free_data_ingestion.md`](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+> 说明：免费最新数据接入与 freshness 契约收口，是当前 Phase 5 的优先切入点。
 
 ---
 
@@ -35,10 +39,26 @@
 
 ### 仍然存在的核心短板
 - 数据路径仍然硬编码到个人机器
+- 免费最新数据更新路径缺失，freshness 只能报警，不能闭环修复
 - 模拟盘状态恢复与 restart 安全性不足
 - 自动化验证过弱，缺少回归测试
 - 周报、数据新鲜度、风控阈值与执行路径还没有形成严格契约
 - 当前系统可以“运行”，但还不足以称为“可信”
+
+### Immediate Priority Inside Phase 5
+
+在继续平均推进 WS1-WS6 之前，先收口一个执行型阻塞问题：
+
+- 免费数据接入与 freshness 契约
+
+执行文件：
+- [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+
+原因：
+
+- 当前 CLI 已报告本地数据停在旧交易日
+- 没有正式更新入口，`signal -> risk -> weekly report` 只能依赖旧数据
+- 这个问题会同时阻塞 WS2、WS4、WS5 和 WS6 的真实验收
 
 ---
 

@@ -52,6 +52,7 @@ def _get_csv_path(data_dir: Path, symbol: str) -> Optional[Path]:
     返回:
         Path 或 None（文件不存在时）
     """
+    data_dir = Path(data_dir) if not isinstance(data_dir, Path) else data_dir
     for prefix in ("sh", "sz"):
         p = data_dir / f"{prefix}.{symbol}.csv"
         if p.exists():

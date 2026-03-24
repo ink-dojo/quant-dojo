@@ -2,7 +2,7 @@
 
 > 这是仓库的总工作计划入口。所有当前目标、后续目标和未来方向统一从这里进入。
 > 详细设计和执行细节仍保留在各自的 `GOAL_*.md` 文件中，但本文件是**唯一总览**。
-> 更新日期：2026-03-22
+> 更新日期：2026-03-24
 >
 > 新建执行型 goal 时，统一从 [`GOAL_EXECUTION_TEMPLATE.md`](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md) 开始。
 
@@ -32,6 +32,7 @@
 - 系统已经不再是纯研究仓库
 - 但它还没有达到“可信模拟盘基础设施”的标准
 - 当前首要任务不是扩功能，而是把 Phase 5 基础设施做扎实
+- 当前最直接的 Phase 5 阻塞项是：**免费最新数据接入与 freshness 契约仍未收口**
 
 ---
 
@@ -42,6 +43,10 @@
 1. **P0: Phase 5 Infrastructure**
    目标：让 `signal -> rebalance -> positions -> performance -> risk -> weekly report` 成为可信闭环。
    详细计划见 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
+
+   当前执行子目标：
+   - [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+     目标：接上免费 A 股日线更新路径，统一 `latest_date / days_stale / missing_symbols / status` 契约，并解锁 Phase 5 主链路对最新数据的依赖。
 
 2. **P0.5: Control Plane First Implementation** ✅ 已完成
    目标：统一 CLI 命令树 + 策略注册表 + 运行记录 + Dashboard 集成 + AI-safe 控制面。
@@ -82,6 +87,7 @@
 ### Active Now: Phase 5 Infrastructure
 
 当前唯一主任务：
+- 接上免费数据更新链路，消除“数据停在旧日期但系统只能告警不能修复”的状态
 - 统一运行配置，去掉硬编码路径
 - 加固每日信号输出
 - 完成 `PaperTrader` 状态完整性
@@ -91,6 +97,35 @@
 
 详细执行见：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
+- [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+
+### Immediate Focus Inside P0
+
+当前先不要平均推进所有 Phase 5 workstreams。
+
+先做这一条：
+
+1. **Free Data Ingestion And Freshness**
+   目标：接入免费 A 股日线更新路径，并让 CLI / Dashboard / control surface 看到同一份 freshness 结果。
+   为什么优先：
+   - 当前 CLI 已明确提示本地数据停在 `2026-03-20`
+   - 没有最新数据，`signal -> risk -> weekly report` 的可信度不足
+   - 这是 Phase 5 后续工作流的公共依赖，不先补会持续制造假进展
+
+执行文件：
+- [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+
+### Required Gate Before Strategy Enters Phase 5
+
+在继续把当前主策略推进到模拟盘之前，必须先通过策略验证门禁。
+
+执行文件：
+- [GOAL_strategy_validation_gate.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_strategy_validation_gate.md)
+
+说明：
+- 这不是新的总主线
+- 它是当前主策略进入 Phase 5 之前必须通过的 admission gate
+- 目的不是扩策略数量，而是防止“工程闭环很稳，但策略本身不成立”
 
 ### Done Recently
 - 修复了回测引擎与多因子策略返回列不兼容问题
@@ -227,6 +262,14 @@ AI 提议研究方向
 状态：进行中，当前最高优先级  
 详情：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
+- [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+
+当前 active subgoal：
+- 免费数据接入与 freshness 收口
+- 这是 Phase 5 的执行型子目标，不改变主线优先级
+
+进入 Phase 5 模拟盘前的强制门禁：
+- [GOAL_strategy_validation_gate.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_strategy_validation_gate.md)
 
 ### Dashboard Track
 定位：本地单机工作台  
@@ -290,6 +333,9 @@ AI 提议研究方向
 再进入当前主目标：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
 
+如果你要立刻开始当前最优先的 Phase 5 切入点：
+- [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+
 ### 如果你要了解历史背景
 看：
 - [GOAL.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL.md)
@@ -308,6 +354,7 @@ AI 提议研究方向
 
 - **总入口**：`WORKPLAN.md`
 - **当前执行主计划**：`GOAL_phase5_infra.md`
+- **当前执行子计划（active subgoal）**：`GOAL_phase5_free_data_ingestion.md`
 - **其他 GOAL 文件**：作为分计划存在，但不再承担总入口职责
 
 如果后续需要，我还可以继续做两件事：
