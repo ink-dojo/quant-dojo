@@ -316,6 +316,35 @@ class TestControlSurface(unittest.TestCase):
         self.assertEqual(result["status"], "success")
         self.assertIsInstance(result["data"], dict)
 
+    def test_mutating_command_requires_approval(self):
+        """变更命令未 approved 时应返回 requires_approval"""
+        from pipeline.control_surface import execute
+        result = execute("backtest.run", strategy_id="dual_ma",
+                         start="2023-01-01", end="2024-12-31")
+        self.assertEqual(result["status"], "requires_approval")
+        self.assertIn("command", result)
+        self.assertIn("message", result)
+
+    def test_mutating_command_with_approval(self):
+        """变更命令 approved=True 时应正常执行（此处用 report.weekly 做轻量测试）"""
+        from pipeline.control_surface import execute
+        result = execute("report.weekly", approved=True)
+        self.assertEqual(result["status"], "success")
+
+    def test_readonly_command_no_approval_needed(self):
+        """只读命令不需要 approved 即可执行"""
+        from pipeline.control_surface import execute
+        result = execute("strategies.list")
+        self.assertEqual(result["status"], "success")
+
+    def test_dry_run_returns_plan(self):
+        """dry_run=True 时返回执行计划但不实际执行"""
+        from pipeline.control_surface import execute
+        result = execute("backtest.run", dry_run=True, approved=True,
+                         strategy_id="dual_ma", start="2023-01-01", end="2024-12-31")
+        self.assertEqual(result["status"], "dry_run")
+        self.assertEqual(result["command"], "backtest.run")
+
 
 if __name__ == "__main__":
     unittest.main()

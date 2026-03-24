@@ -142,22 +142,49 @@ def list_commands() -> list[dict]:
     ]
 
 
-def execute(command: str, **kwargs) -> dict:
+def execute(command: str, approved: bool = False, dry_run: bool = False, **kwargs) -> dict:
     """
     执行控制面命令
 
+    变更命令（mutates=True）需要显式批准才能执行。
+    未批准的变更命令返回 requires_approval 状态，附带将要执行的描述。
+
     参数:
         command: 命令名称（如 "strategies.list", "backtest.run"）
+        approved: 是否已获得人工批准（仅变更命令需要）
+        dry_run: 如果为 True，变更命令只返回执行计划而不实际执行
         **kwargs: 命令参数
 
     返回:
-        dict: {"status": "success"|"error", "data": ..., "error": ...}
+        dict: {"status": "success"|"error"|"requires_approval", ...}
     """
     if command not in _COMMANDS:
         available = ", ".join(_COMMANDS.keys())
         return {
             "status": "error",
             "error": f"未知命令 '{command}'，可用命令：{available}",
+        }
+
+    cmd_info = _COMMANDS[command]
+
+    # 变更命令需要显式批准
+    if cmd_info["mutates"] and not approved:
+        return {
+            "status": "requires_approval",
+            "command": command,
+            "description": cmd_info["description"],
+            "params": kwargs,
+            "message": f"命令 '{command}' 会变更系统状态，需要 approved=True 才能执行",
+        }
+
+    # dry_run 模式：返回执行计划但不实际执行
+    if dry_run:
+        return {
+            "status": "dry_run",
+            "command": command,
+            "description": cmd_info["description"],
+            "mutates": cmd_info["mutates"],
+            "params": kwargs,
         }
 
     try:

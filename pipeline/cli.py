@@ -648,14 +648,18 @@ def main():
     p_bt_cmp.add_argument("run_ids", type=str, nargs="+", help="运行 ID（至少两个）")
 
     # ── signal ───────────────────────────────────────────────
+    # 同时支持 `signal --date` (旧) 和 `signal run --date` (新)
     p_sig = subparsers.add_parser("signal", help="信号生成")
+    p_sig.add_argument("--date", type=str, default=None, help="日期 YYYY-MM-DD（默认今日）")
     sig_sub = p_sig.add_subparsers(dest="sig_action")
 
     p_sig_run = sig_sub.add_parser("run", help="运行每日选股信号生成")
     p_sig_run.add_argument("--date", type=str, default=None, help="日期 YYYY-MM-DD（默认今日）")
 
     # ── rebalance ────────────────────────────────────────────
+    # 同时支持 `rebalance --date` (旧) 和 `rebalance run --date` (新)
     p_reb = subparsers.add_parser("rebalance", help="调仓操作")
+    p_reb.add_argument("--date", type=str, default=None, help="调仓日期 YYYY-MM-DD")
     reb_sub = p_reb.add_subparsers(dest="reb_action")
 
     p_reb_run = reb_sub.add_parser("run", help="执行调仓")
@@ -681,14 +685,8 @@ def main():
     subparsers.add_parser("strategies", help="列出所有已注册策略")
     subparsers.add_parser("doctor", help="系统诊断")
 
-    # ── 兼容旧命令（不在 help 中显示）───────────────────────
-    # 旧版 signal / rebalance / weekly-report / risk-check 继续可用
-    _p_sig_compat = subparsers.add_parser("signal-compat", add_help=False)
-    _p_sig_compat.add_argument("--date", type=str, default=None)
-
-    _p_reb_compat = subparsers.add_parser("rebalance-compat", add_help=False)
-    _p_reb_compat.add_argument("--date", type=str, required=True)
-
+    # ── 兼容旧命令 ─────────────────────────────────────────
+    # weekly-report 和 risk-check 保留为独立子命令（旧脚本直接用）
     _p_wr_compat = subparsers.add_parser("weekly-report", help="生成每周周报（兼容旧命令）")
     _p_wr_compat.add_argument("--week", type=str, default=None)
 
@@ -742,15 +740,21 @@ def main():
     elif args.command == "signal":
         action = getattr(args, "sig_action", None)
         if action is None:
-            p_sig.print_help()
-            sys.exit(0)
-        handler = {"run": cmd_signal_run}.get(action)
+            # 兼容旧用法：`signal --date YYYY-MM-DD` 等价于 `signal run --date`
+            handler = cmd_signal_run
+        else:
+            handler = {"run": cmd_signal_run}.get(action)
     elif args.command == "rebalance":
         action = getattr(args, "reb_action", None)
         if action is None:
-            p_reb.print_help()
-            sys.exit(0)
-        handler = {"run": cmd_rebalance_run}.get(action)
+            # 兼容旧用法：`rebalance --date YYYY-MM-DD` 等价于 `rebalance run --date`
+            if getattr(args, "date", None):
+                handler = cmd_rebalance_run
+            else:
+                p_reb.print_help()
+                sys.exit(0)
+        else:
+            handler = {"run": cmd_rebalance_run}.get(action)
     elif args.command == "risk":
         action = getattr(args, "risk_action", None)
         if action is None:
