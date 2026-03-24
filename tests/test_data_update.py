@@ -7,7 +7,7 @@ test_data_update.py — providers 和 pipeline.data_update 模块的集成测试
 import sys
 import inspect
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, call
 
 # 预注入缺失的第三方依赖 stub
 for _pkg in ("akshare",):
@@ -117,6 +117,41 @@ class TestDataUpdateModules(unittest.TestCase):
 
         except Exception as e:
             self.fail(f"run_update(dry_run=True) 抛异常: {e}")
+
+
+class TestAkShareRetry(unittest.TestCase):
+    """测试 AkShareProvider 的重试逻辑。"""
+
+    @patch("providers.akshare_provider.time.sleep", return_value=None)
+    def test_retry_succeeds_after_failures(self, mock_sleep):
+        """ak.stock_zh_a_hist 前两次失败、第三次成功时应返回有效数据。"""
+        import pandas as pd
+        from providers.akshare_provider import AkShareProvider
+
+        # 构造第三次调用时返回的有效 DataFrame
+        success_df = pd.DataFrame({
+            "日期": ["2026-01-01", "2026-01-02"],
+            "开盘": [10.0, 11.0],
+            "最高": [10.5, 11.5],
+            "最低": [9.5, 10.5],
+            "收盘": [10.2, 11.2],
+            "成交量": [1000, 2000],
+            "成交额": [10000, 20000],
+        })
+
+        mock_hist = MagicMock(
+            side_effect=[ConnectionError("timeout"), ConnectionError("timeout"), success_df]
+        )
+
+        with patch.dict("sys.modules", {"akshare": MagicMock(stock_zh_a_hist=mock_hist)}):
+            provider = AkShareProvider()
+            result = provider.fetch_daily_history("000001", "20260101", "20260102")
+
+        # 验证调用了 3 次（2 次失败 + 1 次成功）
+        self.assertEqual(mock_hist.call_count, 3)
+        # 验证返回了有效数据
+        self.assertEqual(len(result), 2)
+        self.assertIn("close", result.columns)
 
 
 if __name__ == "__main__":

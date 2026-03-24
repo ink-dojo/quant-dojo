@@ -6,6 +6,7 @@ providers/akshare_provider.py — AkShare 数据提供者实现
 """
 
 import logging
+import time
 from typing import List
 
 import pandas as pd
@@ -13,6 +14,37 @@ import pandas as pd
 from providers.base import BaseDataProvider, ProviderError
 
 logger = logging.getLogger(__name__)
+
+
+def _call_with_retry(func, max_retries: int = 3, base_delay: float = 2.0):
+    """
+    带指数退避的重试包装器。
+
+    参数:
+        func: 无参可调用对象
+        max_retries: 最大重试次数（含首次调用）
+        base_delay: 基础等待秒数，实际等待 = base_delay * 2^attempt
+
+    返回:
+        func() 的返回值
+
+    Raises:
+        ProviderError: 所有重试用尽后抛出
+    """
+    last_exc = None
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            last_exc = e
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    "第 %d/%d 次调用失败，%0.1fs 后重试: %s",
+                    attempt + 1, max_retries, delay, e,
+                )
+                time.sleep(delay)
+    raise ProviderError(f"重试 {max_retries} 次后仍失败: {last_exc}") from last_exc
 
 # ak.stock_zh_a_hist 返回的中文列 → 英文列名映射
 _COLUMN_MAP = {
@@ -48,11 +80,8 @@ class AkShareProvider(BaseDataProvider):
         Raises:
             ProviderError: akshare 调用失败时
         """
-        try:
-            import akshare as ak
-            df = ak.stock_info_a_code_name()
-        except Exception as e:
-            raise ProviderError(f"ak.stock_info_a_code_name() 失败: {e}") from e
+        import akshare as ak
+        df = _call_with_retry(ak.stock_info_a_code_name)
 
         # 找代码列（优先包含 "code" 或 "代码" 的列）
         code_col = None
@@ -88,17 +117,16 @@ class AkShareProvider(BaseDataProvider):
         start_fmt = start_date.replace("-", "")
         end_fmt = end_date.replace("-", "")
 
-        try:
-            import akshare as ak
-            df = ak.stock_zh_a_hist(
+        import akshare as ak
+        df = _call_with_retry(
+            lambda: ak.stock_zh_a_hist(
                 symbol=symbol,
                 period="daily",
                 start_date=start_fmt,
                 end_date=end_fmt,
                 adjust="hfq",
             )
-        except Exception as e:
-            raise ProviderError(f"ak.stock_zh_a_hist({symbol}) 失败: {e}") from e
+        )
 
         if df is None or df.empty:
             return pd.DataFrame(columns=_REQUIRED_COLS)

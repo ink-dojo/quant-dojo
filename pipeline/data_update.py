@@ -11,6 +11,7 @@ CSV 文件命名规则：{sh|sz}.{symbol}.csv
 """
 
 import logging
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -278,6 +279,10 @@ def run_update(
             print(f"{tag} 更新 {symbol} ... FAIL (写入失败: {e})")
             logger.warning("写入 %s 失败: %s", dest_path, e)
             failed.append(symbol)
+
+        # 请求间隔，防止被数据源限流
+        if not dry_run and idx < total:
+            time.sleep(0.5)
 
     return {
         "updated": updated,
