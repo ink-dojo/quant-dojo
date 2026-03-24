@@ -14,6 +14,7 @@ from pathlib import Path
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import io, contextlib
 import numpy as np
 import pandas as pd
 
@@ -23,6 +24,7 @@ from utils.metrics import (
     annualized_return, annualized_volatility, sharpe_ratio,
     max_drawdown, win_rate,
 )
+from utils.factor_analysis import compute_ic_series, ic_summary, quintile_backtest
 
 # ══════════════════════════════════════════════════════════════
 # 配置
@@ -72,7 +74,7 @@ factors = {
     "turnover_rev": -daily_ret.abs().rolling(20).mean(),
 }
 
-# 只用样本内数据算 IC
+# 只用样本内数据算 IC（复用 utils/factor_analysis 工具函数）
 ic_results = {}
 print(f"\n{'因子':<20} {'IC均值':>8} {'ICIR':>8} {'IC>0%':>7} {'判断':>6}")
 print("-" * 55)
@@ -80,30 +82,37 @@ print("-" * 55)
 for name, fac in factors.items():
     fac_is = fac.loc[INSAMPLE_START:INSAMPLE_END]
     fwd_is = fwd_ret_5d.loc[INSAMPLE_START:INSAMPLE_END]
-    ic_vals = []
-    for date in fac_is.index[::5]:  # 每 5 天算一次（加速）
-        if date not in fwd_is.index:
-            continue
-        f = fac_is.loc[date].dropna()
-        r = fwd_is.loc[date].dropna()
-        cs = f.index.intersection(r.index)
-        if len(cs) < 50:
-            continue
-        ic = f[cs].corr(r[cs], method="spearman")
-        if not np.isnan(ic):
-            ic_vals.append(ic)
 
-    if ic_vals:
-        ic_mean = np.mean(ic_vals)
-        ic_std = np.std(ic_vals)
-        icir = ic_mean / ic_std if ic_std > 0 else 0
-        ic_pos = np.mean([1 for x in ic_vals if x > 0])
+    ic_s = compute_ic_series(fac_is, fwd_is, method="spearman", min_stocks=50)
+    # 使用 ic_summary 计算统计量，抑制其打印输出以保持原表格格式
+    with contextlib.redirect_stdout(io.StringIO()):
+        summary = ic_summary(ic_s, name=name)
+
+    ic_mean = summary["IC_mean"]
+    icir = summary["ICIR"] if pd.notna(summary["ICIR"]) else 0
+    ic_pos = summary["pct_pos"]
+
+    if pd.notna(ic_mean):
         verdict = "✅" if abs(icir) > 0.2 and ic_mean > 0 else "❌"
         print(f"{name:<20} {ic_mean:>8.4f} {icir:>8.4f} {ic_pos:>6.1%} {verdict:>6}")
         ic_results[name] = {"ic_mean": ic_mean, "icir": icir, "ic_pos_pct": ic_pos}
     else:
         print(f"{name:<20} {'N/A':>8} {'N/A':>8} {'N/A':>7} {'❌':>6}")
         ic_results[name] = {"ic_mean": 0, "icir": 0, "ic_pos_pct": 0}
+
+# 分层回测：展示各因子的五分位组收益
+print(f"\n{'因子':<20} {'Q1':>8} {'Q2':>8} {'Q3':>8} {'Q4':>8} {'Q5':>8} {'多空':>8}")
+print("-" * 74)
+
+for name, fac in factors.items():
+    fac_is = fac.loc[INSAMPLE_START:INSAMPLE_END]
+    fwd_is = fwd_ret_5d.loc[INSAMPLE_START:INSAMPLE_END]
+    group_ret, ls_ret = quintile_backtest(fac_is, fwd_is, n_groups=5)
+    group_ann = group_ret.mean() * 252
+    ls_ann = ls_ret.dropna().mean() * 252
+    print(f"{name:<20} {group_ann['Q1']:>+7.2%} {group_ann['Q2']:>+7.2%} "
+          f"{group_ann['Q3']:>+7.2%} {group_ann['Q4']:>+7.2%} {group_ann['Q5']:>+7.2%} "
+          f"{ls_ann:>+7.2%}")
 
 # ══════════════════════════════════════════════════════════════
 # 3. 回测函数（v1 等权全因子 vs v2 IC加权去momentum）
