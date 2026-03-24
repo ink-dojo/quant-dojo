@@ -36,14 +36,22 @@ def get_index_components(index: str = "csi500") -> pd.DataFrame:
     df = ak.index_stock_cons_weight_csindex(symbol=code)
 
     # 标准化列名（akshare 返回的列名可能因版本而异）
+    # 优先匹配"成分券代码"，避免"指数代码"也被映射为 symbol
     rename = {}
     for col in df.columns:
-        if any(k in col for k in ["代码", "成分券代码"]):
+        if col == "成分券代码":
             rename[col] = "symbol"
-        elif any(k in col for k in ["名称", "成分券名称"]):
+        elif col == "成分券名称":
             rename[col] = "name"
         elif any(k in col for k in ["权重", "占比"]):
             rename[col] = "weight"
+    # 如果没有精确匹配，再用模糊匹配
+    if "symbol" not in rename.values():
+        for col in df.columns:
+            if "代码" in col and col != "指数代码" and "symbol" not in rename.values():
+                rename[col] = "symbol"
+            elif "名称" in col and col != "指数名称" and col != "指数英文名称" and "name" not in rename.values():
+                rename[col] = "name"
     df = df.rename(columns=rename)
 
     if "symbol" in df.columns:

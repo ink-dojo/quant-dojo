@@ -246,12 +246,15 @@ def get_hs300_symbols() -> list:
     try:
         import akshare as ak
         df = ak.index_stock_cons_weight_csindex(symbol="000300")
-        # 提取 6 位代码列（常见列名：'成分券代码' 或 '股票代码'）
+        # 提取 6 位代码列（优先匹配 '成分券代码'，避免匹配到 '指数代码'）
         code_col = None
-        for col in df.columns:
-            if "代码" in col or "code" in col.lower():
-                code_col = col
-                break
+        if "成分券代码" in df.columns:
+            code_col = "成分券代码"
+        else:
+            for col in df.columns:
+                if col != "指数代码" and ("代码" in col or "code" in col.lower()):
+                    code_col = col
+                    break
         if code_col is None:
             code_col = df.columns[0]
         codes = df[code_col].astype(str).str.zfill(6).tolist()
