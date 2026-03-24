@@ -207,8 +207,8 @@ Do not close this goal unless all are true:
 - [x] 至少 4 个候选因子完成单因子门禁验证
 - [x] 最小可交易约束已接入组合回测
 - [x] 只保留一个候选组合完成样本内 / 样本外 / walk-forward 复核
-- [ ] 形成明确的”允许 / 不允许进入 Phase 5”结论
-- [ ] 结论文档已写清楚，不留模糊空间
+- [x] 形成明确的”允许 / 不允许进入 Phase 5”结论
+- [x] 结论文档已写清楚，不留模糊空间
 
 ## Acceptance Commands
 
@@ -252,4 +252,4 @@ journal/strategy_admission_decision_*.md
 - `BLOCKED`: 被数据口径、研究回测实现、或方法冲突阻塞
 - `CONVERGED`: 已完成门禁验证，得出清晰 admission decision
 
-**当前状态：`ACTIVE`**
+**当前状态：`CONVERGED`**
