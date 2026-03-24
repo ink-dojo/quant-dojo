@@ -194,12 +194,21 @@ def run_update(
             'end_date': str  # 实际使用的截止日期（YYYY-MM-DD）
         }
     """
-    from providers.akshare_provider import AkShareProvider
     from providers.base import ProviderError
     from utils.runtime_config import get_local_data_dir
 
     if provider is None:
-        provider = AkShareProvider()
+        # 优先 AkShare，连不上时自动降级到 BaoStock
+        try:
+            from providers.akshare_provider import AkShareProvider
+            provider = AkShareProvider()
+            # 快速探测：尝试拉一只股票验证连通性
+            provider.fetch_daily_history("000001", "20260101", "20260102")
+            logger.info("使用 AkShareProvider")
+        except Exception:
+            logger.warning("AkShare 不可用，降级到 BaoStockProvider")
+            from providers.baostock_provider import BaoStockProvider
+            provider = BaoStockProvider()
 
     # 统一截止日期格式
     if end_date is None:
