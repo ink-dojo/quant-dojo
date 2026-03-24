@@ -167,7 +167,7 @@ def zscore_cross(df):
     return df.sub(df.mean(axis=1), axis=0).div(df.std(axis=1), axis=0)
 
 def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003,
-                 mask=None, max_weight=0.1):
+                 mask=None, max_weight=0.1, regime_mask=None):
     """
     多因子回测
 
@@ -179,6 +179,7 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003,
         cost: 每次换仓双边成本
         mask: 可交易性 bool mask（True=可交易），为 None 时不过滤
         max_weight: 单票最大权重，默认 0.1 (10%)
+        regime_mask: 市场状态 mask（pd.Series[bool]，True=看多可交易），为 None 时不过滤
 
     返回:
         pd.Series: 日收益率
@@ -211,6 +212,21 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003,
     prev_picks = set()
 
     for i, date in enumerate(rebal_dates):
+        # 市场状态过滤：看空时不持仓（返回 0 收益）
+        if regime_mask is not None and date in regime_mask.index and not regime_mask.loc[date]:
+            if i + 1 < len(rebal_dates):
+                next_date = rebal_dates[i + 1]
+            else:
+                next_date = price_wide.index[-1]
+            zero_ret = pd.Series(0.0, index=dr.loc[date:next_date].index[1:])
+            if prev_picks:
+                # 清仓成本
+                if len(zero_ret) > 0:
+                    zero_ret.iloc[0] -= cost
+            prev_picks = set()
+            portfolio_returns.append(zero_ret)
+            continue
+
         scores = composite.loc[date].dropna()
         if len(scores) < n_stocks:
             continue  # 有效得分股票不够，跳过这个月
@@ -269,7 +285,19 @@ print(f"  v2 使用因子: {list(w_v2.keys())}")
 print(f"  v2 权重: {', '.join(f'{k}={v:.3f}' for k, v in w_v2.items())}")
 
 strat_v2 = run_backtest(price_full.loc[:INSAMPLE_END], factor_data, w_v2, N_STOCKS, mask=tradable_mask)
+
+# v3: v2 + RSRS 市场状态过滤
+from utils.market_regime import rsrs_regime_mask
+from utils.data_loader import get_index_history as _get_idx
+_hs300_hl = _get_idx(symbol="sh000300", start="2013-01-01", end=OOS_END)
+rsrs_mask = rsrs_regime_mask(_hs300_hl["high"], _hs300_hl["low"])
+bull_pct = rsrs_mask.loc[INSAMPLE_START:INSAMPLE_END].mean()
+print(f"  v3 = v2 + RSRS 市场过滤（看多 {bull_pct:.0%}，看空 {1-bull_pct:.0%}）")
+
+strat_v3 = run_backtest(price_full.loc[:INSAMPLE_END], factor_data, w_v2, N_STOCKS,
+                        mask=tradable_mask, regime_mask=rsrs_mask)
 strat_v2 = strat_v2.loc[INSAMPLE_START:]
+strat_v3 = strat_v3.loc[INSAMPLE_START:]
 
 # Benchmark
 bench = hs300.loc[INSAMPLE_START:INSAMPLE_END].pct_change().dropna()
@@ -290,6 +318,8 @@ def print_metrics(label, ret, bench_ret=None):
         print(f"    年化超额: {annualized_return(excess):>+.2%}")
 
 print_metrics("v1 等权全因子（含 momentum）", strat_v1, bench)
+print_metrics("v2 IC加权（去 momentum）", strat_v2, bench)
+print_metrics("v3 v2 + RSRS 市场过滤", strat_v3, bench)
 print_metrics("v2 IC加权（去 momentum）", strat_v2, bench)
 print_metrics("沪深300", bench)
 
@@ -326,7 +356,8 @@ def wf_strategy(price_slice, fdata, train_start, train_end, test_start, test_end
     # 构建可交易 mask
     local_mask = apply_tradability_filter(price_slice)
     # 回测整段（含训练期数据供因子计算），截取测试期收益
-    ret = run_backtest(price_slice, local_factors, local_w, N_STOCKS, mask=local_mask)
+    ret = run_backtest(price_slice, local_factors, local_w, N_STOCKS,
+                       mask=local_mask, regime_mask=rsrs_mask)
     ret = ret.loc[test_start:test_end]
     return ret if len(ret) > 0 else pd.Series(dtype=float)
 
@@ -354,18 +385,18 @@ except Exception as e:
 # 7. Phase 5 门槛
 # ══════════════════════════════════════════════════════════════
 print("\n" + "=" * 60)
-print("  Phase 5 门槛评审 (v2 策略)")
+print("  Phase 5 门槛评审 (v3 策略 = IC加权 + RSRS过滤)")
 print("=" * 60)
 
-ann = annualized_return(strat_v2)
-sr = sharpe_ratio(strat_v2)
-mdd = max_drawdown(strat_v2)
+ann = annualized_return(strat_v3)
+sr = sharpe_ratio(strat_v3)
+mdd = max_drawdown(strat_v3)
 
 checks = [
     ("年化收益 > 15%", f"{ann:>+.2%}", ann > 0.15),
     ("夏普比率 > 0.8", f"{sr:>.4f}", sr > 0.8),
     ("最大回撤 < 30%", f"{abs(mdd):>.2%}", abs(mdd) < 0.30),
-    ("回测跨度 > 3年", f"{len(strat_v2)/252:.1f}年", len(strat_v2)/252 > 3),
+    ("回测跨度 > 3年", f"{len(strat_v3)/252:.1f}年", len(strat_v3)/252 > 3),
 ]
 
 for name, val, passed in checks:
