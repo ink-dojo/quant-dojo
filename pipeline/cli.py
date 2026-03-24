@@ -459,19 +459,19 @@ def cmd_data_update(args):
 
     result = run_update(symbols=symbol_list, end_date=end_date, dry_run=dry_run)
 
-    updated = result.get("updated", 0)
-    skipped = result.get("skipped", 0)
-    failed = result.get("failed", 0)
+    updated = result.get("updated", [])
+    skipped = result.get("skipped", [])
+    failed = result.get("failed", [])
 
     print(f"{'='*50}")
     print(f"数据更新完成")
     print(f"{'='*50}")
-    print(f"  已更新：{updated} 只")
-    print(f"  已跳过：{skipped} 只")
-    print(f"  失败  ：{failed} 只")
+    print(f"  已更新：{len(updated)} 只")
+    print(f"  已跳过：{len(skipped)} 只")
+    print(f"  失败  ：{len(failed)} 只")
     print(f"{'='*50}\n")
 
-    if failed > 0:
+    if len(failed) > 0:
         sys.exit(1)
 
 

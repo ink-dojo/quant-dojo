@@ -85,5 +85,47 @@ class TestDataChecker(unittest.TestCase):
             )
 
 
+    def test_freshness_reads_english_date_column(self):
+        """checker 能正确读取 data_update 写出的英文 date 列 CSV。"""
+        import pandas as pd
+        from pipeline.data_checker import check_data_freshness
+
+        with tempfile.TemporaryDirectory() as tmp:
+            # 模拟 data_update 写出的文件格式
+            csv_path = Path(tmp) / "sh.600000.csv"
+            pd.DataFrame({
+                "date": ["2026-03-20", "2026-03-21"],
+                "open": [10.0, 10.5],
+                "high": [11.0, 11.2],
+                "low": [9.5, 9.8],
+                "close": [10.5, 10.8],
+                "volume": [1000, 1200],
+                "amount": [10000.0, 12000.0],
+            }).to_csv(csv_path, index=False)
+
+            result = check_data_freshness(data_dir=tmp)
+
+        self.assertEqual(result["latest_date"], "2026-03-21")
+        self.assertIsInstance(result["days_stale"], int)
+        self.assertIn(result["status"], {"ok", "stale"})
+
+    def test_freshness_reads_chinese_date_column(self):
+        """checker 也能读取旧格式的中文日期列。"""
+        import pandas as pd
+        from pipeline.data_checker import check_data_freshness
+
+        with tempfile.TemporaryDirectory() as tmp:
+            csv_path = Path(tmp) / "sz.000001.csv"
+            pd.DataFrame({
+                "交易所行情日期": ["2026-03-18", "2026-03-19"],
+                "开盘价": [10.0, 10.5],
+            }).to_csv(csv_path, index=False)
+
+            result = check_data_freshness(data_dir=tmp)
+
+        self.assertEqual(result["latest_date"], "2026-03-19")
+        self.assertIsInstance(result["days_stale"], int)
+
+
 if __name__ == "__main__":
     unittest.main()

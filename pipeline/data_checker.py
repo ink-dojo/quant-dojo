@@ -53,13 +53,11 @@ def check_data_freshness(data_dir: str = None) -> dict:
     # 扫描 CSV 文件
     csv_pattern = re.compile(r'^(sh|sz)\.(\d+)\.csv$')
     csv_files = []
-    symbols = set()
 
     for filename in os.listdir(data_dir):
         match = csv_pattern.match(filename)
         if match:
             csv_files.append(filename)
-            symbols.add(filename)
 
     if not csv_files:
         return {
@@ -77,19 +75,25 @@ def check_data_freshness(data_dir: str = None) -> dict:
 
     latest_date = None
 
+    # 兼容多种日期列名（旧数据用中文列名，新数据用英文列名）
+    _DATE_CANDIDATES = {'date', '日期', '交易所行情日期', 'trade_date'}
+
     # 读取每个采样文件的最后一行
     for filename in sampled_files:
         filepath = os.path.join(data_dir, filename)
         try:
-            # 读取最后一行（仅需第一列：交易所行情日期）
-            df = pd.read_csv(filepath, usecols=['交易所行情日期'], dtype={'交易所行情日期': str})
+            header = pd.read_csv(filepath, encoding='utf-8-sig', nrows=0)
+            date_col = next((c for c in header.columns if c in _DATE_CANDIDATES), None)
+            if date_col is None:
+                continue
+            df = pd.read_csv(filepath, encoding='utf-8-sig', usecols=[date_col], dtype={date_col: str})
             if len(df) > 0:
                 last_date_str = df.iloc[-1, 0]
                 last_date = datetime.strptime(last_date_str, '%Y-%m-%d').date()
 
                 if latest_date is None or last_date > latest_date:
                     latest_date = last_date
-        except Exception as e:
+        except Exception:
             # 跳过读取失败的文件
             continue
 
@@ -99,11 +103,12 @@ def check_data_freshness(data_dir: str = None) -> dict:
         today = datetime.now().date()
         days_stale = (today - latest_date).days
 
-    # 检查缺失符号
-    # 期望约 5477 个符号（3500 上海 + 2000 深圳 的近似）
-    expected_symbols = 5477
-    missing_count = max(0, expected_symbols - len(csv_files))
-    missing_symbols = [] if missing_count <= 100 else [f"缺失 {missing_count} 个符号"]
+    # 缺失符号统计：基于实际文件数，不硬编码期望值
+    missing_count = 0
+    missing_symbols = []
+    if len(csv_files) < 100:
+        missing_symbols = [f"本地仅有 {len(csv_files)} 个文件，数据可能不完整"]
+        missing_count = 1  # 标记存在缺失
 
     # 判断状态
     if days_stale is None:
