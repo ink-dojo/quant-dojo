@@ -2,6 +2,7 @@
 数据加载模块
 支持 akshare（免费，无需注册）和 tushare（需token）
 """
+import logging
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -10,6 +11,8 @@ import pandas as pd
 import akshare as ak
 from pathlib import Path
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
@@ -237,14 +240,58 @@ def load_price_matrix(
         path = PROCESSED_DIR / f"price_wide_{col}_{start}_{end}_{adjust}_{n_stocks}stocks.parquet"
         if path.exists():
             return pd.read_parquet(path)
-        return None
+        logger.info("未找到宽表缓存: %s，尝试从本地 CSV 构建", path.name)
+        return _build_price_matrix_from_local_csv(start, end, n_stocks=n_stocks, col=col)
 
     # 自动搜索
     pattern = f"price_wide_{col}_{start}_{end}_{adjust}_*.parquet"
     matches = sorted(PROCESSED_DIR.glob(pattern))
     if not matches:
-        return None
+        logger.info("未找到匹配缓存 %s，尝试从本地 CSV 构建", pattern)
+        return _build_price_matrix_from_local_csv(start, end, n_stocks=n_stocks, col=col)
 
     path = matches[-1]  # 取最新的
     print(f"加载缓存: {path.name}")
     return pd.read_parquet(path)
+
+
+def _build_price_matrix_from_local_csv(
+    start: str,
+    end: str,
+    n_stocks: int = None,
+    col: str = "close",
+) -> pd.DataFrame:
+    """
+    从本地 CSV 数据目录直接构建价格宽表，作为旧 notebook 的兜底路径。
+
+    这条路径依赖 utils.local_data_loader 的运行时配置，不触发网络下载。
+    成功后会写入 data/processed，方便后续 notebook 直接命中缓存。
+    """
+    try:
+        from utils.local_data_loader import get_all_symbols, load_price_wide
+    except Exception as exc:
+        logger.warning("无法导入 local_data_loader，无法从本地 CSV 构建宽表: %s", exc)
+        return None
+
+    symbols = get_all_symbols()
+    if not symbols:
+        logger.warning("本地 CSV 目录未发现任何股票文件，无法构建宽表")
+        return None
+
+    if n_stocks is not None:
+        symbols = symbols[:n_stocks]
+
+    wide = load_price_wide(symbols, start, end, field=col)
+    if wide is None or wide.empty:
+        logger.warning("从本地 CSV 构建宽表失败或结果为空: %s ~ %s", start, end)
+        return None
+
+    cache_name = f"price_wide_{col}_{start}_{end}_qfq_{len(wide.columns)}stocks.parquet"
+    cache_path = PROCESSED_DIR / cache_name
+    try:
+        wide.to_parquet(cache_path)
+        logger.info("本地 CSV 宽表已缓存: %s", cache_path.name)
+    except Exception as exc:
+        logger.warning("写入宽表缓存失败: %s", exc)
+
+    return wide

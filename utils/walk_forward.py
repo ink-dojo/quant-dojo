@@ -2,11 +2,13 @@
 滚动样本外验证模块
 实现 walk-forward 交叉验证，逐步前移窗口进行策略评估
 """
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from typing import Callable, Dict, Any, Optional
+import inspect
 import logging
+from typing import Callable, Dict, Any, Optional
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 from utils.metrics import sharpe_ratio, max_drawdown
 
@@ -77,14 +79,27 @@ def walk_forward_test(
 
             # 调用策略函数进行训练和测试
             # 返回测试期的日收益率
-            test_returns = strategy_fn(
-                price_wide.loc[train_start:test_end],
-                factor_slice,
-                train_start,
-                train_end,
-                test_start,
-                test_end,
-            )
+            full_slice = price_wide.loc[train_start:test_end]
+            sig = inspect.signature(strategy_fn)
+            n_params = len(sig.parameters)
+
+            # 兼容旧 notebook 中的四参 wrapper，以及新版六参接口。
+            if n_params <= 4:
+                test_returns = strategy_fn(
+                    full_slice,
+                    factor_slice,
+                    train_start,
+                    train_end,
+                )
+            else:
+                test_returns = strategy_fn(
+                    full_slice,
+                    factor_slice,
+                    train_start,
+                    train_end,
+                    test_start,
+                    test_end,
+                )
 
             # 确保返回值是 pd.Series
             if not isinstance(test_returns, pd.Series):
