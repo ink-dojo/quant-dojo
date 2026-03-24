@@ -55,14 +55,12 @@ def _check_data_freshness_warning():
 
 def cmd_backtest_run(args):
     """
-    运行指定策略的回测，结果保存到 run store
+    运行指定策略的回测，统一走 control_surface.execute
 
     参数:
         args: argparse 命名空间，包含 strategy, start, end, param
     """
-    import importlib
-    strategy_reg = importlib.import_module("pipeline.strategy_registry")
-    run_store = importlib.import_module("pipeline.run_store")
+    from pipeline.control_surface import execute
 
     strategy_id = args.strategy
     start = args.start
@@ -85,52 +83,33 @@ def cmd_backtest_run(args):
                 pass
         params[k] = v
 
-    # 获取策略信息
-    try:
-        entry = strategy_reg.get_strategy(strategy_id)
-    except KeyError as e:
-        print(f"❌ {e}", file=sys.stderr)
-        sys.exit(1)
-
-    print(f"正在运行回测：{entry.name}")
-    print(f"  策略：{strategy_id}")
+    print(f"正在运行回测：{strategy_id}")
     print(f"  区间：{start} ~ {end}")
     if params:
         print(f"  参数：{params}")
     print()
 
-    # 执行回测
-    result = strategy_reg.run_strategy(strategy_id, start, end, params)
+    # 统一走控制面执行，共享审批门和持久化逻辑
+    result = execute(
+        "backtest.run",
+        approved=True,
+        strategy_id=strategy_id,
+        start=start,
+        end=end,
+        params=params or None,
+    )
 
-    if result["status"] == "failed":
+    if result["status"] == "error":
         print(f"❌ 回测失败：{result['error']}", file=sys.stderr)
         sys.exit(1)
 
-    # 保存运行记录
-    run_id = run_store.generate_run_id(strategy_id, start, end, result["params"])
-    record = run_store.RunRecord(
-        run_id=run_id,
-        strategy_id=strategy_id,
-        strategy_name=entry.name,
-        params=result["params"],
-        start_date=start,
-        end_date=end,
-        status="success",
-        metrics=result["metrics"],
-        created_at=datetime.datetime.now().isoformat(),
-    )
-
-    # 提取净值曲线
-    equity_df = None
-    if result["results_df"] is not None:
-        equity_df = result["results_df"]
-
-    path = run_store.save_run(record, equity_df=equity_df)
+    data = result.get("data", {})
+    run_id = data.get("run_id", "未知")
+    metrics = data.get("metrics", {})
 
     # 打印结果
-    metrics = result["metrics"]
     print(f"{'='*55}")
-    print(f"  回测完成：{entry.name}")
+    print(f"  回测完成：{strategy_id}")
     print(f"{'='*55}")
     print(f"  运行 ID ：{run_id}")
     print(f"  年化收益：{metrics.get('annualized_return', 0)*100:+.2f}%")
@@ -140,7 +119,6 @@ def cmd_backtest_run(args):
     print(f"  胜率    ：{metrics.get('win_rate', 0)*100:.1f}%")
     print(f"  交易天数：{metrics.get('n_trading_days', 0)}")
     print(f"{'='*55}")
-    print(f"  记录保存到：{path}")
 
 
 def cmd_backtest_list(args):

@@ -12,7 +12,8 @@ from typing import AsyncGenerator
 
 def _sse(payload: dict) -> str:
     """将 dict 序列化为 SSE 行格式。"""
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+    from dashboard.services.sse_utils import sse_line
+    return sse_line(payload)
 
 
 async def run_pipeline(date: str) -> AsyncGenerator[str, None]:
@@ -29,26 +30,29 @@ async def run_pipeline(date: str) -> AsyncGenerator[str, None]:
     yield _sse({"stage": "start", "content": f"开始运行 {date} 选股 pipeline..."})
 
     try:
-        from pipeline.daily_signal import run_daily_pipeline
-
-        loop = asyncio.get_event_loop()
+        from pipeline.control_surface import execute
 
         yield _sse({"stage": "loading", "content": "正在加载价格数据..."})
 
-        # run_daily_pipeline 是阻塞同步函数，放到线程池执行
-        result = await loop.run_in_executor(
-            None, lambda: run_daily_pipeline(date=date)
+        # 统一走控制面执行，与 CLI 共享同一契约
+        result = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: execute("signal.run", approved=True, date=date)
         )
 
-        if result.get("error"):
+        if result["status"] == "error":
             yield _sse({"stage": "error", "content": result["error"]})
             return
 
-        picks = result.get("picks", [])
+        data = result.get("data", {})
+        if data.get("error"):
+            yield _sse({"stage": "error", "content": data["error"]})
+            return
+
+        picks = data.get("picks", [])
         yield _sse({
             "stage": "done",
             "content": f"选股完成，共选出 {len(picks)} 只股票",
-            "date": result.get("date", date),
+            "date": data.get("date", date),
             "picks": picks[:10],  # 只返回前10只，避免数据过大
             "n_total": len(picks),
         })

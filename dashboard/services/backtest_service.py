@@ -144,6 +144,8 @@ async def run_backtest_async(
     """
     from pipeline.control_surface import execute
 
+    from dashboard.services.sse_utils import sse_line as _sse
+
     yield _sse({"stage": "start", "content": f"正在加载策略 {strategy_id}..."})
     yield _sse({"stage": "loading", "content": f"加载数据 {start} ~ {end}..."})
 
@@ -165,8 +167,8 @@ async def run_backtest_async(
         return
 
     data = result.get("data", {})
-    if data.get("status") == "failed":
-        yield _sse({"stage": "error", "content": f"回测失败: {data['error']}"})
+    if "run_id" not in data:
+        yield _sse({"stage": "error", "content": "回测结果缺少 run_id"})
         return
 
     yield _sse({"stage": "computing", "content": "计算绩效指标..."})
@@ -180,5 +182,6 @@ async def run_backtest_async(
 
 
 def _sse(data: dict) -> str:
-    """格式化 SSE 数据行"""
-    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+    """格式化 SSE 数据行（仅保留向后兼容，新代码请用 sse_utils.sse_line）"""
+    from dashboard.services.sse_utils import sse_line
+    return sse_line(data)

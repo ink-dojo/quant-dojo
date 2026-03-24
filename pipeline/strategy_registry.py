@@ -214,11 +214,11 @@ def _compute_metrics(results_df: pd.DataFrame) -> dict:
     elif "portfolio_return" in results_df.columns:
         returns = results_df["portfolio_return"]
     else:
-        return {"error": "无法识别收益率列"}
+        raise ValueError("无法识别收益率列：期望 'returns' 或 'portfolio_return'")
 
     returns = returns.dropna()
     if len(returns) < 2:
-        return {"error": "数据不足，无法计算指标"}
+        raise ValueError(f"数据不足（{len(returns)} 行），无法计算指标")
 
     # 复用 utils/metrics.py 的 performance_summary 计算核心指标
     try:

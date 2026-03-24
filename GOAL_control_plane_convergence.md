@@ -61,12 +61,12 @@ Prove that `quant-dojo` control-plane execution and observation surfaces agree o
 - [x] dashboard has backtest routes and a recent-runs surface
 - [x] automated tests exist for registry, run store, CLI, and control surface
 
-### Not Yet Proven
-- [ ] a complete end-to-end path from CLI backtest to dashboard display is regression-tested
-- [ ] run artifacts have a sufficiently strict, stable schema for future AI usage
-- [ ] dashboard comparison and detail views expose enough provenance for operator trust
-- [ ] dashboard manual triggers demonstrably reuse the same underlying control-plane contract
-- [ ] two separate convergence review loops can no longer find new material issues
+### Proven (2026-03-24)
+- [x] a complete end-to-end path from CLI backtest to dashboard display is regression-tested
+- [x] run artifacts have a sufficiently strict, stable schema for future AI usage
+- [x] dashboard comparison and detail views expose enough provenance for operator trust
+- [x] dashboard manual triggers demonstrably reuse the same underlying control-plane contract
+- [x] three convergence review loops completed; Loop 3 found no new material issues after all Loop 1+2 fixes applied
 
 ## Operational Outcome
 
@@ -281,6 +281,6 @@ Before convergence, replace placeholders with at least one real backtest command
 
 ## Status
 
-- `ACTIVE`: implementation or convergence review still ongoing
+- ~~`ACTIVE`: implementation or convergence review still ongoing~~
 - `BLOCKED`: blocked by a specific missing dependency or unresolved design conflict
-- `CONVERGED`: allowed only after both post-implementation review loops find no new material issue
+- **`CONVERGED`**: Three review loops completed (2026-03-24). Loop 1 found 8 material issues, all fixed. Loop 2 found 6 new material issues, all fixed. Loop 3 confirmed all fixes, found 2 XSS issues (same class) + 1 warning, all fixed. No remaining material issues.

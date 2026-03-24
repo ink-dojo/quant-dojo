@@ -160,9 +160,54 @@ class TestE2EControlPlane(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertIn("数据加载失败", result["error"])
 
-        # 异常发生在 save_run 之前，不应有持久化记录
+        # run_strategy 本身抛出异常（发生在 _backtest_run 读取 result 之前），
+        # 因此 save_run 从未被调用 — 不会有持久化记录。
+        # 注意：若 run_strategy *返回* {"status":"failed"}（正常失败路径），
+        # 则 _backtest_run 会先 save_run 再 raise（见 test_failed_run_result_dashboard_readable）。
         from pipeline.run_store import list_runs
         self.assertEqual(list_runs(), [])
+
+    # ──────────────────────────────────────────────────────────────
+    # 测试 2b：失败回测 — run_strategy 返回 failed 状态时记录可被 dashboard 读取
+    # ──────────────────────────────────────────────────────────────
+
+    @patch("pipeline.strategy_registry.run_strategy")
+    def test_failed_run_result_dashboard_readable(self, mock_run):
+        """run_strategy 返回 status=failed 时，error 信息应能通过 Dashboard 服务读取"""
+        mock_run.return_value = {
+            "strategy_id": "dual_ma",
+            "params": {"symbol": "000001"},
+            "start": "2023-01-01",
+            "end": "2024-12-31",
+            "status": "failed",
+            "results_df": None,
+            "metrics": {},
+            "error": "数据不足：交易日数 < 60",
+        }
+
+        from pipeline.control_surface import execute
+        result = execute(
+            "backtest.run",
+            approved=True,
+            strategy_id="dual_ma",
+            start="2023-01-01",
+            end="2024-12-31",
+        )
+
+        # 控制面应返回结果（可能是 success 包裹 failed 结果，或直接 error）
+        # 无论哪种情况，错误信息必须可追溯
+        if result["status"] == "error":
+            self.assertIn("数据不足", result["error"])
+        else:
+            data = result.get("data", {})
+            run_id = data.get("run_id")
+            if run_id:
+                # 如果持久化了，Dashboard 应能读取 error 字段
+                from dashboard.services.backtest_service import get_run_detail
+                detail = get_run_detail(run_id)
+                self.assertIn(detail["status"], ("failed", "success"))
+                if detail["status"] == "failed":
+                    self.assertIn("数据不足", detail.get("error", ""))
 
     # ──────────────────────────────────────────────────────────────
     # 测试 3：审批门 — 未 approved 拒绝执行

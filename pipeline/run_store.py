@@ -190,9 +190,8 @@ def list_runs(
         return []
 
     records = []
-    # 按文件修改时间排序（最新在前），比文件名排序更准确
     json_files = [p for p in RUNS_DIR.glob("*.json") if not p.name.endswith("_equity.csv")]
-    for path in sorted(json_files, key=lambda p: p.stat().st_mtime, reverse=True):
+    for path in json_files:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -202,12 +201,12 @@ def list_runs(
             if status and record.status != status:
                 continue
             records.append(record)
-            if len(records) >= limit:
-                break
         except (json.JSONDecodeError, KeyError):
             continue
 
-    return records
+    # 按 created_at 倒序排列，mtime 不可靠
+    records.sort(key=lambda r: r.created_at, reverse=True)
+    return records[:limit]
 
 
 def get_run(run_id: str) -> RunRecord:
@@ -262,6 +261,7 @@ def compare_runs(run_ids: list[str]) -> dict:
                 "end_date": record.end_date,
                 "status": record.status,
                 "metrics": record.metrics or {},
+                "error": record.error,
                 "created_at": record.created_at,
             }
             all_metric_keys.update((record.metrics or {}).keys())

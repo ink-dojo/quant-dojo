@@ -47,7 +47,7 @@
    目标：统一 CLI 命令树 + 策略注册表 + 运行记录 + Dashboard 集成 + AI-safe 控制面。
    详细计划见 [GOAL_control_plane.md](GOAL_control_plane.md)
 
-3. **P0.75: Control Plane Convergence** 🔄 当前进行中
+3. **P0.75: Control Plane Convergence** ✅ 已完成 (2026-03-24)
    目标：把已完成的 control plane 从“第一版可用”推进到“系统级收口”，重点是 artifact 语义、dashboard/CLI 一致性、approval gate、端到端回归和重复 review loop 验收。
    详细计划见 [GOAL_control_plane_convergence.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_control_plane_convergence.md)
 
@@ -246,9 +246,9 @@ AI 提议研究方向
 - 27 个自动化测试
 - 详细计划见 [GOAL_control_plane.md](GOAL_control_plane.md)
 
-### Control Plane Convergence Track 🔄 当前进行中
-定位：把 control plane 从“可用”推进到“收口”
-状态：当前主线之一
+### Control Plane Convergence Track ✅ 已完成
+定位：把 control plane 从”可用”推进到”收口”
+状态：已完成（2026-03-24），三轮独立 review loop，14 个 material issues 已全部修复
 重点：
 - artifact schema 固化
 - dashboard / CLI 一致性

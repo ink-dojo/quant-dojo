@@ -256,10 +256,28 @@ def _backtest_run(
     entry = get_strategy(strategy_id)
     result = run_strategy(strategy_id, start, end, params)
 
-    if result["status"] == "failed":
-        return {"status": "failed", "error": result["error"]}
+    run_id = generate_run_id(strategy_id, start, end, result.get("params", params or {}))
 
-    run_id = generate_run_id(strategy_id, start, end, result["params"])
+    if result["status"] == "failed":
+        # 持久化失败记录，便于 dashboard 追溯
+        record = RunRecord(
+            run_id=run_id,
+            strategy_id=strategy_id,
+            strategy_name=entry.name,
+            params=result.get("params", params or {}),
+            start_date=start,
+            end_date=end,
+            status="failed",
+            metrics={},
+            error=result["error"],
+            created_at=datetime.datetime.now().isoformat(),
+        )
+        save_run(record)
+        # 通过 raise 让 execute() 返回正确的 {"status": "error"} 信封
+        raise RuntimeError(result["error"])
+
+    metrics = result.get("metrics") or {}
+
     record = RunRecord(
         run_id=run_id,
         strategy_id=strategy_id,
@@ -268,12 +286,12 @@ def _backtest_run(
         start_date=start,
         end_date=end,
         status="success",
-        metrics=result["metrics"],
+        metrics=metrics,
         created_at=datetime.datetime.now().isoformat(),
     )
     save_run(record, equity_df=result.get("results_df"))
 
-    return {"run_id": run_id, "metrics": result["metrics"]}
+    return {"run_id": run_id, "metrics": metrics}
 
 
 def _signal_run(date: str = None, **kwargs):

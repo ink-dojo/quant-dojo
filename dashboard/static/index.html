@@ -134,10 +134,17 @@
       <div id="runs-empty" class="hidden text-center text-gray-600 py-4 text-sm">
         暂无回测记录。通过 CLI 运行: <code class="bg-gray-800 px-2 py-0.5 rounded text-xs">python -m pipeline.cli backtest run multi_factor --start 2023-01-01 --end 2024-12-31</code>
       </div>
+      <!-- 对比按钮 -->
+      <div id="compare-bar" class="hidden flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2 text-sm">
+        <span class="text-gray-400">已选 <span id="compare-count">0</span> 条</span>
+        <button onclick="openCompare()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1 rounded-lg">对比</button>
+        <button onclick="clearCompare()" class="text-gray-500 hover:text-gray-300 text-xs">清除</button>
+      </div>
       <div class="overflow-x-auto">
         <table id="runs-table" class="hidden w-full text-sm">
           <thead>
             <tr class="text-left text-xs text-gray-500 border-b border-gray-800">
+              <th class="py-2 pr-1 w-8"><input type="checkbox" id="runs-select-all" onchange="toggleSelectAll(this)" class="accent-indigo-500" /></th>
               <th class="py-2 pr-3">策略</th>
               <th class="py-2 pr-3">区间</th>
               <th class="py-2 pr-3 text-right">年化</th>
@@ -218,6 +225,28 @@
 
   </div>
 
+  <!-- ── 运行详情弹窗 ──────────────────────────────────────── -->
+  <div id="detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60" onclick="if(event.target===this)closeDetail()">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-100">运行详情</h3>
+        <button onclick="closeDetail()" class="text-gray-500 hover:text-gray-300 text-xl">&times;</button>
+      </div>
+      <div id="detail-content" class="space-y-4 text-sm"></div>
+    </div>
+  </div>
+
+  <!-- ── 对比弹窗 ────────────────────────────────────────── -->
+  <div id="compare-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60" onclick="if(event.target===this)closeCompare()">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-y-auto p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-100">运行对比</h3>
+        <button onclick="closeCompare()" class="text-gray-500 hover:text-gray-300 text-xl">&times;</button>
+      </div>
+      <div id="compare-content" class="space-y-4 text-sm"></div>
+    </div>
+  </div>
+
 </main>
 
 <!-- ═══════════════════════ JavaScript ═══════════════════════ -->
@@ -292,6 +321,12 @@ function badge(text, colorClass) {
 function safeVal(v, fmt) {
   if (v === null || v === undefined || (typeof v === 'number' && isNaN(v))) return '—';
   return fmt ? fmt(v) : v;
+}
+
+/** HTML 转义，防止 XSS */
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 /** 格式化百分比 */
@@ -563,12 +598,12 @@ async function loadStrategies() {
     el.innerHTML = data.map(s => `
       <div class="bg-gray-800 rounded-lg p-3 space-y-1">
         <div class="flex items-center gap-2">
-          <span class="text-indigo-300 font-mono text-xs">${s.id}</span>
+          <span class="text-indigo-300 font-mono text-xs">${escHtml(s.id)}</span>
         </div>
-        <div class="text-gray-200 text-sm">${s.name}</div>
-        <div class="text-gray-500 text-xs">${s.description}</div>
+        <div class="text-gray-200 text-sm">${escHtml(s.name)}</div>
+        <div class="text-gray-500 text-xs">${escHtml(s.description)}</div>
         ${s.params.length ? `<div class="text-xs text-gray-600 mt-1">${s.params.map(p =>
-          `<span class="inline-block mr-2">${p.name}=${p.default}</span>`
+          `<span class="inline-block mr-2">${escHtml(p.name)}=${escHtml(String(p.default))}</span>`
         ).join('')}</div>` : ''}
       </div>
     `).join('');
@@ -605,10 +640,13 @@ async function loadRuns() {
       const retColor = (m.annualized_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400';
       const statusIcon = r.status === 'success' ? '✅' : '❌';
       const createdAt = r.created_at ? r.created_at.split('T')[0] : '—';
-      return `<tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+      return `<tr class="border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer" onclick="openDetail('${escHtml(r.run_id)}')">
+        <td class="py-2 pr-1" onclick="event.stopPropagation()">
+          <input type="checkbox" class="run-checkbox accent-indigo-500" data-run-id="${escHtml(r.run_id)}" onchange="updateCompareBar()" />
+        </td>
         <td class="py-2 pr-3">
-          <div class="text-gray-200">${r.strategy_name || r.strategy_id}</div>
-          <div class="text-xs text-gray-600 font-mono">${r.run_id.slice(0, 25)}...</div>
+          <div class="text-gray-200">${escHtml(r.strategy_name || r.strategy_id)}</div>
+          <div class="text-xs text-gray-600 font-mono">${escHtml(r.run_id.slice(0, 25))}...</div>
         </td>
         <td class="py-2 pr-3 text-gray-400 text-xs">${r.start_date} ~ ${r.end_date}</td>
         <td class="py-2 pr-3 text-right ${retColor}">${annRet}</td>
@@ -737,7 +775,7 @@ function appendPipelineStep(text, type) {
   const color = colorMap[type] || 'text-gray-300';
   div.className = `flex items-start gap-2 text-sm ${color} ${type === 'loading' ? 'pulse-dot' : ''}`;
   div.innerHTML = `<span class="text-gray-600 text-xs mt-0.5">${new Date().toLocaleTimeString()}</span>
-    <span>${text}</span>`;
+    <span>${escHtml(text)}</span>`;
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }
@@ -786,6 +824,220 @@ async function runPipeline() {
   } finally {
     btn.disabled = false;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 运行详情弹窗
+// ═══════════════════════════════════════════════════════════════
+
+async function openDetail(runId) {
+  const modal = document.getElementById('detail-modal');
+  const content = document.getElementById('detail-content');
+  content.innerHTML = '<div class="text-gray-500">加载中...</div>';
+  modal.classList.remove('hidden');
+
+  try {
+    const resp = await fetch(`/api/backtest/runs/${runId}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const d = await resp.json();
+    const m = d.metrics || {};
+
+    content.innerHTML = `
+      <!-- 溯源信息 -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <div class="text-xs text-gray-500">策略</div>
+          <div class="text-gray-200">${escHtml(d.strategy_name || d.strategy_id)}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">策略 ID</div>
+          <div class="text-gray-300 font-mono text-xs">${escHtml(d.strategy_id)}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">回测区间</div>
+          <div class="text-gray-300">${escHtml(d.start_date)} ~ ${escHtml(d.end_date)}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">创建时间</div>
+          <div class="text-gray-300">${escHtml(d.created_at || '—')}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">状态</div>
+          <div class="${d.status === 'success' ? 'text-emerald-400' : 'text-red-400'}">${escHtml(d.status)}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">Run ID</div>
+          <div class="text-gray-400 font-mono text-xs break-all">${escHtml(d.run_id)}</div>
+        </div>
+      </div>
+
+      <!-- 参数 -->
+      <div>
+        <div class="text-xs text-gray-500 mb-1">运行参数</div>
+        <div class="bg-gray-800 rounded-lg p-3 font-mono text-xs text-gray-300 overflow-x-auto">
+          ${escHtml(JSON.stringify(d.params || {}, null, 2)).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;')}
+        </div>
+      </div>
+
+      <!-- 绩效指标 -->
+      ${d.status === 'success' ? `
+      <div>
+        <div class="text-xs text-gray-500 mb-1">绩效指标</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          ${_metricCard('年化收益', pct(m.annualized_return), (m.annualized_return||0) >= 0 ? 'text-emerald-400' : 'text-red-400')}
+          ${_metricCard('夏普比率', fix2(m.sharpe), 'text-gray-200')}
+          ${_metricCard('最大回撤', pct(m.max_drawdown), 'text-yellow-400')}
+          ${_metricCard('总收益', pct(m.total_return), (m.total_return||0) >= 0 ? 'text-emerald-400' : 'text-red-400')}
+          ${_metricCard('波动率', pct(m.volatility), 'text-gray-300')}
+          ${_metricCard('胜率', pct(m.win_rate), 'text-gray-300')}
+          ${_metricCard('交易天数', m.n_trading_days || '—', 'text-gray-300')}
+        </div>
+      </div>` : ''}
+
+      <!-- 错误信息 -->
+      ${d.error ? `
+      <div>
+        <div class="text-xs text-gray-500 mb-1">错误信息</div>
+        <div class="bg-red-900/30 border border-red-800 rounded-lg p-3 text-red-300 text-xs">${escHtml(d.error)}</div>
+      </div>` : ''}
+
+      <!-- 产物路径 -->
+      ${Object.keys(d.artifacts || {}).length ? `
+      <div>
+        <div class="text-xs text-gray-500 mb-1">产物文件</div>
+        <div class="space-y-1">
+          ${Object.entries(d.artifacts).map(([k, v]) =>
+            `<div class="text-xs"><span class="text-gray-500">${k}:</span> <span class="text-gray-400 font-mono">${v}</span></div>`
+          ).join('')}
+        </div>
+      </div>` : ''}
+    `;
+  } catch (e) {
+    content.innerHTML = `<div class="text-red-400">加载失败: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function _metricCard(label, value, colorClass) {
+  return `<div class="bg-gray-800 rounded-lg p-2 text-center">
+    <div class="text-xs text-gray-500">${label}</div>
+    <div class="text-sm font-medium ${colorClass}">${value}</div>
+  </div>`;
+}
+
+function closeDetail() {
+  document.getElementById('detail-modal').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 运行对比
+// ═══════════════════════════════════════════════════════════════
+
+function getSelectedRunIds() {
+  return Array.from(document.querySelectorAll('.run-checkbox:checked')).map(cb => cb.dataset.runId);
+}
+
+function updateCompareBar() {
+  const ids = getSelectedRunIds();
+  const bar = document.getElementById('compare-bar');
+  document.getElementById('compare-count').textContent = ids.length;
+  if (ids.length >= 2) bar.classList.remove('hidden');
+  else bar.classList.add('hidden');
+}
+
+function toggleSelectAll(el) {
+  document.querySelectorAll('.run-checkbox').forEach(cb => { cb.checked = el.checked; });
+  updateCompareBar();
+}
+
+function clearCompare() {
+  document.querySelectorAll('.run-checkbox').forEach(cb => { cb.checked = false; });
+  document.getElementById('runs-select-all').checked = false;
+  updateCompareBar();
+}
+
+async function openCompare() {
+  const ids = getSelectedRunIds();
+  if (ids.length < 2) { alert('请至少选择 2 条记录'); return; }
+
+  const modal = document.getElementById('compare-modal');
+  const content = document.getElementById('compare-content');
+  content.innerHTML = '<div class="text-gray-500">加载中...</div>';
+  modal.classList.remove('hidden');
+
+  try {
+    const resp = await fetch('/api/backtest/compare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_ids: ids }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    const runs = data.runs || [];
+    const metricNames = data.metric_names || [];
+
+    // 指标中文映射
+    const metricLabels = {
+      total_return: '总收益', annualized_return: '年化收益', sharpe: '夏普比率',
+      max_drawdown: '最大回撤', volatility: '波动率', win_rate: '胜率',
+      n_trading_days: '交易天数',
+    };
+
+    let html = '<div class="overflow-x-auto"><table class="w-full text-sm">';
+    // 表头
+    html += '<thead><tr class="text-xs text-gray-500 border-b border-gray-800">';
+    html += '<th class="py-2 pr-3 text-left">指标</th>';
+    runs.forEach(r => {
+      html += `<th class="py-2 pr-3 text-right">${escHtml(r.strategy_name || r.strategy_id)}<br>
+        <span class="font-mono text-gray-600">${escHtml((r.start_date||'').slice(0,7))}~${escHtml((r.end_date||'').slice(0,7))}</span></th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    // 每个指标一行
+    metricNames.forEach(name => {
+      const label = metricLabels[name] || name;
+      html += `<tr class="border-b border-gray-800/30">`;
+      html += `<td class="py-2 pr-3 text-gray-400">${label}</td>`;
+      runs.forEach(r => {
+        const v = (r.metrics || {})[name];
+        let display = '—';
+        if (v != null) {
+          if (name.includes('return') || name.includes('drawdown') || name.includes('volatility') || name === 'win_rate')
+            display = pct(v);
+          else if (name === 'n_trading_days')
+            display = String(v);
+          else
+            display = fix2(v);
+        }
+        const color = name.includes('return') ? ((v||0) >= 0 ? 'text-emerald-400' : 'text-red-400')
+          : name === 'max_drawdown' ? 'text-yellow-400' : 'text-gray-300';
+        html += `<td class="py-2 pr-3 text-right ${color}">${display}</td>`;
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+
+    // 溯源摘要
+    html += '<div class="grid grid-cols-1 gap-2 mt-4">';
+    runs.forEach(r => {
+      html += `<div class="bg-gray-800 rounded-lg p-3 text-xs">
+        <span class="text-indigo-300">${escHtml(r.strategy_id)}</span>
+        <span class="text-gray-500 ml-2">${escHtml(r.run_id)}</span>
+        <span class="text-gray-600 ml-2">${escHtml(r.created_at || '')}</span>
+        <span class="text-gray-600 ml-2">参数: ${escHtml(JSON.stringify(r.params || {}))}</span>
+      </div>`;
+    });
+    html += '</div>';
+
+    content.innerHTML = html;
+  } catch (e) {
+    content.innerHTML = `<div class="text-red-400">加载失败: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function closeCompare() {
+  document.getElementById('compare-modal').classList.add('hidden');
 }
 
 // ═══════════════════════════════════════════════════════════════
