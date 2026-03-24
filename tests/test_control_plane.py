@@ -250,6 +250,64 @@ class TestCLI(unittest.TestCase):
         self.assertIn("dual_ma", result.stdout)
         self.assertIn("multi_factor", result.stdout)
 
+    def test_signal_date_legacy(self):
+        """旧命令 signal --date 应正确分发（无 argparse 错误）"""
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, "-m", "pipeline.cli", "signal", "--date", "2026-03-20"],
+            capture_output=True, text=True, timeout=60,
+        )
+        # 允许底层管道因数据问题失败，但 CLI 本身不应出现 argparse 解析错误
+        self.assertNotIn("unrecognized arguments", result.stderr)
+        self.assertNotIn("error: the following arguments are required", result.stderr)
+
+    def test_signal_run_new(self):
+        """新命令 signal run --date 应正确分发（无 argparse 错误）"""
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, "-m", "pipeline.cli", "signal", "run", "--date", "2026-03-20"],
+            capture_output=True, text=True, timeout=60,
+        )
+        # 允许底层管道因数据问题失败，但 CLI 本身不应出现 argparse 解析错误
+        self.assertNotIn("unrecognized arguments", result.stderr)
+        self.assertNotIn("error: the following arguments are required", result.stderr)
+
+    def test_risk_check_legacy(self):
+        """旧命令 risk-check 应成功运行（returncode 0）"""
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, "-m", "pipeline.cli", "risk-check"],
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(result.returncode, 0)
+
+    def test_weekly_report_legacy(self):
+        """旧命令 weekly-report 应成功运行（returncode 0）"""
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, "-m", "pipeline.cli", "weekly-report"],
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(result.returncode, 0)
+
+    def test_risk_check_new(self):
+        """新命令 risk check 应成功运行（returncode 0）"""
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, "-m", "pipeline.cli", "risk", "check"],
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(result.returncode, 0)
+
+    def test_report_weekly_new(self):
+        """新命令 report weekly 应成功运行（returncode 0）"""
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, "-m", "pipeline.cli", "report", "weekly"],
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(result.returncode, 0)
+
 
 # ─────────────────────────────────────────────────────────────────
 # 4. TestControlSurface
