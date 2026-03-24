@@ -2,6 +2,7 @@
 
 > 总工作计划入口：[`WORKPLAN.md`](./WORKPLAN.md)
 > Goal 执行模板：[`GOAL_EXECUTION_TEMPLATE.md`](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md)
+> 当前 active subgoal：[`GOAL_phase5_free_data_ingestion.md`](./GOAL_phase5_free_data_ingestion.md)
 
 ## 量化工作台（Dashboard）
 
@@ -84,6 +85,46 @@ cp config/config.example.yaml config/config.yaml
 # 5. 跑第一个示例
 jupyter notebook research/notebooks/01_getting_started.ipynb
 ```
+
+---
+
+## 数据管理（免费数据更新）
+
+### 首次初始化
+
+建议先用少量股票验证环境正常，再全量更新：
+
+```bash
+# 先用 2-3 只股票测试
+python -m pipeline.cli data update --end-date 2026-03-24 --symbols 600000,000001
+
+# 验证无误后全量更新
+python -m pipeline.cli data update
+```
+
+### 日常更新
+
+增量更新，安全可重复执行：
+
+```bash
+python -m pipeline.cli data update
+```
+
+### 查看数据状态
+
+```bash
+python -m pipeline.cli data status
+```
+
+输出 freshness 状态（`ok` / `stale` / `missing`）、最新日期、缺失标的等。
+
+### 数据目录
+
+数据存放在 `data/` 目录，已加入 `.gitignore`，不提交到仓库。
+
+### 免费数据源
+
+默认使用 **AkShare** 作为 A 股日线数据源。系统采用 provider 抽象层，后续可切换或并用其他数据源（如 Tushare、BaoStock）而无需修改上层逻辑。
 
 ---
 
