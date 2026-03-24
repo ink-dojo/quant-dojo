@@ -121,8 +121,46 @@ for name, fac in factors.items():
           f"{ls_ann:>+7.2%}")
 
 # ══════════════════════════════════════════════════════════════
-# 3. 回测函数（v1 等权全因子 vs v2 IC加权去momentum）
+# 3. 工具函数 + 回测函数
 # ══════════════════════════════════════════════════════════════
+
+def build_factors(price_wide):
+    """从价格宽表构建四个候选因子"""
+    dr = price_wide.pct_change()
+    return {
+        "momentum_12_1": price_wide.pct_change(252).shift(21),
+        "reversal_1m": -price_wide.pct_change(21),
+        "low_vol_20d": -dr.rolling(20).std(),
+        "turnover_rev": -dr.abs().rolling(20).mean(),
+    }
+
+def derive_ic_weights(price_wide, factor_dict, start, end, icir_threshold=0.2):
+    """
+    在指定区间内计算各因子 IC，返回 IC 加权权重（仅保留 ICIR > threshold 的正 IC 因子）。
+
+    参数:
+        price_wide: 价格宽表
+        factor_dict: {因子名: 因子 DataFrame}
+        start, end: 计算区间
+        icir_threshold: ICIR 入选门槛
+
+    返回:
+        dict: {因子名: 权重}，可能为空
+    """
+    fwd = price_wide.pct_change(5).shift(-5)
+    weights = {}
+    for name, fac in factor_dict.items():
+        fac_s = fac.loc[start:end]
+        fwd_s = fwd.loc[start:end]
+        ic_s = compute_ic_series(fac_s, fwd_s, method="spearman", min_stocks=50)
+        if len(ic_s) < 10:
+            continue
+        ic_mean = ic_s.mean()
+        ic_std = ic_s.std()
+        icir = ic_mean / ic_std if ic_std > 0 else 0
+        if ic_mean > 0 and abs(icir) > icir_threshold:
+            weights[name] = abs(icir)
+    return weights
 
 def zscore_cross(df):
     """截面 z-score 标准化"""
@@ -278,7 +316,17 @@ print(f"\n[5/6] Walk-Forward 验证...")
 from utils.walk_forward import walk_forward_test
 
 def wf_strategy(price_slice, fdata, train_start, train_end, test_start, test_end):
-    ret = run_backtest(price_slice, factor_data, w_v2, N_STOCKS, mask=tradable_mask)
+    """真正的 walk-forward：每个窗口独立重新计算因子和 IC 权重"""
+    # 用 price_slice 全段构建因子（含 lookback 预热期）
+    local_factors = build_factors(price_slice)
+    # 只在训练期内算 IC 权重
+    local_w = derive_ic_weights(price_slice, local_factors, train_start, train_end)
+    if not local_w:
+        return pd.Series(dtype=float)  # 训练期内无有效因子
+    # 构建可交易 mask
+    local_mask = apply_tradability_filter(price_slice)
+    # 回测整段（含训练期数据供因子计算），截取测试期收益
+    ret = run_backtest(price_slice, local_factors, local_w, N_STOCKS, mask=local_mask)
     ret = ret.loc[test_start:test_end]
     return ret if len(ret) > 0 else pd.Series(dtype=float)
 
