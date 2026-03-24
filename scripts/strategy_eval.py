@@ -25,6 +25,7 @@ from utils.metrics import (
     max_drawdown, win_rate,
 )
 from utils.factor_analysis import compute_ic_series, ic_summary, quintile_backtest
+from utils.tradability_filter import apply_tradability_filter, cap_weights
 
 # ══════════════════════════════════════════════════════════════
 # 配置
@@ -57,6 +58,11 @@ valid_cols = price_full.columns[price_full.notna().sum() > 500]
 price_full = price_full[valid_cols]
 
 print(f"  股票: {price_full.shape[1]} 只 | 交易日: {price_full.shape[0]} | 耗时: {time.time()-t0:.1f}s")
+
+# 构建可交易性 mask（ST / 上市天数 / 低价 / 流动性）
+tradable_mask = apply_tradability_filter(price_full)
+tradable_pct = tradable_mask.mean().mean()
+print(f"  可交易率: {tradable_pct:.1%} | 被过滤: {1-tradable_pct:.1%}")
 
 # ══════════════════════════════════════════════════════════════
 # 2. 因子构建 + IC 分析
@@ -122,7 +128,8 @@ def zscore_cross(df):
     """截面 z-score 标准化"""
     return df.sub(df.mean(axis=1), axis=0).div(df.std(axis=1), axis=0)
 
-def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003):
+def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003,
+                 mask=None, max_weight=0.1):
     """
     多因子回测
 
@@ -132,6 +139,8 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003):
         weights: {因子名: 权重}（权重会归一化）
         n_stocks: 持仓数
         cost: 每次换仓双边成本
+        mask: 可交易性 bool mask（True=可交易），为 None 时不过滤
+        max_weight: 单票最大权重，默认 0.1 (10%)
 
     返回:
         pd.Series: 日收益率
@@ -151,6 +160,11 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003):
         else:
             composite = composite.add(z * w, fill_value=0)
 
+    # 用可交易性 mask 过滤：不可交易的股票分数设为 NaN
+    if mask is not None:
+        aligned_mask = mask.reindex_like(composite)
+        composite = composite.where(aligned_mask)
+
     # 月频换仓
     rebal_dates = price_wide.resample("MS").first().index
     rebal_dates = [d for d in rebal_dates if d in composite.index]
@@ -165,6 +179,10 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003):
 
         picks = scores.sort_values(ascending=False).head(n_stocks).index.tolist()
 
+        # 构建等权权重并 cap
+        raw_w = pd.Series(1.0 / len(picks), index=picks)
+        capped_w = cap_weights(raw_w, max_weight=max_weight)
+
         if i + 1 < len(rebal_dates):
             next_date = rebal_dates[i + 1]
         else:
@@ -174,7 +192,8 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30, cost=0.003):
         if len(period_ret) > 1:
             period_ret = period_ret.iloc[1:]  # 跳过换仓日
 
-        port_daily = period_ret.mean(axis=1)
+        # 用 capped 权重计算加权日收益
+        port_daily = period_ret.mul(capped_w, axis=1).sum(axis=1)
 
         # 换仓成本：按换手比例扣
         new_picks = set(picks)
@@ -202,7 +221,7 @@ factor_data = {k: v for k, v in factors.items()}
 
 # v1: 原始等权全因子
 w_v1 = {k: 1.0 for k in factors}
-strat_v1 = run_backtest(price_full.loc[:INSAMPLE_END], factor_data, w_v1, N_STOCKS)
+strat_v1 = run_backtest(price_full.loc[:INSAMPLE_END], factor_data, w_v1, N_STOCKS, mask=tradable_mask)
 strat_v1 = strat_v1.loc[INSAMPLE_START:]
 
 # v2: IC 加权，去掉 momentum
@@ -211,7 +230,7 @@ w_v2 = {k: abs(v["icir"]) for k, v in good_factors.items()}
 print(f"  v2 使用因子: {list(w_v2.keys())}")
 print(f"  v2 权重: {', '.join(f'{k}={v:.3f}' for k, v in w_v2.items())}")
 
-strat_v2 = run_backtest(price_full.loc[:INSAMPLE_END], factor_data, w_v2, N_STOCKS)
+strat_v2 = run_backtest(price_full.loc[:INSAMPLE_END], factor_data, w_v2, N_STOCKS, mask=tradable_mask)
 strat_v2 = strat_v2.loc[INSAMPLE_START:]
 
 # Benchmark
@@ -241,7 +260,7 @@ print_metrics("沪深300", bench)
 # ══════════════════════════════════════════════════════════════
 print(f"\n[4/6] 样本外回测 (2025)...")
 
-strat_v2_oos = run_backtest(price_full.loc[:OOS_END], factor_data, w_v2, N_STOCKS)
+strat_v2_oos = run_backtest(price_full.loc[:OOS_END], factor_data, w_v2, N_STOCKS, mask=tradable_mask)
 strat_v2_oos = strat_v2_oos.loc[OOS_START:]
 bench_oos = hs300.loc[OOS_START:OOS_END].pct_change().dropna()
 
@@ -259,7 +278,7 @@ print(f"\n[5/6] Walk-Forward 验证...")
 from utils.walk_forward import walk_forward_test
 
 def wf_strategy(price_slice, fdata, train_start, train_end, test_start, test_end):
-    ret = run_backtest(price_slice, factor_data, w_v2, N_STOCKS)
+    ret = run_backtest(price_slice, factor_data, w_v2, N_STOCKS, mask=tradable_mask)
     ret = ret.loc[test_start:test_end]
     return ret if len(ret) > 0 else pd.Series(dtype=float)
 
