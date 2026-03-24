@@ -130,6 +130,9 @@ async def run_backtest_async(
     """
     异步运行回测并通过 SSE 流式返回进度（异步生成器）
 
+    执行路径统一走 control_surface.execute("backtest.run")，
+    与 CLI 共享同一执行契约，不直接调用 strategy_registry / run_store。
+
     参数:
         strategy_id: 策略 ID
         start: 开始日期
@@ -139,54 +142,40 @@ async def run_backtest_async(
     生成:
         SSE 格式的 data 行
     """
-    import datetime
-    from pipeline.strategy_registry import get_strategy, run_strategy
-    from pipeline.run_store import (
-        generate_run_id, RunRecord, save_run
-    )
+    from pipeline.control_surface import execute
 
     yield _sse({"stage": "start", "content": f"正在加载策略 {strategy_id}..."})
-
-    try:
-        entry = get_strategy(strategy_id)
-    except KeyError as e:
-        yield _sse({"stage": "error", "content": str(e)})
-        return
-
     yield _sse({"stage": "loading", "content": f"加载数据 {start} ~ {end}..."})
 
-    # 在线程池中运行回测（避免阻塞事件循环）
+    # 在线程池中运行回测（避免阻塞事件循环），统一走控制面
     result = await asyncio.get_running_loop().run_in_executor(
         _executor,
-        lambda: run_strategy(strategy_id, start, end, params),
+        lambda: execute(
+            "backtest.run",
+            approved=True,
+            strategy_id=strategy_id,
+            start=start,
+            end=end,
+            params=params,
+        ),
     )
 
-    if result["status"] == "failed":
+    if result["status"] == "error":
         yield _sse({"stage": "error", "content": f"回测失败: {result['error']}"})
+        return
+
+    data = result.get("data", {})
+    if data.get("status") == "failed":
+        yield _sse({"stage": "error", "content": f"回测失败: {data['error']}"})
         return
 
     yield _sse({"stage": "computing", "content": "计算绩效指标..."})
 
-    # 保存运行记录
-    run_id = generate_run_id(strategy_id, start, end, result["params"])
-    record = RunRecord(
-        run_id=run_id,
-        strategy_id=strategy_id,
-        strategy_name=entry.name,
-        params=result["params"],
-        start_date=start,
-        end_date=end,
-        status="success",
-        metrics=result["metrics"],
-        created_at=datetime.datetime.now().isoformat(),
-    )
-    save_run(record, equity_df=result.get("results_df"))
-
     yield _sse({
         "stage": "done",
-        "content": f"回测完成: {entry.name}",
-        "run_id": run_id,
-        "metrics": result["metrics"],
+        "content": f"回测完成: {strategy_id}",
+        "run_id": data["run_id"],
+        "metrics": data["metrics"],
     })
 
 
