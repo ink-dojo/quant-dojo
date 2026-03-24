@@ -43,31 +43,35 @@
    目标：让 `signal -> rebalance -> positions -> performance -> risk -> weekly report` 成为可信闭环。
    详细计划见 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
 
-2. **P0.5: Control Plane** ✅ 已完成
+2. **P0.5: Control Plane First Implementation** ✅ 已完成
    目标：统一 CLI 命令树 + 策略注册表 + 运行记录 + Dashboard 集成 + AI-safe 控制面。
    详细计划见 [GOAL_control_plane.md](GOAL_control_plane.md)
 
-3. **P1: Dashboard Integration**
+3. **P0.75: Control Plane Convergence** 🔄 当前进行中
+   目标：把已完成的 control plane 从“第一版可用”推进到“系统级收口”，重点是 artifact 语义、dashboard/CLI 一致性、approval gate、端到端回归和重复 review loop 验收。
+   详细计划见 [GOAL_control_plane_convergence.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_control_plane_convergence.md)
+
+4. **P1: Dashboard Integration**
    目标：把已稳定的数据与操作统一展示在本地工作台里，而不是继续手工翻文件和跑脚本。
    详细计划见 [GOAL_dashboard.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_dashboard.md)
 
-4. **P2: Phase 5 Operational Maturity**
+5. **P2: Phase 5 Operational Maturity**
    目标：在基础设施稳定后，进入连续模拟运行、周报、风险回顾、数据 freshness 管控。
    这部分以 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md) 后半段的验收和周报机制为基础，不单独拆新目标，直到 P0 真正完成。
 
-4. **P3: Strategy Upgrades / New Research**
+6. **P3: Strategy Upgrades / New Research**
    目标：只有在模拟盘主链路可信后，才继续扩策略、增强因子和研究方法。
    历史背景与已完成内容见 [GOAL_phase4.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase4.md) 和 [GOAL.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL.md)
 
-5. **P4: Control Plane** ✅ 已完成
+7. **P4: Control Plane** ✅ 第一版已完成
    目标：把分散脚本、回测、模拟盘、周报、风控整合成一个统一操作面。
    原则：CLI 负责执行，Dashboard 负责展示与批准，不反过来。
    详细计划见 [GOAL_control_plane.md](GOAL_control_plane.md)
 
-6. **P5: Agentic Research And Execution**
+8. **P5: Agentic Research And Execution**
    目标：让 AI 从“分析助手”升级为“有门禁的研究操作员”，能提议实验、批量跑回测、汇总比较结果，但不能绕过风控和人工批准。
 
-7. **P6: Future Real-Money Readiness**
+9. **P6: Future Real-Money Readiness**
    目标：配置治理、执行纪律、连续模拟结果、资金管理、实盘前审查。
    当前只记录方向，不开做。
 
@@ -115,9 +119,14 @@ Dashboard 的位置很明确：
 详细计划见：
 - [GOAL_dashboard.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_dashboard.md)
 
-### Next After Dashboard: Control Plane
+### Next After Dashboard: Control Plane Convergence
 
-下一阶段不应该是“继续加零散页面”，而应该是建立统一控制面：
+控制面的第一版已经完成，下一阶段不是重做架构，而是把它收敛到账可信：
+
+- 证明 CLI、run artifacts、dashboard 消费是同一条契约
+- 收紧 artifact schema 和 provenance
+- 验证 approval gate 和 legacy CLI compatibility
+- 用至少两轮独立 review loop 作为收口门槛
 
 - **Terminal / CLI 是主执行面**
   - 统一所有策略回测、信号生成、调仓、周报、风险检查入口
@@ -132,7 +141,7 @@ Dashboard 的位置很明确：
 这一步是从“很多工具”升级到“量化操作系统”的关键。
 
 详细执行计划见：
-- [GOAL_control_plane.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_control_plane.md)
+- [GOAL_control_plane_convergence.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_control_plane_convergence.md)
 
 ### Long-Term Direction: Agentic Portfolio Manager
 
@@ -225,9 +234,9 @@ AI 提议研究方向
 详情：
 - [GOAL_dashboard.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_dashboard.md)
 
-### Control Plane Track ✅ 已完成
+### Control Plane Track ✅ 第一版已完成
 定位：统一 CLI 执行面 + Dashboard 观察面
-状态：已完成（2026-03-23）
+状态：第一版已完成（2026-03-23），系统级收口仍在进行
 交付物：
 - `pipeline/strategy_registry.py` — 策略注册表
 - `pipeline/run_store.py` — 运行记录存储
@@ -236,6 +245,18 @@ AI 提议研究方向
 - Dashboard 回测端点 + 前端面板
 - 27 个自动化测试
 - 详细计划见 [GOAL_control_plane.md](GOAL_control_plane.md)
+
+### Control Plane Convergence Track 🔄 当前进行中
+定位：把 control plane 从“可用”推进到“收口”
+状态：当前主线之一
+重点：
+- artifact schema 固化
+- dashboard / CLI 一致性
+- legacy CLI compatibility 回归保护
+- approval gate 回归保护
+- 至少两轮独立 review loop 无新增实质问题后才允许收敛
+详情：
+- [GOAL_control_plane_convergence.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_control_plane_convergence.md)
 
 ### Agentic Track
 定位：AI 从研究助手升级到有门禁的研究操作员  
