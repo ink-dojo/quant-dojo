@@ -112,6 +112,17 @@ def bp_factor(pb_wide: pd.DataFrame) -> pd.DataFrame:
     return 1.0 / pb_wide.where(pb_wide > 0)
 
 
+def roe_factor(pe_wide: pd.DataFrame, pb_wide: pd.DataFrame) -> pd.DataFrame:
+    """
+    ROE 因子：PB/PE 近似（DuPont 恒等式）。
+
+    ROE_TTM = E/BV = (1/PE) / (1/PB) = PB/PE
+    高 ROE = 质量因子 = 正向
+    """
+    roe = pb_wide / pe_wide.where(pe_wide > 0)
+    return roe.clip(-1, 5)  # 截断极端值
+
+
 # ══════════════════════════════════════════════════════════════
 # 微观结构因子
 # ══════════════════════════════════════════════════════════════
@@ -434,6 +445,7 @@ FACTOR_CATALOG = {
     "ma_ratio_120": {"category": "技术", "source": "QuantsPlaybook-MA比率", "data": "close"},
     "ep": {"category": "基本面", "source": "Fama-French", "data": "pe_ttm"},
     "bp": {"category": "基本面", "source": "Fama-French", "data": "pb"},
+    "roe": {"category": "基本面", "source": "DuPont/质量因子", "data": "pe_ttm,pb"},
     "shadow_upper": {"category": "微观结构", "source": "东吴证券", "data": "high,close"},
     "shadow_lower": {"category": "微观结构", "source": "东吴证券", "data": "close,low"},
     "cgo_simple": {"category": "行为金融", "source": "国信证券-处置效应", "data": "close"},
