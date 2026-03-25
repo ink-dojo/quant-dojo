@@ -100,3 +100,13 @@
 
 > 完成时间：2026-03-21
 
+---
+
+## Tech Debt
+
+- [ ] 🟡 `ic_weighted_composite` 在 `utils/factor_analysis.py:297` 和 `utils/multi_factor.py:112` 有两个不同签名的实现，接口命名易混淆
+- [ ] 🟡 `test_notebook_compat` 测试因缺少 `pyarrow` 失败 — 需要将 pyarrow 加入项目依赖或 CI 环境
+- [ ] 🟡 `agents/base.py` 的 Ollama URL 和超时值硬编码为默认参数，应改为环境变量
+- [ ] 🔵 `live/paper_trader.py:218` `rebalance()` 208 行，可拆分卖出/买入子阶段
+- [ ] 🔵 `pipeline/run_store.py:16-47` 架构注释块应合并到模块 docstring
+
