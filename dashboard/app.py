@@ -100,8 +100,10 @@ def index() -> FileResponse:
 
 
 if __name__ == "__main__":
+    import os
     import threading
     import uvicorn
 
-    threading.Timer(1.0, lambda: webbrowser.open("http://localhost:8888")).start()
-    uvicorn.run(app, host="0.0.0.0", port=8888)
+    port = int(os.getenv("DASHBOARD_PORT", "8888"))
+    threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{port}")).start()
+    uvicorn.run(app, host="0.0.0.0", port=port)
