@@ -770,6 +770,18 @@ def main():
     p_data_update.add_argument("--dry-run", dest="dry_run", action="store_true",
                                help="只打印，不写文件")
 
+    # ── live ─────────────────────────────────────────────────
+    p_live = subparsers.add_parser("live", help="实时数据服务")
+    live_sub = p_live.add_subparsers(dest="live_action")
+
+    p_live_quote = live_sub.add_parser("quote", help="查看实时行情")
+    p_live_quote.add_argument("symbols", nargs="*", help="股票代码（不填则用持仓）")
+
+    p_live_poll = live_sub.add_parser("poll", help="盘中实时轮询")
+    p_live_poll.add_argument("--interval", type=int, default=5, help="间隔秒数")
+
+    live_sub.add_parser("eod", help="执行收盘后 EOD 更新")
+
     # ── 独立命令 ─────────────────────────────────────────────
     subparsers.add_parser("positions", help="查看当前模拟盘持仓")
     subparsers.add_parser("performance", help="查看模拟盘绩效指标")
@@ -868,6 +880,34 @@ def main():
             "status": cmd_data_status,
             "update": cmd_data_update,
         }.get(action)
+    elif args.command == "live":
+        action = getattr(args, "live_action", None)
+        if action is None:
+            p_live.print_help()
+            sys.exit(0)
+        if action == "quote":
+            def _live_quote(a):
+                from providers.sina_provider import fetch_realtime_quotes
+                syms = a.symbols if a.symbols else ["600000", "000001", "600519"]
+                quotes = fetch_realtime_quotes(syms)
+                print(f"\n{'代码':<8} {'名称':<10} {'现价':>8} {'涨跌':>8} {'成交额':>10}")
+                print("-" * 50)
+                for s, q in quotes.items():
+                    pnl = (q['price']/q['prev_close']-1)*100 if q['prev_close']>0 else 0
+                    print(f"{s:<8} {q['name']:<10} {q['price']:>8.2f} {pnl:>+7.2f}% {q['amount']/1e8:>9.1f}亿")
+            handler = _live_quote
+        elif action == "poll":
+            def _live_poll(a):
+                from pipeline.live_data_service import poll_realtime
+                poll_realtime(interval=a.interval)
+            handler = _live_poll
+        elif action == "eod":
+            def _live_eod(a):
+                from pipeline.live_data_service import run_eod_update
+                run_eod_update()
+            handler = _live_eod
+        else:
+            handler = None
     else:
         handler = None
 
