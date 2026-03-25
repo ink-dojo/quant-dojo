@@ -88,6 +88,13 @@ _COMMANDS = {
         "mutates": False,
         "params": [],
     },
+    "live.quote": {
+        "description": "获取实时行情",
+        "mutates": False,
+        "params": [
+            {"name": "symbols", "required": False, "description": "股票代码列表"},
+        ],
+    },
 
     # ── 变更命令（需人工确认）───────────────────────────────
     "backtest.run": {
@@ -393,6 +400,14 @@ def _doctor(**kwargs):
     return results
 
 
+def _live_quote(symbols: list = None, **kwargs):
+    """获取实时行情"""
+    from providers.sina_provider import fetch_realtime_quotes
+    if not symbols:
+        symbols = ["600000", "000001", "600519", "000858", "601318"]
+    return fetch_realtime_quotes(symbols)
+
+
 # ── 命令→处理函数映射 ────────────────────────────────────────
 _HANDLERS = {
     "strategies.list": _strategies_list,
@@ -409,6 +424,7 @@ _HANDLERS = {
     "data.freshness": _data_freshness,
     "report.weekly": _report_weekly,
     "doctor": _doctor,
+    "live.quote": _live_quote,
 }
 
 
