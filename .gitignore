@@ -58,6 +58,9 @@ live/signals/
 live/factor_snapshot/
 live/runs/
 
+# Binary documents
+*.pdf
+
 # Dev artifacts
 venv 2/
 push_phase5.sh
