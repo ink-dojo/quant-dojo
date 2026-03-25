@@ -131,6 +131,70 @@ def rsrs_regime_mask(
     return mask
 
 
+def vol_turnover_regime(
+    close: pd.Series,
+    volume: pd.Series,
+    window: int = 200,
+    upper: float = None,
+    lower: float = None,
+) -> pd.Series:
+    """
+    波动率/换手率牛熊指标。
+
+    核心思路：std(ret,200) / mean(volume,200)
+    高值 = 恐慌（高波动+低参与）= 熊市
+    低值 = 贪婪（低波动+高参与）= 牛市
+
+    参考：QuantsPlaybook/C-择时类/CSVC框架及熊牛指标
+
+    参数:
+        close: 指数收盘价
+        volume: 指数成交量
+        window: 滚动窗口（默认 200 天）
+        upper/lower: 阈值（默认用中位数分界）
+
+    返回:
+        pd.Series[bool]: True=看多, False=看空
+    """
+    ret = close.pct_change()
+    vol = ret.rolling(window, min_periods=window).std()
+    avg_volume = volume.rolling(window, min_periods=window).mean()
+
+    kernel = vol / avg_volume.replace(0, np.nan)
+
+    if upper is None or lower is None:
+        # 用中位数作为分界
+        median_val = kernel.median()
+        upper = median_val if upper is None else upper
+        lower = median_val if lower is None else lower
+
+    # kernel 低 = 牛（低波动/高参与），kernel 高 = 熊
+    mask = kernel < lower
+    mask.name = "vol_turn_bullish"
+    return mask
+
+
+def composite_regime(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    volume: pd.Series,
+) -> pd.Series:
+    """
+    复合市场状态：RSRS + 波动率/换手率，两者都看多才看多。
+
+    返回:
+        pd.Series[bool]: True=看多
+    """
+    rsrs = rsrs_regime_mask(high, low)
+    vt = vol_turnover_regime(close, volume)
+    # 对齐
+    common = rsrs.index.intersection(vt.index)
+    result = rsrs.loc[common] & vt.loc[common]
+    result.name = "composite_bullish"
+    return result
+
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent))
