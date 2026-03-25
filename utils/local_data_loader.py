@@ -122,10 +122,14 @@ def load_local_stock(symbol: str) -> pd.DataFrame:
     """
     cache_path = _CACHE_DIR / f"{symbol}.parquet"
 
-    # 读缓存
+    # 读缓存（带损坏检测）
     if cache_path.exists():
-        df = pd.read_parquet(cache_path)
-        return df
+        try:
+            df = pd.read_parquet(cache_path)
+            return df
+        except Exception:
+            # 缓存损坏，删除后重建
+            cache_path.unlink(missing_ok=True)
 
     # 查找 CSV 文件（尝试 sh. 和 sz. 前缀）
     data_dir = _get_local_data_dir()
@@ -156,12 +160,15 @@ def load_local_stock(symbol: str) -> pd.DataFrame:
         df["date"] = pd.to_datetime(df["date"])
         df = df.set_index("date").sort_index()
 
-    # 写 parquet 缓存
+    # 写 parquet 缓存（原子写入：先写临时文件再 rename，防止中断导致损坏）
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        df.to_parquet(cache_path)
+        tmp_path = cache_path.with_suffix(".parquet.tmp")
+        df.to_parquet(tmp_path)
+        tmp_path.rename(cache_path)
     except Exception as exc:
         logger.warning("写 parquet 缓存失败 (%s): %s", symbol, exc)
+        tmp_path.unlink(missing_ok=True)
 
     return df
 
