@@ -28,8 +28,8 @@ def get_risk_alerts():
         pt = PaperTrader()
         alerts = check_risk_alerts(pt, price_data={})
         return alerts if alerts is not None else []
-    except Exception as e:
-        return {"error": str(e), "alerts": []}
+    except Exception:
+        return {"error": "Internal server error", "alerts": []}
 
 
 if __name__ == "__main__":

@@ -54,12 +54,12 @@ def get_portfolio_summary() -> dict:
             "summary": summary,
             "positions": positions,
         }
-    except Exception as e:
+    except Exception:
         return {
             "as_of_date": str(date.today()),
             "summary": {},
             "positions": [],
-            "error": str(e),
+            "error": "Internal server error",
         }
 
 

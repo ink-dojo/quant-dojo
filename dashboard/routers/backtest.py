@@ -42,8 +42,8 @@ def api_strategies():
     try:
         from dashboard.services.backtest_service import get_strategies
         return get_strategies()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/runs")
@@ -55,8 +55,8 @@ def api_runs(
     try:
         from dashboard.services.backtest_service import get_runs
         return get_runs(strategy_id=strategy, limit=limit)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/runs/{run_id}")
@@ -65,10 +65,10 @@ def api_run_detail(run_id: str):
     try:
         from dashboard.services.backtest_service import get_run_detail
         return get_run_detail(run_id)
-    except (FileNotFoundError, ValueError) as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(status_code=404, detail="Run not found")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/compare")
@@ -77,8 +77,8 @@ def api_compare(req: CompareRequest):
     try:
         from dashboard.services.backtest_service import compare_runs
         return compare_runs(req.run_ids)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/run")
