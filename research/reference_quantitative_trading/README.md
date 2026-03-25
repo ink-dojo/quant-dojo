@@ -1,0 +1,34 @@
+# 参考文献
+
+> 论文 PDF 不入 git，本地自行保存。以下为项目引用的核心文献清单。
+
+---
+
+## 经典学术论文
+
+- Fama & MacBeth (1973). *Risk, Return, and Equilibrium: Empirical Tests.* Journal of Political Economy.
+- Fama & French (1993). *Common Risk Factors in the Returns on Stocks and Bonds.* Journal of Financial Economics.
+- Fama & French (1992). *The Cross-Section of Expected Stock Returns.* Journal of Finance.
+
+## Barra 风险模型
+
+- MSCI. *Barra China Equity Model (CNE5/CNE6).*
+- MSCI. *Barra China Equity Model — Descriptor Details.*
+
+## 券商研报 — 东方证券·因子选股系列
+
+- 《因子选股系列研究之六》：用组合优化构建更精确多样的投资组合 (2016-02)
+- 《因子选股系列研究之十》：Alpha 因子库精简与优化 (2016-08)
+- 《因子选股系列研究之十七》：A 股市场风险分析
+- 《因子选股系列研究之二十一》：组合优化是与非
+- 《因子选股系列研究之三十五》：组合优化的若干问题 (2018-03)
+
+## 券商研报 — 长江证券·多因子模型系列
+
+- 多因子模型系列报告之一：模型理论随想和纯因子组合构建 (2016-05)
+- 多因子模型系列报告之二：利用纯因子组合检验因子有效性 (2016-10)
+- 多因子模型系列报告之三：利用纯因子组合进行因子投资 (2016-10)
+
+## 券商研报 — 其他
+
+- 国泰君安 (2015-04). 数量化专题之五十七：基于组合权重优化的风格中性多因子选股策略
