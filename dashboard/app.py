@@ -82,6 +82,13 @@ def _register_routers() -> None:
     except (ImportError, Exception):
         pass
 
+    # 实时行情路由
+    try:
+        from dashboard.routers import live
+        app.include_router(live.router, prefix="/api/live")
+    except (ImportError, Exception):
+        pass
+
 
 _register_routers()
 
