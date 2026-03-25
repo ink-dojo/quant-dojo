@@ -52,8 +52,8 @@ def get_factor_health() -> dict:
                 "status": normalized,
             }
         return factors
-    except Exception as e:
-        return {"error": str(e), "factors": {}}
+    except Exception:
+        return {"error": "Internal server error", "factors": {}}
 
 
 def get_factor_snapshot() -> dict:

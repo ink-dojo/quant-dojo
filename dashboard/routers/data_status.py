@@ -19,5 +19,5 @@ def data_status() -> dict:
     try:
         from pipeline.data_checker import check_data_freshness
         return check_data_freshness()
-    except Exception as e:
-        return {"error": str(e)}
+    except Exception:
+        return {"error": "Internal server error"}
