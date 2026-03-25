@@ -6,7 +6,6 @@ data_loader.py — 底层文件读取工具函数
 
 import json
 from pathlib import Path
-from typing import Any
 
 # live/ 目录根路径（相对于本文件向上两级）
 _LIVE_DIR = Path(__file__).parent.parent.parent / "live"

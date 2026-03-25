@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import atexit
-import json
 from concurrent.futures import ThreadPoolExecutor
 from typing import AsyncGenerator
 

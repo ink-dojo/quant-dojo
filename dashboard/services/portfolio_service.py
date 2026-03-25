@@ -5,7 +5,6 @@ portfolio_service.py — 持仓服务层
 """
 
 from datetime import date
-from typing import Any
 
 from dashboard.services.data_loader import load_nav_csv
 

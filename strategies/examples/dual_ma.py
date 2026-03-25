@@ -7,7 +7,6 @@
 注意：这个策略在A股实际表现一般，仅作为学习框架使用。
 """
 import pandas as pd
-import numpy as np
 from strategies.base import BaseStrategy, StrategyConfig
 
 
@@ -66,7 +65,6 @@ if __name__ == "__main__":
     # 快速测试
     from utils.data_loader import get_stock_history, calc_returns
     from utils.metrics import performance_summary
-    from utils.plotting import plot_cumulative_returns, plot_drawdown
 
     data = get_stock_history("000001", "2018-01-01", "2024-12-31")
     config = StrategyConfig(

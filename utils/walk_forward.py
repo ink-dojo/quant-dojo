@@ -4,7 +4,7 @@
 """
 import inspect
 import logging
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict, Any
 
 import matplotlib.pyplot as plt
 import numpy as np

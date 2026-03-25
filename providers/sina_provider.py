@@ -14,7 +14,7 @@ providers/sina_provider.py — 新浪财经实时行情 Provider
 import logging
 import re
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
