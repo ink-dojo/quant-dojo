@@ -195,6 +195,144 @@ def composite_regime(
     return result
 
 
+def higher_moment_timing(close: pd.Series, order: int = 5,
+                         moment_window: int = 20,
+                         adapt_window: int = 90) -> pd.Series:
+    """
+    高阶矩自适应择时：用 N 阶矩的 EMA 方向判断牛熊。
+
+    参考：QuantsPlaybook/C-择时类/指数高阶矩择时
+
+    参数:
+        close: 指数收盘价
+        order: 矩的阶数（默认 5，捕捉尾部不对称）
+        moment_window: 矩计算窗口（默认 20 天）
+        adapt_window: 自适应 alpha 选择窗口（默认 90 天）
+
+    返回:
+        pd.Series[bool]: True=看多
+    """
+    ret = close.pct_change()
+    moment = ret.rolling(moment_window).apply(lambda x: np.mean(x ** order), raw=True)
+
+    # 用 alpha=0.2 的 EMA（简化版，不做自适应选参）
+    ema = moment.ewm(alpha=0.2, adjust=False).mean()
+    diff = ema.diff()
+
+    # EMA 上升 = 看多
+    mask = diff > 0
+    mask.name = "moment_bullish"
+    return mask.fillna(True)
+
+
+def llt_timing(close: pd.Series, alpha: float = 0.05) -> pd.Series:
+    """
+    低延迟趋势线（LLT）择时：二阶 IIR 滤波器。
+
+    参考：QuantsPlaybook/C-择时类/低延迟趋势线与交易择时
+
+    返回:
+        pd.Series[bool]: True=看多（LLT 上升）
+    """
+    p = close.values.astype(float)
+    n = len(p)
+    llt = np.zeros(n)
+    llt[0], llt[1] = p[0], p[1]
+
+    a = alpha
+    for i in range(2, n):
+        llt[i] = ((a - a**2/4) * p[i]
+                  + (a**2/2) * p[i-1]
+                  - (a - 3*a**2/4) * p[i-2]
+                  + 2*(1-a) * llt[i-1]
+                  - (1-a)**2 * llt[i-2])
+
+    llt_series = pd.Series(llt, index=close.index)
+    # LLT 上升 = 看多
+    mask = llt_series.diff() > 0
+    mask.name = "llt_bullish"
+    return mask.fillna(True)
+
+
+def volume_price_resonance(close: pd.Series, volume: pd.Series,
+                           fast: int = 5, slow: int = 100) -> pd.Series:
+    """
+    价量共振择时：价格动量 × 成交量动量。
+
+    参考：QuantsPlaybook/C-择时类/成交量的奥秘
+
+    返回:
+        pd.Series[bool]: True=看多
+    """
+    # 价格动量：50 日均线 / 3 天前均线
+    bma = close.rolling(50).mean()
+    price_mom = bma / bma.shift(3)
+
+    # 量能动量：快 / 慢均量
+    vol_fast = volume.rolling(fast).mean()
+    vol_slow = volume.rolling(slow).mean()
+    vol_mom = vol_fast / vol_slow.replace(0, np.nan)
+
+    # 共振
+    resonance = price_mom * vol_mom
+    mask = resonance > 1.0  # 共振 > 1 看多
+    mask.name = "resonance_bullish"
+    return mask.fillna(True)
+
+
+def icu_ma_timing(close: pd.Series, window: int = 20) -> pd.Series:
+    """
+    ICU 均线择时：Siegel 稳健回归外推。
+
+    抗异常值能力强（可容忍 50% 离群点）。
+    参考：QuantsPlaybook/C-择时类/ICU均线
+
+    返回:
+        pd.Series[bool]: True=看多
+    """
+    from scipy import stats
+
+    def siegel_extrapolate(arr):
+        n = len(arr)
+        res = stats.siegelslopes(arr, np.arange(n))
+        return res.intercept + res.slope * (n - 1)
+
+    icu = close.rolling(window).apply(siegel_extrapolate, raw=True)
+    mask = close > icu  # 价格在 ICU 线上方 = 看多
+    mask.name = "icu_bullish"
+    return mask.fillna(True)
+
+
+def volatility_scissors_timing(high: pd.Series, low: pd.Series,
+                               open_price: pd.Series,
+                               window: int = 60) -> pd.Series:
+    """
+    波动率剪刀差择时：上行波动 - 下行波动。
+
+    参考：QuantsPlaybook/C-择时类/基于相对强弱下单向波动差值
+
+    返回:
+        pd.Series[bool]: True=看多
+    """
+    up_vol = high / open_price - 1
+    down_vol = 1 - low / open_price
+    diff = (up_vol - down_vol).rolling(window).mean()
+    mask = diff > 0
+    mask.name = "scissors_bullish"
+    return mask.fillna(True)
+
+
+TIMING_CATALOG = {
+    "rsrs": {"desc": "阻力支撑相对强度", "source": "RSRS 研报"},
+    "vol_turnover": {"desc": "波动率/换手率牛熊", "source": "QuantsPlaybook-CSVC"},
+    "higher_moment": {"desc": "高阶矩自适应", "source": "QuantsPlaybook-高阶矩"},
+    "llt": {"desc": "低延迟趋势线", "source": "QuantsPlaybook-LLT"},
+    "volume_resonance": {"desc": "价量共振", "source": "QuantsPlaybook-成交量的奥秘"},
+    "icu_ma": {"desc": "ICU 稳健均线", "source": "QuantsPlaybook-ICU均线"},
+    "vol_scissors": {"desc": "波动率剪刀差", "source": "QuantsPlaybook-单向波动差值"},
+}
+
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent))
