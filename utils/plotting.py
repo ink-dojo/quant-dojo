@@ -2,7 +2,6 @@
 标准化可视化模块
 所有图表风格统一，方便研究报告使用
 """
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates

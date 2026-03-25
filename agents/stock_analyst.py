@@ -5,8 +5,6 @@
 import math
 from typing import Optional
 
-import numpy as np
-
 from agents.base import LLMClient, BaseAgent
 from agents.debate import BullBearDebate
 

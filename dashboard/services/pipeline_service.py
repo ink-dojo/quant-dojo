@@ -6,7 +6,6 @@ dashboard/services/pipeline_service.py — Pipeline 服务层
 """
 
 import asyncio
-import json
 from typing import AsyncGenerator
 
 
