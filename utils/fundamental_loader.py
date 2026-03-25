@@ -8,7 +8,6 @@ import warnings
 from pathlib import Path
 
 import pandas as pd
-import akshare as ak
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "fundamentals"
 
@@ -50,6 +49,7 @@ def get_pe_pb(
         "市现率": "pcf",  # 市现率 Price/Cash Flow（非市销率）
     }
 
+    import akshare as ak
     dfs = []
     for cn_name, en_name in indicator_map.items():
         try:
@@ -116,6 +116,7 @@ def get_financials(
         df = pd.read_parquet(cache_path)
         return df.tail(periods)
 
+    import akshare as ak
     # 用新浪财经的财务分析指标接口
     raw = ak.stock_financial_analysis_indicator(symbol=symbol, start_year="2018")
 
@@ -175,6 +176,7 @@ def get_industry_classification(
     if use_cache and cache_path.exists():
         df = pd.read_parquet(cache_path)
     else:
+        import akshare as ak
         # 申万行业分类：一次调用返回全部A股的行业归属历史
         raw = ak.stock_industry_clf_hist_sw()
         # 每只股票取最新的行业分类（按 start_date 最新）

@@ -5,7 +5,6 @@
 所有函数返回标准化的 6 位股票代码（如 "000001"）。
 """
 import pandas as pd
-import akshare as ak
 from pathlib import Path
 
 PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
@@ -32,6 +31,7 @@ def get_index_components(index: str = "csi500") -> pd.DataFrame:
     返回:
         DataFrame，含 symbol（6位）、name、weight 列
     """
+    import akshare as ak
     code = INDEX_MAP.get(index, index)
     df = ak.index_stock_cons_weight_csindex(symbol=code)
 
@@ -67,6 +67,7 @@ def get_all_ashare_symbols() -> pd.DataFrame:
     返回:
         DataFrame，含 symbol（6位）、name、exchange 列
     """
+    import akshare as ak
     # 用实时行情接口——最可靠，包含所有在市 A 股
     df = ak.stock_zh_a_spot_em()
 
@@ -147,6 +148,7 @@ def filter_st(symbols: list, name_map: dict = None) -> list:
         过滤后的代码列表
     """
     if name_map is None:
+        import akshare as ak
         df = ak.stock_zh_a_spot_em()
         code_col = "代码" if "代码" in df.columns else "股票代码"
         name_col = "名称" if "名称" in df.columns else "股票名称"

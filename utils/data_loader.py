@@ -8,7 +8,6 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
-import akshare as ak
 from pathlib import Path
 from tqdm import tqdm
 
@@ -44,6 +43,7 @@ def get_stock_history(
     if use_cache and cache_path.exists():
         return pd.read_parquet(cache_path)
 
+    import akshare as ak
     df = ak.stock_zh_a_hist(
         symbol=symbol,
         period="daily",
@@ -77,6 +77,7 @@ def get_index_history(
         sz399001  深证成指
         sz399006  创业板指
     """
+    import akshare as ak
     df = ak.stock_zh_index_daily(symbol=symbol)
     df = df.rename(columns={"date": "date"})
     df["date"] = pd.to_datetime(df["date"])
@@ -86,6 +87,7 @@ def get_index_history(
 
 def get_hs300_stocks() -> pd.DataFrame:
     """获取沪深300成分股列表"""
+    import akshare as ak
     return ak.index_stock_cons_weight_csindex(symbol="000300")
 
 
