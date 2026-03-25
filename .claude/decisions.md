@@ -19,10 +19,4 @@
 ### 5. Walk-forward strategy_fn signature
 **Context:** `walk_forward_test` expects `strategy_fn(price_wide, factor_data_slice, train_start, train_end) -> returns_series`. The notebook wraps `MultiFactorStrategy` in a closure.
 
-- [2026-03-22 23:32] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
-
-- [2026-03-22 23:41] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
-
-- [2026-03-22 23:50] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
-
-- [2026-03-23 00:10] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+- [2026-03-22] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
