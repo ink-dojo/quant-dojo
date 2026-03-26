@@ -2,7 +2,7 @@
 
 > 这是仓库的总工作计划入口。所有当前目标、后续目标和未来方向统一从这里进入。
 > 详细设计和执行细节仍保留在各自的 `GOAL_*.md` 文件中，但本文件是**唯一总览**。
-> 更新日期：2026-03-24
+> 更新日期：2026-03-25
 >
 > 新建执行型 goal 时，统一从 [`GOAL_EXECUTION_TEMPLATE.md`](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md) 开始。
 
@@ -30,9 +30,9 @@
 
 ### 当前最重要的事实
 - 系统已经不再是纯研究仓库
-- 但它还没有达到“可信模拟盘基础设施”的标准
-- 当前首要任务不是扩功能，而是把 Phase 5 基础设施做扎实
-- 当前最直接的 Phase 5 阻塞项是：**免费最新数据接入与 freshness 契约仍未收口**
+- 免费数据接入与 freshness 已基本收口，当前数据状态已能更新到最新交易日
+- 当前主策略已从“明显不合格”推进到“保守口径只差 admission 门槛一步”
+- 当前首要任务不再是继续补数据入口，而是把策略 admission 和 Phase 5 handoff 做扎实
 
 ---
 
@@ -45,8 +45,10 @@
    详细计划见 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
 
    当前执行子目标：
+   - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
+     目标：锁定 `v6(lag1)` 保守基线，只做一个最小改动方向，重新评估并形成是否进入 Phase 5 的正式决议。
    - [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
-     目标：接上免费 A 股日线更新路径，统一 `latest_date / days_stale / missing_symbols / status` 契约，并解锁 Phase 5 主链路对最新数据的依赖。
+     状态：基本完成。保留为已落地主链路能力说明，不再作为当前唯一阻塞项。
 
 2. **P0.5: Control Plane First Implementation** ✅ 已完成
    目标：统一 CLI 命令树 + 策略注册表 + 运行记录 + Dashboard 集成 + AI-safe 控制面。
@@ -87,16 +89,14 @@
 ### Active Now: Phase 5 Infrastructure
 
 当前唯一主任务：
-- 接上免费数据更新链路，消除“数据停在旧日期但系统只能告警不能修复”的状态
-- 统一运行配置，去掉硬编码路径
-- 加固每日信号输出
-- 完成 `PaperTrader` 状态完整性
-- 让风险/因子健康度输出真正可信
-- 生成周报产物
-- 增加最小自动化验证
+- 先把当前主策略的 admission 结论锁定下来
+- 只允许一个最小策略改动去争取跨过保守门槛
+- admission 通过后，再恢复推进 `PaperTrader`、NAV、周报与连续模拟运行
+- 保持运行配置、信号、风险、周报等 Phase 5 路径与策略版本一致
 
 详细执行见：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
+- [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
 - [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
 
 ### Immediate Focus Inside P0
@@ -105,15 +105,16 @@
 
 先做这一条：
 
-1. **Free Data Ingestion And Freshness**
-   目标：接入免费 A 股日线更新路径，并让 CLI / Dashboard / control surface 看到同一份 freshness 结果。
+1. **V6 Admission Push**
+   目标：把 `v6(lag1)` 固化为唯一 admission baseline，并只做一个最小改动方向重评估。
    为什么优先：
-   - 当前 CLI 已明确提示本地数据停在 `2026-03-20`
-   - 没有最新数据，`signal -> risk -> weekly report` 的可信度不足
-   - 这是 Phase 5 后续工作流的公共依赖，不先补会持续制造假进展
+   - 数据 freshness 已恢复正常，不再是最紧迫阻塞
+   - 当前策略已经接近过线，最容易形成明确 go / no-go 决议
+   - 若不先锁定 baseline，就会继续出现“乐观结果推进工程、保守结果留在角落”的假进展
+   - Phase 5 是否值得继续推进连续模拟，取决于 admission 是否真实通过
 
 执行文件：
-- [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+- [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
 
 ### Required Gate Before Strategy Enters Phase 5
 
@@ -126,6 +127,7 @@
 - 这不是新的总主线
 - 它是当前主策略进入 Phase 5 之前必须通过的 admission gate
 - 目的不是扩策略数量，而是防止“工程闭环很稳，但策略本身不成立”
+- 当前 admission gate 的最新执行子目标见 [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
 
 ### Done Recently
 - 修复了回测引擎与多因子策略返回列不兼容问题
@@ -149,7 +151,7 @@ Dashboard 的位置很明确：
 因此 Dashboard 必须依赖已稳定的 `pipeline/`、`live/`、`agents/`，而不是自己重新实现业务逻辑。
 
 执行时机：
-- 只有当 Phase 5 infra 的 Milestone A/B 基本完成后，Dashboard 才进入主开发阶段
+- 只有当 admission 通过，并且 Phase 5 模拟运行链路真正进入连续运行阶段后，Dashboard 才进入下一轮主开发阶段
 
 详细计划见：
 - [GOAL_dashboard.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_dashboard.md)
