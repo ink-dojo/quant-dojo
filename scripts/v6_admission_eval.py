@@ -396,7 +396,7 @@ def print_admission_table(m_is, m_oos=None, mode="honest_baseline"):
         print(line)
 
     print("  " + "-" * 55)
-    status = "PASS" if all_pass else "PENDING"
+    status = "PASS" if all_pass else "FAIL"
     print(f"  样本内准入状态: {'✅' if all_pass else '❌'} {status}")
     print("=" * 65)
     return all_pass
