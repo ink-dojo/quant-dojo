@@ -35,6 +35,7 @@ from utils.tradability_filter import apply_tradability_filter, cap_weights
 from utils.market_regime import (
     rsrs_regime_mask, llt_timing, higher_moment_timing,
 )
+from utils.stop_loss import per_stock_stop
 from utils.alpha_factors import (
     team_coin as _team_coin,
     low_vol_20d as _low_vol_20d,
@@ -166,7 +167,7 @@ def zscore_cross(df: pd.DataFrame) -> pd.DataFrame:
 
 def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
                  cost=0.003, mask=None, max_weight=0.1,
-                 regime_mask=None, lag1=True):
+                 regime_mask=None, lag1=True, stop_loss_threshold=None):
     """
     多因子月频回测。
 
@@ -180,6 +181,7 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
         max_weight: 单票最大权重
         regime_mask: 市场状态 mask（True=看多）
         lag1: 是否延迟 1 天使用信号（诚实基线）
+        stop_loss_threshold: 个股止损阈值（如 -0.10），None 表示不启用
 
     返回:
         pd.Series: 日收益率
@@ -253,6 +255,10 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
         period_ret = dr.loc[date:next_date, picks]
         if len(period_ret) > 1:
             period_ret = period_ret.iloc[1:]
+
+        # 个股止损：触发后该股票当期内收益置零
+        if stop_loss_threshold is not None and len(period_ret) > 0:
+            period_ret = per_stock_stop(period_ret, threshold=stop_loss_threshold)
 
         port_daily = period_ret.mul(capped_w, axis=1).sum(axis=1)
 
@@ -397,6 +403,53 @@ def print_admission_table(m_is, m_oos=None, mode="honest_baseline"):
 
 
 # ══════════════════════════════════════════════════════════════
+# 止损对照表
+# ══════════════════════════════════════════════════════════════
+def print_stop_loss_comparison(m_base_is, m_sl_is, m_base_oos, m_sl_oos,
+                               threshold):
+    """打印 baseline vs 止损 的对比表"""
+    print(f"\n{'=' * 70}")
+    print(f"  Baseline vs 止损({threshold:.0%}) 对比")
+    print(f"{'=' * 70}")
+
+    rows = [
+        ("年化收益", "ann", "+.2%"),
+        ("波动率",   "vol", ".2%"),
+        ("夏普比率", "sr",  ".4f"),
+        ("最大回撤", "mdd", ".2%"),
+        ("卡玛比率", "calmar", ".2f"),
+        ("胜率",     "wr",  ".2%"),
+    ]
+
+    # 表头
+    header = f"  {'指标':<12}"
+    header += f" {'基线(IS)':>10} {'止损(IS)':>10} {'Δ':>10}"
+    if m_base_oos and m_sl_oos:
+        header += f" {'基线(OOS)':>10} {'止损(OOS)':>10} {'Δ':>10}"
+    print(header)
+    print("  " + "-" * (len(header) - 2))
+
+    for label, key, fmt in rows:
+        base_v = m_base_is[key]
+        sl_v = m_sl_is[key]
+        delta = sl_v - base_v
+
+        line = f"  {label:<12}"
+        line += f" {base_v:>{10}{fmt}} {sl_v:>{10}{fmt}} {delta:>+{9}{fmt}} "
+
+        if m_base_oos and m_sl_oos:
+            bo = m_base_oos[key]
+            so = m_sl_oos[key]
+            do = so - bo
+            line += f" {bo:>{10}{fmt}} {so:>{10}{fmt}} {do:>+{9}{fmt}}"
+
+        print(line)
+
+    print("  " + "-" * (len(header) - 2))
+    print(f"{'=' * 70}")
+
+
+# ══════════════════════════════════════════════════════════════
 # Walk-Forward
 # ══════════════════════════════════════════════════════════════
 def run_walk_forward(price, factors, regime_mask, tradable_mask,
@@ -456,13 +509,15 @@ def run_walk_forward(price, factors, regime_mask, tradable_mask,
 # ══════════════════════════════════════════════════════════════
 # 主流程
 # ══════════════════════════════════════════════════════════════
-def main(mode="honest_baseline", n_stocks=30, cost=0.003):
+def main(mode="honest_baseline", n_stocks=30, cost=0.003,
+         stop_loss_threshold=None):
     """v6 准入评估主流程"""
     lag1 = mode == "honest_baseline"
 
     print("=" * 65)
     print(f"  v6 策略准入评估")
-    print(f"  模式: {mode} | lag1={lag1} | N={n_stocks} | 成本={cost:.1%}")
+    sl_str = f" | 止损={stop_loss_threshold:.0%}" if stop_loss_threshold is not None else ""
+    print(f"  模式: {mode} | lag1={lag1} | N={n_stocks} | 成本={cost:.1%}{sl_str}")
     print("=" * 65)
 
     # 1. 数据
@@ -481,12 +536,15 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003):
     # IC 快报
     print_ic_report(factors, price, IS_START, IS_END)
 
-    # 5. 样本内回测
-    print(f"\n[4/6] 样本内回测 ({IS_START[:4]}-{IS_END[:4]})...")
-    strat_is = run_backtest(
-        price.loc[:IS_END], factors, V6_WEIGHTS, n_stocks,
+    # 回测公共参数
+    bt_kwargs = dict(
+        factor_dict=factors, weights=V6_WEIGHTS, n_stocks=n_stocks,
         cost=cost, mask=tradable, regime_mask=regime_mask, lag1=lag1,
     )
+
+    # 5. 样本内回测
+    print(f"\n[4/6] 样本内回测 ({IS_START[:4]}-{IS_END[:4]})...")
+    strat_is = run_backtest(price.loc[:IS_END], **bt_kwargs)
     strat_is = strat_is.loc[IS_START:]
     bench_is = hs300.loc[IS_START:IS_END].pct_change().dropna()
     m_is = print_metrics("v6 样本内", strat_is, bench_is)
@@ -494,10 +552,7 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003):
 
     # 6. 样本外回测
     print(f"\n  === 样本外 {OOS_START[:4]} ===")
-    strat_oos = run_backtest(
-        price.loc[:OOS_END], factors, V6_WEIGHTS, n_stocks,
-        cost=cost, mask=tradable, regime_mask=regime_mask, lag1=lag1,
-    )
+    strat_oos = run_backtest(price.loc[:OOS_END], **bt_kwargs)
     strat_oos = strat_oos.loc[OOS_START:]
     bench_oos = hs300.loc[OOS_START:OOS_END].pct_change().dropna()
 
@@ -518,8 +573,7 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003):
     if lag1:
         print(f"\n  === 参照：optimistic（无 lag）===")
         strat_opt = run_backtest(
-            price.loc[:IS_END], factors, V6_WEIGHTS, n_stocks,
-            cost=cost, mask=tradable, regime_mask=regime_mask, lag1=False,
+            price.loc[:IS_END], **{**bt_kwargs, "lag1": False},
         )
         strat_opt = strat_opt.loc[IS_START:]
         m_opt = print_metrics("v6 optimistic 样本内", strat_opt, bench_is)
@@ -527,6 +581,36 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003):
         print(f"    年化: {m_is['ann'] - m_opt['ann']:>+.2%}")
         print(f"    夏普: {m_is['sr'] - m_opt['sr']:>+.4f}")
         print(f"    回撤: {abs(m_is['mdd']) - abs(m_opt['mdd']):>+.2%}")
+
+    # 止损对照模式
+    if stop_loss_threshold is not None:
+        print(f"\n{'=' * 65}")
+        print(f"  止损对照：baseline vs 止损 ({stop_loss_threshold:.0%})")
+        print(f"{'=' * 65}")
+
+        # 样本内 — 带止损
+        strat_sl_is = run_backtest(
+            price.loc[:IS_END],
+            **{**bt_kwargs, "stop_loss_threshold": stop_loss_threshold},
+        )
+        strat_sl_is = strat_sl_is.loc[IS_START:]
+        m_sl_is = print_metrics(f"v6 止损({stop_loss_threshold:.0%}) 样本内",
+                                strat_sl_is, bench_is)
+
+        # 样本外 — 带止损
+        strat_sl_oos = run_backtest(
+            price.loc[:OOS_END],
+            **{**bt_kwargs, "stop_loss_threshold": stop_loss_threshold},
+        )
+        strat_sl_oos = strat_sl_oos.loc[OOS_START:]
+        m_sl_oos = None
+        if len(strat_sl_oos) > 20:
+            m_sl_oos = print_metrics(f"v6 止损({stop_loss_threshold:.0%}) 样本外",
+                                     strat_sl_oos, bench_oos)
+
+        # 对比表
+        print_stop_loss_comparison(m_is, m_sl_is, m_oos, m_sl_oos,
+                                   stop_loss_threshold)
 
     print("\n[6/6] 完成。")
     return passed
@@ -547,9 +631,15 @@ def parse_args():
         "--cost", type=float, default=0.003,
         help="双边交易成本（默认 0.003 = 0.3%%）",
     )
+    parser.add_argument(
+        "--stop-loss", type=float, nargs="?", const=-0.10, default=None,
+        dest="stop_loss",
+        help="个股止损阈值（默认 -0.10 即 -10%%）。不带值使用默认 -0.10，不加此 flag 则不启用",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    main(mode=args.mode, n_stocks=args.n_stocks, cost=args.cost)
+    main(mode=args.mode, n_stocks=args.n_stocks, cost=args.cost,
+         stop_loss_threshold=args.stop_loss)
