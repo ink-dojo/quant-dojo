@@ -252,12 +252,12 @@ v6(lag1) 到底能不能在诚实口径下过 admission gate？
 
 Do not close this goal unless all are true:
 
-- [ ] `v6(lag1)` 已被明确固化为 admission baseline
-- [ ] 本轮只实施了一个最小改动方向
-- [ ] 新版本完成样本内 / 样本外 / walk-forward 重评估
-- [ ] 形成新的正式 admission decision 文档
-- [ ] 已明确“允许进入 Phase 5”或“仍不允许”的二元结论
-- [ ] 如果允许，已写清进入模拟盘时必须带的保护措施
+- [x] `v6(lag1)` 已被明确固化为 admission baseline（`journal/v6_baseline_definition.md`）
+- [x] 本轮只实施了一个最小改动方向（个股止损 -10%）
+- [x] 新版本完成样本内 / 样本外 / walk-forward 重评估（`journal/v6_admission_eval_2026-03-25.md`）
+- [x] 形成新的正式 admission decision 文档（`journal/strategy_admission_decision_v6_20260325.md`）
+- [x] 已明确”允许进入 Phase 5”或”仍不允许”的二元结论（DENY）
+- [x] 如果允许，已写清进入模拟盘时必须带的保护措施（N/A — DENY，下一步：双周换仓）
 
 ## Acceptance Commands
 
