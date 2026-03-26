@@ -693,10 +693,10 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
     else:
         print("  样本外数据不足，跳过")
 
-    # Walk-Forward
+    # Walk-Forward（baseline 不传止损，与 IS/OOS baseline 保持一致）
     wf_summary = run_walk_forward(price, factors, regime_mask, tradable,
                                   n_stocks, cost, lag1,
-                                  stop_loss_threshold=stop_loss_threshold)
+                                  stop_loss_threshold=None)
 
     # 准入门槛
     passed = print_admission_table(m_is, m_oos, mode)
