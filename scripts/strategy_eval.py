@@ -8,7 +8,7 @@
   4. Walk-Forward 稳定性
   5. Phase 5 门槛评审
 """
-import sys, os, time, warnings
+import sys, os, time, warnings, argparse
 from pathlib import Path
 
 warnings.filterwarnings("ignore")
@@ -28,6 +28,22 @@ from utils.factor_analysis import compute_ic_series, ic_summary, quintile_backte
 from utils.tradability_filter import apply_tradability_filter, cap_weights
 
 # ══════════════════════════════════════════════════════════════
+# CLI 参数
+# ══════════════════════════════════════════════════════════════
+parser = argparse.ArgumentParser(description="多因子策略评估")
+parser.add_argument("--version", choices=["v2", "v6"], default="v6",
+                    help="策略版本（默认 v6）")
+parser.add_argument("--lag", type=int, default=1,
+                    help="信号滞后天数（默认 1 = 诚实基线，0 = 乐观）")
+args = parser.parse_args()
+
+VERSION = args.version
+SIGNAL_LAG = args.lag
+
+# v6 候选因子列表（实际构建逻辑不在本文件）
+V6_FACTORS = ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp"]
+
+# ══════════════════════════════════════════════════════════════
 # 配置
 # ══════════════════════════════════════════════════════════════
 INSAMPLE_START = "2015-01-01"
@@ -38,7 +54,12 @@ N_STOCKS = 30
 COST_PER_REBAL = 0.003  # 双边 0.3%
 
 print("=" * 60)
-print("  多因子策略评估 v2 — 真实 A 股数据")
+if VERSION == "v6":
+    lag_label = "HONEST BASELINE (lag1)" if SIGNAL_LAG >= 1 else "OPTIMISTIC (lag0)"
+    print(f"  === V6 {lag_label} ===")
+    print(f"  信号滞后: {SIGNAL_LAG} 天 | 因子: {', '.join(V6_FACTORS)}")
+else:
+    print("  多因子策略评估 v2 — 真实 A 股数据")
 print("=" * 60)
 
 # ══════════════════════════════════════════════════════════════
