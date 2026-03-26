@@ -413,7 +413,7 @@ def print_stop_loss_comparison(m_base_is, m_sl_is, m_base_oos, m_sl_oos,
     print(f"{'=' * 70}")
 
     rows = [
-        ("年化收益", "ann", "+.2%"),
+        ("年化收益", "ann", ".2%"),
         ("波动率",   "vol", ".2%"),
         ("夏普比率", "sr",  ".4f"),
         ("最大回撤", "mdd", ".2%"),
@@ -434,14 +434,17 @@ def print_stop_loss_comparison(m_base_is, m_sl_is, m_base_oos, m_sl_oos,
         sl_v = m_sl_is[key]
         delta = sl_v - base_v
 
+        val_spec = f">10{fmt}"     # e.g. ">10.2%"
+        delta_spec = f">+10{fmt}"  # e.g. ">+10.2%"
+
         line = f"  {label:<12}"
-        line += f" {base_v:>{10}{fmt}} {sl_v:>{10}{fmt}} {delta:>+{9}{fmt}} "
+        line += f" {base_v:{val_spec}} {sl_v:{val_spec}} {delta:{delta_spec}}"
 
         if m_base_oos and m_sl_oos:
             bo = m_base_oos[key]
             so = m_sl_oos[key]
             do = so - bo
-            line += f" {bo:>{10}{fmt}} {so:>{10}{fmt}} {do:>+{9}{fmt}}"
+            line += f"   {bo:{val_spec}} {so:{val_spec}} {do:{delta_spec}}"
 
         print(line)
 
@@ -606,7 +609,7 @@ def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
         lines.append("| 指标 | 基线(IS) | 止损(IS) | Δ |")
         lines.append("| --- | ---: | ---: | ---: |")
         sl_rows = [
-            ("年化收益", "ann", "+.2%"),
+            ("年化收益", "ann", ".2%"),
             ("波动率",   "vol", ".2%"),
             ("夏普比率", "sr",  ".4f"),
             ("最大回撤", "mdd", ".2%"),
@@ -615,7 +618,9 @@ def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
         ]
         for label, key, fmt in sl_rows:
             bv, sv = m_is[key], m_sl_is[key]
-            lines.append(f"| {label} | {bv:{fmt}} | {sv:{fmt}} | {sv - bv:+{fmt}} |")
+            d = sv - bv
+            d_spec = f"+{fmt}"
+            lines.append(f"| {label} | {bv:{fmt}} | {sv:{fmt}} | {d:{d_spec}} |")
 
         if m_sl_oos:
             lines.append(f"")
@@ -623,7 +628,9 @@ def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
             lines.append("| --- | ---: | ---: | ---: |")
             for label, key, fmt in sl_rows:
                 bv, sv = m_oos[key], m_sl_oos[key]
-                lines.append(f"| {label} | {bv:{fmt}} | {sv:{fmt}} | {sv - bv:+{fmt}} |")
+                d = sv - bv
+                d_spec = f"+{fmt}"
+                lines.append(f"| {label} | {bv:{fmt}} | {sv:{fmt}} | {d:{d_spec}} |")
         lines.append(f"")
 
     return "\n".join(lines)
