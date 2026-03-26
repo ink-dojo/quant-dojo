@@ -48,6 +48,49 @@ def trailing_stop(
     return result
 
 
+def per_stock_stop(
+    period_returns: pd.DataFrame,
+    threshold: float = -0.10,
+) -> pd.DataFrame:
+    """
+    个股止损（永久止损版）：每只股票独立判断，触发后当期内不再恢复。
+
+    对每列（股票）计算累计收益和运行最高值，当从最高点的回撤首次超过 threshold 时，
+    从该日起（含）到 period 结束，该股票收益全部置零。
+
+    与 trailing_stop 的区别：trailing_stop 在回撤恢复后会重新入场，
+    本函数一旦触发就永久退出（适用于月频换仓场景，期内止损不恢复）。
+
+    参数:
+        period_returns: 日收益率 DataFrame，index=日期，columns=股票代码
+        threshold: 回撤触发阈值，默认 -0.10（-10%）
+
+    返回:
+        修改后的 DataFrame，止损触发后该股票所有后续日期收益为 0
+    """
+    if period_returns.empty:
+        return period_returns.copy()
+
+    result = period_returns.copy()
+
+    # 累计净值
+    cum = (1 + period_returns).cumprod()
+    # 运行最高值
+    running_max = cum.cummax()
+    # 回撤
+    drawdown = (cum - running_max) / running_max
+
+    # 对每只股票，找到首次触发止损的位置，从该位置起全部置零
+    triggered = drawdown < threshold  # bool DataFrame
+    for col in result.columns:
+        col_triggered = triggered[col]
+        if col_triggered.any():
+            first_stop_idx = col_triggered.idxmax()  # 第一个 True 的日期
+            result.loc[first_stop_idx:, col] = 0.0
+
+    return result
+
+
 def portfolio_stop(
     portfolio_ret: pd.Series,
     max_drawdown: float = -0.20,
@@ -149,5 +192,29 @@ if __name__ == "__main__":
     # 第 3 个回报应该被触发（累计下跌超过 -10%）
     assert stopped_sharp.iloc[2] == 0.0, "大幅回撤应该触发止损"
     print(f"✅ 极端场景（大幅回撤）OK")
+
+    # 测试 per_stock_stop
+    np.random.seed(42)
+    df_ret = pd.DataFrame(
+        np.random.randn(30, 3) * 0.02,
+        index=pd.date_range("2024-01-01", periods=30),
+        columns=["A", "B", "C"],
+    )
+    # 让 B 列出现大幅回撤
+    df_ret.iloc[5:8, 1] = -0.08
+    stopped_df = per_stock_stop(df_ret, threshold=-0.10)
+    assert stopped_df.shape == df_ret.shape, "形状不一致"
+    assert stopped_df.index.equals(df_ret.index), "index 不一致"
+    # B 列应该在某个时刻之后全为 0
+    b_zeros = (stopped_df["B"] == 0.0)
+    if b_zeros.any():
+        first_zero = b_zeros.idxmax()
+        assert (stopped_df.loc[first_zero:, "B"] == 0.0).all(), "止损后应永久为零"
+    print(f"✅ per_stock_stop OK | 形状={stopped_df.shape}")
+
+    # 空 DataFrame
+    empty_df = pd.DataFrame()
+    assert per_stock_stop(empty_df).empty, "空 DataFrame 处理错误"
+    print("✅ per_stock_stop 边界情况 OK")
 
     print("\n✅ 止损管理模块冒烟测试通过")
