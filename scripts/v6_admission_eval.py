@@ -101,8 +101,9 @@ def load_data(oos_end: str = OOS_END):
     pb = pd.read_parquet(cache_dir / "pb_wide.parquet")
     pb = pb.reindex(index=price.index, columns=valid)
 
-    print(f"  股票: {len(valid)} | 交易日: {len(price)} | 耗时: {time.time()-t0:.1f}s")
-    return price, hs300_full, hs300, pb
+    stock_count = len(valid)
+    print(f"  股票: {stock_count} | 交易日: {len(price)} | 耗时: {time.time()-t0:.1f}s")
+    return price, hs300_full, hs300, pb, stock_count
 
 
 # ══════════════════════════════════════════════════════════════
@@ -533,7 +534,8 @@ def _fmt_metrics_row(label, m):
 
 def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
                              m_is, m_oos, passed, wf_summary,
-                             m_sl_is=None, m_sl_oos=None):
+                             m_sl_is=None, m_sl_oos=None,
+                             stock_count=None):
     """生成完整的准入评估 markdown 报告"""
     from datetime import date
     lines = []
@@ -546,6 +548,8 @@ def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
     lines.append(f"- **模式**: {mode} (lag1={lag1})")
     lines.append(f"- **持仓数**: {n_stocks} | **成本**: {cost:.1%}{sl_str}")
     lines.append(f"- **IS**: {IS_START} ~ {IS_END} | **OOS**: {OOS_START} ~ {OOS_END}")
+    if stock_count:
+        lines.append(f"- **股票数**: {stock_count}（数据快照，不同环境可能不同）")
     lines.append(f"")
 
     # IS/OOS 指标表
@@ -587,6 +591,9 @@ def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
 
     # Walk-Forward
     lines.append(f"## Walk-Forward 验证")
+    lines.append(f"")
+    lines.append(f"> 注意：WF 始终使用 baseline 配置（无止损），与 IS/OOS baseline 保持一致。")
+    lines.append(f"> WF 使用 4 因子子集（无 bp），权重按窗口内 IC 动态计算。")
     lines.append(f"")
     if wf_summary:
         lines.append(f"| 指标 | 值 |")
@@ -651,7 +658,7 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
     print("=" * 65)
 
     # 1. 数据
-    price, hs300_full, hs300, pb = load_data()
+    price, hs300_full, hs300, pb, stock_count = load_data()
 
     # 2. 因子
     factors = build_v6_factors(price, pb)
@@ -761,6 +768,7 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
             m_is=m_is, m_oos=m_oos, passed=passed,
             wf_summary=wf_summary,
             m_sl_is=m_sl_is, m_sl_oos=m_sl_oos,
+            stock_count=stock_count,
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(md, encoding="utf-8")
