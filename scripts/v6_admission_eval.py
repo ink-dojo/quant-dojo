@@ -574,20 +574,15 @@ def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
     lines.append("| --- | ---: | ---: | :---: |")
 
     gate_checks = [
-        ("年化收益", m_is["ann"], ADMISSION_THRESHOLDS["annual_return"], True),
-        ("夏普比率", m_is["sr"], ADMISSION_THRESHOLDS["sharpe_ratio"], True),
-        ("最大回撤", abs(m_is["mdd"]), ADMISSION_THRESHOLDS["max_drawdown"], False),
-        ("回测跨度", m_is["days"] / 252, ADMISSION_THRESHOLDS["backtest_years"], True),
+        ("年化收益", m_is["ann"], ADMISSION_THRESHOLDS["annual_return"], True, ".2%", "> 15%"),
+        ("夏普比率", m_is["sr"], ADMISSION_THRESHOLDS["sharpe_ratio"], True, ".4f", "> 0.80"),
+        ("最大回撤", abs(m_is["mdd"]), ADMISSION_THRESHOLDS["max_drawdown"], False, ".2%", "< 30%"),
+        ("回测跨度", m_is["days"] / 252, ADMISSION_THRESHOLDS["backtest_years"], True, ".1f", "> 3"),
     ]
-    for label, val, thresh, higher in gate_checks:
+    for label, val, thresh, higher, fmt, fmt_thresh in gate_checks:
         ok = (val > thresh) if higher else (val < thresh)
         icon = "PASS" if ok else "FAIL"
-        if higher:
-            fmt_val = f"{val:.2%}" if thresh < 1 else f"{val:.1f}"
-            fmt_thresh = f"> {thresh:.0%}" if thresh < 1 else f"> {thresh:.0f}"
-        else:
-            fmt_val = f"{val:.2%}"
-            fmt_thresh = f"< {thresh:.0%}"
+        fmt_val = f"{val:{fmt}}"
         lines.append(f"| {label} | {fmt_val} | {fmt_thresh} | {icon} |")
 
     lines.append(f"")
