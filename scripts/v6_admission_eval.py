@@ -453,7 +453,7 @@ def print_stop_loss_comparison(m_base_is, m_sl_is, m_base_oos, m_sl_oos,
 # Walk-Forward
 # ══════════════════════════════════════════════════════════════
 def run_walk_forward(price, factors, regime_mask, tradable_mask,
-                     n_stocks, cost, lag1):
+                     n_stocks, cost, lag1, stop_loss_threshold=None):
     """滚动样本外验证"""
     print("\n[5/6] Walk-Forward 验证...")
     from utils.walk_forward import walk_forward_test
@@ -485,7 +485,7 @@ def run_walk_forward(price, factors, regime_mask, tradable_mask,
         ret = run_backtest(
             price_slice, local_factors, local_weights, n_stocks,
             cost=cost, mask=local_mask, regime_mask=regime_mask,
-            lag1=lag1,
+            lag1=lag1, stop_loss_threshold=stop_loss_threshold,
         )
         return ret.loc[test_start:test_end] if len(ret) > 0 else pd.Series(dtype=float)
 
@@ -564,7 +564,8 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
         print("  样本外数据不足，跳过")
 
     # Walk-Forward
-    run_walk_forward(price, factors, regime_mask, tradable, n_stocks, cost, lag1)
+    run_walk_forward(price, factors, regime_mask, tradable, n_stocks, cost, lag1,
+                     stop_loss_threshold=stop_loss_threshold)
 
     # 准入门槛
     passed = print_admission_table(m_is, m_oos, mode)
