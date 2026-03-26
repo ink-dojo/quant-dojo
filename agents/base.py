@@ -4,6 +4,7 @@ Agent 基础模块
 LLM 调用优先级：claude -p → Ollama → 报错
 """
 import json
+import os
 import shutil
 import subprocess
 import warnings
@@ -29,11 +30,15 @@ class LLMClient:
 
     def __init__(
         self,
-        ollama_base_url: str = "http://localhost:11434",
-        ollama_model: str = "qwen2.5:7b",
+        ollama_base_url: str | None = None,
+        ollama_model: str | None = None,
     ):
-        self.ollama_base_url = ollama_base_url
-        self.ollama_model = ollama_model
+        self.ollama_base_url = ollama_base_url or os.environ.get(
+            "OLLAMA_BASE_URL", "http://localhost:11434"
+        )
+        self.ollama_model = ollama_model or os.environ.get(
+            "OLLAMA_MODEL", "qwen2.5:7b"
+        )
         self._backend = self._detect_backend()
 
     def _detect_backend(self) -> str:
@@ -44,7 +49,10 @@ class LLMClient:
 
         # 其次试 Ollama
         try:
-            resp = requests.get(f"{self.ollama_base_url}/api/tags", timeout=3)
+            _detect_timeout = int(os.environ.get("OLLAMA_DETECT_TIMEOUT", "3"))
+            resp = requests.get(
+                f"{self.ollama_base_url}/api/tags", timeout=_detect_timeout
+            )
             if resp.status_code == 200:
                 return "ollama"
         except Exception:
@@ -105,7 +113,7 @@ class LLMClient:
                 ["claude", "-p", prompt],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=int(os.environ.get("CLAUDE_CLI_TIMEOUT", "120")),
             )
             if result.returncode != 0:
                 raise RuntimeError(f"claude 调用失败: {result.stderr}")
@@ -125,7 +133,10 @@ class LLMClient:
             "options": {"num_predict": max_tokens},
         }
         try:
-            resp = requests.post(url, json=payload, timeout=120)
+            resp = requests.post(
+                url, json=payload,
+                timeout=int(os.environ.get("OLLAMA_TIMEOUT", "120")),
+            )
             resp.raise_for_status()
             return resp.json()["response"].strip()
         except Exception as e:
