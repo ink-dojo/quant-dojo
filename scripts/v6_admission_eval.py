@@ -454,7 +454,7 @@ def print_stop_loss_comparison(m_base_is, m_sl_is, m_base_oos, m_sl_oos,
 # ══════════════════════════════════════════════════════════════
 def run_walk_forward(price, factors, regime_mask, tradable_mask,
                      n_stocks, cost, lag1, stop_loss_threshold=None):
-    """滚动样本外验证"""
+    """滚动样本外验证，返回 WF 摘要 dict（用于 markdown 输出）"""
     print("\n[5/6] Walk-Forward 验证...")
     from utils.walk_forward import walk_forward_test
 
@@ -489,6 +489,7 @@ def run_walk_forward(price, factors, regime_mask, tradable_mask,
         )
         return ret.loc[test_start:test_end] if len(ret) > 0 else pd.Series(dtype=float)
 
+    wf_summary = None
     try:
         wf = walk_forward_test(
             wf_fn, price.loc[WARMUP_START:IS_END], {},
@@ -497,20 +498,142 @@ def run_walk_forward(price, factors, regime_mask, tradable_mask,
         valid = wf[wf["sharpe"].notna()]
         print(f"  窗口: {len(wf)} | 有效: {len(valid)}")
         if len(valid) > 0:
-            print(f"  夏普均值: {valid['sharpe'].mean():>.4f} | "
-                  f"中位数: {valid['sharpe'].median():>.4f}")
-            print(f"  收益均值: {valid['total_return'].mean():>+.2%} | "
-                  f"胜率: {(valid['total_return'] > 0).mean():.0%}")
-            print(f"  回撤均值: {valid['max_drawdown'].mean():>.2%}")
+            wf_summary = {
+                "windows": len(wf),
+                "valid": len(valid),
+                "sharpe_mean": valid["sharpe"].mean(),
+                "sharpe_median": valid["sharpe"].median(),
+                "return_mean": valid["total_return"].mean(),
+                "win_rate": (valid["total_return"] > 0).mean(),
+                "mdd_mean": valid["max_drawdown"].mean(),
+            }
+            print(f"  夏普均值: {wf_summary['sharpe_mean']:>.4f} | "
+                  f"中位数: {wf_summary['sharpe_median']:>.4f}")
+            print(f"  收益均值: {wf_summary['return_mean']:>+.2%} | "
+                  f"胜率: {wf_summary['win_rate']:.0%}")
+            print(f"  回撤均值: {wf_summary['mdd_mean']:>.2%}")
     except Exception as e:
         print(f"  Walk-Forward 失败: {e}")
+
+    return wf_summary
+
+
+# ══════════════════════════════════════════════════════════════
+# Markdown 报告输出
+# ══════════════════════════════════════════════════════════════
+def _fmt_metrics_row(label, m):
+    """格式化一行指标"""
+    return (f"| {label} | {m['ann']:+.2%} | {m['vol']:.2%} | "
+            f"{m['sr']:.4f} | {m['mdd']:.2%} | {m['calmar']:.2f} | "
+            f"{m['wr']:.2%} | {m['days']} |")
+
+
+def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
+                             m_is, m_oos, passed, wf_summary,
+                             m_sl_is=None, m_sl_oos=None):
+    """生成完整的准入评估 markdown 报告"""
+    from datetime import date
+    lines = []
+    sl_str = f" | 止损={stop_loss_threshold:.0%}" if stop_loss_threshold else ""
+    lag1 = mode == "honest_baseline"
+
+    lines.append(f"# v6 准入评估报告")
+    lines.append(f"")
+    lines.append(f"- **日期**: {date.today()}")
+    lines.append(f"- **模式**: {mode} (lag1={lag1})")
+    lines.append(f"- **持仓数**: {n_stocks} | **成本**: {cost:.1%}{sl_str}")
+    lines.append(f"- **IS**: {IS_START} ~ {IS_END} | **OOS**: {OOS_START} ~ {OOS_END}")
+    lines.append(f"")
+
+    # IS/OOS 指标表
+    lines.append(f"## IS / OOS 绩效")
+    lines.append(f"")
+    lines.append("| 区间 | 年化 | 波动 | 夏普 | 回撤 | 卡玛 | 胜率 | 交易日 |")
+    lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+    lines.append(_fmt_metrics_row("样本内", m_is))
+    if m_oos:
+        lines.append(_fmt_metrics_row("样本外", m_oos))
+    lines.append(f"")
+
+    # 准入门槛
+    lines.append(f"## 准入门槛")
+    lines.append(f"")
+    lines.append("| 指标 | 样本内 | 门槛 | 结果 |")
+    lines.append("| --- | ---: | ---: | :---: |")
+
+    gate_checks = [
+        ("年化收益", m_is["ann"], ADMISSION_THRESHOLDS["annual_return"], True),
+        ("夏普比率", m_is["sr"], ADMISSION_THRESHOLDS["sharpe_ratio"], True),
+        ("最大回撤", abs(m_is["mdd"]), ADMISSION_THRESHOLDS["max_drawdown"], False),
+        ("回测跨度", m_is["days"] / 252, ADMISSION_THRESHOLDS["backtest_years"], True),
+    ]
+    for label, val, thresh, higher in gate_checks:
+        ok = (val > thresh) if higher else (val < thresh)
+        icon = "PASS" if ok else "FAIL"
+        if higher:
+            fmt_val = f"{val:.2%}" if thresh < 1 else f"{val:.1f}"
+            fmt_thresh = f"> {thresh:.0%}" if thresh < 1 else f"> {thresh:.0f}"
+        else:
+            fmt_val = f"{val:.2%}"
+            fmt_thresh = f"< {thresh:.0%}"
+        lines.append(f"| {label} | {fmt_val} | {fmt_thresh} | {icon} |")
+
+    lines.append(f"")
+    lines.append(f"**准入状态**: {'PASS' if passed else 'FAIL'}")
+    lines.append(f"")
+
+    # Walk-Forward
+    lines.append(f"## Walk-Forward 验证")
+    lines.append(f"")
+    if wf_summary:
+        lines.append(f"| 指标 | 值 |")
+        lines.append(f"| --- | ---: |")
+        lines.append(f"| 窗口数 | {wf_summary['windows']} |")
+        lines.append(f"| 有效窗口 | {wf_summary['valid']} |")
+        lines.append(f"| 夏普均值 | {wf_summary['sharpe_mean']:.4f} |")
+        lines.append(f"| 夏普中位数 | {wf_summary['sharpe_median']:.4f} |")
+        lines.append(f"| 收益均值 | {wf_summary['return_mean']:+.2%} |")
+        lines.append(f"| 胜率 | {wf_summary['win_rate']:.0%} |")
+        lines.append(f"| 回撤均值 | {wf_summary['mdd_mean']:.2%} |")
+    else:
+        lines.append(f"Walk-Forward 数据不足或执行失败。")
+    lines.append(f"")
+
+    # 止损对比
+    if m_sl_is:
+        lines.append(f"## 止损对照 (baseline vs {stop_loss_threshold:.0%})")
+        lines.append(f"")
+        lines.append("| 指标 | 基线(IS) | 止损(IS) | Δ |")
+        lines.append("| --- | ---: | ---: | ---: |")
+        sl_rows = [
+            ("年化收益", "ann", "+.2%"),
+            ("波动率",   "vol", ".2%"),
+            ("夏普比率", "sr",  ".4f"),
+            ("最大回撤", "mdd", ".2%"),
+            ("卡玛比率", "calmar", ".2f"),
+            ("胜率",     "wr",  ".2%"),
+        ]
+        for label, key, fmt in sl_rows:
+            bv, sv = m_is[key], m_sl_is[key]
+            lines.append(f"| {label} | {bv:{fmt}} | {sv:{fmt}} | {sv - bv:+{fmt}} |")
+
+        if m_sl_oos:
+            lines.append(f"")
+            lines.append("| 指标 | 基线(OOS) | 止损(OOS) | Δ |")
+            lines.append("| --- | ---: | ---: | ---: |")
+            for label, key, fmt in sl_rows:
+                bv, sv = m_oos[key], m_sl_oos[key]
+                lines.append(f"| {label} | {bv:{fmt}} | {sv:{fmt}} | {sv - bv:+{fmt}} |")
+        lines.append(f"")
+
+    return "\n".join(lines)
 
 
 # ══════════════════════════════════════════════════════════════
 # 主流程
 # ══════════════════════════════════════════════════════════════
 def main(mode="honest_baseline", n_stocks=30, cost=0.003,
-         stop_loss_threshold=None):
+         stop_loss_threshold=None, output_path=None):
     """v6 准入评估主流程"""
     lag1 = mode == "honest_baseline"
 
@@ -564,8 +687,9 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
         print("  样本外数据不足，跳过")
 
     # Walk-Forward
-    run_walk_forward(price, factors, regime_mask, tradable, n_stocks, cost, lag1,
-                     stop_loss_threshold=stop_loss_threshold)
+    wf_summary = run_walk_forward(price, factors, regime_mask, tradable,
+                                  n_stocks, cost, lag1,
+                                  stop_loss_threshold=stop_loss_threshold)
 
     # 准入门槛
     passed = print_admission_table(m_is, m_oos, mode)
@@ -584,6 +708,8 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
         print(f"    回撤: {abs(m_is['mdd']) - abs(m_opt['mdd']):>+.2%}")
 
     # 止损对照模式
+    m_sl_is = None
+    m_sl_oos = None
     if stop_loss_threshold is not None:
         print(f"\n{'=' * 65}")
         print(f"  止损对照：baseline vs 止损 ({stop_loss_threshold:.0%})")
@@ -604,7 +730,6 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
             **{**bt_kwargs, "stop_loss_threshold": stop_loss_threshold},
         )
         strat_sl_oos = strat_sl_oos.loc[OOS_START:]
-        m_sl_oos = None
         if len(strat_sl_oos) > 20:
             m_sl_oos = print_metrics(f"v6 止损({stop_loss_threshold:.0%}) 样本外",
                                      strat_sl_oos, bench_oos)
@@ -612,6 +737,27 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
         # 对比表
         print_stop_loss_comparison(m_is, m_sl_is, m_oos, m_sl_oos,
                                    stop_loss_threshold)
+
+    # 写 markdown 报告
+    if output_path is not None:
+        from datetime import date
+        if output_path == "auto":
+            output_path = (Path(__file__).parent.parent
+                           / "journal"
+                           / f"v6_admission_eval_{date.today()}.md")
+        else:
+            output_path = Path(output_path)
+
+        md = generate_markdown_report(
+            mode=mode, n_stocks=n_stocks, cost=cost,
+            stop_loss_threshold=stop_loss_threshold,
+            m_is=m_is, m_oos=m_oos, passed=passed,
+            wf_summary=wf_summary,
+            m_sl_is=m_sl_is, m_sl_oos=m_sl_oos,
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(md, encoding="utf-8")
+        print(f"\n  📄 报告已写入: {output_path}")
 
     print("\n[6/6] 完成。")
     return passed
@@ -637,10 +783,14 @@ def parse_args():
         dest="stop_loss",
         help="个股止损阈值（默认 -0.10 即 -10%%）。不带值使用默认 -0.10，不加此 flag 则不启用",
     )
+    parser.add_argument(
+        "--output", nargs="?", const="auto", default=None,
+        help="输出 markdown 报告路径（默认 journal/v6_admission_eval_{date}.md）",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     main(mode=args.mode, n_stocks=args.n_stocks, cost=args.cost,
-         stop_loss_threshold=args.stop_loss)
+         stop_loss_threshold=args.stop_loss, output_path=args.output)
