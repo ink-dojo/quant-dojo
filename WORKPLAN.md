@@ -31,8 +31,8 @@
 ### 当前最重要的事实
 - 系统已经不再是纯研究仓库
 - 免费数据接入与 freshness 已基本收口，当前数据状态已能更新到最新交易日
-- 当前主策略已从“明显不合格”推进到“保守口径只差 admission 门槛一步”
-- 当前首要任务不再是继续补数据入口，而是把策略 admission 和 Phase 5 handoff 做扎实
+- **v6(lag1) admission 已正式评估为 DENY（2026-03-25）**：IS 期间年化收益、夏普比率、最大回撤三项指标均未达到准入门槛
+- 当前首要任务不再是继续补数据入口，而是在有数据环境的机器上重新运行带止损改动的 admission 评估，争取重新提交准入
 
 ---
 
@@ -46,7 +46,7 @@
 
    当前执行子目标：
    - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
-     目标：锁定 `v6(lag1)` 保守基线，只做一个最小改动方向，重新评估并形成是否进入 Phase 5 的正式决议。
+     **v6(lag1) admission 已正式评估为 DENY。** 下一步：在有数据环境的机器上运行 `v6_admission_eval.py --stop-loss`，评估个股止损改动后重新提交 admission。
    - [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
      状态：基本完成。保留为已落地主链路能力说明，不再作为当前唯一阻塞项。
 
@@ -106,12 +106,12 @@
 先做这一条：
 
 1. **V6 Admission Push**
-   目标：把 `v6(lag1)` 固化为唯一 admission baseline，并只做一个最小改动方向重评估。
-   为什么优先：
-   - 数据 freshness 已恢复正常，不再是最紧迫阻塞
-   - 当前策略已经接近过线，最容易形成明确 go / no-go 决议
-   - 若不先锁定 baseline，就会继续出现“乐观结果推进工程、保守结果留在角落”的假进展
-   - Phase 5 是否值得继续推进连续模拟，取决于 admission 是否真实通过
+   **状态：v6(lag1) admission 正式 DENY（2026-03-25），IS 三项指标均未达标。**
+   下一步行动：
+   - 在有完整数据的机器上运行 `python v6_admission_eval.py --stop-loss`
+   - 评估个股止损改动对 IS 指标的影响
+   - 若指标达标，重新提交 admission；否则讨论下一轮策略改动方向
+   - admission 通过前，Phase 5 连续模拟不推进
 
 执行文件：
 - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
@@ -135,6 +135,7 @@
 - 修复了 risk monitor 未正确读取因子健康状态的问题
 - 修复了 `factor_monitor` 依赖不存在的 `next_return` 问题
 - 修复了 CLI 调仓未加载真实价格的问题
+- **v6(lag1) 正式 admission evaluation: DENY（2026-03-25）**
 
 这些修复说明：Phase 5 不是“补文档”，而是确实存在 correctness 风险，因此必须继续按 infra 路线推进。
 
