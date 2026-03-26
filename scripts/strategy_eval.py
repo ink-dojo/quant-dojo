@@ -31,8 +31,8 @@ from utils.tradability_filter import apply_tradability_filter, cap_weights
 # CLI 参数
 # ══════════════════════════════════════════════════════════════
 parser = argparse.ArgumentParser(description="多因子策略评估")
-parser.add_argument("--version", choices=["v2", "v6"], default="v6",
-                    help="策略版本（默认 v6）")
+parser.add_argument("--version", choices=["v2", "v6"], default="v2",
+                    help="策略版本（默认 v2）")
 parser.add_argument("--lag", type=int, default=1,
                     help="信号滞后天数（默认 1 = 诚实基线，0 = 乐观）")
 args = parser.parse_args()
@@ -55,9 +55,15 @@ COST_PER_REBAL = 0.003  # 双边 0.3%
 
 print("=" * 60)
 if VERSION == "v6":
-    lag_label = "HONEST BASELINE (lag1)" if SIGNAL_LAG >= 1 else "OPTIMISTIC (lag0)"
-    print(f"  === V6 {lag_label} ===")
-    print(f"  信号滞后: {SIGNAL_LAG} 天 | 因子: {', '.join(V6_FACTORS)}")
+    # ══════════════════════════════════════════════════════════
+    # v6 评估请使用 scripts/v6_admission_eval.py
+    # 本文件只支持 v2 因子回测，v6 因子列表和构建逻辑
+    # 完全不同，在此运行会导致 v2 因子假冒 v6 结果。
+    # ══════════════════════════════════════════════════════════
+    print("  ⚠️  v6 模式已迁移，请使用专用脚本：")
+    print("     python scripts/v6_admission_eval.py")
+    print("=" * 60)
+    sys.exit(0)
 else:
     print("  多因子策略评估 v2 — 真实 A 股数据")
 print("=" * 60)
