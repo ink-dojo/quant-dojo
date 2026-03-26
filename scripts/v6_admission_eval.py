@@ -168,9 +168,10 @@ def zscore_cross(df: pd.DataFrame) -> pd.DataFrame:
 
 def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
                  cost=0.003, mask=None, max_weight=0.1,
-                 regime_mask=None, lag1=True, stop_loss_threshold=None):
+                 regime_mask=None, lag1=True, stop_loss_threshold=None,
+                 rebalance_freq="monthly"):
     """
-    多因子月频回测。
+    多因子回测（支持月频/双周换仓）。
 
     参数:
         price_wide: 价格宽表
@@ -183,6 +184,7 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
         regime_mask: 市场状态 mask（True=看多）
         lag1: 是否延迟 1 天使用信号（诚实基线）
         stop_loss_threshold: 个股止损阈值（如 -0.10），None 表示不启用
+        rebalance_freq: 换仓频率，"monthly"（默认）或 "biweekly"
 
     返回:
         pd.Series: 日收益率
@@ -217,8 +219,10 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
         if regime_mask is not None:
             regime_mask = regime_mask.shift(1).fillna(True)
 
-    # 月频换仓
-    rebal_dates = price_wide.resample("MS").first().index
+    # 换仓日期（月频 or 双周）
+    _freq_map = {"monthly": "MS", "biweekly": "2W-MON"}
+    _resample_key = _freq_map.get(rebalance_freq, "MS")
+    rebal_dates = price_wide.resample(_resample_key).first().index
     rebal_dates = [d for d in rebal_dates if d in composite.index]
 
     portfolio_returns = []
@@ -535,17 +539,18 @@ def _fmt_metrics_row(label, m):
 def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
                              m_is, m_oos, passed, wf_summary,
                              m_sl_is=None, m_sl_oos=None,
-                             stock_count=None):
+                             stock_count=None, rebalance_freq="monthly"):
     """生成完整的准入评估 markdown 报告"""
     from datetime import date
     lines = []
     sl_str = f" | 止损={stop_loss_threshold:.0%}" if stop_loss_threshold else ""
     lag1 = mode == "honest_baseline"
+    freq_label = "双周" if rebalance_freq == "biweekly" else "月频"
 
     lines.append(f"# v6 准入评估报告")
     lines.append(f"")
     lines.append(f"- **日期**: {date.today()}")
-    lines.append(f"- **模式**: {mode} (lag1={lag1})")
+    lines.append(f"- **模式**: {mode} (lag1={lag1}) | **换仓频率**: {freq_label}({rebalance_freq})")
     lines.append(f"- **持仓数**: {n_stocks} | **成本**: {cost:.1%}{sl_str}")
     lines.append(f"- **IS**: {IS_START} ~ {IS_END} | **OOS**: {OOS_START} ~ {OOS_END}")
     if stock_count:
@@ -647,14 +652,16 @@ def generate_markdown_report(*, mode, n_stocks, cost, stop_loss_threshold,
 # 主流程
 # ══════════════════════════════════════════════════════════════
 def main(mode="honest_baseline", n_stocks=30, cost=0.003,
-         stop_loss_threshold=None, output_path=None):
+         stop_loss_threshold=None, output_path=None,
+         rebalance_freq="monthly"):
     """v6 准入评估主流程"""
     lag1 = mode == "honest_baseline"
 
     print("=" * 65)
     print(f"  v6 策略准入评估")
     sl_str = f" | 止损={stop_loss_threshold:.0%}" if stop_loss_threshold is not None else ""
-    print(f"  模式: {mode} | lag1={lag1} | N={n_stocks} | 成本={cost:.1%}{sl_str}")
+    freq_str = f" | 换仓={rebalance_freq}" if rebalance_freq != "monthly" else ""
+    print(f"  模式: {mode} | lag1={lag1} | N={n_stocks} | 成本={cost:.1%}{sl_str}{freq_str}")
     print("=" * 65)
 
     # 1. 数据
@@ -677,6 +684,7 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
     bt_kwargs = dict(
         factor_dict=factors, weights=V6_WEIGHTS, n_stocks=n_stocks,
         cost=cost, mask=tradable, regime_mask=regime_mask, lag1=lag1,
+        rebalance_freq=rebalance_freq,
     )
 
     # 5. 样本内回测
@@ -769,6 +777,7 @@ def main(mode="honest_baseline", n_stocks=30, cost=0.003,
             wf_summary=wf_summary,
             m_sl_is=m_sl_is, m_sl_oos=m_sl_oos,
             stock_count=stock_count,
+            rebalance_freq=rebalance_freq,
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(md, encoding="utf-8")
@@ -802,10 +811,21 @@ def parse_args():
         "--output", nargs="?", const="auto", default=None,
         help="输出 markdown 报告路径（默认 journal/v6_admission_eval_{date}.md）",
     )
+    parser.add_argument(
+        "--rebalance-freq", choices=["monthly", "biweekly"],
+        default="monthly", dest="rebalance_freq",
+        help="换仓频率：monthly（默认）或 biweekly（双周）",
+    )
+    parser.add_argument(
+        "--biweekly", action="store_const", const="biweekly",
+        dest="rebalance_freq",
+        help="双周换仓模式（等价于 --rebalance-freq biweekly）",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     main(mode=args.mode, n_stocks=args.n_stocks, cost=args.cost,
-         stop_loss_threshold=args.stop_loss, output_path=args.output)
+         stop_loss_threshold=args.stop_loss, output_path=args.output,
+         rebalance_freq=args.rebalance_freq)
