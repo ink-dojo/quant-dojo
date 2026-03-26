@@ -2,7 +2,7 @@
 
 > 这是仓库的总工作计划入口。所有当前目标、后续目标和未来方向统一从这里进入。
 > 详细设计和执行细节仍保留在各自的 `GOAL_*.md` 文件中，但本文件是**唯一总览**。
-> 更新日期：2026-03-25
+> 更新日期：2026-03-26
 >
 > 新建执行型 goal 时，统一从 [`GOAL_EXECUTION_TEMPLATE.md`](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md) 开始。
 
@@ -31,8 +31,8 @@
 ### 当前最重要的事实
 - 系统已经不再是纯研究仓库
 - 免费数据接入与 freshness 已基本收口，当前数据状态已能更新到最新交易日
-- **v6(lag1) admission 已正式评估为 DENY（2026-03-25）**：IS 期间年化收益、夏普比率、最大回撤三项指标均未达到准入门槛
-- 当前首要任务不再是继续补数据入口，而是在有数据环境的机器上重新运行带止损改动的 admission 评估，争取重新提交准入
+- **v6(lag1) admission 已正式评估为 DENY（2026-03-25）**：但基线 critical 问题已于 `2026-03-26` 修完，当前 baseline 已可信
+- 个股止损维度已完成评估并关闭；当前首要任务是仅以“双周换仓”作为唯一 delta 发起下一轮 admission retry
 
 ---
 
@@ -45,8 +45,10 @@
    详细计划见 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
 
    当前执行子目标：
+   - [GOAL_v6_biweekly_rebalance_eval.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_biweekly_rebalance_eval.md)
+     **当前 admission retry 主线。** 基线已可信、止损已关闭，下一步只允许测试双周换仓并形成新的正式决议。
    - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
-     **v6(lag1) admission 已正式评估为 DENY。** 下一步：在有数据环境的机器上运行 `v6_admission_eval.py --stop-loss`，评估个股止损改动后重新提交 admission。
+     状态：上一轮 admission push 已完成，产出可信 baseline、止损结论和正式 DENY 决议；后续由双周换仓子目标承接。
    - [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
      状态：基本完成。保留为已落地主链路能力说明，不再作为当前唯一阻塞项。
 
@@ -96,6 +98,7 @@
 
 详细执行见：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
+- [GOAL_v6_biweekly_rebalance_eval.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_biweekly_rebalance_eval.md)
 - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
 - [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
 
@@ -106,14 +109,16 @@
 先做这一条：
 
 1. **V6 Admission Push**
-   **状态：v6(lag1) admission 正式 DENY（2026-03-25），IS 三项指标均未达标。**
+   **状态：baseline 已可信，止损实验已关闭，当前进入双周换仓 retry。**
    下一步行动：
-   - 在有完整数据的机器上运行 `python v6_admission_eval.py --stop-loss`
-   - 评估个股止损改动对 IS 指标的影响
-   - 若指标达标，重新提交 admission；否则讨论下一轮策略改动方向
+   - 在有完整数据的机器上运行双周换仓版本的 admission 评估
+   - 保持 `lag1`、因子集、持股数、成本、过滤条件全部冻结
+   - 形成 baseline vs biweekly 并排对照
+   - 若指标达标，重新提交 admission；否则给出新的正式 DENY 决议
    - admission 通过前，Phase 5 连续模拟不推进
 
 执行文件：
+- [GOAL_v6_biweekly_rebalance_eval.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_biweekly_rebalance_eval.md)
 - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
 
 ### Required Gate Before Strategy Enters Phase 5
