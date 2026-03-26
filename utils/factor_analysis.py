@@ -294,13 +294,17 @@ def neutralize_factor(
 # IC 加权合成
 # ─────────────────────────────────────────────
 
-def ic_weighted_composite(
+def ic_weighted_period_composite(
     factor_dict: dict,
     ic_series_dict: dict,
     rolling_window: int = 60,
 ) -> pd.DataFrame:
     """
-    IC 加权合成因子（滚动窗口内的 IC 均值绝对值作为权重）
+    IC 加权合成同一因子的多个回看周期（滚动窗口内的 IC 均值绝对值作为权重）
+
+    与 multi_factor.ic_weighted_composite 的区别：
+    - 本函数合成同一因子的不同周期（如动量 5/10/20/60/120 日），需外部传入 IC 序列
+    - multi_factor.ic_weighted_composite 合成不同因子，内部自行计算 IC
 
     参数:
         factor_dict    : {周期N: factor_wide, ...}

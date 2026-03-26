@@ -161,16 +161,18 @@ decay_df = factor_decay_analysis(
 
 ### 多因子合成（IC Weighted Composite）
 ```python
-from utils.factor_analysis import ic_weighted_composite
+from utils.multi_factor import ic_weighted_composite
 
 composite = ic_weighted_composite(
-    factor_dict={'value': v, 'quality': q, 'momentum': m},
-    ic_series_dict={'value': ic_v, 'quality': ic_q, 'momentum': ic_m},
-    rolling_window=60
+    factors={'value': v, 'quality': q, 'momentum': m},
+    ic_lookback=60,
+    ret_wide=ret,
 )
 ```
 
 **权重更新频率**：60 日滚动，动态调整各因子权重
+
+> 注：同一因子多周期合成请用 `utils.factor_analysis.ic_weighted_period_composite`
 
 ### IC/ICIR 批量分析
 ```python
