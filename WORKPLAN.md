@@ -31,8 +31,8 @@
 ### 当前最重要的事实
 - 系统已经不再是纯研究仓库
 - 免费数据接入与 freshness 已基本收口，当前数据状态已能更新到最新交易日
-- **v6(lag1) admission 已正式评估为 DENY（2026-03-25）**：但基线 critical 问题已于 `2026-03-26` 修完，当前 baseline 已可信
-- 个股止损维度已完成评估并关闭；当前首要任务是仅以“双周换仓”作为唯一 delta 发起下一轮 admission retry
+- **v6(lag1) admission 已正式评估为 DENY（2026-03-25）**：基线 critical 问题已于 `2026-03-26` 修完，当前 baseline 已可信，但并不等于应继续围绕该版本做 admission 营救
+- 个股止损与双周换仓两个 admission retry 维度均已完成且关闭；当前首要任务不再是继续 patch `v6`，而是把“因子 -> 组合 -> admission”研究生产线补完整
 
 ---
 
@@ -45,10 +45,12 @@
    详细计划见 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
 
    当前执行子目标：
+   - [GOAL_factor_to_portfolio_pipeline.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_factor_to_portfolio_pipeline.md)
+     **当前主线。** 目标是不再围绕已 `DENY` 的 `v6` 做过线优化，而是把因子研究、中性化、组合构建和 admission gate 串成标准生产线。
    - [GOAL_v6_biweekly_rebalance_eval.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_biweekly_rebalance_eval.md)
-     **当前 admission retry 主线。** 基线已可信、止损已关闭，下一步只允许测试双周换仓并形成新的正式决议。
+     状态：已完成并 `DENY`。保留为正式评估记录，不再作为 active retry。
    - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
-     状态：上一轮 admission push 已完成，产出可信 baseline、止损结论和正式 DENY 决议；后续由双周换仓子目标承接。
+     状态：上一轮 admission push 已完成，产出可信 baseline、止损结论和正式 DENY 决议；该系列不再作为当前主任务。
    - [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
      状态：基本完成。保留为已落地主链路能力说明，不再作为当前唯一阻塞项。
 
@@ -91,10 +93,10 @@
 ### Active Now: Phase 5 Infrastructure
 
 当前唯一主任务：
-- 先把当前主策略的 admission 结论锁定下来
-- 只允许一个最小策略改动去争取跨过保守门槛
-- admission 通过后，再恢复推进 `PaperTrader`、NAV、周报与连续模拟运行
-- 保持运行配置、信号、风险、周报等 Phase 5 路径与策略版本一致
+- 停止把 `v6` 当成 admission 营救对象
+- 把“因子构建 -> 中性化 -> 组合构建 -> admission”补成标准化研究生产线
+- 明确下一代候选策略如何进入 admission gate，而不是继续围绕 deny 的版本打补丁
+- 在新候选策略真正成立之前，不恢复推进 `PaperTrader`、NAV、周报与连续模拟运行
 
 详细执行见：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
@@ -108,16 +110,17 @@
 
 先做这一条：
 
-1. **V6 Admission Push**
-   **状态：baseline 已可信，止损实验已关闭，当前进入双周换仓 retry。**
+1. **Factor-To-Portfolio Pipeline Reset**
+   **状态：当前 active 主线。**
    下一步行动：
-   - 在有完整数据的机器上运行双周换仓版本的 admission 评估
-   - 保持 `lag1`、因子集、持股数、成本、过滤条件全部冻结
-   - 形成 baseline vs biweekly 并排对照
-   - 若指标达标，重新提交 admission；否则给出新的正式 DENY 决议
-   - admission 通过前，Phase 5 连续模拟不推进
+   - 更新 canonical planning docs，使其和最新 `DENY` 结论一致
+   - 停止把双周换仓或其他 `v6` patch 当成当前主线
+   - 定义统一的因子研究、中性化、组合构建和 admission 前置标准
+   - 以行业中性化等更基础的组合工程为下一代候选策略入口，而不是 `v6` 补丁
+   - 在新 candidate 未形成前，Phase 5 连续模拟不推进
 
 执行文件：
+- [GOAL_factor_to_portfolio_pipeline.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_factor_to_portfolio_pipeline.md)
 - [GOAL_v6_biweekly_rebalance_eval.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_biweekly_rebalance_eval.md)
 - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
 
@@ -132,7 +135,7 @@
 - 这不是新的总主线
 - 它是当前主策略进入 Phase 5 之前必须通过的 admission gate
 - 目的不是扩策略数量，而是防止“工程闭环很稳，但策略本身不成立”
-- 当前 admission gate 的最新执行子目标见 [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
+- 当前 admission gate 的上游主线已切到 [GOAL_factor_to_portfolio_pipeline.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_factor_to_portfolio_pipeline.md)
 
 ### Done Recently
 - 修复了回测引擎与多因子策略返回列不兼容问题
@@ -141,6 +144,7 @@
 - 修复了 `factor_monitor` 依赖不存在的 `next_return` 问题
 - 修复了 CLI 调仓未加载真实价格的问题
 - **v6(lag1) 正式 admission evaluation: DENY（2026-03-25）**
+- **双周换仓 admission retry: DENY（2026-03-26）**
 
 这些修复说明：Phase 5 不是“补文档”，而是确实存在 correctness 风险，因此必须继续按 infra 路线推进。
 
