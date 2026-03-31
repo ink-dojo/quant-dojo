@@ -10,6 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "fundamentals"
+LEGACY_INDUSTRY_CSV = Path(__file__).parent.parent / "data" / "raw" / "industry_baostock.csv"
 
 
 # ─────────────────────────────────────────────
@@ -176,17 +177,34 @@ def get_industry_classification(
     if use_cache and cache_path.exists():
         df = pd.read_parquet(cache_path)
     else:
-        import akshare as ak
-        # 申万行业分类：一次调用返回全部A股的行业归属历史
-        raw = ak.stock_industry_clf_hist_sw()
-        # 每只股票取最新的行业分类（按 start_date 最新）
-        df = (
-            raw.sort_values("start_date")
-            .drop_duplicates(subset="symbol", keep="last")
-            [["symbol", "industry_code"]]
-            .reset_index(drop=True)
-        )
-        df.to_parquet(cache_path, index=False)
+        try:
+            import akshare as ak
+            # 申万行业分类：一次调用返回全部A股的行业归属历史
+            raw = ak.stock_industry_clf_hist_sw()
+            # 每只股票取最新的行业分类（按 start_date 最新）
+            df = (
+                raw.sort_values("start_date")
+                .drop_duplicates(subset="symbol", keep="last")
+                [["symbol", "industry_code"]]
+                .reset_index(drop=True)
+            )
+            df.to_parquet(cache_path, index=False)
+        except Exception as exc:
+            if not LEGACY_INDUSTRY_CSV.exists():
+                raise
+            warnings.warn(
+                f"在线行业分类拉取失败，回退到本地 industry_baostock.csv: {exc}"
+            )
+            legacy = pd.read_csv(LEGACY_INDUSTRY_CSV)
+            legacy["symbol"] = legacy["code"].astype(str).str.split(".").str[-1]
+            legacy = legacy.rename(columns={"industry": "industry_code"})
+            df = (
+                legacy[["symbol", "industry_code"]]
+                .dropna(subset=["industry_code"])
+                .drop_duplicates(subset="symbol", keep="last")
+                .reset_index(drop=True)
+            )
+            df.to_parquet(cache_path, index=False)
 
     if symbols is not None:
         return df[df["symbol"].isin(symbols)].reset_index(drop=True)

@@ -56,6 +56,12 @@
 - [ ] 缺少 raw vs industry-neutral 的统一对照模板
 - [ ] 缺少“行业中性后仍成立吗”的清晰结论
 
+### Current Progress (2026-03-31)
+- [x] 已完成第一轮 `raw vs industry-neutral` 离线对照
+- [x] 已产出 [v7_industry_neutral_eval_20260331.md](/Users/karan/Documents/GitHub/quant-dojo/journal/v7_industry_neutral_eval_20260331.md)
+- [x] 第一轮结论：保留为观察线，不直接升级为正式 `v7 candidate`
+- [ ] 仍缺真实 `HS300` 指数缓存，因此当前结果不能与 admission 文档直接混写
+
 ## Operational Outcome
 
 当本 goal 完成时，系统应该能明确回答：

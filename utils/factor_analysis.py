@@ -290,6 +290,65 @@ def neutralize_factor(
     return pd.DataFrame(result_list)
 
 
+def neutralize_factor_by_industry(
+    factor_wide: pd.DataFrame,
+    industry_df: pd.DataFrame,
+    n_sigma: float = 3.0,
+    min_stocks: int = 30,
+    show_progress: bool = False,
+) -> pd.DataFrame:
+    """
+    行业中性化（不含市值中性化）。
+
+    对每个截面日：
+        1. 去极值（±n_sigma σ 截尾）
+        2. 对每个行业做组内去均值
+
+    参数:
+        factor_wide  : 因子宽表 (date × symbol)
+        industry_df  : 长表，至少包含 symbol, industry_code
+        n_sigma      : 去极值截尾倍数
+        min_stocks   : 每日最小有效股票数
+
+    返回:
+        neutral_wide : 行业中性化后的因子宽表
+    """
+    required = {"symbol", "industry_code"}
+    missing = required - set(industry_df.columns)
+    if missing:
+        raise ValueError(f"industry_df 缺少必要列: {sorted(missing)}")
+
+    ind_map = (
+        industry_df[["symbol", "industry_code"]]
+        .dropna(subset=["symbol", "industry_code"])
+        .drop_duplicates(subset="symbol", keep="last")
+        .set_index("symbol")["industry_code"]
+    )
+
+    result_list = []
+    iterator = factor_wide.index
+    if show_progress:
+        iterator = tqdm(iterator, desc="行业中性化", leave=False)
+
+    for date in iterator:
+        f_row = factor_wide.loc[date].dropna()
+        if f_row.empty:
+            result_list.append(pd.Series(dtype=float, name=date))
+            continue
+
+        common = f_row.index.intersection(ind_map.index)
+        if len(common) < min_stocks:
+            result_list.append(pd.Series(dtype=float, name=date))
+            continue
+
+        f_cross = winsorize(f_row[common], n_sigma=n_sigma)
+        ind_cross = ind_map.loc[common]
+        neutral = f_cross.groupby(ind_cross).transform(lambda s: s - s.mean())
+        result_list.append(pd.Series(neutral, index=common, name=date))
+
+    return pd.DataFrame(result_list)
+
+
 # ─────────────────────────────────────────────
 # IC 加权合成
 # ─────────────────────────────────────────────
