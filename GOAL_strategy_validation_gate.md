@@ -238,6 +238,8 @@ journal/strategy_admission_decision_*.md
 ## Relationship To Other Goals
 
 - 与 `GOAL_phase5_infra.md` 并行存在，但逻辑上先于“策略进入模拟盘”这一步
+- 从 `2026-03-31` 起，本 goal 的上游 canonical 主线是 [GOAL_factor_to_portfolio_pipeline.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_factor_to_portfolio_pipeline.md)
+- 本 goal 负责“门禁”，不再默认承担“继续围绕已 deny 策略做营救式优化”的职责
 - 不替代 `GOAL_phase5_infra.md`
 - 不改变 `WORKPLAN.md` 的总主线优先级
 

@@ -3,6 +3,8 @@
 > 执行型目标。当前日期：2026-03-25
 > 定位：承接 `GOAL_strategy_validation_gate.md` 的后半段，不是新主线。
 > 作用：把当前“v6 乐观口径已过线、保守口径只差一点”的状态，推进到“有一份可信保守基线 + 最小改动重评估 + 明确 admission decision”。
+>
+> 更新（2026-03-31）：本 goal 已完成其历史职责，但**不再是当前主线**。当前 canonical 主线已切换到 [GOAL_factor_to_portfolio_pipeline.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_factor_to_portfolio_pipeline.md)。
 
 ## Goal
 
@@ -258,6 +260,25 @@ Do not close this goal unless all are true:
 - [x] 形成新的正式 admission decision 文档（`journal/strategy_admission_decision_v6_20260325.md`）
 - [x] 已明确”允许进入 Phase 5”或”仍不允许”的二元结论（DENY）
 - [x] 如果允许，已写清进入模拟盘时必须带的保护措施（N/A — DENY，下一步：双周换仓）
+
+## Final Outcome
+
+本 goal 的历史产出有效，但其后续承接结果已经发生变化：
+
+- `v6(lag1)` honest baseline 已被成功固化
+- 个股止损作为第一轮最小 delta 已完成评估并 `DENY`
+- 后续双周换仓评估也已完成并 `DENY`
+- 因此，本 goal 不再继续衍生新的 `v6` admission rescue 轮次
+
+从 `2026-03-31` 开始，仓库的 canonical 结论改为：
+
+- `v6` 系列 admission push 已结束
+- 后续工作不再围绕“让 v6 过线”展开
+- 下一阶段转入“因子 -> 中性化 -> 组合 -> admission”的标准化研究生产线
+
+## Status
+
+### STATUS: CONVERGED
 
 ## Acceptance Commands
 

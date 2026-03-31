@@ -93,6 +93,11 @@
 - [ ] 明确它不是 `v6 patch`，而是新的 candidate line
 - [ ] 给下一轮研究限定单一主变量，避免重新回到 result shopping
 
+当前首个具体执行入口：
+
+- [GOAL_v7_industry_neutral_candidate.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v7_industry_neutral_candidate.md)
+  - 作为下一代 candidate line 的第一条正式研究目标
+
 ## File-Level Work
 
 ### Canonical Planning

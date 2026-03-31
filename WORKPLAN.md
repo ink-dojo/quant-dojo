@@ -121,6 +121,7 @@
 
 执行文件：
 - [GOAL_factor_to_portfolio_pipeline.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_factor_to_portfolio_pipeline.md)
+- [GOAL_v7_industry_neutral_candidate.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v7_industry_neutral_candidate.md)
 - [GOAL_v6_biweekly_rebalance_eval.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_biweekly_rebalance_eval.md)
 - [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
 

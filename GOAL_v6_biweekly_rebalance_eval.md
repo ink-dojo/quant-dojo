@@ -3,6 +3,8 @@
 > 执行型目标。当前日期：2026-03-26
 > 定位：承接 `GOAL_v6_admission_push.md`，不是新主线。
 > 作用：在 `v6(lag1)` 可信基线已经锁定、止损实验已关闭后，只测试一个新的最小改动：双周换仓。
+>
+> 更新（2026-03-31）：本 goal 已完成，结果为正式 `DENY`。保留本文件作为历史评估记录，不再作为当前 active retry。
 
 ## Goal
 
@@ -231,3 +233,25 @@ Do not close this goal unless all are true:
 - 单变量实验
 - 完整重评估
 - 二元决议
+
+## Final Outcome
+
+本 goal 已完成，其正式结论见：
+
+- [strategy_admission_decision_v6_biweekly_20260326.md](/Users/karan/Documents/GitHub/quant-dojo/journal/strategy_admission_decision_v6_biweekly_20260326.md)
+
+结果摘要：
+
+- 双周换仓在样本内、样本外均明显劣化
+- 三项硬性门槛全部未通过
+- 该变动方向已被明确关闭
+- `v6` 不再继续围绕双周换仓发起新一轮 retry
+
+因此，本 goal 的当前含义仅为：
+
+- 保存一次受控、诚实、单变量的 admission 评估记录
+- 为仓库提供“停止继续 patch v6”的历史依据
+
+## Status
+
+### STATUS: CONVERGED
