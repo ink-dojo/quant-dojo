@@ -36,6 +36,7 @@ from utils.factor_analysis import (
     quintile_backtest,
     factor_summary_table,
     neutralize_factor,
+    neutralize_factor_by_industry,
     ic_weighted_period_composite,
 )
 from utils.multi_factor import (
@@ -88,6 +89,7 @@ __all__ = [
     "quintile_backtest",
     "factor_summary_table",
     "neutralize_factor",
+    "neutralize_factor_by_industry",
     "ic_weighted_period_composite",
     "ic_weighted_composite",
 ]
