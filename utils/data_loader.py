@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
+INDEX_CACHE_DIR = RAW_DIR / "indices"
 
 
 def get_stock_history(
@@ -67,6 +68,7 @@ def get_index_history(
     symbol: str = "sh000300",  # 沪深300
     start: str = "2020-01-01",
     end: str = "2024-12-31",
+    use_cache: bool = True,
 ) -> pd.DataFrame:
     """
     获取指数日线数据
@@ -77,12 +79,121 @@ def get_index_history(
         sz399001  深证成指
         sz399006  创业板指
     """
+    INDEX_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+    cache_path = INDEX_CACHE_DIR / f"{symbol}.parquet"
+
+    if use_cache:
+        cached = _read_index_cache(cache_path)
+        if cached is not None and _cache_covers(cached, start_ts, end_ts):
+            return cached.loc[start:end]
+
+    errors = []
+    for fetcher in (_fetch_index_history_akshare, _fetch_index_history_baostock):
+        try:
+            df = fetcher(symbol)
+            if df is None or df.empty:
+                continue
+            df = _normalize_index_history(df)
+            subset = df.loc[start:end]
+            if subset.empty:
+                continue
+            _write_index_cache(cache_path, df)
+            return subset
+        except Exception as exc:
+            errors.append(f"{fetcher.__name__}: {exc}")
+
+    cached = _read_index_cache(cache_path)
+    if cached is not None:
+        subset = cached.loc[start:end]
+        if not subset.empty:
+            logger.warning("指数在线获取失败，回退到本地缓存: %s", "; ".join(errors))
+            return subset
+
+    raise RuntimeError(
+        f"无法获取指数 {symbol} {start}~{end} 数据；已尝试 AkShare 和 BaoStock。"
+        + (f" 错误: {'; '.join(errors)}" if errors else "")
+    )
+
+
+def _cache_covers(df: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> bool:
+    if df.empty:
+        return False
+    return df.index.min() <= start and df.index.max() >= end
+
+
+def _read_index_cache(path: Path) -> pd.DataFrame | None:
+    if not path.exists():
+        return None
+    try:
+        return _normalize_index_history(pd.read_parquet(path))
+    except Exception as exc:
+        logger.warning("读取指数缓存失败 %s: %s", path, exc)
+        return None
+
+
+def _write_index_cache(path: Path, df: pd.DataFrame) -> None:
+    if path.exists():
+        cached = _read_index_cache(path)
+        if cached is not None and not cached.empty:
+            df = pd.concat([cached, df]).sort_index()
+            df = df[~df.index.duplicated(keep="last")]
+    df.to_parquet(path)
+
+
+def _normalize_index_history(df: pd.DataFrame) -> pd.DataFrame:
+    if "date" in df.columns:
+        df = df.copy()
+        df["date"] = pd.to_datetime(df["date"])
+        df = df.set_index("date")
+    df = df.sort_index()
+    df.index = pd.to_datetime(df.index)
+    numeric_cols = [c for c in ["open", "high", "low", "close", "volume", "amount"] if c in df.columns]
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
+
+def _fetch_index_history_akshare(symbol: str) -> pd.DataFrame:
     import akshare as ak
+
     df = ak.stock_zh_index_daily(symbol=symbol)
-    df = df.rename(columns={"date": "date"})
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.set_index("date").sort_index()
-    return df.loc[start:end]
+    return df.rename(columns={"date": "date"})
+
+
+def _fetch_index_history_baostock(symbol: str) -> pd.DataFrame:
+    import baostock as bs
+
+    code = _to_baostock_code(symbol)
+    login = bs.login()
+    if login.error_code != "0":
+        raise RuntimeError(f"BaoStock 登录失败: {login.error_msg}")
+    try:
+        rs = bs.query_history_k_data_plus(
+            code,
+            "date,code,open,high,low,close,volume,amount",
+            frequency="d",
+            adjustflag="3",
+        )
+        if rs.error_code != "0":
+            raise RuntimeError(f"BaoStock 查询失败: {rs.error_msg}")
+        rows = []
+        while rs.next():
+            rows.append(rs.get_row_data())
+        if not rows:
+            return pd.DataFrame()
+        return pd.DataFrame(rows, columns=rs.fields)
+    finally:
+        bs.logout()
+
+
+def _to_baostock_code(symbol: str) -> str:
+    if symbol.startswith("sh"):
+        return f"sh.{symbol[2:]}"
+    if symbol.startswith("sz"):
+        return f"sz.{symbol[2:]}"
+    raise ValueError(f"不支持的指数代码格式: {symbol}")
 
 
 def get_hs300_stocks() -> pd.DataFrame:

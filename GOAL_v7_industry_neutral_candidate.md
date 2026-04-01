@@ -57,10 +57,15 @@
 - [ ] 缺少“行业中性后仍成立吗”的清晰结论
 
 ### Current Progress (2026-03-31)
-- [x] 已完成第一轮 `raw vs industry-neutral` 离线对照
+- [x] 已完成第一轮 `raw vs industry-neutral` 对照
 - [x] 已产出 [v7_industry_neutral_eval_20260331.md](/Users/karan/Documents/GitHub/quant-dojo/journal/v7_industry_neutral_eval_20260331.md)
-- [x] 第一轮结论：保留为观察线，不直接升级为正式 `v7 candidate`
-- [ ] 仍缺真实 `HS300` 指数缓存，因此当前结果不能与 admission 文档直接混写
+- [x] 已补 `HS300` 本地缓存：[sh000300.parquet](/Users/karan/Documents/GitHub/quant-dojo/data/raw/indices/sh000300.parquet)
+- [x] 当前脚本已可在真实 `HS300` + 多数投票择时口径下运行
+- [x] 当前观察结论：
+  - 因子层：行业中性化后 5 因子 ICIR 普遍更稳
+  - 组合层：IS / OOS 年化和夏普均改善，但 OOS 波动与回撤也上升
+  - 当前状态：值得保留为 `v7 candidate` 候选线，但还不应直接写成 admission 结论
+- [ ] 仍缺 walk-forward 与更完整 benchmark 诊断，故当前结果不能与 admission 文档直接混写
 
 ## Operational Outcome
 
@@ -86,10 +91,11 @@
   - 保留 / 观察 / 剔除结论
 
 ### Phase C: Portfolio-Level Comparison
-- [ ] 用同一组因子、同一股票池、同一持仓数构建两个组合：
+- [x] 用同一组因子、同一股票池、同一持仓数构建两个组合：
   - raw 版本
   - industry-neutral 版本
-- [ ] 比较样本内 / 样本外 / walk-forward
+- [x] 比较样本内 / 样本外
+- [ ] 补上 walk-forward
 - [ ] 只要出现其他变动，一律视为本 goal 失效
 
 ### Phase D: Candidate Decision
@@ -101,10 +107,12 @@
 ## File-Level Work
 
 ### Research Runtime
-- [ ] `utils/factor_analysis.py`
+- [x] `utils/factor_analysis.py`
   - 明确行业中性化接口和默认使用方式
-- [ ] `scripts/strategy_eval.py` 或新评估入口
+- [x] `scripts/v7_industry_neutral_eval.py`
   - 允许明确区分 raw vs industry-neutral
+- [x] `utils/data_loader.py`
+  - 指数数据支持本地缓存优先、AkShare/BaoStock 双源抓取
 
 ### Documentation
 - [ ] [GOAL_v7_industry_neutral_candidate.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v7_industry_neutral_candidate.md)
@@ -122,7 +130,7 @@
 ## Definition Of Done
 
 - [ ] raw vs industry-neutral 对照完整存在
-- [ ] 因子层与组合层都有结果
+- [x] 因子层与组合层都有结果
 - [ ] 至少一份正式 journal 文档总结结论
 - [ ] 明确写出：形成 candidate / 不形成 candidate
 - [ ] 结果被正确挂回 `GOAL_factor_to_portfolio_pipeline.md`
