@@ -64,3 +64,10 @@ live/runs/
 # Dev artifacts
 venv 2/
 push_phase5.sh
+
+# Claude agent state
+.claude/loop-state*
+
+# Data cache
+data/cache
+ data/cache*/
