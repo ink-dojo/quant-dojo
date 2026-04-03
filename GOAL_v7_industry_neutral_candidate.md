@@ -129,11 +129,11 @@
 
 ## Definition Of Done
 
-- [ ] raw vs industry-neutral 对照完整存在
+- [x] raw vs industry-neutral 对照完整存在
 - [x] 因子层与组合层都有结果
-- [ ] 至少一份正式 journal 文档总结结论
-- [ ] 明确写出：形成 candidate / 不形成 candidate
-- [ ] 结果被正确挂回 `GOAL_factor_to_portfolio_pipeline.md`
+- [x] 至少一份正式 journal 文档总结结论
+- [x] 明确写出：形成 candidate / 不形成 candidate
+- [x] 结果被正确挂回 `GOAL_factor_to_portfolio_pipeline.md`
 
 ## Must-Pass Commands
 
@@ -150,4 +150,4 @@ python -m pytest -q /Users/karan/Documents/GitHub/quant-dojo/tests
 
 ## Status
 
-### STATUS: ACTIVE
+### STATUS: CONVERGED (2026-04-02)
