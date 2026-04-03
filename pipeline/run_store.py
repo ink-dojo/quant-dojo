@@ -11,40 +11,32 @@ Dashboard 和 AI agent 通过此模块读取历史运行、对比策略表现。
   live/runs/
     {run_id}.json          — 运行元数据 + 绩效指标
     {run_id}_equity.csv    — 净值曲线（可选）
-"""
 
-# ══════════════════════════════════════════════════════════════
-# RunRecord 存储架构
-# ══════════════════════════════════════════════════════════════
-# 每条运行记录由两个文件组成：
-#   {run_id}.json     — 元数据 + 绩效指标
-#   {run_id}_equity.csv — 净值/收益序列（可选）
-#
-# JSON 字段说明：
-#   run_id        — 唯一标识符，格式 {strategy_id}_{YYYYMMDD}_{hash[:8]}
-#   strategy_id   — 策略注册表 ID（如 "dual_ma", "multi_factor"）
-#   strategy_name — 策略人类可读名称
-#   params        — 运行时使用的参数字典
-#   start_date    — 回测开始日期 YYYY-MM-DD
-#   end_date      — 回测结束日期 YYYY-MM-DD
-#   status        — "success" | "failed"
-#   metrics       — 绩效指标字典，标准字段：
-#                     total_return      — 总收益率（小数形式，如 0.15 = 15%）
-#                     annualized_return — 年化收益率
-#                     sharpe            — 夏普比率
-#                     max_drawdown      — 最大回撤（负数）
-#                     volatility        — 年化波动率
-#                     win_rate          — 胜率
-#                     n_trading_days    — 回测交易日数
-#   error         — 失败原因字符串（status=failed 时必填，否则 null）
-#   created_at    — 记录创建时间 ISO 格式
-#   artifacts     — 产物文件路径字典，可能的 key：
-#                     equity_csv — 净值序列 CSV 路径（Index=日期，列=策略输出的 DataFrame 列）
-#
-# equity_csv 语义：
-#   存储的是策略 run() 返回的 results_df，通常包含 daily returns 或 equity curve。
-#   具体列名取决于策略实现。消费方不应假设固定列名，而应从 CSV header 读取。
-# ══════════════════════════════════════════════════════════════
+存储架构：
+  每条运行记录由两个文件组成：
+    {run_id}.json       — 元数据 + 绩效指标
+    {run_id}_equity.csv — 净值/收益序列（可选）
+
+JSON 字段说明：
+  run_id        — 唯一标识符，格式 {strategy_id}_{YYYYMMDD}_{hash[:8]}
+  strategy_id   — 策略注册表 ID（如 "dual_ma", "multi_factor"）
+  strategy_name — 策略人类可读名称
+  params        — 运行时使用的参数字典
+  start_date    — 回测开始日期 YYYY-MM-DD
+  end_date      — 回测结束日期 YYYY-MM-DD
+  status        — "success" | "failed"
+  metrics       — 绩效指标字典，标准字段：
+                    total_return, annualized_return, sharpe,
+                    max_drawdown, volatility, win_rate, n_trading_days
+  error         — 失败原因字符串（status=failed 时必填，否则 null）
+  created_at    — 记录创建时间 ISO 格式
+  artifacts     — 产物文件路径字典，可能的 key：
+                    equity_csv — 净值序列 CSV 路径（Index=日期，列=策略输出的 DataFrame 列）
+
+equity_csv 语义：
+  存储的是策略 run() 返回的 results_df，通常包含 daily returns 或 equity curve。
+  具体列名取决于策略实现。消费方不应假设固定列名，而应从 CSV header 读取。
+"""
 
 from __future__ import annotations
 
