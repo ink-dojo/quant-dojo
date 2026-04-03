@@ -219,9 +219,8 @@ class PaperTrader:
         """
         根据新的选股列表执行再平衡操作。
 
-        等权分配资金：卖出不在新选股中的持仓，买入新选股中未持有的标的。
-        扣除双边 0.3% 交易成本。
-        若当日已执行过调仓，跳过重复执行并返回已有摘要。
+        等权分配资金：先卖出不在新选股中的持仓及超额部分，再买入新选股至等权目标。
+        扣除双边 0.3% 交易成本。若当日已执行过调仓，跳过重复执行并返回已有摘要。
 
         参数:
             new_picks: 目标持仓股票代码列表
@@ -230,7 +229,7 @@ class PaperTrader:
         返回:
             dict: 调仓摘要，含 date/n_buys/n_sells/turnover/cash_after/nav_after
         """
-        # --- 同日防重：检查是否已有当日交易记录 ---
+        # --- 同日防重 ---
         existing_today = [t for t in self.trades if t.get("date") == date]
         if existing_today:
             print(f"⚠ 当日已执行过调仓 ({date})，跳过重复执行")
@@ -246,9 +245,8 @@ class PaperTrader:
                 "nav_after": round(nav, 2),
             }
 
-        # 记录调仓前组合价值（用于计算换手率）
+        # --- 前置状态快照 ---
         portfolio_value_before = self._portfolio_value(prices or {})
-        # 记录本次调仓新增的交易笔数基准
         trades_before = len(self.trades)
 
         if not new_picks:
@@ -265,11 +263,7 @@ class PaperTrader:
                 "nav_after": nav,
             }
 
-        current_symbols = set(
-            sym for sym in self.positions if sym != "__cash__"
-        )
-        target_symbols = set(new_picks)
-
+        # --- 计算 tradable symbol 集合 ---
         tradable_symbols = [
             sym for sym in new_picks
             if prices.get(sym) is not None and prices.get(sym, 0) > 0
@@ -288,9 +282,67 @@ class PaperTrader:
                 "nav_after": nav,
             }
 
-        # --- 先卖出不在目标中的持仓 ---
-        sells = current_symbols - set(tradable_symbols)
-        for sym in sells:
+        total_value = self._portfolio_value(prices)
+        target_value_per_stock = total_value / len(tradable_symbols)
+
+        # --- 卖出阶段 ---
+        self._sell_phase(tradable_symbols, prices, target_value_per_stock, date)
+
+        # --- 买入阶段 ---
+        skipped_symbols = self._buy_phase(tradable_symbols, prices, target_value_per_stock, date)
+
+        if skipped_symbols:
+            print(f"[PaperTrader] 现金不足，跳过买入: {skipped_symbols}")
+
+        # --- 现金保护断言 ---
+        assert self._get_cash() >= 0, (
+            f"调仓后现金为负 ({self._get_cash():,.2f})，逻辑异常"
+        )
+
+        # --- 更新持仓的当前价格 ---
+        for sym in list(self.positions.keys()):
+            if sym == "__cash__":
+                continue
+            if sym in prices:
+                self.positions[sym]["current_price"] = prices[sym]
+
+        # --- 记录净值并持久化 ---
+        nav = self._portfolio_value(prices)
+        self._append_nav(date, nav)
+        self._save_positions()
+        self._save_trades()
+
+        # --- 统计本次调仓摘要 ---
+        new_trades = self.trades[trades_before:]
+        n_buys = sum(1 for t in new_trades if t["action"] == "buy")
+        n_sells = sum(1 for t in new_trades if t["action"] == "sell")
+        trade_volume = sum(t["shares"] * t["price"] for t in new_trades)
+        turnover = trade_volume / portfolio_value_before if portfolio_value_before > 0 else 0.0
+
+        return {
+            "date": date,
+            "n_buys": n_buys,
+            "n_sells": n_sells,
+            "turnover": round(turnover, 4),
+            "cash_after": round(self._get_cash(), 2),
+            "nav_after": round(nav, 2),
+        }
+
+    def _sell_phase(self, tradable_symbols: list, prices: dict, target_value_per_stock: float, date: str):
+        """
+        卖出阶段：清仓不在目标中的持仓，并将保留持仓降至等权目标以下。
+
+        参数:
+            tradable_symbols: 当日可交易的目标股票列表
+            prices: {symbol: price} 当日价格字典
+            target_value_per_stock: 每个仓位的目标市值
+            date: 交易日期字符串
+        """
+        tradable_set = set(tradable_symbols)
+        current_symbols = {sym for sym in self.positions if sym != "__cash__"}
+
+        # 子阶段 1：清仓不在目标中的持仓
+        for sym in current_symbols - tradable_set:
             info = self.positions[sym]
             sell_price = prices.get(sym, info["current_price"])
             shares_to_sell = int(info["shares"])
@@ -301,11 +353,8 @@ class PaperTrader:
             self._record_trade(date, sym, "sell", shares_to_sell, sell_price)
             del self.positions[sym]
 
-        # --- 再把保留仓位降到目标等权以下 ---
-        total_value = self._portfolio_value(prices)
-        target_value_per_stock = total_value / len(tradable_symbols)
-
-        for sym in list(current_symbols & set(tradable_symbols)):
+        # 子阶段 2：把保留仓位降到等权目标以下
+        for sym in list(current_symbols & tradable_set):
             info = self.positions.get(sym)
             if info is None:
                 continue
@@ -327,7 +376,19 @@ class PaperTrader:
             if info["shares"] <= 0:
                 del self.positions[sym]
 
-        # --- 最后把所有目标仓位补到等权（现金不足时跳过剩余买入） ---
+    def _buy_phase(self, tradable_symbols: list, prices: dict, target_value_per_stock: float, date: str) -> list:
+        """
+        买入阶段：把目标持仓补到等权目标（现金不足时跳过部分标的）。
+
+        参数:
+            tradable_symbols: 当日可交易的目标股票列表
+            prices: {symbol: price} 当日价格字典
+            target_value_per_stock: 每个仓位的目标市值
+            date: 交易日期字符串
+
+        返回:
+            list: 因现金不足而跳过的股票代码列表
+        """
         skipped_symbols = []
         for sym in tradable_symbols:
             price = prices[sym]
@@ -359,7 +420,6 @@ class PaperTrader:
 
             actual_cost = shares_to_buy * price * (1 + get_transaction_cost_rate())
             if self._get_cash() - actual_cost < 0:
-                # 现金不足以完成本笔买入，跳过
                 skipped_symbols.append(sym)
                 if info is not None:
                     info["current_price"] = price
@@ -384,44 +444,7 @@ class PaperTrader:
 
             self._record_trade(date, sym, "buy", shares_to_buy, price)
 
-        if skipped_symbols:
-            print(f"[PaperTrader] 现金不足，跳过买入: {skipped_symbols}")
-
-        # --- 现金保护断言 ---
-        assert self._get_cash() >= 0, (
-            f"调仓后现金为负 ({self._get_cash():,.2f})，逻辑异常"
-        )
-
-        # --- 更新持仓的当前价格 ---
-        for sym in list(self.positions.keys()):
-            if sym == "__cash__":
-                continue
-            if sym in prices:
-                self.positions[sym]["current_price"] = prices[sym]
-
-        # --- 记录净值 ---
-        nav = self._portfolio_value(prices)
-        self._append_nav(date, nav)
-
-        # --- 持久化 ---
-        self._save_positions()
-        self._save_trades()
-
-        # --- 统计本次调仓摘要 ---
-        new_trades = self.trades[trades_before:]
-        n_buys = sum(1 for t in new_trades if t["action"] == "buy")
-        n_sells = sum(1 for t in new_trades if t["action"] == "sell")
-        trade_volume = sum(t["shares"] * t["price"] for t in new_trades)
-        turnover = trade_volume / portfolio_value_before if portfolio_value_before > 0 else 0.0
-
-        return {
-            "date": date,
-            "n_buys": n_buys,
-            "n_sells": n_sells,
-            "turnover": round(turnover, 4),
-            "cash_after": round(self._get_cash(), 2),
-            "nav_after": round(nav, 2),
-        }
+        return skipped_symbols
 
     def get_performance(self) -> dict:
         """

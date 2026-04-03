@@ -20,3 +20,119 @@
 **Context:** `walk_forward_test` expects `strategy_fn(price_wide, factor_data_slice, train_start, train_end) -> returns_series`. The notebook wraps `MultiFactorStrategy` in a closure.
 
 - [2026-03-22] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:22] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:23] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:23] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:24] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:25] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:25] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:26] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:26] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:27] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:27] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:28] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:28] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:29] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:33] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:34] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:34] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:35] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:36] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:36] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:37] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:37] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:38] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:38] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:39] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:39] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:40] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:41] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:42] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:42] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:42] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:43] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:43] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:44] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 20:44] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:16] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:17] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:17] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:18] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:19] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:20] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:20] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:21] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:21] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:21] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:22] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:23] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:23] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:24] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:25] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:26] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:28] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:29] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:29] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:30] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:30] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:32] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:32] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-02 21:34] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
