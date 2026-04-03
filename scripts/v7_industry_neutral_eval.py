@@ -37,6 +37,7 @@ from utils.alpha_factors import (
     enhanced_momentum,
     bp_factor,
 )
+from utils.walk_forward import walk_forward_test
 from scripts.v6_admission_eval import run_backtest
 
 WARMUP_START = "2013-01-01"
@@ -122,6 +123,92 @@ def build_industry_neutral_factors(factors):
     }
     print(f"  行业覆盖: {len(industry_df)} 只 | 行业数: {industry_df['industry_code'].nunique()}")
     return neutralized, industry_df
+
+
+def run_walk_forward(price, pb, regime_mask, n_stocks, cost, lag1):
+    """滚动样本外验证（行业中性化版）"""
+    print("\n[WF] Walk-Forward 验证（行业中性化）...")
+
+    symbols = list(price.columns)
+    pb_data = pb.reindex(index=price.index, columns=symbols)
+
+    def wf_fn(price_slice, _fdata, train_start, train_end, test_start, test_end):
+        # Build all 5 raw factors from training period
+        local_factors = {
+            "team_coin": _team_coin(price_slice),
+            "low_vol_20d": _low_vol_20d(price_slice),
+            "cgo_simple": -(price_slice / price_slice.rolling(60).mean() - 1),
+            "enhanced_mom_60": enhanced_momentum(price_slice, window=60),
+        }
+        try:
+            local_factors["bp"] = bp_factor(
+                pb_data.reindex(index=price_slice.index, columns=price_slice.columns)
+            ).reindex_like(price_slice)
+        except Exception:
+            pass  # skip bp if pb unavailable in this window
+
+        # Slice to training period
+        local_factors_train = {k: v.loc[train_start:train_end] for k, v in local_factors.items()}
+
+        # Industry-neutralize using SWIA
+        industry_df = get_industry_classification(symbols=symbols, use_cache=True)
+        neutral_factors = {
+            name: neutralize_factor_by_industry(fac, industry_df, show_progress=False)
+            for name, fac in local_factors.items()
+        }
+        neutral_factors_train = {k: v.loc[train_start:train_end] for k, v in neutral_factors.items()}
+
+        # IC-weighted portfolio weights from training window only
+        local_fwd = price_slice.pct_change(5).shift(-5)
+        local_fwd_train = local_fwd.loc[train_start:train_end]
+
+        local_weights = {}
+        for name, fac in neutral_factors_train.items():
+            if name not in local_factors:
+                continue
+            ic_s = compute_ic_series(fac, local_fwd_train, method="spearman", min_stocks=50)
+            if len(ic_s) > 10:
+                m = ic_s.mean()
+                if m > 0:
+                    local_weights[name] = m
+
+        if not local_weights:
+            return pd.Series(dtype=float)
+
+        total = sum(local_weights.values())
+        local_weights = {k: v / total for k, v in local_weights.items()}
+
+        # Backtest on test window
+        wf_ret = run_backtest(
+            price_slice, neutral_factors, local_weights, n_stocks,
+            cost=cost, mask=None, regime_mask=regime_mask, lag1=lag1,
+        )
+        return wf_ret.loc[test_start:test_end] if len(wf_ret) > 0 else pd.Series(dtype=float)
+
+    wf_summary = None
+    try:
+        wf = walk_forward_test(
+            wf_fn, price.loc[WARMUP_START:IS_END], {},
+            train_years=3, test_months=6,
+        )
+        valid = wf[wf["sharpe"].notna()]
+        wf_summary = {
+            "windows": len(wf),
+            "valid": len(valid),
+            "sharpe_mean": valid["sharpe"].mean(),
+            "sharpe_median": valid["sharpe"].median(),
+            "return_mean": valid["total_return"].mean(),
+            "win_rate": (valid["total_return"] > 0).mean(),
+            "mdd_mean": valid["max_drawdown"].mean(),
+        }
+        print(f"  窗口: {wf_summary['windows']} | 有效: {wf_summary['valid']}")
+        print(f"  夏普均值: {wf_summary['sharpe_mean']:>.4f} | 中位数: {wf_summary['sharpe_median']:>.4f}")
+        print(f"  收益均值: {wf_summary['return_mean']:>+.2%} | 胜率: {wf_summary['win_rate']:.0%}")
+        print(f"  回撤均值: {wf_summary['mdd_mean']:>.2%}")
+    except Exception as e:
+        print(f"  Walk-Forward 失败: {e}")
+
+    return wf_summary
 
 
 def summarize_factor_ic(label, factors, price):
@@ -258,6 +345,7 @@ def main():
     factors_neutral, _ = build_industry_neutral_factors(factors_raw)
     ic_raw = summarize_factor_ic("raw", factors_raw, price)
     ic_neutral = summarize_factor_ic("industry-neutral", factors_neutral, price)
+    wf_summary = run_walk_forward(price, pb, regime, n_stocks=N_STOCKS, cost=COST, lag1=True)
     portfolio_metrics = compare_portfolios(price, factors_raw, factors_neutral, tradable, regime, hs300)
     report_path = write_report(ic_raw, ic_neutral, portfolio_metrics, regime, hs300)
     print(f"\n[6/6] 报告已写入: {report_path}")
