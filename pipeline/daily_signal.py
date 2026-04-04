@@ -2,6 +2,7 @@
 每日信号生成管道
 加载数据 → 计算因子 → 合成评分 → 过滤 → 输出选股名单
 """
+import argparse
 import json
 import os
 import warnings
@@ -11,6 +12,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from utils.alpha_factors import (
+    team_coin,
+    low_vol_20d,
+    enhanced_momentum,
+    bp_factor,
+)
+from utils.factor_analysis import neutralize_factor_by_industry, compute_ic_series
+from utils.fundamental_loader import get_industry_classification
 from utils.local_data_loader import (
     load_price_wide,
     load_factor_wide,
@@ -49,6 +58,7 @@ def run_daily_pipeline(
     date: str = None,
     n_stocks: int = None,
     symbols: list = None,
+    strategy: str = "ad_hoc",
 ) -> dict:
     """
     生成当日选股信号
@@ -58,6 +68,10 @@ def run_daily_pipeline(
                    若指定日期在数据中不存在则抛出 ValueError
         n_stocks : 选股数量，默认从运行时配置读取；若明确指定则使用指定值
         symbols  : 股票池，默认全 A 股
+        strategy : 因子策略，"ad_hoc"（默认）或 "v7"
+                   ad_hoc: 动量/EP/低波动/换手率反转等权合成
+                   v7: team_coin + low_vol_20d + cgo_simple + enhanced_momentum + bp
+                       行业中性化 + IC 加权合成
 
     返回:
         dict，包含 date, picks, scores, factor_values, excluded, metadata
@@ -104,37 +118,135 @@ def run_daily_pipeline(
     # ── 计算因子 ──────────────────────────────────────────────
     factor_dict = {}
 
-    # 1. 动量因子（20日）：过去20日收益率
-    mom_20 = price_wide.pct_change(20).iloc[-1]
-    factor_dict["momentum_20"] = mom_20
+    if strategy == "v7":
+        # ── v7 策略：行业中性化 + IC 加权合成 ────────────────
+        # 计算各因子宽表（日期 × 股票）
+        try:
+            team_coin_wide = team_coin(price_wide)
+        except Exception:
+            warnings.warn("team_coin 计算失败，跳过")
+            team_coin_wide = pd.DataFrame(np.nan, index=price_wide.index, columns=price_wide.columns)
 
-    # 2. EP（盈利收益率 = 1/PE，反向因子）
-    try:
-        pe_wide = load_factor_wide(symbols, "pe_ttm", start, end)
-        ep = (1.0 / pe_wide.iloc[-1]).replace([np.inf, -np.inf], np.nan)
-        ep[pe_wide.iloc[-1] <= 0] = np.nan  # PE 为负的置 NaN
-        factor_dict["ep"] = ep
-    except Exception:
-        warnings.warn("PE 数据不可用，跳过 EP 因子")
+        try:
+            low_vol_wide = low_vol_20d(price_wide)
+        except Exception:
+            warnings.warn("low_vol_20d 计算失败，跳过")
+            low_vol_wide = pd.DataFrame(np.nan, index=price_wide.index, columns=price_wide.columns)
 
-    # 3. 低波动因子（20日实现波动率取负）
-    vol_20 = ret_wide.rolling(20).std().iloc[-1] * np.sqrt(252)
-    factor_dict["low_vol"] = -vol_20  # 取负：低波动 = 高分
+        try:
+            enhanced_mom_wide = enhanced_momentum(price_wide)
+        except Exception:
+            warnings.warn("enhanced_momentum 计算失败，跳过")
+            enhanced_mom_wide = pd.DataFrame(np.nan, index=price_wide.index, columns=price_wide.columns)
 
-    # 4. 换手率反转（取负：低换手 = 高分）
-    try:
-        turnover_wide = load_factor_wide(symbols, "turnover", start, end)
-        turnover_20 = turnover_wide.rolling(20).mean().iloc[-1]
-        factor_dict["turnover_rev"] = -turnover_20
-    except Exception:
-        warnings.warn("换手率数据不可用，跳过换手率因子")
+        # cgo_simple = -(price / price.rolling(60).mean() - 1)
+        cgo_simple_wide = -(price_wide / price_wide.rolling(60).mean() - 1)
 
-    # ── 截面标准化 + 等权合成 ──────────────────────────────────
-    scored = pd.DataFrame(factor_dict)
-    # z-score 标准化
-    scored = (scored - scored.mean()) / scored.std()
-    # 等权合成
-    composite = scored.mean(axis=1)
+        # bp 因子需要 PB 数据
+        bp_wide = pd.DataFrame(np.nan, index=price_wide.index, columns=price_wide.columns)
+        try:
+            pb_wide = load_factor_wide(symbols, "pb", start, end)
+            if not pb_wide.empty:
+                bp_wide = bp_factor(pb_wide)
+        except Exception:
+            warnings.warn("PB 数据不可用，跳过 bp 因子")
+
+        raw_factors = {
+            "team_coin": team_coin_wide,
+            "low_vol_20d": low_vol_wide,
+            "cgo_simple": cgo_simple_wide,
+            "enhanced_momentum": enhanced_mom_wide,
+            "bp": bp_wide,
+        }
+
+        # 行业分类
+        try:
+            industry_df = get_industry_classification(symbols=symbols)
+        except Exception as e:
+            warnings.warn(f"行业分类加载失败: {e}")
+            industry_df = pd.DataFrame(columns=["symbol", "industry_code"])
+
+        # 对每个因子做行业中性化，然后 IC 加权合成
+        neutralized_factors = {}
+        ic_series_dict = {}
+        for name, fac_wide in raw_factors.items():
+            if fac_wide.empty or fac_wide.dropna().shape[0] < 30:
+                continue
+            try:
+                neutral = neutralize_factor_by_industry(fac_wide, industry_df)
+            except Exception as e:
+                warnings.warn(f"中性化失败 {name}: {e}")
+                neutral = fac_wide
+            neutralized_factors[name] = neutral
+            # 计算 IC 序列（用当日因子值与次日收益的截面相关）
+            try:
+                ic_s = compute_ic_series(neutral, ret_wide, method="spearman")
+                ic_series_dict[name] = ic_s
+            except Exception:
+                pass
+
+        # IC 加权合成：取最近 60 日 IC 均值绝对值作为权重
+        if neutralized_factors and ic_series_dict:
+            ic_df = pd.DataFrame(ic_series_dict)
+            rolling_ic = ic_df.rolling(60, min_periods=20).mean()
+            last_ic = rolling_ic.iloc[-1].abs()
+            total_ic = last_ic.sum()
+            if total_ic > 0:
+                weights = last_ic / total_ic
+            else:
+                weights = pd.Series(1.0 / len(neutralized_factors), index=last_ic.index)
+        else:
+            n = len(neutralized_factors) or 1
+            weights = pd.Series(1.0 / n, index=neutralized_factors.keys())
+
+        # 加权合成 composite
+        composite_series = None
+        for name, fac_wide in neutralized_factors.items():
+            w = weights.get(name, 0)
+            # 取最后一个交易日
+            last_vals = fac_wide.iloc[-1]
+            if composite_series is None:
+                composite_series = last_vals * w
+            else:
+                composite_series = composite_series + last_vals * w
+
+        composite = composite_series.dropna().sort_values(ascending=False)
+        # Store raw (non-neutralized) factors for factor_values output
+        factor_dict = {name: raw_factors[name].iloc[-1] for name in raw_factors}
+
+    else:
+        # ── ad_hoc 策略（默认） ──────────────────────────────
+        # 1. 动量因子（20日）：过去20日收益率
+        mom_20 = price_wide.pct_change(20).iloc[-1]
+        factor_dict["momentum_20"] = mom_20
+
+        # 2. EP（盈利收益率 = 1/PE，反向因子）
+        try:
+            pe_wide = load_factor_wide(symbols, "pe_ttm", start, end)
+            ep = (1.0 / pe_wide.iloc[-1]).replace([np.inf, -np.inf], np.nan)
+            ep[pe_wide.iloc[-1] <= 0] = np.nan  # PE 为负的置 NaN
+            factor_dict["ep"] = ep
+        except Exception:
+            warnings.warn("PE 数据不可用，跳过 EP 因子")
+
+        # 3. 低波动因子（20日实现波动率取负）
+        vol_20 = ret_wide.rolling(20).std().iloc[-1] * np.sqrt(252)
+        factor_dict["low_vol"] = -vol_20  # 取负：低波动 = 高分
+
+        # 4. 换手率反转（取负：低换手 = 高分）
+        try:
+            turnover_wide = load_factor_wide(symbols, "turnover", start, end)
+            turnover_20 = turnover_wide.rolling(20).mean().iloc[-1]
+            factor_dict["turnover_rev"] = -turnover_20
+        except Exception:
+            warnings.warn("换手率数据不可用，跳过换手率因子")
+
+        # 截面标准化 + 等权合成
+        scored = pd.DataFrame(factor_dict)
+        # z-score 标准化
+        scored = (scored - scored.mean()) / scored.std()
+        # 等权合成
+        composite = scored.mean(axis=1)
 
     # ── 过滤 ──────────────────────────────────────────────────
     excluded = {"st": 0, "new_listing": 0, "low_price": 0}
@@ -179,6 +291,8 @@ def run_daily_pipeline(
     metadata = {
         "n_input_symbols": n_input_symbols,
         "n_after_filters": n_after_filters,
+        "strategy": strategy,
+        "factors_used": list(factor_dict.keys()),
         "config_snapshot": {
             "n_stocks": n_stocks,
             "min_price": min_price,
@@ -240,7 +354,23 @@ def run_daily_pipeline(
 
 
 if __name__ == "__main__":
-    # 最小验证：用最新日期生成信号
-    result = run_daily_pipeline(date="2026-03-20")
+    parser = argparse.ArgumentParser(description="每日信号生成管道")
+    parser.add_argument("--date", type=str, default=None, help="信号日期，如 2026-03-20")
+    parser.add_argument("--n-stocks", type=int, default=None, help="选股数量")
+    parser.add_argument(
+        "--strategy",
+        type=str,
+        default="ad_hoc",
+        choices=["ad_hoc", "v7"],
+        help="因子策略：ad_hoc（默认）或 v7（行业中性+IC加权）",
+    )
+    args = parser.parse_args()
+
+    result = run_daily_pipeline(
+        date=args.date,
+        n_stocks=args.n_stocks,
+        strategy=args.strategy,
+    )
     print(f"\n选股名单（前10）: {result['picks'][:10]}")
     print(f"排除统计: {result['excluded']}")
+    print(f"策略: {result['metadata'].get('strategy', 'unknown')}")
