@@ -240,8 +240,9 @@ def cmd_signal_run(args):
     if date is None:
         date = datetime.date.today().strftime("%Y-%m-%d")
 
-    print(f"正在生成 {date} 的选股信号...")
-    result = daily_signal.run_daily_pipeline(date)
+    strategy = getattr(args, "strategy", "v7")
+    print(f"正在生成 {date} 的选股信号 (strategy={strategy})...")
+    result = daily_signal.run_daily_pipeline(date, strategy=strategy)
 
     picks = result.get("picks", [])
     scores = result.get("scores", {})
@@ -698,7 +699,7 @@ def main():
   %(prog)s backtest run multi_factor --start 2023-01-01 --end 2024-12-31
   %(prog)s backtest list                           查看历史回测
   %(prog)s backtest compare RUN_ID_1 RUN_ID_2      对比两次回测
-  %(prog)s signal run --date 2026-03-20            生成选股信号
+  %(prog)s signal run --date 2026-03-20 --strategy v7  生成选股信号
   %(prog)s rebalance run --date 2026-03-20         执行调仓
   %(prog)s risk check                              风险检查
   %(prog)s report weekly --week 2026-W12           生成周报
@@ -737,6 +738,8 @@ def main():
 
     p_sig_run = sig_sub.add_parser("run", help="运行每日选股信号生成")
     p_sig_run.add_argument("--date", type=str, default=None, help="日期 YYYY-MM-DD（默认今日）")
+    p_sig_run.add_argument("--strategy", type=str, choices=["ad_hoc", "v7"], default="v7",
+                           help="因子策略（默认 v7）")
 
     # ── rebalance ────────────────────────────────────────────
     # 同时支持 `rebalance --date` (旧) 和 `rebalance run --date` (新)
