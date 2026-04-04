@@ -15,9 +15,7 @@ test_phase5_regression.py — Phase 5 回归测试（真实文件 IO）
   python -m unittest tests.test_phase5_regression
 """
 
-import contextlib
 import json
-import os
 import sys
 import tempfile
 import unittest
