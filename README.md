@@ -2,7 +2,7 @@
 
 > 总工作计划入口：[`WORKPLAN.md`](./WORKPLAN.md)
 > Goal 执行模板：[`GOAL_EXECUTION_TEMPLATE.md`](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md)
-> 当前 active subgoal：[`GOAL_phase5_free_data_ingestion.md`](./GOAL_phase5_free_data_ingestion.md)
+> 当前 active subgoal：[`GOAL_phase5_paper_trading_readiness.md`](./GOAL_phase5_paper_trading_readiness.md) — Phase 5 paper trading readiness with v7 active line
 
 ## 量化工作台（Dashboard）
 
