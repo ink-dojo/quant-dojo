@@ -210,4 +210,25 @@ Before marking done, the agent must verify:
 
 ## Status
 
+### STATUS: IN PROGRESS — Iteration 2/5 Complete (2026-04-04)
+
+**Autoloop 进度**：Iterations 1-2 完成（3-4 因 supervisor API 问题中断）。主要阻塞项已处理：
+
+**已完成（Iteration 1-2）**：
+- ✅ `v7 industry-neutral` 因子已通过 `--strategy v7` flag 接入 `daily_signal.py`（+162 行）
+- ✅ CLI `signal run` 默认 `--strategy v7`，help 文本已更新
+- ✅ README.md / WORKPLAN.md / GOAL_v7_admission_full.md 均已对齐（forward pointer 已加）
+- ✅ `tests/test_phase5_regression.py` 已创建，6 个回归测试全通过（真实文件 IO）：
+  - `test_signal_rebalance_risk_report_chain` — 端到端链路
+  - `test_restart_after_multiple_days` / `test_restart_reads_same_positions_and_nav` — 重启安全
+  - `test_different_day_allows_rebalance` / `test_same_day_duplicate_returns_same_nav` — 同日防重
+  - `test_load_functions_with_real_files` — 周报文件加载
+
+**未完成（关键项）**：
+- ⚠️ **v7 因子快照缺失**：EOD 管道快照仍只记录旧 4 因子（momentum_20/ep/low_vol/turnover_rev），v7 的 5 个因子（team_coin/low_vol_20d/cgo_simple/enhanced_mom_60/bp）从未被快照。`factor-health --preset v7` 只能显示 `no_data`。需要改造 `daily_signal.py` 的快照部分，或新建独立的 v7 快照管道。
+- ⚠️ **周报运营质量未验证**：需要用真实信号数据生成一份周报，确认调仓、NAV、风险摘要、因子健康度的内容可读且可对账。
+- ⚠️ **test_control_plane.py 子进程泄漏**：58 个测试全过，但 teardown 时 `pipeline.cli` 子进程未被回收导致挂起。需单独 fix。
+
+**Supervisor 中断记录**：Iteration 3-4 的 haiku supervisor 因 API 问题崩溃（日志为空）。后续可用 `--resume` 或手动继续。
+
 ### STATUS: ACTIVE
