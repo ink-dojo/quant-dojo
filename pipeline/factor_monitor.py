@@ -167,11 +167,20 @@ def compute_rolling_ic(
     return ic_series.sort_index()
 
 
-def factor_health_report() -> dict:
+# 预定义的因子集（策略注册表不对应，运行时指定）
+FACTOR_PRESETS = {
+    # legacy daily_signal.py 快照的 4 因子
+    "legacy": ["momentum_20", "ep", "low_vol", "turnover_rev"],
+    # v7 industry-neutral 策略的 5 因子
+    "v7": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp"],
+}
+
+
+def factor_health_report(factors: list[str] | None = None) -> dict:
     """
     生成因子健康度报告
 
-    对 momentum_20, ep, low_vol, turnover 这四个因子，分别计算：
+    对指定因子列表中的每个因子，分别计算：
       1. 滚动 IC（60 日窗口）
       2. IC 均值（作为因子有效性指标）
       3. 状态：
@@ -179,6 +188,10 @@ def factor_health_report() -> dict:
          - "degraded" : |IC 均值| < 0.02，因子衰减
          - "dead"     : |IC 均值| ≈ 0 且 t-stat < 1，因子失效
          - "no_data"  : 无快照数据，无法评估
+
+    参数:
+        factors: 要检查的因子名列表。默认为 legacy 预设（momentum_20/ep/low_vol/turnover_rev）。
+                可传入 FACTOR_PRESETS["v7"] 或任意因子名列表。
 
     返回:
         dict : {
@@ -189,10 +202,11 @@ def factor_health_report() -> dict:
             ...
         }
     """
-    factors_to_check = ["momentum_20", "ep", "low_vol", "turnover_rev"]
+    if factors is None:
+        factors = FACTOR_PRESETS["legacy"]
     report = {}
 
-    for factor_name in factors_to_check:
+    for factor_name in factors:
         ic_series = compute_rolling_ic(factor_name, lookback_days=60)
 
         if ic_series.empty:
