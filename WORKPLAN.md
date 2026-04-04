@@ -72,6 +72,8 @@
    目标：在基础设施稳定后，进入连续模拟运行、周报、风险回顾、数据 freshness 管控。
    这部分以 [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md) 后半段的验收和周报机制为基础，不单独拆新目标，直到 P0 真正完成。
 
+   > **当前 active subgoal**：[GOAL_phase5_paper_trading_readiness.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_paper_trading_readiness.md) — 这是当前唯一 active 追踪目标，WS1-WS6 均服务于该目标。
+
 6. **P3: Strategy Upgrades / New Research**
    目标：只有在模拟盘主链路可信后，才继续扩策略、增强因子和研究方法。
    历史背景与已完成内容见 [GOAL_phase4.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase4.md) 和 [GOAL.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL.md)
@@ -92,14 +94,16 @@
 
 ## 4. What To Work On Now
 
-### Active Now: Phase 5 Infrastructure
+### Active Now: Phase 5 Paper Trading Readiness
 
 当前唯一主任务：
+- [GOAL_phase5_paper_trading_readiness.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_paper_trading_readiness.md) ← **当前 active goal**
 - v7 industry-neutral 已获 CONDITIONAL ALLOW，下一步是 Phase 5 Paper Trading 实际运行
 - 继续推进 WS1-WS6（特别是 WS1 runtime config 修复、WS3 paper trader state、WS5 weekly report）
 - 不再围绕 v6 做任何 admission retry
 
 详细执行见：
+- [GOAL_phase5_paper_trading_readiness.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_paper_trading_readiness.md)
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
 - [GOAL_v7_admission_full.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v7_admission_full.md) ← 已 CONVERGED
 
