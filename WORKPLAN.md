@@ -2,7 +2,7 @@
 
 > 这是仓库的总工作计划入口。所有当前目标、后续目标和未来方向统一从这里进入。
 > 详细设计和执行细节仍保留在各自的 `GOAL_*.md` 文件中，但本文件是**唯一总览**。
-> 更新日期：2026-03-26
+> 更新日期：2026-04-04
 >
 > 新建执行型 goal 时，统一从 [`GOAL_EXECUTION_TEMPLATE.md`](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_EXECUTION_TEMPLATE.md) 开始。
 
@@ -31,8 +31,10 @@
 ### 当前最重要的事实
 - 系统已经不再是纯研究仓库
 - 免费数据接入与 freshness 已基本收口，当前数据状态已能更新到最新交易日
-- **v6(lag1) admission 已正式评估为 DENY（2026-03-25）**：基线 critical 问题已于 `2026-03-26` 修完，当前 baseline 已可信，但并不等于应继续围绕该版本做 admission 营救
-- 个股止损与双周换仓两个 admission retry 维度均已完成且关闭；当前首要任务不再是继续 patch `v6`，而是把“因子 -> 组合 -> admission”研究生产线补完整
+- **v6(lag1) admission 已正式 DENY（2026-03-25）**；个股止损 DENY（2026-03-25）；双周换仓 DENY（2026-03-26）；v6 体系已关闭
+- **v7 industry-neutral 已获 CONDITIONAL ALLOW（2026-04-03）**：IS 三项全过，WF 中位数踩线（=0），允许进入 Phase 5 Paper Trading，Q2 需复审
+- Canonical pipeline（Phase A-C）已完成：`GOAL_factor_to_portfolio_pipeline.md` CONVERGED（2026-04-02）
+- 当前主线已切换为”因子 -> 中性化 -> 组合 -> admission”标准化生产线的持续运行
 
 ---
 
@@ -93,37 +95,29 @@
 ### Active Now: Phase 5 Infrastructure
 
 当前唯一主任务：
-- 停止把 `v6` 当成 admission 营救对象
-- 把“因子构建 -> 中性化 -> 组合构建 -> admission”补成标准化研究生产线
-- 明确下一代候选策略如何进入 admission gate，而不是继续围绕 deny 的版本打补丁
-- 在新候选策略真正成立之前，不恢复推进 `PaperTrader`、NAV、周报与连续模拟运行
+- v7 industry-neutral 已获 CONDITIONAL ALLOW，下一步是 Phase 5 Paper Trading 实际运行
+- 继续推进 WS1-WS6（特别是 WS1 runtime config 修复、WS3 paper trader state、WS5 weekly report）
+- 不再围绕 v6 做任何 admission retry
 
 详细执行见：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
-- [GOAL_v6_biweekly_rebalance_eval.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_biweekly_rebalance_eval.md)
-- [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
-- [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
+- [GOAL_v7_admission_full.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v7_admission_full.md) ← 已 CONVERGED
 
 ### Immediate Focus Inside P0
 
-当前先不要平均推进所有 Phase 5 workstreams。
+1. **Phase 5 Paper Trading 启动**
+   - v7 industry-neutral 策略已进入 CONDITIONAL ALLOW，可开始 paper trading
+   - 验证 CLI `signal -> rebalance -> positions -> performance` 全链路可跑通
+   - Q2 复审时重新跑 WF 确认稳定性
 
-先做这一条：
-
-1. **Factor-To-Portfolio Pipeline Reset**
-   **状态：当前 active 主线。**
-   下一步行动：
-   - 更新 canonical planning docs，使其和最新 `DENY` 结论一致
-   - 停止把双周换仓或其他 `v6` patch 当成当前主线
-   - 定义统一的因子研究、中性化、组合构建和 admission 前置标准
-   - 以行业中性化等更基础的组合工程为下一代候选策略入口，而不是 `v6` 补丁
-   - 在新 candidate 未形成前，Phase 5 连续模拟不推进
+2. **WS1 Runtime Config 修复**
+   - ✅ 已修复：worktree data symlink（`run-tasks-parallel.sh` 修复）
+   - config.yaml 仍为个人机器配置，不影响多机器协作
 
 执行文件：
-- [GOAL_factor_to_portfolio_pipeline.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_factor_to_portfolio_pipeline.md)
-- [GOAL_v7_industry_neutral_candidate.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v7_industry_neutral_candidate.md)
-- [GOAL_v6_biweekly_rebalance_eval.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_biweekly_rebalance_eval.md)
-- [GOAL_v6_admission_push.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v6_admission_push.md)
+- [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
+- [GOAL_factor_to_portfolio_pipeline.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_factor_to_portfolio_pipeline.md) ← 已 CONVERGED
+- [GOAL_v7_admission_full.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_v7_admission_full.md) ← 已 CONVERGED
 
 ### Required Gate Before Strategy Enters Phase 5
 
@@ -146,8 +140,10 @@
 - 修复了 CLI 调仓未加载真实价格的问题
 - **v6(lag1) 正式 admission evaluation: DENY（2026-03-25）**
 - **双周换仓 admission retry: DENY（2026-03-26）**
+- **v7 industry-neutral CONDITIONAL ALLOW（2026-04-03）**：IS 年化 17.70% / 夏普 0.9256 / 回撤 -26.23%，三项全过；WF 中位数踩线（=0）
+- **Canonical pipeline 完成（2026-04-02）**：`GOAL_factor_to_portfolio_pipeline.md` CONVERGED，Phase B 标准研究流水线已定义
 
-这些修复说明：Phase 5 不是“补文档”，而是确实存在 correctness 风险，因此必须继续按 infra 路线推进。
+这些修复说明：Phase 5 不是”补文档”，而是确实存在 correctness 风险，因此必须继续按 infra 路线推进。
 
 ---
 
@@ -271,18 +267,19 @@ AI 提议研究方向
 - [GOAL_phase4.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase4.md)
 
 ### Phase 5
-定位：模拟盘基础设施与运行闭环  
-状态：进行中，当前最高优先级  
+定位：模拟盘基础设施与运行闭环
+状态：进行中，当前最高优先级
 详情：
 - [GOAL_phase5_infra.md](/Volumes/Crucial%20X10/Documents/GitHub/quant-dojo/GOAL_phase5_infra.md)
 - [GOAL_phase5_free_data_ingestion.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_phase5_free_data_ingestion.md)
 
 当前 active subgoal：
-- 免费数据接入与 freshness 收口
-- 这是 Phase 5 的执行型子目标，不改变主线优先级
+- WS1-WS6 持续推进（WS1 已修 worktree data symlink bug）
+- v7 paper trading 实际运行（v7 已获 CONDITIONAL ALLOW）
 
 进入 Phase 5 模拟盘前的强制门禁：
 - [GOAL_strategy_validation_gate.md](/Users/karan/Documents/GitHub/quant-dojo/GOAL_strategy_validation_gate.md)
+- v7 CONDITIONAL ALLOW（2026-04-03），WF 中位数踩线，Q2 复审
 
 ### Dashboard Track
 定位：本地单机工作台  
