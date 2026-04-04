@@ -174,3 +174,7 @@ python -m pytest -q tests/test_phase5_smoke.py
 ### STATUS: CONVERGED (2026-04-03)
 
 最终结论：CONDITIONAL ALLOW — v7 允许进入 Phase 5 Paper Trading，但 WF 中位数踩线（= 0），须 Q2 复审时重新跑 WF 确认稳定性。
+
+## Post-Admission Next Step (2026-04-04)
+
+The only explicit next step after CONDITIONAL ALLOW is [GOAL_phase5_paper_trading_readiness.md](GOAL_phase5_paper_trading_readiness.md) — making v7 the canonical active strategy and hardening the paper-trading loop for operational trust.
