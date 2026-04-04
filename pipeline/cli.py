@@ -556,11 +556,15 @@ def cmd_factor_health(args):
     import importlib
     factor_monitor = importlib.import_module("pipeline.factor_monitor")
 
+    preset = getattr(args, "preset", "legacy")
+    preset_label = "v7（team_coin/low_vol_20d/cgo_simple/enhanced_mom_60/bp）" if preset == "v7" else "legacy（momentum_20/ep/low_vol/turnover_rev）"
+
     print(f"\n{'='*50}")
-    print("因子健康度报告")
+    print(f"因子健康度报告  [preset={preset_label}]")
     print(f"{'='*50}\n")
 
-    report = factor_monitor.factor_health_report()
+    factors = factor_monitor.FACTOR_PRESETS.get(preset)
+    report = factor_monitor.factor_health_report(factors=factors)
 
     if isinstance(report, dict):
         print(f"{'因子':<20} {'近期IC均值':>12} {'状态':>10}")
@@ -785,7 +789,14 @@ def main():
     # ── 独立命令 ─────────────────────────────────────────────
     subparsers.add_parser("positions", help="查看当前模拟盘持仓")
     subparsers.add_parser("performance", help="查看模拟盘绩效指标")
-    subparsers.add_parser("factor-health", help="因子健康度检查")
+    p_fh = subparsers.add_parser("factor-health", help="因子健康度检查")
+    p_fh.add_argument(
+        "--preset",
+        type=str,
+        choices=["legacy", "v7"],
+        default="legacy",
+        help="因子集预设：legacy（momentum_20/ep/low_vol/turnover_rev）或 v7（team_coin/low_vol_20d/cgo_simple/enhanced_mom_60/bp）",
+    )
     subparsers.add_parser("strategies", help="列出所有已注册策略")
     subparsers.add_parser("doctor", help="系统诊断")
 
