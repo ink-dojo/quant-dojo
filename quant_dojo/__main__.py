@@ -59,6 +59,13 @@ def main():
     # ── status ──
     sub.add_parser("status", help="系统全局状态一览")
 
+    # ── compare ──
+    p_cmp = sub.add_parser("compare", help="多策略对比回测")
+    p_cmp.add_argument("strategies", nargs="+", help="策略名列表 (如 v7 v8)")
+    p_cmp.add_argument("--start", type=str, help="开始日期")
+    p_cmp.add_argument("--end", type=str, help="结束日期")
+    p_cmp.add_argument("--n-stocks", type=int, default=30, help="选股数量")
+
     # ── report ──
     p_rep = sub.add_parser("report", help="生成报告（周报/回测报告）")
     p_rep.add_argument("--week", type=str, help="ISO 周次 (如 2026-W13)")
@@ -93,6 +100,7 @@ def main():
         "run": cmd_run,
         "backtest": cmd_backtest,
         "status": cmd_status,
+        "compare": cmd_compare,
         "report": cmd_report,
         "dashboard": cmd_dashboard,
         "activate": cmd_activate,
@@ -130,6 +138,17 @@ def cmd_status(args):
     """系统状态"""
     from quant_dojo.commands.status import show_status
     show_status()
+
+
+def cmd_compare(args):
+    """策略对比"""
+    from quant_dojo.commands.compare import run_compare
+    run_compare(
+        strategies=args.strategies,
+        start=args.start,
+        end=args.end,
+        n_stocks=args.n_stocks,
+    )
 
 
 def cmd_report(args):
