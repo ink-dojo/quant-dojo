@@ -73,12 +73,11 @@ def walk_forward_test(
             price_train = price_wide.loc[train_start:train_end]
             price_test = price_wide.loc[test_start:test_end]
 
-            # 如果有 factor_data 的时间切片需求，在这里处理
-            # 假设 factor_data 支持切片或按日期索引
-            factor_slice = factor_data if isinstance(factor_data, dict) else factor_data.loc[train_start:test_end]
+            # 因子数据只切到训练期末，防止策略在训练阶段偷看测试期因子值
+            factor_slice = factor_data if isinstance(factor_data, dict) else factor_data.loc[train_start:train_end]
 
-            # 调用策略函数进行训练和测试
-            # 返回测试期的日收益率
+            # full_slice 包含训练+测试期价格，策略需要测试期价格来计算收益
+            # 但因子数据已限制在训练期内，防止前视偏差
             full_slice = price_wide.loc[train_start:test_end]
             sig = inspect.signature(strategy_fn)
             n_params = len(sig.parameters)
