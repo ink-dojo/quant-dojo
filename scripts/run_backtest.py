@@ -57,13 +57,17 @@ def main():
     parser.add_argument("--train-years", type=int, default=3, help="Walk-Forward 训练窗口（年，默认 3）")
     parser.add_argument("--test-months", type=int, default=6, help="Walk-Forward 测试窗口（月，默认 6）")
     parser.add_argument(
+        "--sweep-n-stocks", type=int, nargs="*", metavar="N",
+        help="参数扫描：选股数量列表 (如 --sweep-n-stocks 20 30 50)",
+    )
+    parser.add_argument(
         "--compare", type=str, nargs="*", metavar="RUN_ID",
         help="与指定 run_id 对比绩效",
     )
 
     args = parser.parse_args()
 
-    from backtest.standardized import run_backtest, run_walk_forward, BacktestConfig
+    from backtest.standardized import run_backtest, run_walk_forward, run_parameter_sweep, BacktestConfig
 
     config = BacktestConfig(
         strategy=args.strategy,
@@ -79,6 +83,11 @@ def main():
         wf = run_walk_forward(config, train_years=args.train_years, test_months=args.test_months)
         print(f"\n窗口结果:")
         print(wf["windows"].to_string())
+        return
+
+    if args.sweep_n_stocks:
+        results = run_parameter_sweep(config, {"n_stocks": args.sweep_n_stocks})
+        print(f"\n最优参数 run_id: {results[0].run_id if results else 'N/A'}")
         return
 
     result = run_backtest(config)

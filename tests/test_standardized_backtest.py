@@ -18,6 +18,7 @@ from backtest.standardized import (
     _validate_config,
     run_backtest,
     run_walk_forward,
+    run_parameter_sweep,
 )
 
 
@@ -345,3 +346,40 @@ class TestBenchmark:
         assert result.benchmark_returns is not None
         assert "excess_return" in result.metrics
         assert "excess_sharpe" in result.metrics
+
+
+# ═══════════════════════════════════════════════════════════
+# Parameter Sweep 测试
+# ═══════════════════════════════════════════════════════════
+
+class TestParameterSweep:
+
+    @patch("backtest.standardized._load_benchmark", return_value=None)
+    @patch("backtest.standardized._persist_result", return_value="sweep_001")
+    @patch("backtest.standardized._compute_factors")
+    @patch("backtest.standardized.load_price_wide")
+    @patch("backtest.standardized.get_all_symbols")
+    @patch("backtest.standardized.load_factor_wide", return_value=pd.DataFrame())
+    def test_sweep_runs_multiple(
+        self, mock_st, mock_symbols, mock_price, mock_factors, mock_persist, mock_bm
+    ):
+        np.random.seed(42)
+        dates = pd.date_range("2023-01-01", periods=600, freq="B")
+        symbols = [f"00{i:04d}.SZ" for i in range(1, 51)]
+        price = pd.DataFrame(
+            np.cumprod(1 + np.random.randn(600, 50) * 0.01, axis=0) * 10,
+            index=dates, columns=symbols,
+        )
+        mock_symbols.return_value = symbols
+        mock_price.return_value = price
+
+        factor1 = pd.DataFrame(np.random.randn(600, 50), index=dates, columns=symbols)
+        mock_factors.return_value = {"f1": (factor1, 1)}
+
+        config = BacktestConfig(strategy="v7", start="2024-01-01", end="2025-06-30")
+        results = run_parameter_sweep(config, {"n_stocks": [10, 20]})
+
+        assert len(results) == 2
+        assert all(r.status == "success" for r in results)
+        # Should be sorted by sharpe (descending)
+        assert results[0].metrics["sharpe"] >= results[1].metrics["sharpe"]
