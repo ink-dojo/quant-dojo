@@ -288,7 +288,8 @@ def cmd_rebalance_run(args):
 
     # 1. 生成信号
     daily_signal = importlib.import_module("pipeline.daily_signal")
-    result = daily_signal.run_daily_pipeline(date)
+    strategy = getattr(args, "strategy", "v7")
+    result = daily_signal.run_daily_pipeline(date, strategy=strategy)
     picks = result.get("picks", [])
     if result.get("error"):
         raise RuntimeError(result["error"])
@@ -749,6 +750,8 @@ def main():
 
     p_reb_run = reb_sub.add_parser("run", help="执行调仓")
     p_reb_run.add_argument("--date", type=str, required=True, help="调仓日期 YYYY-MM-DD")
+    p_reb_run.add_argument("--strategy", type=str, choices=["ad_hoc", "v7"], default="v7",
+                           help="因子策略（默认 v7）")
 
     # ── risk ─────────────────────────────────────────────────
     p_risk = subparsers.add_parser("risk", help="风险管理")
