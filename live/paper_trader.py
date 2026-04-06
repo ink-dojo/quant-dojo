@@ -153,6 +153,9 @@ class PaperTrader:
 
         if trade_date in nav_df["date"].values:
             # 覆盖已有行，避免 NAV 重复记录
+            old_nav = float(nav_df.loc[nav_df["date"] == trade_date, "nav"].iloc[0])
+            if abs(old_nav - nav) > 0.01:
+                print(f"[PaperTrader] NAV 覆盖: {trade_date} {old_nav:,.2f} -> {nav:,.2f}")
             nav_df.loc[nav_df["date"] == trade_date, "nav"] = nav
         else:
             new_row = pd.DataFrame([{"date": trade_date, "nav": nav}])
@@ -189,15 +192,21 @@ class PaperTrader:
         return warnings
 
     def _reconstruct_nav_from_positions(self) -> pd.DataFrame:
-        """从 positions.json 重建 nav.csv（单行，日期取今天，NAV 取持仓推算值）。"""
+        """从 positions.json 重建 nav.csv。日期取最后交易记录的日期，若无交易记录则取今天。"""
         nav_value = self._get_cash() + sum(
             info["shares"] * info.get("current_price", 0)
             for sym, info in self.positions.items()
             if sym != "__cash__"
         )
-        today_str = date.today().isoformat()
-        nav_df = pd.DataFrame([{"date": today_str, "nav": nav_value}])
+        # 优先用最后一笔交易的日期，避免持仓是 3 天前但 NAV 标今天
+        if self.trades:
+            last_trade_date = max(t.get("date", "") for t in self.trades)
+            nav_date = last_trade_date if last_trade_date else date.today().isoformat()
+        else:
+            nav_date = date.today().isoformat()
+        nav_df = pd.DataFrame([{"date": nav_date, "nav": nav_value}])
         nav_df.to_csv(NAV_FILE, index=False)
+        print(f"[PaperTrader] nav.csv 重建: date={nav_date}, nav={nav_value:,.2f}")
         return nav_df
 
     def _record_trade(self, trade_date: str, symbol: str, action: str, shares: int, price: float):
