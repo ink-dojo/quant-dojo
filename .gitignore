@@ -57,6 +57,8 @@ live/portfolio/
 live/signals/
 live/factor_snapshot/
 live/runs/
+live/dashboard/
+live/factor_research/
 
 # Binary documents
 *.pdf
