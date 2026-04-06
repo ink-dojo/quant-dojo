@@ -77,6 +77,8 @@ class BacktestResult:
     config: BacktestConfig
     metrics: dict = field(default_factory=dict)
     equity_curve: Optional[pd.DataFrame] = None
+    benchmark_returns: Optional[pd.Series] = None
+    benchmark_metrics: dict = field(default_factory=dict)
     trade_log: list = field(default_factory=list)
     factor_stats: dict = field(default_factory=dict)
     run_id: str = ""
@@ -239,6 +241,60 @@ def _compute_metrics(returns: pd.Series) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════
+# 基准加载
+# ══════════════════════════════════════════════════════════════
+
+# 指数代码 → BaoStock 符号映射
+_INDEX_SYMBOL_MAP = {
+    "000300": "sh000300",
+    "000905": "sh000905",
+    "000016": "sh000016",
+    "399006": "sz399006",
+}
+
+
+def _load_benchmark(
+    benchmark: str,
+    start: str,
+    end: str,
+    target_index: pd.DatetimeIndex,
+) -> Optional[pd.Series]:
+    """
+    加载基准指数收益序列。
+
+    参数:
+        benchmark: 指数代码 (如 "000300")
+        start: 起始日期
+        end: 结束日期
+        target_index: 目标日期索引（用于对齐）
+
+    返回:
+        基准日收益率 Series，失败返回 None
+    """
+    try:
+        from utils.data_loader import get_index_history
+        bao_symbol = _INDEX_SYMBOL_MAP.get(benchmark, f"sh{benchmark}")
+        idx_df = get_index_history(symbol=bao_symbol, start=start, end=end)
+        if idx_df is None or idx_df.empty:
+            logger.warning("基准数据为空: %s", benchmark)
+            return None
+
+        # 确保有 close 列和日期索引
+        if "close" not in idx_df.columns:
+            logger.warning("基准数据无 close 列")
+            return None
+
+        idx_df.index = pd.to_datetime(idx_df.index)
+        benchmark_ret = idx_df["close"].pct_change().dropna()
+        # 对齐到策略日期
+        benchmark_ret = benchmark_ret.reindex(target_index).fillna(0)
+        return benchmark_ret
+    except Exception as e:
+        logger.warning("基准加载失败: %s", e)
+        return None
+
+
+# ══════════════════════════════════════════════════════════════
 # 主入口
 # ══════════════════════════════════════════════════════════════
 
@@ -374,6 +430,16 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
         result.equity_curve = bt_result
         result.status = "success"
 
+        # ── 6b. 加载基准收益 ─────────────────────────────────
+        benchmark_ret = _load_benchmark(config.benchmark, config.start, config.end, returns.index)
+        if benchmark_ret is not None:
+            result.benchmark_returns = benchmark_ret
+            result.benchmark_metrics = _compute_metrics(benchmark_ret)
+            # 超额收益指标
+            excess = returns - benchmark_ret.reindex(returns.index, fill_value=0)
+            metrics["excess_return"] = round(float((1 + excess).prod() - 1), 6)
+            metrics["excess_sharpe"] = round(float(sharpe_ratio(excess)), 4)
+
         # 打印摘要
         print(f"\n{'='*50}")
         print(f"  回测完成: {config.strategy}")
@@ -385,6 +451,12 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
         print(f"  夏普比率: {metrics.get('sharpe', 0):.2f}")
         print(f"  最大回撤: {metrics.get('max_drawdown', 0):.2%}")
         print(f"  胜率: {metrics.get('win_rate', 0):.2%}")
+        if benchmark_ret is not None:
+            bm = result.benchmark_metrics
+            print(f"  --- 基准 ({config.benchmark}) ---")
+            print(f"  基准总收益: {bm.get('total_return', 0):.2%}")
+            print(f"  基准夏普: {bm.get('sharpe', 0):.2f}")
+            print(f"  超额收益: {metrics.get('excess_return', 0):.2%}")
         print(f"{'='*50}")
 
         # ── 7. 持久化 ────────────────────────────────────────
