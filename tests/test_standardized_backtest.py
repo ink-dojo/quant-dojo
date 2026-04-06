@@ -18,6 +18,7 @@ from backtest.standardized import (
     _validate_config,
     _validate_price_data,
     _compute_rolling_metrics,
+    verify_reproducibility,
     run_backtest,
     run_walk_forward,
     run_parameter_sweep,
@@ -455,3 +456,48 @@ class TestRollingMetrics:
         rm = _compute_rolling_metrics(returns, window=63)
         valid = rm["rolling_sharpe"].dropna()
         assert (valid > 0).all()
+
+
+# ═══════════════════════════════════════════════════════════
+# Reproducibility 测试
+# ═══════════════════════════════════════════════════════════
+
+class TestReproducibility:
+    @patch("backtest.standardized._load_benchmark", return_value=None)
+    @patch("backtest.standardized._compute_factors")
+    @patch("backtest.standardized.load_price_wide")
+    @patch("backtest.standardized.get_all_symbols")
+    @patch("backtest.standardized.load_factor_wide", return_value=pd.DataFrame())
+    def test_verify_reproducibility(
+        self, mock_st, mock_symbols, mock_price, mock_factors, mock_bm, tmp_path
+    ):
+        np.random.seed(42)
+        dates = pd.date_range("2023-01-01", periods=600, freq="B")
+        symbols = [f"00{i:04d}.SZ" for i in range(1, 51)]
+        price = pd.DataFrame(
+            np.cumprod(1 + np.random.randn(600, 50) * 0.01, axis=0) * 10,
+            index=dates, columns=symbols,
+        )
+        mock_symbols.return_value = symbols
+        mock_price.return_value = price
+
+        factor1 = pd.DataFrame(np.random.randn(600, 50), index=dates, columns=symbols)
+        mock_factors.return_value = {"f1": (factor1, 1)}
+
+        # First run
+        config = BacktestConfig(strategy="v7", start="2024-01-01", end="2025-06-30", n_stocks=10)
+
+        from pipeline.run_store import RUNS_DIR as _orig_dir
+        import pipeline.run_store as rs
+        orig_runs_dir = rs.RUNS_DIR
+        rs.RUNS_DIR = tmp_path
+
+        try:
+            result1 = run_backtest(config)
+            assert result1.status == "success"
+
+            # Verify
+            verification = verify_reproducibility(result1.run_id)
+            assert verification["reproducible"] is True
+        finally:
+            rs.RUNS_DIR = orig_runs_dir

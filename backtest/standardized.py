@@ -842,6 +842,76 @@ def run_parameter_sweep(
     return results
 
 
+def verify_reproducibility(run_id: str, tolerance: float = 1e-4) -> dict:
+    """
+    验证回测可重复性：从保存的 run_id 重新运行回测，对比指标。
+
+    参数:
+        run_id: 之前运行的 ID
+        tolerance: 指标差异容忍度
+
+    返回:
+        dict: {
+            "reproducible": bool,
+            "original_metrics": dict,
+            "replay_metrics": dict,
+            "diffs": dict,  # 各指标差异
+        }
+    """
+    from pipeline.run_store import get_run
+
+    record = get_run(run_id)
+    if record.status != "success":
+        raise ValueError(f"运行 {run_id} 状态不是 success: {record.status}")
+
+    # 从保存的参数重建 BacktestConfig
+    params = record.params
+    config = BacktestConfig(**{k: v for k, v in params.items() if k in BacktestConfig.__dataclass_fields__})
+
+    print(f"[可重复性验证] 重放 run_id={run_id}")
+    replay = run_backtest(config)
+
+    if replay.status != "success":
+        return {
+            "reproducible": False,
+            "error": f"重放失败: {replay.error}",
+            "original_metrics": record.metrics,
+        }
+
+    # 对比关键指标
+    key_metrics = ["total_return", "sharpe", "max_drawdown", "win_rate", "n_trading_days"]
+    diffs = {}
+    all_match = True
+
+    for key in key_metrics:
+        orig = record.metrics.get(key, 0)
+        repl = replay.metrics.get(key, 0)
+        diff = abs(orig - repl)
+        diffs[key] = {
+            "original": orig,
+            "replay": repl,
+            "diff": round(diff, 8),
+            "match": diff <= tolerance,
+        }
+        if diff > tolerance:
+            all_match = False
+
+    result = {
+        "reproducible": all_match,
+        "original_metrics": record.metrics,
+        "replay_metrics": replay.metrics,
+        "diffs": diffs,
+    }
+
+    if all_match:
+        print(f"  可重复性验证通过: 所有指标差异 < {tolerance}")
+    else:
+        mismatches = [k for k, v in diffs.items() if not v["match"]]
+        print(f"  可重复性验证失败: 指标不匹配: {mismatches}")
+
+    return result
+
+
 if __name__ == "__main__":
     print("标准化回测框架")
     print("用法:")
