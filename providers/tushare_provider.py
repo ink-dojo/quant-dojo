@@ -86,13 +86,25 @@ class TushareProvider(BaseDataProvider):
         except Exception as e:
             raise ProviderError(f"Tushare Pro 初始化失败: {e}") from e
 
-        # 验证 token 有效性
+        # 验证 token 有效性（用 stock_basic 探测，只需 120 积分）
         try:
-            df = self._pro.trade_cal(exchange="SSE", is_open="1", limit=1)
+            df = self._pro.stock_basic(exchange="", list_status="L",
+                                       fields="ts_code", limit=1)
             if df is None or df.empty:
                 raise ProviderError("Tushare token 无效或积分不足")
         except Exception as e:
             raise ProviderError(f"Tushare token 验证失败: {e}") from e
+
+        # 检测 daily_basic 权限（需要 2000+ 积分）
+        self._has_daily_basic = False
+        try:
+            self._pro.daily_basic(ts_code="000001.SZ",
+                                  start_date="20260101", end_date="20260102",
+                                  fields="ts_code,pe_ttm")
+            self._has_daily_basic = True
+            logger.info("daily_basic 接口可用（基本面数据）")
+        except Exception:
+            logger.info("daily_basic 不可用（积分 < 2000），基本面数据将由 BaoStock 补充")
 
     def _call(self, func, **kwargs):
         """带限流的 API 调用（免费用户 200 次/分钟）"""
@@ -172,19 +184,18 @@ class TushareProvider(BaseDataProvider):
         if daily is None or daily.empty:
             return pd.DataFrame()
 
-        # 2. 基本面指标（PE/PB/PS/换手率）
-        try:
-            basic = self._call(
-                self._pro.daily_basic,
-                trade_date=td,
-                fields="ts_code,turnover_rate,pe_ttm,pb,ps_ttm"
-            )
-        except Exception:
-            basic = pd.DataFrame()
-
-        # 合并
-        if basic is not None and not basic.empty:
-            daily = daily.merge(basic, on="ts_code", how="left")
+        # 2. 基本面指标（PE/PB/PS/换手率）— 需要 2000+ 积分
+        if self._has_daily_basic:
+            try:
+                basic = self._call(
+                    self._pro.daily_basic,
+                    trade_date=td,
+                    fields="ts_code,turnover_rate,pe_ttm,pb,ps_ttm"
+                )
+                if basic is not None and not basic.empty:
+                    daily = daily.merge(basic, on="ts_code", how="left")
+            except Exception:
+                pass
 
         # 3. 转换列名
         daily["symbol"] = daily["ts_code"].apply(_from_ts_code)
@@ -244,15 +255,20 @@ class TushareProvider(BaseDataProvider):
         start = _normalize_date(start_date)
         end = _normalize_date(end_date)
 
-        # 获取交易日历
-        cal = self._call(
-            self._pro.trade_cal,
-            exchange="SSE", start_date=start, end_date=end, is_open="1"
-        )
-        if cal is None or cal.empty:
-            return pd.DataFrame()
+        # 获取交易日列表（trade_cal 需要高积分，降级为逐日尝试）
+        try:
+            cal = self._call(
+                self._pro.trade_cal,
+                exchange="SSE", start_date=start, end_date=end, is_open="1"
+            )
+            trade_dates = sorted(cal["cal_date"].tolist()) if cal is not None and not cal.empty else None
+        except Exception:
+            trade_dates = None
 
-        trade_dates = sorted(cal["cal_date"].tolist())
+        if trade_dates is None:
+            # 降级：生成工作日列表，跳过周末
+            all_days = pd.bdate_range(start=start, end=end)
+            trade_dates = [d.strftime("%Y%m%d") for d in all_days]
         logger.info("批量更新 %d 个交易日: %s → %s",
                      len(trade_dates), trade_dates[0], trade_dates[-1])
 

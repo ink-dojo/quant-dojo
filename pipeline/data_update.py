@@ -297,21 +297,10 @@ def run_update(
     from utils.runtime_config import get_local_data_dir
 
     if provider is None:
-        # 优先 Tushare → AkShare → BaoStock
-        try:
-            from providers.tushare_provider import TushareProvider
-            provider = TushareProvider()
-            logger.info("使用 TushareProvider（批量模式）")
-        except Exception:
-            try:
-                from providers.akshare_provider import AkShareProvider
-                provider = AkShareProvider()
-                provider.fetch_daily_history("000001", "20260101", "20260102")
-                logger.info("使用 AkShareProvider")
-            except Exception:
-                logger.warning("Tushare/AkShare 均不可用，降级到 BaoStockProvider")
-                from providers.baostock_provider import BaoStockProvider
-                provider = BaoStockProvider()
+        # BaoStock 优先（免费、稳定、含基本面）；Tushare 需 2000+ 积分才划算
+        from providers.baostock_provider import BaoStockProvider
+        provider = BaoStockProvider()
+        logger.info("使用 BaoStockProvider（14 字段含基本面）")
 
     # 统一截止日期格式
     if end_date is None:
