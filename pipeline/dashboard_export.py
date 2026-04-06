@@ -191,6 +191,31 @@ def _export_signal_history() -> list:
     return records
 
 
+def _export_industry_distribution() -> list:
+    """导出持仓行业分布"""
+    try:
+        from live.paper_trader import PaperTrader
+        from utils.fundamental_loader import get_industry_classification
+
+        trader = PaperTrader()
+        positions = trader.get_current_positions()
+        if positions.empty:
+            return []
+
+        symbols = positions["symbol"].tolist()
+        ind_df = get_industry_classification(symbols)
+        if ind_df.empty:
+            return []
+
+        counts = ind_df["industry_code"].value_counts()
+        return [
+            {"industry": ind, "count": int(cnt), "pct": round(cnt / len(symbols), 4)}
+            for ind, cnt in counts.items()
+        ]
+    except Exception:
+        return []
+
+
 def _export_strategy_info() -> dict:
     """导出策略状态信息"""
     from pipeline.active_strategy import get_active_strategy, get_strategy_history
@@ -231,6 +256,7 @@ def export_dashboard(include_ic: bool = False) -> dict:
         "signal_history": _export_signal_history(),
         "turnover_history": _export_turnover_history(),
         "factor_health": _export_factor_health(),
+        "industry_distribution": _export_industry_distribution(),
         "recent_alerts": _export_recent_alerts(),
     }
 
