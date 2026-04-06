@@ -637,37 +637,93 @@ def cmd_pipeline_mine(args):
 
 
 def cmd_pipeline_status(args):
-    """查看最近流水线运行状态"""
+    """查看流水线综合状态面板"""
     import json
     from pathlib import Path
 
+    print(f"\n{'='*60}")
+    print("  量化流水线状态面板")
+    print(f"{'='*60}")
+
+    # ── 1. 当前策略 ──────────────────────────────────────────
+    try:
+        from pipeline.active_strategy import get_active_strategy
+        active = get_active_strategy()
+        print(f"\n  当前策略: {active}")
+    except Exception:
+        print("\n  当前策略: v7 (默认)")
+
+    # ── 2. NAV & 绩效 ────────────────────────────────────────
+    try:
+        from live.paper_trader import PaperTrader
+        trader = PaperTrader()
+        perf = trader.get_performance()
+        if perf:
+            nav_file = Path(__file__).parent.parent / "live" / "portfolio" / "nav.csv"
+            import pandas as pd
+            nav_df = pd.read_csv(nav_file)
+            latest_nav = nav_df["nav"].iloc[-1] if not nav_df.empty else 0
+            print(f"  NAV: {latest_nav:,.2f} | 收益: {perf.get('total_return', 0):.2%} | "
+                  f"夏普: {perf.get('sharpe', 0):.2f} | 回撤: {perf.get('max_drawdown', 0):.2%}")
+    except Exception:
+        pass
+
+    # ── 3. 最近运行 ──────────────────────────────────────────
     journal_dir = Path(__file__).parent.parent / "journal"
     files = sorted(journal_dir.glob("pipeline_*.json"), reverse=True)[:5]
 
-    if not files:
-        print("暂无流水线运行记录")
-        return
+    if files:
+        print(f"\n  最近运行:")
+        for f in files:
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                date = data.get("date", "?")
+                mode = data.get("mode", "?")
+                total_time = data.get("total_time_sec", 0)
+                stages = data.get("stages", [])
+                n_ok = sum(1 for s in stages if s["status"] == "success")
+                n_fail = sum(1 for s in stages if s["status"] == "failed")
+                halted = data.get("halted", False)
+                status = "HALTED" if halted else "FAIL" if n_fail else "OK"
+                print(f"    {date} [{mode:6s}] {status:4s} | {n_ok} ok, {n_fail} fail | {total_time:.0f}s")
+            except Exception:
+                pass
+    else:
+        print("\n  最近运行: 暂无记录")
 
-    print(f"\n{'='*60}")
-    print("最近流水线运行")
-    print(f"{'='*60}\n")
+    # ── 4. 因子健康 ──────────────────────────────────────────
+    try:
+        from pipeline.factor_monitor import factor_health_report, FACTOR_PRESETS
+        from pipeline.active_strategy import get_active_strategy as _get
+        _a = _get()
+        _pk = _a if _a in FACTOR_PRESETS else "v7"
+        health = factor_health_report(factors=FACTOR_PRESETS[_pk])
+        if health:
+            print(f"\n  因子健康 ({_pk}):")
+            for name, info in health.items():
+                ic = info.get("rolling_ic")
+                status = info.get("status", "?")
+                ic_str = f"{ic:.4f}" if ic is not None and not (isinstance(ic, float) and ic != ic) else "N/A"
+                icon = {"healthy": "OK", "degraded": "WARN", "dead": "DEAD", "no_data": "N/A"}.get(status, "?")
+                print(f"    {name:20s} | IC: {ic_str:>8s} | {icon}")
+    except Exception:
+        pass
 
-    for f in files:
-        try:
-            data = json.loads(f.read_text(encoding="utf-8"))
-            date = data.get("date", "?")
-            mode = data.get("mode", "?")
-            total_time = data.get("total_time_sec", 0)
-            stages = data.get("stages", [])
-            n_ok = sum(1 for s in stages if s["status"] == "success")
-            n_fail = sum(1 for s in stages if s["status"] == "failed")
-            halted = data.get("halted", False)
-            status = "HALTED" if halted else "FAIL" if n_fail else "OK"
-            print(f"  {date} [{mode}] {status} | {n_ok} ok, {n_fail} fail | {total_time:.0f}s")
-        except Exception:
-            pass
+    # ── 5. 最近告警 ──────────────────────────────────────────
+    try:
+        from pipeline.alert_notifier import get_recent_alerts
+        alerts = get_recent_alerts(n=5)
+        if alerts:
+            print(f"\n  最近告警:")
+            for a in alerts:
+                level = a.get("level", "?").upper()
+                title = a.get("title", "?")
+                ts = a.get("timestamp", "")[:16]
+                print(f"    [{level:8s}] {ts} {title}")
+    except Exception:
+        pass
 
-    print()
+    print(f"\n{'='*60}\n")
 
 
 def cmd_doctor(args):
