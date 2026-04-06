@@ -76,6 +76,8 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
             print(f"  Top 5: {', '.join(top[:5])}")
     except Exception as e:
         print(f"  [失败] 信号生成失败: {e}")
+        print("         排查: python -m quant_dojo doctor")
+        print(f"         重试: python -m quant_dojo run --date {date} --strategy {strategy}")
         results["signal"] = {"status": "failed", "error": str(e)}
         halted = True
         logger.error("信号生成失败", exc_info=True)
@@ -90,6 +92,7 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
             print(f"  [OK] 买入 {result.get('n_buys', 0)} / 卖出 {result.get('n_sells', 0)}")
         except Exception as e:
             print(f"  [失败] 调仓失败: {e}")
+            print("         持仓未变动，不影响现有头寸")
             results["rebalance"] = {"status": "failed", "error": str(e)}
             logger.error("调仓失败", exc_info=True)
     else:
@@ -143,6 +146,15 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
     print(f"  成功: {n_ok} | 失败: {n_fail}")
     if halted:
         print("  [注意] 流水线因关键步骤失败提前停止")
+
+    if n_fail > 0:
+        print()
+        print("  排查步骤:")
+        print("    1. python -m quant_dojo doctor          # 检查系统状态")
+        print(f"    2. python -m quant_dojo run --date {date} --dry-run  # 空跑测试")
+        for step_name, result in results.items():
+            if result.get("status") == "failed":
+                print(f"    [!] {step_name}: {result.get('error', '未知')}")
     print(f"{'='*50}")
 
     # 保存运行日志
