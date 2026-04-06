@@ -129,6 +129,25 @@ def run_doctor():
             print(f"  [问题] {mod} — {err}")
             issues.append(f"模块导入失败: {mod}")
 
+    # ── 6. 定时任务 ──
+    print("\n━━━ 定时任务 ━━━")
+    try:
+        import subprocess
+        result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+        if result.returncode == 0 and "quant-dojo-auto" in result.stdout:
+            # 提取时间
+            for line in result.stdout.split("\n"):
+                if "quant-dojo-auto" in line:
+                    parts = line.strip().split()
+                    if len(parts) >= 2:
+                        print(f"  [OK] 定时任务已设置: 每工作日 {parts[1]}:{parts[0]}")
+                    break
+        else:
+            print("  [未设置] 定时任务未配置")
+            print("         运行: python -m quant_dojo schedule")
+    except Exception:
+        print("  [?] 无法检查定时任务")
+
     # ── 总结 ──
     print(f"\n{'='*50}")
     if not issues and not warnings:
