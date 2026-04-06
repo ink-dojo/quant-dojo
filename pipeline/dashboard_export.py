@@ -72,14 +72,14 @@ def _export_performance_metrics() -> dict:
 
 
 def _export_positions() -> list:
-    """导出当前持仓"""
+    """导出当前持仓（含盈亏归因）"""
     try:
         from live.paper_trader import PaperTrader
         trader = PaperTrader()
-        pos_df = trader.get_current_positions()
-        if pos_df.empty:
+        attr_df = trader.get_position_attribution()
+        if attr_df.empty:
             return []
-        return pos_df.to_dict(orient="records")
+        return attr_df.to_dict(orient="records")
     except Exception as e:
         logger.warning("持仓导出失败: %s", e)
         return []
