@@ -114,9 +114,13 @@ class StrategyComposer:
             reason,
         )
 
+        # 获取当前激活策略
+        from pipeline.active_strategy import get_active_strategy
+        current_name = get_active_strategy()
+
         result = {
             "current_strategy": {
-                "name": "v7",
+                "name": current_name,
                 "factors": CURRENT_V7_FACTORS,
                 "metrics": v7_metrics,
             },
@@ -127,7 +131,13 @@ class StrategyComposer:
             "improvement_ratio": round(improvement, 4),
             "recommendation": recommendation,
             "reason": reason,
+            "auto_upgraded": False,
         }
+
+        # ── 自动升级策略（如果推荐且非 dry_run） ─────────────
+        if recommendation == "upgrade" and not ctx.dry_run:
+            upgrade_result = self._auto_upgrade(recommended, reason, ctx)
+            result["auto_upgraded"] = upgrade_result.get("changed", False)
 
         ctx.set("strategy_recommendation", recommendation)
         ctx.set("strategy_result", result)
@@ -178,6 +188,40 @@ class StrategyComposer:
             "n_valid": len(valid_factors),
             "factors": factor_details,
         }
+
+    def _auto_upgrade(self, recommended_factors: list, reason: str, ctx: Any) -> dict:
+        """
+        自动升级策略版本。
+
+        当推荐因子与已知策略版本匹配时，切换激活策略。
+        目前支持: v7 → v8（v7 因子 + shadow_lower）。
+        """
+        from pipeline.active_strategy import get_active_strategy, set_active_strategy
+
+        current = get_active_strategy()
+
+        # 判断推荐组合是否匹配已知策略定义
+        v8_factors = {"team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp", "shadow_lower"}
+        recommended_set = set(recommended_factors)
+
+        target_strategy = None
+        if recommended_set == v8_factors or (
+            "shadow_lower" in recommended_set and recommended_set - v8_factors == set()
+        ):
+            target_strategy = "v8"
+
+        if target_strategy and target_strategy != current:
+            upgrade_result = set_active_strategy(target_strategy, reason)
+            if upgrade_result["changed"]:
+                print(f"  策略自动升级: {current} → {target_strategy}")
+                ctx.log_decision(
+                    "StrategyComposer",
+                    f"自动升级策略: {current} → {target_strategy}",
+                    reason,
+                )
+            return upgrade_result
+
+        return {"changed": False}
 
     def _save_result(self, result: dict, date: str):
         """保存策略组合结果"""

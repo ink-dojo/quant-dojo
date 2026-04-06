@@ -48,8 +48,9 @@ class SignalProducer:
             for issue in preflight_issues:
                 print(f"  [预检] {issue}")
 
-        # ── 生成信号 ──────────────────────────────────────────
-        strategy = "v7"  # 默认使用 v7 策略
+        # ── 读取当前激活策略 ──────────────────────────────────
+        from pipeline.active_strategy import get_active_strategy
+        strategy = get_active_strategy()
         print(f"  生成信号: {date} (策略: {strategy})")
 
         if ctx.dry_run:

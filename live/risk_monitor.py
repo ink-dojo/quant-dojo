@@ -175,7 +175,10 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
     # --- 4. 因子 IC 衰减检查 ---
     try:
         from pipeline.factor_monitor import factor_health_report, FACTOR_PRESETS  # type: ignore
-        health = factor_health_report(factors=FACTOR_PRESETS["v7"])
+        from pipeline.active_strategy import get_active_strategy
+        _active = get_active_strategy()
+        _preset_key = _active if _active in FACTOR_PRESETS else "v7"
+        health = factor_health_report(factors=FACTOR_PRESETS[_preset_key])
         for factor_name, info in health.items():
             status = info.get("status")
             if status in ("degraded", "dead"):
