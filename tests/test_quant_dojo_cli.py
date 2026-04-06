@@ -393,13 +393,14 @@ class TestCompareCommand:
         mock_result2.config = MagicMock()
         mock_result2.config.strategy = "v8"
 
-        with patch("backtest.standardized.run_backtest", side_effect=[mock_result, mock_result2]):
-            with patch("backtest.comparison.generate_comparison_report", return_value="/tmp/report.html"):
-                run_compare(
-                    strategies=["v7", "v8"],
-                    start="2024-01-01",
-                    end="2025-12-31",
-                )
+        with patch("utils.local_data_loader.get_all_symbols", return_value=["000001"]):
+            with patch("backtest.standardized.run_backtest", side_effect=[mock_result, mock_result2]):
+                with patch("backtest.comparison.generate_comparison_report", return_value="/tmp/report.html"):
+                    run_compare(
+                        strategies=["v7", "v8"],
+                        start="2024-01-01",
+                        end="2025-12-31",
+                    )
 
     def test_compare_all_fail_exits(self):
         """所有回测都失败应 exit(1)"""
@@ -409,10 +410,11 @@ class TestCompareCommand:
         mock_result.status = "failed"
         mock_result.error = "no data"
 
-        with patch("backtest.standardized.run_backtest", return_value=mock_result):
-            with pytest.raises(SystemExit) as exc_info:
-                run_compare(strategies=["v7", "v8"])
-            assert exc_info.value.code == 1
+        with patch("utils.local_data_loader.get_all_symbols", return_value=["000001"]):
+            with patch("backtest.standardized.run_backtest", return_value=mock_result):
+                with pytest.raises(SystemExit) as exc_info:
+                    run_compare(strategies=["v7", "v8"])
+                assert exc_info.value.code == 1
 
     def test_compare_cli_dispatch(self):
         """CLI 应正确调度 compare 命令"""

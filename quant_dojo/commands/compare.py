@@ -41,6 +41,19 @@ def run_compare(
     print(f"  选股: {n_stocks}")
     print()
 
+    # 前置检查
+    try:
+        from utils.local_data_loader import get_all_symbols
+        symbols = get_all_symbols()
+        if not symbols:
+            print("  [错误] 未找到股票数据")
+            print("         请先运行: python -m quant_dojo init --download")
+            sys.exit(1)
+        print(f"  数据: {len(symbols)} 只股票\n")
+    except Exception as e:
+        print(f"  [错误] 数据检查失败: {e}")
+        sys.exit(1)
+
     from backtest.standardized import run_backtest, BacktestConfig
 
     results = []
