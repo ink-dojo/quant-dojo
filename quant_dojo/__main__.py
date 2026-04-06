@@ -2,13 +2,18 @@
 """
 quant_dojo — 统一入口
 
-用法:
-    python -m quant_dojo init                  # 首次设置
+新手入门（一个命令搞定一切）:
+    python -m quant_dojo quickstart            # 自动: 初始化→下载→回测→激活→定时
+
+日常使用:
     python -m quant_dojo run                   # 每日全流程
-    python -m quant_dojo run --date 2026-04-03 # 指定日期
-    python -m quant_dojo backtest              # 回测（默认 v7，最近2年）
-    python -m quant_dojo backtest --strategy v8 --start 2024-01-01 --end 2026-03-31
     python -m quant_dojo status                # 一眼看全局
+    python -m quant_dojo backtest              # 回测（默认 v7，最近2年）
+
+进阶:
+    python -m quant_dojo compare v7 v8         # 策略对比
+    python -m quant_dojo activate v8           # 切换策略
+    python -m quant_dojo dashboard             # 可视化仪表盘
 """
 import argparse
 import sys
@@ -26,12 +31,20 @@ def main():
         description="quant-dojo 量化研究自动化 — 一个命令通到底",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-示例:
-  python -m quant_dojo init                       # 首次设置
+新手入门:
+  python -m quant_dojo quickstart                 # 一键完成所有设置
+
+分步操作:
+  python -m quant_dojo init --download            # 初始化 + 下载数据
+  python -m quant_dojo backtest                   # 回测验证
+  python -m quant_dojo activate v7                # 激活策略
   python -m quant_dojo run                        # 每日全流程
-  python -m quant_dojo backtest                   # 快速回测
-  python -m quant_dojo status                     # 系统状态
   python -m quant_dojo schedule                   # 设置定时自动运行
+
+日常使用:
+  python -m quant_dojo status                     # 系统状态
+  python -m quant_dojo compare v7 v8              # 策略对比
+  python -m quant_dojo dashboard                  # 可视化仪表盘
   python -m quant_dojo doctor                     # 诊断问题
         """,
     )
