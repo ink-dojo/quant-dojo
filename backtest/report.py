@@ -73,6 +73,9 @@ def generate_html_report(result: "BacktestResult") -> Path:
     # 因子统计表
     factor_html = _render_factor_table(factor_stats)
 
+    # 调仓日志
+    trade_html = _render_trade_log(result.trade_log)
+
     # 配置摘要
     config_html = _render_config_table(config)
 
@@ -139,6 +142,11 @@ canvas {{ width: 100% !important; }}
 <div class="card">
 <h2>因子统计</h2>
 {factor_html}
+</div>
+
+<div class="card">
+<h2>调仓记录</h2>
+{trade_html}
 </div>
 
 <div class="card">
@@ -345,6 +353,49 @@ def _render_config_table(config) -> str:
 
     rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in items)
     return f"<table><tbody>{rows}</tbody></table>"
+
+
+def _render_trade_log(trade_log: list) -> str:
+    """渲染调仓记录表"""
+    if not trade_log:
+        return "<p>无调仓记录</p>"
+
+    rows = []
+    for t in trade_log:
+        buys_str = ", ".join(t.get("buys", [])[:5])
+        if len(t.get("buys", [])) > 5:
+            buys_str += f" +{len(t['buys'])-5}"
+        sells_str = ", ".join(t.get("sells", [])[:5])
+        if len(t.get("sells", [])) > 5:
+            sells_str += f" +{len(t['sells'])-5}"
+
+        rows.append(
+            f"<tr><td>{t['date']}</td><td>{t.get('n_holdings', 0)}</td>"
+            f"<td>{t.get('n_buys', 0)}</td><td>{t.get('n_sells', 0)}</td>"
+            f"<td>{t.get('turnover', 0):.1%}</td>"
+            f"<td style='font-size:12px'>{buys_str}</td>"
+            f"<td style='font-size:12px'>{sells_str}</td></tr>"
+        )
+
+    # 汇总行
+    avg_turnover = np.mean([t.get("turnover", 0) for t in trade_log])
+    total_buys = sum(t.get("n_buys", 0) for t in trade_log)
+    total_sells = sum(t.get("n_sells", 0) for t in trade_log)
+    rows.append(
+        f"<tr style='font-weight:700;background:#f8f9fa'>"
+        f"<td>合计 ({len(trade_log)} 次)</td><td>-</td>"
+        f"<td>{total_buys}</td><td>{total_sells}</td>"
+        f"<td>{avg_turnover:.1%} (均)</td><td>-</td><td>-</td></tr>"
+    )
+
+    return (
+        "<table><thead><tr>"
+        "<th>日期</th><th>持仓</th><th>买入</th><th>卖出</th>"
+        "<th>换手率</th><th>买入标的</th><th>卖出标的</th>"
+        "</tr></thead><tbody>"
+        + "".join(rows) +
+        "</tbody></table>"
+    )
 
 
 def _compute_monthly_returns(returns: pd.Series) -> pd.DataFrame:
