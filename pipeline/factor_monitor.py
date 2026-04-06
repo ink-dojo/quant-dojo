@@ -37,6 +37,7 @@ FACTOR_SNAPSHOT_DIR = _get_factor_snapshot_dir()
 def compute_rolling_ic(
     factor_name: str,
     lookback_days: int = 60,
+    price_wide: "pd.DataFrame | None" = None,
 ) -> pd.Series:
     """
     计算因子的滚动 IC（信息系数）
@@ -46,6 +47,7 @@ def compute_rolling_ic(
     参数:
         factor_name    : 因子名称（e.g. "momentum_20", "ep", "low_vol", "turnover"）
         lookback_days  : 回溯天数（默认 60 天），仅返回最近 N 天的 IC 序列
+        price_wide     : 预加载的价格宽表；若提供则跳过内部 load_price_wide 调用
 
     返回:
         ic_series : pd.Series，index 为 trade_date，values 为日均 IC
@@ -111,10 +113,11 @@ def compute_rolling_ic(
         )
         return pd.Series(dtype=float, name=f"IC_{factor_name}")
 
-    symbols = sorted({symbol for _, factor_vals in ic_list for symbol in factor_vals.index})
-    start = min(dates_list).strftime("%Y-%m-%d")
-    end = (max(dates_list) + pd.Timedelta(days=10)).strftime("%Y-%m-%d")
-    price_wide = load_price_wide(symbols, start, end, field="close")
+    if price_wide is None:
+        symbols = sorted({symbol for _, factor_vals in ic_list for symbol in factor_vals.index})
+        start = min(dates_list).strftime("%Y-%m-%d")
+        end = (max(dates_list) + pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+        price_wide = load_price_wide(symbols, start, end, field="close")
     if price_wide.empty:
         warnings.warn(
             f"无法加载价格数据计算因子 {factor_name} 的次日收益，返回空 Series",
@@ -206,8 +209,35 @@ def factor_health_report(factors: list[str] | None = None) -> dict:
         factors = FACTOR_PRESETS["legacy"]
     report = {}
 
+    # 预加载价格数据（避免每个因子重复加载）
+    _shared_price_wide = None
+    try:
+        snapshot_files = sorted(FACTOR_SNAPSHOT_DIR.glob("*.parquet"))[-60:]
+        if snapshot_files:
+            all_symbols = set()
+            all_dates = []
+            for snap_file in snapshot_files:
+                try:
+                    df_snap = pd.read_parquet(snap_file)
+                    for f in factors:
+                        if f in df_snap.columns:
+                            all_symbols.update(df_snap[f].dropna().index)
+                    all_dates.append(pd.Timestamp(snap_file.stem))
+                except Exception:
+                    continue
+            if all_symbols and all_dates:
+                start = min(all_dates).strftime("%Y-%m-%d")
+                end = (max(all_dates) + pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+                _shared_price_wide = load_price_wide(
+                    sorted(all_symbols), start, end, field="close"
+                )
+    except Exception:
+        pass
+
     for factor_name in factors:
-        ic_series = compute_rolling_ic(factor_name, lookback_days=60)
+        ic_series = compute_rolling_ic(
+            factor_name, lookback_days=60, price_wide=_shared_price_wide
+        )
 
         if ic_series.empty:
             # 无数据，标记为 no_data

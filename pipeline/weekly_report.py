@@ -169,8 +169,8 @@ def _try_factor_health() -> Optional[dict]:
         因子健康度字典或 None
     """
     try:
-        from pipeline.factor_monitor import factor_health_report
-        return factor_health_report()
+        from pipeline.factor_monitor import factor_health_report, FACTOR_PRESETS
+        return factor_health_report(factors=FACTOR_PRESETS["v7"])
     except Exception:
         return None
 
