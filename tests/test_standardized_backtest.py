@@ -18,6 +18,7 @@ from backtest.standardized import (
     _validate_config,
     _validate_price_data,
     _compute_rolling_metrics,
+    _check_monotonicity,
     verify_reproducibility,
     run_backtest,
     run_walk_forward,
@@ -456,6 +457,40 @@ class TestRollingMetrics:
         rm = _compute_rolling_metrics(returns, window=63)
         valid = rm["rolling_sharpe"].dropna()
         assert (valid > 0).all()
+
+
+# ═══════════════════════════════════════════════════════════
+# Monotonicity / Quintile 测试
+# ═══════════════════════════════════════════════════════════
+
+class TestMonotonicity:
+    def test_increasing(self):
+        d = {"Q1": 0.01, "Q2": 0.02, "Q3": 0.03, "Q4": 0.04, "Q5": 0.05}
+        assert _check_monotonicity(d) == "increasing"
+
+    def test_decreasing(self):
+        d = {"Q1": 0.05, "Q2": 0.04, "Q3": 0.03, "Q4": 0.02, "Q5": 0.01}
+        assert _check_monotonicity(d) == "decreasing"
+
+    def test_mixed(self):
+        d = {"Q1": 0.05, "Q2": 0.01, "Q3": 0.04, "Q4": 0.02, "Q5": 0.03}
+        assert _check_monotonicity(d) == "mixed"
+
+    def test_single_group(self):
+        d = {"Q1": 0.05}
+        assert _check_monotonicity(d) == "mixed"
+
+    def test_flat(self):
+        d = {"Q1": 0.0, "Q2": 0.0, "Q3": 0.0}
+        assert _check_monotonicity(d) == "increasing"  # all diffs == 0, >= 0
+
+
+class TestQuintileInResult:
+    def test_result_has_quintile_stats_field(self):
+        config = BacktestConfig(strategy="v7", start="2024-01-01", end="2024-12-31")
+        result = BacktestResult(config=config, status="success")
+        assert hasattr(result, "quintile_stats")
+        assert result.quintile_stats == {}
 
 
 # ═══════════════════════════════════════════════════════════
