@@ -392,5 +392,132 @@ class TestWeeklyReportWithRealFiles(unittest.TestCase):
             self.assertAlmostEqual(loaded_nav[-1]["nav"], 103000.0)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Test 5: 连续多日运行 + 重启恢复 — 端到端 loop 测试
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestContinuousMultiDayLoop(unittest.TestCase):
+    """
+    验证 Day1 signal → rebalance → Day2 signal → rebalance → ... → weekly report
+    的完整连续循环，以及中途重启后状态恢复的正确性。
+    """
+
+    SYMBOLS = ["000001.SZ", "000002.SZ", "000003.SZ", "000004.SZ"]
+    DATES = ["2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27"]
+
+    def _fake_price_df(self) -> pd.DataFrame:
+        """构造多日价格数据。"""
+        dates = pd.date_range("2025-01-02", "2026-03-28", freq="B")
+        rng = np.random.default_rng(123)
+        data = rng.uniform(5.0, 50.0, (len(dates), len(self.SYMBOLS)))
+        return pd.DataFrame(data, index=dates, columns=self.SYMBOLS)
+
+    def test_multi_day_signal_rebalance_loop(self):
+        """连续 5 个交易日的 signal → rebalance 循环，验证 NAV 单调记录。"""
+        from live.paper_trader import PaperTrader
+
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            price_df = self._fake_price_df()
+
+            with patch("live.paper_trader.PORTFOLIO_DIR", d), \
+                 patch("live.paper_trader.POSITIONS_FILE", d / "positions.json"), \
+                 patch("live.paper_trader.TRADES_FILE", d / "trades.json"), \
+                 patch("live.paper_trader.NAV_FILE", d / "nav.csv"):
+
+                trader = PaperTrader(initial_capital=500_000)
+
+                nav_records = []
+                for i, date_str in enumerate(self.DATES):
+                    # 模拟每天选不同的股票
+                    picks = self.SYMBOLS[i % 3:(i % 3) + 2]
+                    prices = {
+                        sym: float(price_df.loc[price_df.index <= date_str].iloc[-1][sym])
+                        for sym in self.SYMBOLS
+                        if sym in price_df.columns
+                    }
+
+                    result = trader.rebalance(new_picks=picks, prices=prices, date=date_str)
+                    nav_records.append(result["nav_after"])
+
+                    # 验证每次 rebalance 后 NAV > 0
+                    self.assertGreater(result["nav_after"], 0, f"Day {date_str} NAV <= 0")
+
+                # 验证 nav.csv 有 5 行记录（每天一行）
+                nav_df = pd.read_csv(d / "nav.csv")
+                self.assertEqual(len(nav_df), 5, f"nav.csv 应有 5 行，实际 {len(nav_df)}")
+
+                # 验证交易记录累积增长
+                self.assertGreater(len(trader.trades), 0)
+
+    def test_restart_mid_week_preserves_state(self):
+        """运行 3 天后重启，新实例应恢复持仓、继续第 4 天调仓。"""
+        from live.paper_trader import PaperTrader
+
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+
+            with patch("live.paper_trader.PORTFOLIO_DIR", d), \
+                 patch("live.paper_trader.POSITIONS_FILE", d / "positions.json"), \
+                 patch("live.paper_trader.TRADES_FILE", d / "trades.json"), \
+                 patch("live.paper_trader.NAV_FILE", d / "nav.csv"):
+
+                # 前 3 天
+                t1 = PaperTrader(initial_capital=300_000)
+                for date_str in self.DATES[:3]:
+                    t1.rebalance(
+                        new_picks=["000001.SZ", "000002.SZ"],
+                        prices={"000001.SZ": 15.0, "000002.SZ": 25.0},
+                        date=date_str,
+                    )
+                trades_before = len(t1.trades)
+                cash_before = t1._get_cash()
+
+                # 重启
+                t2 = PaperTrader(initial_capital=300_000)
+                self.assertEqual(len(t2.trades), trades_before, "重启后交易记录数不一致")
+                self.assertAlmostEqual(t2._get_cash(), cash_before, places=2, msg="重启后现金不一致")
+
+                # 第 4 天 — 新实例继续调仓
+                result = t2.rebalance(
+                    new_picks=["000003.SZ"],
+                    prices={"000003.SZ": 10.0, "000001.SZ": 15.0, "000002.SZ": 25.0},
+                    date=self.DATES[3],
+                )
+                self.assertGreater(len(t2.trades), trades_before, "第4天应产生新交易")
+                self.assertGreater(result["nav_after"], 0)
+
+    def test_weekly_report_after_continuous_run(self):
+        """连续运行后生成的周报应包含交易记录和 NAV 数据。"""
+        from live.paper_trader import PaperTrader
+        from pipeline.weekly_report import (
+            _load_trades, _load_nav, _get_week_dates,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+
+            with patch("live.paper_trader.PORTFOLIO_DIR", d), \
+                 patch("live.paper_trader.POSITIONS_FILE", d / "positions.json"), \
+                 patch("live.paper_trader.TRADES_FILE", d / "trades.json"), \
+                 patch("live.paper_trader.NAV_FILE", d / "nav.csv"):
+
+                trader = PaperTrader(initial_capital=100_000)
+                for date_str in self.DATES:
+                    trader.rebalance(
+                        new_picks=["000001.SZ"],
+                        prices={"000001.SZ": 10.0},
+                        date=date_str,
+                    )
+
+            # 验证周报数据加载
+            dates = _get_week_dates("2026-W13")
+            trades = _load_trades(str(d / "trades.json"), dates)
+            nav_rows = _load_nav(str(d / "nav.csv"), dates)
+
+            self.assertGreater(len(trades), 0, "应有交易记录")
+            self.assertGreater(len(nav_rows), 0, "应有 NAV 数据")
+
+
 if __name__ == "__main__":
     unittest.main()
