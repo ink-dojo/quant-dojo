@@ -170,7 +170,7 @@ def run_daily_pipeline(
         neutralized_factors = {}
         ic_series_dict = {}
         for name, fac_wide in raw_factors.items():
-            if fac_wide.empty or fac_wide.dropna().shape[0] < 30:
+            if fac_wide.empty or fac_wide.dropna(how="all").shape[0] < 30:
                 continue
             try:
                 neutral = neutralize_factor_by_industry(fac_wide, industry_df)
@@ -199,16 +199,34 @@ def run_daily_pipeline(
             n = len(neutralized_factors) or 1
             weights = pd.Series(1.0 / n, index=neutralized_factors.keys())
 
-        # 加权合成 composite
-        composite_series = None
+        # 加权合成 composite（NaN 安全：缺失因子不传播 NaN，按有效权重重归一化）
+        last_day_vals = {}
         for name, fac_wide in neutralized_factors.items():
-            w = weights.get(name, 0)
-            # 取最后一个交易日
-            last_vals = fac_wide.iloc[-1]
-            if composite_series is None:
-                composite_series = last_vals * w
-            else:
-                composite_series = composite_series + last_vals * w
+            last_day_vals[name] = fac_wide.iloc[-1]
+        factor_df = pd.DataFrame(last_day_vals)
+        weight_series = pd.Series({n: weights.get(n, 0) for n in factor_df.columns})
+        # 每只股票只用有数据的因子加权，权重重归一化
+        valid_mask = factor_df.notna()
+        effective_weights = valid_mask.multiply(weight_series, axis=1)
+        weight_sums = effective_weights.sum(axis=1)
+        effective_weights = effective_weights.div(weight_sums, axis=0)
+        composite_series = (factor_df * effective_weights).sum(axis=1)
+        # 完全没有因子数据的股票置为 NaN
+        composite_series[weight_sums == 0] = np.nan
+
+        if composite_series is None:
+            return {
+                "date": actual_date,
+                "picks": [],
+                "scores": {},
+                "factor_values": {},
+                "excluded": [],
+                "metadata": {
+                    "strategy": strategy,
+                    "n_input_symbols": n_input_symbols,
+                    "error": "所有因子数据不足，无法生成合成评分",
+                },
+            }
 
         composite = composite_series.dropna().sort_values(ascending=False)
         # Store raw (non-neutralized) factors for factor_values output
