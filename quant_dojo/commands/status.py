@@ -31,6 +31,7 @@ def show_status():
     _show_signal_status()
     _show_portfolio_status()
     _show_risk_status()
+    _show_last_run()
     _show_recent_backtests()
 
     print()
@@ -175,6 +176,35 @@ def _show_risk_status():
                 print(f"  [{level}] {msg}")
     except Exception as e:
         print(f"  [?] 风控检查失败: {e}")
+    print()
+
+
+def _show_last_run():
+    """最近一次运行"""
+    print("━━━ 最近运行 ━━━")
+    log_dir = PROJECT_ROOT / "logs"
+    if not log_dir.exists():
+        print("  尚无运行记录")
+        print()
+        return
+
+    log_files = sorted(log_dir.glob("quant_dojo_run_*.json"), reverse=True)
+    if not log_files:
+        print("  尚无运行记录")
+        print()
+        return
+
+    try:
+        data = json.loads(log_files[0].read_text(encoding="utf-8"))
+        date = data.get("date", "?")
+        ts = data.get("timestamp", "")[:19]
+        elapsed = data.get("elapsed_sec", 0)
+        steps = data.get("steps", {})
+        n_fail = sum(1 for s in steps.values() if s.get("status") == "failed")
+        mark = "OK" if n_fail == 0 else f"FAIL ({n_fail})"
+        print(f"  [{mark}] {date}  {ts}  {elapsed:.1f}s")
+    except Exception:
+        print("  日志读取失败")
     print()
 
 

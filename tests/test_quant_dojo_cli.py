@@ -318,6 +318,23 @@ class TestStatusCommand:
         with patch("quant_dojo.commands.status.PROJECT_ROOT", tmp_path):
             _show_portfolio_status()  # 不应崩溃
 
+    def test_show_last_run(self, tmp_path):
+        """有运行记录时应显示最近运行"""
+        from quant_dojo.commands.status import _show_last_run
+
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        log = {
+            "date": "2026-04-05",
+            "timestamp": "2026-04-05T16:30:00",
+            "elapsed_sec": 8.3,
+            "steps": {"signal": {"status": "ok"}},
+        }
+        (log_dir / "quant_dojo_run_2026-04-05.json").write_text(json.dumps(log))
+
+        with patch("quant_dojo.commands.status.PROJECT_ROOT", tmp_path):
+            _show_last_run()  # 不应崩溃
+
     def test_show_portfolio_with_nav(self, tmp_path):
         """有 NAV 数据时应显示收益"""
         from quant_dojo.commands.status import _show_portfolio_status
