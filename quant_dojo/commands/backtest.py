@@ -100,9 +100,13 @@ def run_backtest_cmd(
     print(f"{'─'*40}")
 
     # 提示下一步
+    print(f"\n  下一步:")
     if sharpe >= 0.5 and total > 0:
-        print(f"\n  下一步:")
         print(f"    python -m quant_dojo activate {strategy}   # 激活此策略")
         print(f"    python -m quant_dojo run                   # 开始每日运行")
+    else:
+        other = "v8" if strategy == "v7" else "v7"
+        print(f"    python -m quant_dojo compare {strategy} {other}  # 对比其他策略")
+        print(f"    python -m quant_dojo backtest --strategy {other}  # 试试 {other}")
 
     return result
