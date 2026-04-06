@@ -17,6 +17,7 @@ from utils.alpha_factors import (
     low_vol_20d,
     enhanced_momentum,
     bp_factor,
+    shadow_lower,
 )
 from utils.factor_analysis import neutralize_factor_by_industry, compute_ic_series
 from utils.fundamental_loader import get_industry_classification
@@ -118,8 +119,9 @@ def run_daily_pipeline(
     # ── 计算因子 ──────────────────────────────────────────────
     factor_dict = {}
 
-    if strategy == "v7":
-        # ── v7 策略：行业中性化 + IC 加权合成 ────────────────
+    if strategy in ("v7", "v8"):
+        # ── v7/v8 策略：行业中性化 + IC 加权合成 ────────────────
+        # v8 在 v7 基础上加入 shadow_lower（微观结构因子，ICIR=0.51）
         # 计算各因子宽表（日期 × 股票）
         try:
             team_coin_wide = team_coin(price_wide)
@@ -158,6 +160,17 @@ def run_daily_pipeline(
             "enhanced_mom_60": enhanced_mom_wide,
             "bp": bp_wide,
         }
+
+        # v8 额外因子：shadow_lower（微观结构-下影线支撑）
+        if strategy == "v8":
+            try:
+                high_wide = load_price_wide(symbols, start, end, field="high")
+                low_wide = load_price_wide(symbols, start, end, field="low")
+                if not high_wide.empty and not low_wide.empty:
+                    shadow_lower_wide = shadow_lower(price_wide, low_wide)
+                    raw_factors["shadow_lower"] = shadow_lower_wide
+            except Exception:
+                warnings.warn("shadow_lower 计算失败，跳过")
 
         # 行业分类
         try:
@@ -383,8 +396,8 @@ if __name__ == "__main__":
         "--strategy",
         type=str,
         default="ad_hoc",
-        choices=["ad_hoc", "v7"],
-        help="因子策略：ad_hoc（默认）或 v7（行业中性+IC加权）",
+        choices=["ad_hoc", "v7", "v8"],
+        help="因子策略：ad_hoc/v7/v8（v8=v7+shadow_lower微观结构因子）",
     )
     args = parser.parse_args()
 
