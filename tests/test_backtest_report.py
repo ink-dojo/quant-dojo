@@ -15,6 +15,7 @@ from backtest.report import (
     _render_config_table,
     _render_trade_log,
     _render_correlation_matrix,
+    _render_quintile_table,
     _render_monthly_heatmap,
     _compute_monthly_returns,
     _heatmap_color,
@@ -190,6 +191,45 @@ class TestRenderTradeLog:
         ]
         html = _render_trade_log(trades)
         assert "+3" in html  # 8 buys, shows 5 + "+3"
+
+
+# ═══════════════════════════════════════════════════════════
+# Quintile table
+# ═══════════════════════════════════════════════════════════
+
+class TestRenderQuintileTable:
+    def test_empty(self):
+        assert "无分层数据" in _render_quintile_table({})
+
+    def test_with_data(self):
+        stats = {
+            "momentum": {
+                "group_cum_return": {"Q1": -0.05, "Q2": 0.01, "Q3": 0.03, "Q4": 0.06, "Q5": 0.10},
+                "ls_annual_return": 0.15,
+                "ls_sharpe": 1.2,
+                "direction": 1,
+                "monotonicity": "increasing",
+            },
+        }
+        html = _render_quintile_table(stats)
+        assert "momentum" in html
+        assert "递增" in html
+        assert "1.20" in html
+        assert "15.00%" in html
+
+    def test_mixed_monotonicity(self):
+        stats = {
+            "vol": {
+                "group_cum_return": {"Q1": 0.05, "Q2": -0.01, "Q3": 0.03, "Q4": -0.02, "Q5": 0.01},
+                "ls_annual_return": -0.02,
+                "ls_sharpe": -0.3,
+                "direction": -1,
+                "monotonicity": "mixed",
+            },
+        }
+        html = _render_quintile_table(stats)
+        assert "混合" in html
+        assert "negative" in html  # negative ls_annual_return
 
 
 # ═══════════════════════════════════════════════════════════

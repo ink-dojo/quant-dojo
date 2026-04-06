@@ -83,6 +83,9 @@ def generate_html_report(result: "BacktestResult") -> Path:
     # 因子相关性矩阵
     corr_html = _render_correlation_matrix(factor_stats.get("_correlation_matrix"))
 
+    # 分层回测
+    quintile_html = _render_quintile_table(getattr(result, "quintile_stats", {}))
+
     # 调仓日志
     trade_html = _render_trade_log(result.trade_log)
 
@@ -164,6 +167,11 @@ canvas {{ width: 100% !important; }}
 <div class="card">
 <h2>因子相关性矩阵</h2>
 {corr_html}
+</div>
+
+<div class="card">
+<h2>分层回测（Quintile）</h2>
+{quintile_html}
 </div>
 
 <div class="card">
@@ -445,6 +453,45 @@ def _render_correlation_matrix(corr_data: dict | None) -> str:
     return (
         '<table class="heatmap-table"><thead>' + header + '</thead><tbody>'
         + "".join(rows) + '</tbody></table>'
+    )
+
+
+def _render_quintile_table(quintile_stats: dict) -> str:
+    """渲染分层回测表格"""
+    if not quintile_stats:
+        return "<p>无分层数据</p>"
+
+    rows = []
+    for name, stats in quintile_stats.items():
+        group_ret = stats.get("group_cum_return", {})
+        group_cells = ""
+        for q in ["Q1", "Q2", "Q3", "Q4", "Q5"]:
+            val = group_ret.get(q, 0)
+            color = "positive" if val > 0 else "negative" if val < 0 else ""
+            group_cells += f'<td class="{color}">{val:.2%}</td>'
+
+        ls_ret = stats.get("ls_annual_return", 0)
+        ls_sharpe = stats.get("ls_sharpe", 0)
+        mono = stats.get("monotonicity", "mixed")
+        mono_label = {"increasing": "递增", "decreasing": "递减", "mixed": "混合"}.get(mono, mono)
+        mono_color = "#00b894" if mono in ("increasing", "decreasing") else "#fdcb6e"
+
+        rows.append(
+            f"<tr><td><strong>{name}</strong></td>"
+            f"{group_cells}"
+            f'<td class="{"positive" if ls_ret > 0 else "negative"}">{ls_ret:.2%}</td>'
+            f"<td>{ls_sharpe:.2f}</td>"
+            f'<td style="color:{mono_color}">{mono_label}</td>'
+            f"</tr>"
+        )
+
+    return (
+        "<table><thead><tr>"
+        "<th>因子</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Q5</th>"
+        "<th>多空年化</th><th>多空夏普</th><th>单调性</th>"
+        "</tr></thead><tbody>"
+        + "".join(rows)
+        + "</tbody></table>"
     )
 
 

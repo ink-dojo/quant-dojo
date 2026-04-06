@@ -82,6 +82,7 @@ class BacktestResult:
     benchmark_metrics: dict = field(default_factory=dict)
     trade_log: list = field(default_factory=list)
     factor_stats: dict = field(default_factory=dict)
+    quintile_stats: dict = field(default_factory=dict)  # {因子名: {group_cum_ret, ls_sharpe, ...}}
     run_id: str = ""
     status: str = "pending"
     error: Optional[str] = None
@@ -281,6 +282,24 @@ def _compute_rolling_metrics(returns: pd.Series, window: int = 63) -> pd.DataFra
         "rolling_drawdown": rolling_dd,
         "rolling_win_rate": rolling_wr,
     }, index=returns.index)
+
+
+def _check_monotonicity(group_cum_return: dict) -> str:
+    """
+    检查分组累计收益是否单调递增/递减。
+
+    返回:
+        "increasing" / "decreasing" / "mixed"
+    """
+    vals = list(group_cum_return.values())
+    if len(vals) < 2:
+        return "mixed"
+    diffs = [vals[i+1] - vals[i] for i in range(len(vals) - 1)]
+    if all(d >= 0 for d in diffs):
+        return "increasing"
+    if all(d <= 0 for d in diffs):
+        return "decreasing"
+    return "mixed"
 
 
 # ══════════════════════════════════════════════════════════════
@@ -487,6 +506,35 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
             }
 
         result.factor_stats = factor_stats
+
+        # 分层回测（quintile analysis）
+        from utils.factor_analysis import quintile_backtest
+        quintile_stats = {}
+        for name, (fac_wide, direction) in factors.items():
+            try:
+                group_ret, ls_ret = quintile_backtest(
+                    fac_wide, ret_wide, n_groups=5,
+                    long_short="Qn_minus_Q1" if direction == 1 else "Q1_minus_Qn",
+                )
+                if group_ret.empty:
+                    continue
+                ls_clean = ls_ret.dropna()
+                cum_by_group = {}
+                for col in group_ret.columns:
+                    g = group_ret[col].dropna()
+                    cum_by_group[col] = round(float((1 + g).prod() - 1), 6) if len(g) > 0 else 0.0
+                ls_ann = float(ls_clean.mean() * 252) if len(ls_clean) > 0 else 0.0
+                ls_vol = float(ls_clean.std() * np.sqrt(252)) if len(ls_clean) > 0 else 0.0
+                quintile_stats[name] = {
+                    "group_cum_return": cum_by_group,
+                    "ls_annual_return": round(ls_ann, 6),
+                    "ls_sharpe": round(ls_ann / ls_vol, 4) if ls_vol > 0 else 0.0,
+                    "direction": direction,
+                    "monotonicity": _check_monotonicity(cum_by_group),
+                }
+            except Exception as e:
+                logger.warning("分层回测失败 %s: %s", name, e)
+        result.quintile_stats = quintile_stats
 
         # ── 3. 加载 ST 数据 ──────────────────────────────────
         print("  加载 ST 数据...")
