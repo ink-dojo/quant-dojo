@@ -24,12 +24,13 @@ class SignalProducer:
     信号生成 Agent：带 pre/post-flight 校验的信号管道。
     """
 
-    # 选股数量合理范围
-    MIN_PICKS = 10
-    MAX_PICKS = 60
-
-    # 相邻日信号重叠率预警阈值
-    OVERLAP_WARNING_THRESHOLD = 0.3  # 重叠 < 30% 发预警
+    def __init__(self):
+        from utils.runtime_config import get_pipeline_param
+        self.MIN_PICKS = get_pipeline_param("signal_validation.min_picks", 10)
+        self.MAX_PICKS = get_pipeline_param("signal_validation.max_picks", 60)
+        self.OVERLAP_WARNING_THRESHOLD = get_pipeline_param(
+            "signal_validation.overlap_warning_threshold", 0.3
+        )
 
     def run(self, ctx: Any) -> dict:
         """

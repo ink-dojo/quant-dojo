@@ -38,16 +38,13 @@ class FactorMiner:
       5. 推荐最优 Top-K 因子组合
     """
 
-    # 因子筛选阈值
-    MIN_ABS_IC = 0.015       # |IC| 最低门槛
-    MIN_ABS_ICIR = 0.2       # |ICIR| 最低门槛
-    MIN_ABS_T_STAT = 1.5     # |t-stat| 最低门槛
-
-    # 相关性阈值（高于此值认为两个因子共线）
-    CORRELATION_THRESHOLD = 0.7
-
-    # 推荐组合的因子数量
-    TOP_K = 5
+    def __init__(self):
+        from utils.runtime_config import get_pipeline_param
+        self.MIN_ABS_IC = get_pipeline_param("factor_mining.min_abs_ic", 0.015)
+        self.MIN_ABS_ICIR = get_pipeline_param("factor_mining.min_abs_icir", 0.2)
+        self.MIN_ABS_T_STAT = get_pipeline_param("factor_mining.min_abs_t_stat", 1.5)
+        self.CORRELATION_THRESHOLD = get_pipeline_param("factor_mining.correlation_threshold", 0.7)
+        self.TOP_K = get_pipeline_param("factor_mining.top_k", 5)
 
     # 回看窗口
     LOOKBACK_YEARS = 1

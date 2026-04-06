@@ -39,8 +39,10 @@ class StrategyComposer:
       4. 输出升级建议（如果有显著提升）
     """
 
-    # 新组合 ICIR 必须超过现有策略的倍数才推荐升级
-    UPGRADE_THRESHOLD = 1.15  # 15% 提升
+    def __init__(self):
+        from utils.runtime_config import get_pipeline_param
+        self.UPGRADE_THRESHOLD = get_pipeline_param("strategy_upgrade.threshold", 1.15)
+        self.AUTO_UPGRADE = get_pipeline_param("strategy_upgrade.auto_upgrade", True)
 
     def run(self, ctx: Any) -> dict:
         """
@@ -134,8 +136,8 @@ class StrategyComposer:
             "auto_upgraded": False,
         }
 
-        # ── 自动升级策略（如果推荐且非 dry_run） ─────────────
-        if recommendation == "upgrade" and not ctx.dry_run:
+        # ── 自动升级策略（如果推荐且非 dry_run 且配置允许） ──
+        if recommendation == "upgrade" and not ctx.dry_run and self.AUTO_UPGRADE:
             upgrade_result = self._auto_upgrade(recommended, reason, ctx)
             result["auto_upgraded"] = upgrade_result.get("changed", False)
 
