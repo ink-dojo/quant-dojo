@@ -416,6 +416,17 @@ class TestCompareCommand:
                     run_compare(strategies=["v7", "v8"])
                 assert exc_info.value.code == 1
 
+    def test_compare_all_strategies_default(self):
+        """无参数时应对比所有策略"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "compare"]):
+            with patch("quant_dojo.commands.compare.run_compare") as mock:
+                main()
+                # 应传入所有已知策略
+                call_strategies = mock.call_args[1]["strategies"]
+                assert len(call_strategies) >= 2
+
     def test_compare_cli_dispatch(self):
         """CLI 应正确调度 compare 命令"""
         from quant_dojo.__main__ import main
