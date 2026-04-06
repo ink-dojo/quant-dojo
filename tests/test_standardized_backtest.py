@@ -300,3 +300,48 @@ class TestRunWalkForward:
         config = BacktestConfig(strategy="v7", start="", end="")
         with pytest.raises(ValueError, match="必须指定"):
             run_walk_forward(config)
+
+
+# ═══════════════════════════════════════════════════════════
+# Benchmark 测试
+# ═══════════════════════════════════════════════════════════
+
+class TestBenchmark:
+    def test_benchmark_fields_in_result(self):
+        r = BacktestResult(config=BacktestConfig())
+        assert r.benchmark_returns is None
+        assert r.benchmark_metrics == {}
+
+    @patch("backtest.standardized._load_benchmark")
+    @patch("backtest.standardized._persist_result", return_value="test_bm_001")
+    @patch("backtest.standardized._compute_factors")
+    @patch("backtest.standardized.load_price_wide")
+    @patch("backtest.standardized.get_all_symbols")
+    @patch("backtest.standardized.load_factor_wide", return_value=pd.DataFrame())
+    def test_benchmark_included_when_available(
+        self, mock_st, mock_symbols, mock_price, mock_factors, mock_persist, mock_bm
+    ):
+        np.random.seed(42)
+        dates = pd.date_range("2023-01-01", periods=600, freq="B")
+        symbols = [f"00{i:04d}.SZ" for i in range(1, 51)]
+        price = pd.DataFrame(
+            np.cumprod(1 + np.random.randn(600, 50) * 0.01, axis=0) * 10,
+            index=dates, columns=symbols,
+        )
+        mock_symbols.return_value = symbols
+        mock_price.return_value = price
+
+        factor1 = pd.DataFrame(np.random.randn(600, 50), index=dates, columns=symbols)
+        mock_factors.return_value = {"f1": (factor1, 1)}
+
+        # mock benchmark: slightly positive returns
+        bm_ret = pd.Series(0.0003, index=dates)
+        mock_bm.return_value = bm_ret
+
+        config = BacktestConfig(strategy="v7", start="2024-01-01", end="2025-06-30", n_stocks=10)
+        result = run_backtest(config)
+
+        assert result.status == "success"
+        assert result.benchmark_returns is not None
+        assert "excess_return" in result.metrics
+        assert "excess_sharpe" in result.metrics

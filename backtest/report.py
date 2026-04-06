@@ -61,8 +61,14 @@ def generate_html_report(result: "BacktestResult") -> Path:
         dd_json = "[]"
         monthly_html = "<p>无数据</p>"
 
+    # 基准 NAV
+    benchmark_nav_json = "null"
+    if result.benchmark_returns is not None and not result.benchmark_returns.empty:
+        bm_nav = (1 + result.benchmark_returns).cumprod()
+        benchmark_nav_json = json.dumps([round(float(v), 4) for v in bm_nav.values])
+
     # 指标表
-    metrics_html = _render_metrics_table(metrics)
+    metrics_html = _render_metrics_table(metrics, result.benchmark_metrics)
 
     # 因子统计表
     factor_html = _render_factor_table(factor_stats)
@@ -150,22 +156,36 @@ quant-dojo standardized backtest | run_id: {result.run_id or 'N/A'}
 const dates = {dates_json};
 const navData = {nav_json};
 const ddData = {dd_json};
+const benchmarkData = {benchmark_nav_json};
 
 // NAV Chart
+const navDatasets = [{{
+    label: '策略',
+    data: navData,
+    borderColor: '#0984e3',
+    backgroundColor: 'rgba(9, 132, 227, 0.1)',
+    fill: true,
+    borderWidth: 2,
+    pointRadius: 0,
+    tension: 0.1,
+}}];
+if (benchmarkData) {{
+    navDatasets.push({{
+        label: '基准 ({config.benchmark})',
+        data: benchmarkData,
+        borderColor: '#636e72',
+        borderDash: [5, 5],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.1,
+    }});
+}}
 new Chart(document.getElementById('navChart'), {{
     type: 'line',
     data: {{
         labels: dates,
-        datasets: [{{
-            label: 'NAV',
-            data: navData,
-            borderColor: '#0984e3',
-            backgroundColor: 'rgba(9, 132, 227, 0.1)',
-            fill: true,
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.1,
-        }}]
+        datasets: navDatasets,
     }},
     options: {{
         responsive: true,
@@ -218,7 +238,7 @@ new Chart(document.getElementById('ddChart'), {{
     return report_path
 
 
-def _render_metrics_table(metrics: dict) -> str:
+def _render_metrics_table(metrics: dict, benchmark_metrics: dict = None) -> str:
     """渲染绩效指标网格"""
     if not metrics:
         return "<p>无指标数据</p>"
@@ -234,6 +254,12 @@ def _render_metrics_table(metrics: dict) -> str:
         ("盈亏比", metrics.get("profit_loss_ratio", 0), False),
     ]
 
+    # 超额指标（如果有基准）
+    if metrics.get("excess_return") is not None:
+        items.append(("超额收益", metrics["excess_return"], True))
+    if metrics.get("excess_sharpe") is not None:
+        items.append(("超额夏普", metrics["excess_sharpe"], False))
+
     boxes = []
     for label, value, is_pct in items:
         if is_pct:
@@ -242,7 +268,7 @@ def _render_metrics_table(metrics: dict) -> str:
             formatted = f"{value:.2f}"
 
         css_class = ""
-        if label in ("总收益", "年化收益"):
+        if label in ("总收益", "年化收益", "超额收益"):
             css_class = "positive" if value > 0 else "negative"
         elif label == "最大回撤":
             css_class = "negative"
@@ -254,7 +280,27 @@ def _render_metrics_table(metrics: dict) -> str:
             f'</div>'
         )
 
-    return f'<div class="metrics-grid">{"".join(boxes)}</div>'
+    html = f'<div class="metrics-grid">{"".join(boxes)}</div>'
+
+    # 基准指标对照
+    if benchmark_metrics:
+        bm_items = [
+            ("基准总收益", benchmark_metrics.get("total_return", 0), True),
+            ("基准夏普", benchmark_metrics.get("sharpe", 0), False),
+            ("基准回撤", benchmark_metrics.get("max_drawdown", 0), True),
+        ]
+        bm_boxes = []
+        for label, value, is_pct in bm_items:
+            formatted = f"{value:.2%}" if is_pct else f"{value:.2f}"
+            bm_boxes.append(
+                f'<div class="metric-box">'
+                f'<div class="value" style="color:#636e72">{formatted}</div>'
+                f'<div class="label">{label}</div>'
+                f'</div>'
+            )
+        html += f'<div class="metrics-grid" style="margin-top:8px">{"".join(bm_boxes)}</div>'
+
+    return html
 
 
 def _render_factor_table(factor_stats: dict) -> str:
