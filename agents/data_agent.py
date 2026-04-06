@@ -23,11 +23,10 @@ logger = logging.getLogger(__name__)
 class DataAgent:
     """数据管家：确保本地数据新鲜、完整、可用。"""
 
-    # 数据过期阈值（交易日）
-    STALE_THRESHOLD_DAYS = 3
-
-    # 数据质量检查的抽样数量
-    QUALITY_SAMPLE_SIZE = 50
+    def __init__(self):
+        from utils.runtime_config import get_pipeline_param
+        self.STALE_THRESHOLD_DAYS = get_pipeline_param("data_stale_threshold_days", 3)
+        self.QUALITY_SAMPLE_SIZE = 50
 
     def run(self, ctx: Any) -> dict:
         """

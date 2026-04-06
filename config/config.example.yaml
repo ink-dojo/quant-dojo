@@ -38,3 +38,36 @@ phase5:
   drawdown_warning: -0.05                # 净值回撤预警线（-5%）
   drawdown_critical: -0.10               # 净值回撤临界线（-10%，需立即处理）
   concentration_limit: 0.15             # 单只股票占组合市值上限（15%）
+
+# AI Agent 流水线配置
+pipeline:
+  # 当前激活策略（也可通过 live/strategy_state.json 动态切换）
+  default_strategy: "v7"                 # "v7" | "v8" | "ad_hoc"
+
+  # 流水线调度
+  daemon_run_time: "16:30"               # 每日自动执行时间（BaoStock 数据约 16:00 就绪）
+  data_stale_threshold_days: 3           # 数据过期阈值（超过则触发更新）
+
+  # 因子挖掘
+  factor_mining:
+    min_abs_ic: 0.015                    # 因子最低 |IC| 门槛
+    min_abs_icir: 0.2                    # 因子最低 |ICIR| 门槛
+    min_abs_t_stat: 1.5                  # 因子最低 |t-stat| 门槛
+    correlation_threshold: 0.7           # 因子间相关性上限（高于视为共线）
+    top_k: 5                             # 推荐组合的因子数
+
+  # 策略升级
+  strategy_upgrade:
+    threshold: 1.15                      # 新组合 ICIR 需超过当前策略的倍数（15%提升）
+    auto_upgrade: true                   # 自动升级（false=仅建议）
+
+  # 信号验证
+  signal_validation:
+    min_picks: 10                        # 选股数量下限
+    max_picks: 60                        # 选股数量上限
+    overlap_warning_threshold: 0.3       # 与前日信号重叠率预警线
+
+# 告警通知
+alerts:
+  webhook_url: ""                        # 告警 webhook URL（留空则不发送）
+  # 支持飞书/钉钉/Slack 等 webhook 格式

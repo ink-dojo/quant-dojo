@@ -33,7 +33,31 @@ _DEFAULTS = {
         "drawdown_warning": -0.05,
         "drawdown_critical": -0.10,
         "concentration_limit": 0.15,
-    }
+    },
+    "pipeline": {
+        "default_strategy": "v7",
+        "daemon_run_time": "16:30",
+        "data_stale_threshold_days": 3,
+        "factor_mining": {
+            "min_abs_ic": 0.015,
+            "min_abs_icir": 0.2,
+            "min_abs_t_stat": 1.5,
+            "correlation_threshold": 0.7,
+            "top_k": 5,
+        },
+        "strategy_upgrade": {
+            "threshold": 1.15,
+            "auto_upgrade": True,
+        },
+        "signal_validation": {
+            "min_picks": 10,
+            "max_picks": 60,
+            "overlap_warning_threshold": 0.3,
+        },
+    },
+    "alerts": {
+        "webhook_url": "",
+    },
 }
 
 # 模块级缓存，避免重复读取磁盘
@@ -211,6 +235,34 @@ def get_concentration_limit() -> float:
         float，默认 0.15（即 15%）
     """
     return float(_get_phase5("concentration_limit"))
+
+
+def get_pipeline_config() -> dict:
+    """
+    获取流水线配置。
+
+    返回:
+        dict: pipeline 配置节
+    """
+    return get_config().get("pipeline", _DEFAULTS["pipeline"])
+
+
+def get_pipeline_param(key: str, default=None):
+    """
+    获取单个流水线配置参数（支持点分路径）。
+
+    示例:
+        get_pipeline_param("factor_mining.min_abs_ic")  → 0.015
+        get_pipeline_param("default_strategy")          → "v7"
+    """
+    cfg = get_pipeline_config()
+    parts = key.split(".")
+    for part in parts:
+        if isinstance(cfg, dict):
+            cfg = cfg.get(part)
+        else:
+            return default
+    return cfg if cfg is not None else default
 
 
 if __name__ == "__main__":
