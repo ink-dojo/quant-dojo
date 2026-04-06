@@ -59,6 +59,10 @@ def main():
     # ── status ──
     sub.add_parser("status", help="系统全局状态一览")
 
+    # ── dashboard ──
+    p_dash = sub.add_parser("dashboard", help="启动可视化仪表盘")
+    p_dash.add_argument("--port", type=int, default=8501, help="端口号（默认 8501）")
+
     # ── activate ──
     p_act = sub.add_parser("activate", help="切换 live 运行策略")
     p_act.add_argument("strategy", nargs="?", type=str, help="策略名 (v7/v8/ad_hoc)")
@@ -84,6 +88,7 @@ def main():
         "run": cmd_run,
         "backtest": cmd_backtest,
         "status": cmd_status,
+        "dashboard": cmd_dashboard,
         "activate": cmd_activate,
         "schedule": cmd_schedule,
         "doctor": cmd_doctor,
@@ -119,6 +124,12 @@ def cmd_status(args):
     """系统状态"""
     from quant_dojo.commands.status import show_status
     show_status()
+
+
+def cmd_dashboard(args):
+    """启动仪表盘"""
+    from quant_dojo.commands.dashboard import launch_dashboard
+    launch_dashboard(port=args.port)
 
 
 def cmd_activate(args):

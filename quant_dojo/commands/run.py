@@ -31,7 +31,11 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
 
     cfg = get_config()
     if strategy is None:
-        strategy = get_pipeline_param("default_strategy", "v7")
+        try:
+            from pipeline.active_strategy import get_active_strategy
+            strategy = get_active_strategy()
+        except Exception:
+            strategy = get_pipeline_param("default_strategy", "v7")
 
     print("╔═══════════════════════════════════════════════╗")
     print("║  quant-dojo 每日全流程                        ║")
