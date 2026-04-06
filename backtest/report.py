@@ -67,6 +67,13 @@ def generate_html_report(result: "BacktestResult") -> Path:
         bm_nav = (1 + result.benchmark_returns).cumprod()
         benchmark_nav_json = json.dumps([round(float(v), 4) for v in bm_nav.values])
 
+    # 滚动夏普数据
+    rolling_sharpe_json = "null"
+    if result.rolling_metrics is not None and "rolling_sharpe" in result.rolling_metrics.columns:
+        rs = result.rolling_metrics["rolling_sharpe"].dropna()
+        if not rs.empty:
+            rolling_sharpe_json = json.dumps([round(float(v), 4) for v in rs.values])
+
     # 指标表
     metrics_html = _render_metrics_table(metrics, result.benchmark_metrics)
 
@@ -131,6 +138,13 @@ canvas {{ width: 100% !important; }}
 <h2>回撤</h2>
 <div class="chart-container">
 <canvas id="ddChart"></canvas>
+</div>
+</div>
+
+<div class="card">
+<h2>滚动夏普比率 (63日)</h2>
+<div class="chart-container">
+<canvas id="rsChart"></canvas>
 </div>
 </div>
 
@@ -232,6 +246,41 @@ new Chart(document.getElementById('ddChart'), {{
         }}
     }}
 }});
+
+// Rolling Sharpe Chart
+const rollingSharpeData = {rolling_sharpe_json};
+if (rollingSharpeData) {{
+    const rsLabels = dates.slice(dates.length - rollingSharpeData.length);
+    new Chart(document.getElementById('rsChart'), {{
+        type: 'line',
+        data: {{
+            labels: rsLabels,
+            datasets: [{{
+                label: 'Rolling Sharpe (63d)',
+                data: rollingSharpeData,
+                borderColor: '#6c5ce7',
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.1,
+                fill: false,
+            }}]
+        }},
+        options: {{
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {{ legend: {{ display: false }} }},
+            scales: {{
+                x: {{ display: true, ticks: {{ maxTicksLimit: 10 }} }},
+                y: {{
+                    display: true,
+                    title: {{ display: true, text: 'Sharpe Ratio' }},
+                }},
+            }},
+        }}
+    }});
+}} else {{
+    document.getElementById('rsChart').parentElement.innerHTML = '<p style="color:#636e72">数据不足，无法计算滚动夏普</p>';
+}}
 </script>
 </body>
 </html>"""

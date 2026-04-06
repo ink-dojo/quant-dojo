@@ -77,6 +77,7 @@ class BacktestResult:
     config: BacktestConfig
     metrics: dict = field(default_factory=dict)
     equity_curve: Optional[pd.DataFrame] = None
+    rolling_metrics: Optional[pd.DataFrame] = None
     benchmark_returns: Optional[pd.Series] = None
     benchmark_metrics: dict = field(default_factory=dict)
     trade_log: list = field(default_factory=list)
@@ -238,6 +239,48 @@ def _compute_metrics(returns: pd.Series) -> dict:
         "n_trading_days": len(returns),
         "volatility": round(float(annualized_volatility(returns)), 6),
     }
+
+
+# ══════════════════════════════════════════════════════════════
+# 滚动绩效指标
+# ══════════════════════════════════════════════════════════════
+
+def _compute_rolling_metrics(returns: pd.Series, window: int = 63) -> pd.DataFrame:
+    """
+    计算滚动绩效指标（默认 63 天 ≈ 3 个月）。
+
+    返回 DataFrame 包含:
+      - rolling_sharpe: 滚动夏普比率（年化）
+      - rolling_volatility: 滚动波动率（年化）
+      - rolling_drawdown: 滚动最大回撤
+      - rolling_win_rate: 滚动胜率
+    """
+    if len(returns) < window:
+        return pd.DataFrame(index=returns.index)
+
+    rolling_ret = returns.rolling(window)
+
+    # 滚动夏普（年化）
+    rolling_mean = rolling_ret.mean() * 252
+    rolling_std = rolling_ret.std() * np.sqrt(252)
+    rolling_sharpe = (rolling_mean - 0.02) / rolling_std.replace(0, np.nan)
+
+    # 滚动波动率（年化）
+    rolling_vol = rolling_ret.std() * np.sqrt(252)
+
+    # 滚动胜率
+    rolling_wr = rolling_ret.apply(lambda x: (x > 0).mean())
+
+    # 滚动回撤
+    cumulative = (1 + returns).cumprod()
+    rolling_dd = cumulative / cumulative.cummax() - 1
+
+    return pd.DataFrame({
+        "rolling_sharpe": rolling_sharpe,
+        "rolling_volatility": rolling_vol,
+        "rolling_drawdown": rolling_dd,
+        "rolling_win_rate": rolling_wr,
+    }, index=returns.index)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -488,6 +531,7 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
         metrics = _compute_metrics(returns)
         result.metrics = metrics
         result.equity_curve = bt_result
+        result.rolling_metrics = _compute_rolling_metrics(returns)
         result.status = "success"
 
         # ── 6b. 加载基准收益 ─────────────────────────────────
