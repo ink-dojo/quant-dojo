@@ -80,7 +80,7 @@ COLUMN_MAP = {
 }
 
 # 合法的因子字段名
-VALID_FACTORS = {"pe_ttm", "pb", "ps_ttm", "pcf", "turnover"}
+VALID_FACTORS = {"pe_ttm", "pb", "ps_ttm", "pcf", "turnover", "is_st", "prev_close", "pct_change"}
 
 
 def get_all_symbols() -> list:
