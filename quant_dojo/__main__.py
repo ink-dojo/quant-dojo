@@ -26,6 +26,8 @@ if str(ROOT) not in sys.path:
 
 
 def main():
+    from quant_dojo import __version__
+
     parser = argparse.ArgumentParser(
         prog="quant_dojo",
         description="quant-dojo 量化研究自动化 — 一个命令通到底",
@@ -48,6 +50,7 @@ def main():
   python -m quant_dojo doctor                     # 诊断问题
         """,
     )
+    parser.add_argument("--version", action="version", version=f"quant-dojo {__version__}")
 
     sub = parser.add_subparsers(dest="command", help="命令")
 
