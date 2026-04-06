@@ -178,6 +178,13 @@ class Reporter:
         print(f"  日报已生成: {report_path}")
         print(f"  共 {len(report_lines)} 行")
 
+        # 导出仪表盘数据
+        try:
+            from pipeline.dashboard_export import export_dashboard
+            export_dashboard(include_ic=False)
+        except Exception as e:
+            print(f"  仪表盘导出跳过: {e}")
+
         return {"report_path": str(report_path), "sections": len(ctx.stage_results)}
 
     def _save_report(self, report_text: str, date: str) -> Path:
