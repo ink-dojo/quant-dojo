@@ -632,6 +632,67 @@ class TestActivateCommand:
 
 
 # ═══════════════════════════════════════════════════════════
+# logs command
+# ═══════════════════════════════════════════════════════════
+
+class TestLogsCommand:
+    def test_logs_no_dir(self, tmp_path):
+        """无 logs 目录时不崩溃"""
+        from quant_dojo.commands.logs import show_logs
+
+        with patch("quant_dojo.commands.logs.PROJECT_ROOT", tmp_path):
+            show_logs()
+
+    def test_logs_with_data(self, tmp_path):
+        """有运行记录时应显示"""
+        from quant_dojo.commands.logs import show_logs
+
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        log = {
+            "date": "2026-04-03",
+            "timestamp": "2026-04-03T16:30:00",
+            "elapsed_sec": 12.5,
+            "steps": {
+                "data_update": {"status": "ok"},
+                "signal": {"status": "ok"},
+            },
+        }
+        (log_dir / "quant_dojo_run_2026-04-03.json").write_text(json.dumps(log))
+
+        with patch("quant_dojo.commands.logs.PROJECT_ROOT", tmp_path):
+            show_logs()  # 不应崩溃
+
+    def test_logs_with_detail(self, tmp_path):
+        """--detail 应显示步骤详情"""
+        from quant_dojo.commands.logs import show_logs
+
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        log = {
+            "date": "2026-04-03",
+            "timestamp": "2026-04-03T16:30:00",
+            "elapsed_sec": 5.0,
+            "steps": {
+                "signal": {"status": "failed", "error": "no data"},
+            },
+        }
+        (log_dir / "quant_dojo_run_2026-04-03.json").write_text(json.dumps(log))
+
+        with patch("quant_dojo.commands.logs.PROJECT_ROOT", tmp_path):
+            show_logs(detail=True)  # 不应崩溃
+
+    def test_logs_cli_dispatch(self):
+        """CLI 应正确调度 logs 命令"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "logs", "-n", "5"]):
+            with patch("quant_dojo.commands.logs.show_logs") as mock:
+                main()
+                mock.assert_called_once_with(n=5, detail=False)
+
+
+# ═══════════════════════════════════════════════════════════
 # doctor command
 # ═══════════════════════════════════════════════════════════
 
