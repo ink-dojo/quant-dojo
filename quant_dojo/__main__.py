@@ -31,6 +31,7 @@ def main():
   python -m quant_dojo run                        # 每日全流程
   python -m quant_dojo backtest                   # 快速回测
   python -m quant_dojo status                     # 系统状态
+  python -m quant_dojo schedule                   # 设置定时自动运行
   python -m quant_dojo doctor                     # 诊断问题
         """,
     )
@@ -58,6 +59,11 @@ def main():
     # ── status ──
     sub.add_parser("status", help="系统全局状态一览")
 
+    # ── schedule ──
+    p_sched = sub.add_parser("schedule", help="设置每日定时自动运行")
+    p_sched.add_argument("--time", type=str, default="16:30", help="执行时间 HH:MM（默认 16:30）")
+    p_sched.add_argument("--remove", action="store_true", help="移除定时任务")
+
     # ── doctor ──
     sub.add_parser("doctor", help="诊断系统问题")
 
@@ -72,6 +78,7 @@ def main():
         "run": cmd_run,
         "backtest": cmd_backtest,
         "status": cmd_status,
+        "schedule": cmd_schedule,
         "doctor": cmd_doctor,
     }
     dispatch[args.command](args)
@@ -105,6 +112,12 @@ def cmd_status(args):
     """系统状态"""
     from quant_dojo.commands.status import show_status
     show_status()
+
+
+def cmd_schedule(args):
+    """定时任务"""
+    from quant_dojo.commands.schedule import setup_schedule
+    setup_schedule(time=args.time, remove=args.remove)
 
 
 def cmd_doctor(args):
