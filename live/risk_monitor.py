@@ -140,18 +140,37 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
     except Exception as e:
         _log_decision(f"集中度检查失败，跳过: {e}")
 
-    # --- 3. 行业集中度检查（无行业数据时跳过）---
-    _log_decision(
-        "行业集中度检查：当前无 sector 映射数据，跳过该检查项。"
-        "待接入行业分类数据后启用（参考 utils/fundamental_loader.py）"
-    )
-    alerts.append({
-        "level": "info",
-        "code": "SECTOR_CHECK_SKIPPED",
-        "msg": "行业集中度检查跳过：无 sector 映射数据，待接入行业分类数据后启用",
-        "symbol": "",
-        "as_of_date": date.today().isoformat(),
-    })
+    # --- 3. 行业集中度检查（尝试加载行业数据，不可用时静默跳过）---
+    try:
+        from utils.fundamental_loader import get_industry_classification
+        stock_symbols = [sym for sym in portfolio.positions if sym != "__cash__"]
+        if stock_symbols and total_value > 0:
+            industry_df = get_industry_classification(symbols=stock_symbols)
+            if not industry_df.empty and "industry_name" in industry_df.columns:
+                # 按行业汇总持仓市值
+                sector_values = {}
+                for sym in stock_symbols:
+                    info = portfolio.positions[sym]
+                    price = price_data.get(sym, info.get("current_price", 0))
+                    pos_val = info["shares"] * price
+                    match = industry_df[industry_df["symbol"] == sym]
+                    sector = match["industry_name"].iloc[0] if not match.empty else "未知"
+                    sector_values[sector] = sector_values.get(sector, 0) + pos_val
+
+                sector_limit = 0.40  # 单行业不超过 40%
+                for sector, val in sector_values.items():
+                    weight = val / total_value
+                    if weight > sector_limit:
+                        alerts.append({
+                            "level": "warning",
+                            "code": "SECTOR_CONCENTRATION",
+                            "msg": f"行业 {sector} 占组合 {weight:.1%}，超过 {sector_limit:.0%} 上限",
+                            "symbol": "",
+                            "as_of_date": date.today().isoformat(),
+                        })
+    except Exception:
+        # 行业数据不可用时静默跳过，不产生噪音日志
+        pass
 
     # --- 4. 因子 IC 衰减检查 ---
     try:
