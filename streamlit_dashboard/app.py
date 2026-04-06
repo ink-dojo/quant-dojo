@@ -90,7 +90,7 @@ with st.sidebar:
     # 页面导航
     page = st.radio(
         "页面",
-        ["总览", "持仓分析", "因子健康", "信号历史", "告警中心"],
+        ["总览", "持仓分析", "因子健康", "信号历史", "告警中心", "回测"],
         label_visibility="collapsed",
     )
 
@@ -495,6 +495,150 @@ elif page == "告警中心":
             st.caption(f"时间: {ts} | 来源: {source}")
             if body:
                 st.write(body)
+
+
+# ──────────────────────────────────────────────────────────────
+# Page: 回测
+# ──────────────────────────────────────────────────────────────
+elif page == "回测":
+    st.header("回测管理")
+
+    # 加载历史运行记录
+    try:
+        from pipeline.run_store import list_runs, get_run, RUNS_DIR
+        runs = list_runs(limit=50)
+    except Exception as e:
+        st.error(f"加载运行记录失败: {e}")
+        runs = []
+
+    if not runs:
+        st.info("无回测记录。使用以下命令运行回测:")
+        st.code("python scripts/run_backtest.py --strategy v7 --start 2024-01-01 --end 2026-03-31")
+    else:
+        # 运行记录表
+        st.subheader(f"历史记录 ({len(runs)} 条)")
+
+        run_data = []
+        for r in runs:
+            m = r.metrics or {}
+            run_data.append({
+                "Run ID": r.run_id[:25],
+                "策略": r.strategy_id,
+                "区间": f"{r.start_date} ~ {r.end_date}",
+                "状态": r.status,
+                "总收益": f"{m.get('total_return', 0):.2%}" if m else "-",
+                "夏普": f"{m.get('sharpe', 0):.2f}" if m else "-",
+                "最大回撤": f"{m.get('max_drawdown', 0):.2%}" if m else "-",
+                "创建时间": r.created_at[:19] if r.created_at else "-",
+            })
+
+        st.dataframe(pd.DataFrame(run_data), use_container_width=True, hide_index=True)
+
+        # 选择查看详情
+        run_ids = [r.run_id for r in runs if r.status == "success"]
+        if run_ids:
+            selected_id = st.selectbox("选择查看详情", run_ids, format_func=lambda x: x[:30])
+            selected_run = get_run(selected_id)
+
+            if selected_run.metrics:
+                m = selected_run.metrics
+                st.subheader("绩效指标")
+                cols = st.columns(4)
+                cols[0].metric("总收益", f"{m.get('total_return', 0):.2%}")
+                cols[1].metric("年化收益", f"{m.get('annualized_return', 0):.2%}")
+                cols[2].metric("夏普比率", f"{m.get('sharpe', 0):.2f}")
+                cols[3].metric("最大回撤", f"{m.get('max_drawdown', 0):.2%}")
+
+                cols2 = st.columns(4)
+                cols2[0].metric("年化波动", f"{m.get('volatility', 0):.2%}")
+                cols2[1].metric("胜率", f"{m.get('win_rate', 0):.2%}")
+                cols2[2].metric("盈亏比", f"{m.get('profit_loss_ratio', 0):.2f}")
+                cols2[3].metric("交易天数", m.get("n_trading_days", 0))
+
+            # 净值曲线
+            equity_path = selected_run.artifacts.get("equity_csv")
+            if equity_path and Path(equity_path).exists():
+                try:
+                    eq_df = pd.read_csv(equity_path, index_col=0, parse_dates=True)
+                    if "portfolio_return" in eq_df.columns:
+                        nav = (1 + eq_df["portfolio_return"]).cumprod()
+
+                        st.subheader("NAV 曲线")
+                        fig_nav = go.Figure()
+                        fig_nav.add_trace(go.Scatter(
+                            x=nav.index, y=nav.values,
+                            mode="lines", name="NAV",
+                            line=dict(color="#0984e3", width=2),
+                        ))
+                        fig_nav.update_layout(
+                            height=350, margin=dict(l=40, r=20, t=20, b=40),
+                            yaxis_title="NAV",
+                        )
+                        st.plotly_chart(fig_nav, use_container_width=True)
+
+                        # 回撤
+                        peak = np.maximum.accumulate(nav.values)
+                        dd = (nav.values - peak) / peak
+                        st.subheader("回撤")
+                        fig_dd = go.Figure()
+                        fig_dd.add_trace(go.Scatter(
+                            x=nav.index, y=dd,
+                            mode="lines", name="Drawdown",
+                            fill="tozeroy",
+                            line=dict(color="#d63031", width=1.5),
+                        ))
+                        fig_dd.update_layout(
+                            height=250, margin=dict(l=40, r=20, t=20, b=40),
+                            yaxis_title="Drawdown", yaxis_tickformat=".1%",
+                        )
+                        st.plotly_chart(fig_dd, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"加载净值数据失败: {e}")
+
+            # 参数
+            if selected_run.params:
+                st.subheader("运行参数")
+                st.json(selected_run.params)
+
+        # 多策略对比
+        st.subheader("策略对比")
+        compare_ids = st.multiselect(
+            "选择要对比的运行记录", run_ids,
+            format_func=lambda x: f"{x[:20]} ({next((r.strategy_id for r in runs if r.run_id == x), '?')})",
+        )
+
+        if len(compare_ids) >= 2:
+            from pipeline.run_store import compare_runs
+            comparison = compare_runs(compare_ids)
+
+            comp_data = []
+            for run in comparison["runs"]:
+                m = run.get("metrics", {})
+                comp_data.append({
+                    "Run ID": run.get("run_id", "?")[:20],
+                    "策略": run.get("strategy_id", "?"),
+                    "总收益": m.get("total_return", 0),
+                    "夏普": m.get("sharpe", 0),
+                    "最大回撤": m.get("max_drawdown", 0),
+                    "胜率": m.get("win_rate", 0),
+                })
+
+            comp_df = pd.DataFrame(comp_data)
+            st.dataframe(comp_df, use_container_width=True, hide_index=True)
+
+            # 对比柱状图
+            fig_comp = go.Figure()
+            for _, row in comp_df.iterrows():
+                fig_comp.add_trace(go.Bar(
+                    name=row["Run ID"],
+                    x=["总收益", "夏普", "最大回撤"],
+                    y=[row["总收益"], row["夏普"], row["最大回撤"]],
+                ))
+            fig_comp.update_layout(
+                barmode="group", height=350,
+                margin=dict(l=40, r=20, t=20, b=40),
+            )
+            st.plotly_chart(fig_comp, use_container_width=True)
 
 
 # ──────────────────────────────────────────────────────────────
