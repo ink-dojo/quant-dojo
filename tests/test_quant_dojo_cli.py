@@ -391,6 +391,61 @@ class TestCompareCommand:
 
 
 # ═══════════════════════════════════════════════════════════
+# quickstart command
+# ═══════════════════════════════════════════════════════════
+
+class TestQuickstartCommand:
+    def test_quickstart_no_data_skip_download_exits(self, tmp_path):
+        """无数据+跳过下载应 exit(1)"""
+        from quant_dojo.commands.quickstart import run_quickstart
+
+        data_dir = tmp_path / "empty-data"
+        data_dir.mkdir()
+
+        with patch("quant_dojo.commands.init.PROJECT_ROOT", tmp_path):
+            with patch("quant_dojo.commands.init.CONFIG_DIR", tmp_path / "config"):
+                with patch("quant_dojo.commands.init.CONFIG_FILE", tmp_path / "config" / "config.yaml"):
+                    with patch("quant_dojo.commands.init.CONFIG_EXAMPLE", tmp_path / "config" / "config.example.yaml"):
+                        with pytest.raises(SystemExit) as exc_info:
+                            run_quickstart(data_dir=str(data_dir), skip_download=True)
+                        assert exc_info.value.code == 1
+
+    def test_quickstart_with_existing_data(self, tmp_path):
+        """有数据时应跳过下载并继续回测"""
+        from quant_dojo.commands.quickstart import run_quickstart
+
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "sh.600000.csv").write_text("date,close\n2024-01-01,10.0\n")
+
+        mock_result = MagicMock()
+        mock_result.status = "success"
+        mock_result.metrics = {"total_return": 0.1, "sharpe": 1.0, "max_drawdown": -0.05}
+        mock_result.equity_curve = None
+        mock_result.run_id = "qs_001"
+
+        with patch("quant_dojo.commands.init.PROJECT_ROOT", tmp_path):
+            with patch("quant_dojo.commands.init.CONFIG_DIR", tmp_path / "config"):
+                with patch("quant_dojo.commands.init.CONFIG_FILE", tmp_path / "config" / "config.yaml"):
+                    with patch("quant_dojo.commands.init.CONFIG_EXAMPLE", tmp_path / "config" / "config.example.yaml"):
+                        with patch("utils.local_data_loader.get_all_symbols", return_value=["600000"]):
+                            with patch("backtest.standardized.run_backtest", return_value=mock_result):
+                                with patch("pipeline.active_strategy.get_active_strategy", return_value="v7"):
+                                    with patch("quant_dojo.commands.schedule.setup_schedule"):
+                                        with patch("quant_dojo.commands.quickstart._resolve_data_path", return_value=data_dir):
+                                            run_quickstart(data_dir=str(data_dir), skip_download=True)
+
+    def test_quickstart_cli_dispatch(self):
+        """CLI 应正确调度 quickstart 命令"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "quickstart", "--skip-download"]):
+            with patch("quant_dojo.commands.quickstart.run_quickstart") as mock:
+                main()
+                mock.assert_called_once_with(data_dir=None, skip_download=True)
+
+
+# ═══════════════════════════════════════════════════════════
 # schedule command
 # ═══════════════════════════════════════════════════════════
 
