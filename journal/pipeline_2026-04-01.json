@@ -1,0 +1,49 @@
+{
+  "date": "2026-04-01",
+  "mode": "daily",
+  "dry_run": false,
+  "total_time_sec": 38.2,
+  "stages": [
+    {
+      "name": "data_check",
+      "status": "success",
+      "duration_sec": 0.42,
+      "error": null
+    },
+    {
+      "name": "signal",
+      "status": "success",
+      "duration_sec": 37.75,
+      "error": null
+    },
+    {
+      "name": "execute",
+      "status": "success",
+      "duration_sec": 0.03,
+      "error": null
+    }
+  ],
+  "decisions": [
+    {
+      "time": "2026-04-06T16:15:05.221479",
+      "agent": "DataAgent",
+      "decision": "跳过数据更新: 数据足够新鲜",
+      "reasoning": "延迟 3 天 <= 阈值 3 天"
+    },
+    {
+      "time": "2026-04-06T16:15:43.059251",
+      "agent": "SignalProducer",
+      "decision": "信号生成完成: 30 只股票",
+      "reasoning": "策略=v7, 排除 ST=0"
+    },
+    {
+      "time": "2026-04-06T16:15:43.092139",
+      "agent": "ExecutorAgent",
+      "decision": "调仓完成: 买 12 卖 19",
+      "reasoning": "换手率 15.2%, NAV 984,699"
+    }
+  ],
+  "halted": false,
+  "halt_reason": "",
+  "timestamp": "2026-04-06T16:15:43.092183"
+}
