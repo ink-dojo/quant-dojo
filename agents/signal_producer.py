@@ -146,12 +146,46 @@ class SignalProducer:
                 )
             checks["overlap_rate"] = round(overlap_rate, 4)
 
+        # 4. 行业集中度检查
+        industry_check = self._check_industry_concentration(picks)
+        if industry_check:
+            checks["warnings"].append(industry_check)
+            checks["industry_concentration"] = industry_check
+
         if checks["warnings"]:
             checks["status"] = "warning"
             for w in checks["warnings"]:
                 print(f"  [后检] {w}")
 
         return checks
+
+    # 行业集中度阈值
+    INDUSTRY_CONCENTRATION_LIMIT = 0.30  # 单行业 > 30% 发预警
+
+    def _check_industry_concentration(self, picks: list) -> str | None:
+        """检查行业集中度"""
+        if len(picks) < 5:
+            return None
+
+        try:
+            from utils.fundamental_loader import get_industry_classification
+            ind_df = get_industry_classification(picks)
+            if ind_df.empty:
+                return None
+
+            # 统计各行业的股票数量
+            counts = ind_df["industry_code"].value_counts()
+            top_industry = counts.index[0]
+            top_pct = counts.iloc[0] / len(picks)
+
+            if top_pct > self.INDUSTRY_CONCENTRATION_LIMIT:
+                return (
+                    f"行业集中度过高: {top_industry} 占 {top_pct:.0%} "
+                    f"({counts.iloc[0]}/{len(picks)} 只)"
+                )
+        except Exception:
+            pass
+        return None
 
     def _load_prev_signal(self, current_date: str) -> list:
         """加载前一日的信号"""
