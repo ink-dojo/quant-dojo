@@ -176,6 +176,8 @@ FACTOR_PRESETS = {
     "legacy": ["momentum_20", "ep", "low_vol", "turnover_rev"],
     # v7 industry-neutral 策略的 5 因子
     "v7": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp"],
+    # v8 = v7 + shadow_lower 微观结构因子
+    "v8": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp", "shadow_lower"],
 }
 
 
