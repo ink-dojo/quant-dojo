@@ -375,6 +375,192 @@ class TestCompareCommand:
 
 
 # ═══════════════════════════════════════════════════════════
+# schedule command
+# ═══════════════════════════════════════════════════════════
+
+class TestScheduleCommand:
+    def test_schedule_generates_cron_line(self):
+        """schedule 应生成正确的 crontab 条目"""
+        from quant_dojo.commands.schedule import setup_schedule
+
+        with patch("quant_dojo.commands.schedule._get_current_crontab", return_value=""):
+            with patch("quant_dojo.commands.schedule._add_cron") as mock_add:
+                setup_schedule(time="17:00")
+                cron_line = mock_add.call_args[0][0]
+                assert "0 17" in cron_line
+                assert "1-5" in cron_line  # weekdays only
+                assert "quant_dojo run" in cron_line
+
+    def test_schedule_replaces_existing(self):
+        """已存在定时任务时应替换"""
+        from quant_dojo.commands.schedule import setup_schedule
+
+        existing = "30 16 * * 1-5 cd /old && python -m quant_dojo run # quant-dojo-auto"
+        with patch("quant_dojo.commands.schedule._get_current_crontab", return_value=existing):
+            with patch("quant_dojo.commands.schedule._remove_cron") as mock_rm:
+                with patch("quant_dojo.commands.schedule._add_cron"):
+                    setup_schedule(time="17:00")
+                    mock_rm.assert_called_once()
+
+    def test_schedule_remove(self):
+        """--remove 应移除定时任务"""
+        from quant_dojo.commands.schedule import setup_schedule
+
+        with patch("quant_dojo.commands.schedule._remove_cron") as mock_rm:
+            setup_schedule(remove=True)
+            mock_rm.assert_called_once_with("# quant-dojo-auto")
+
+
+# ═══════════════════════════════════════════════════════════
+# notify command
+# ═══════════════════════════════════════════════════════════
+
+class TestNotifyCommand:
+    def test_no_webhook_silently_skips(self):
+        """未配置 webhook 应静默跳过"""
+        from quant_dojo.commands.notify import send_run_notification
+
+        with patch("utils.runtime_config.get_config", return_value={"alerts": {}}):
+            # 不应抛异常
+            send_run_notification("2026-04-03", {"signal": {"status": "ok"}}, 5.0)
+
+    def test_feishu_format(self):
+        """飞书 URL 应使用飞书格式"""
+        from quant_dojo.commands.notify import _send_webhook
+        import json
+
+        with patch("urllib.request.urlopen") as mock_open:
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_resp.__enter__ = lambda s: s
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_open.return_value = mock_resp
+
+            _send_webhook("https://open.feishu.cn/hook/xxx", "title", "body")
+
+            req = mock_open.call_args[0][0]
+            payload = json.loads(req.data)
+            assert payload["msg_type"] == "text"
+            assert "title" in payload["content"]["text"]
+
+    def test_slack_format(self):
+        """Slack URL 应使用 Slack 格式"""
+        from quant_dojo.commands.notify import _send_webhook
+        import json
+
+        with patch("urllib.request.urlopen") as mock_open:
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_resp.__enter__ = lambda s: s
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_open.return_value = mock_resp
+
+            _send_webhook("https://hooks.slack.com/xxx", "title", "body")
+
+            req = mock_open.call_args[0][0]
+            payload = json.loads(req.data)
+            assert "text" in payload
+            assert "*title*" in payload["text"]
+
+    def test_dingtalk_format(self):
+        """钉钉 URL 应使用钉钉格式"""
+        from quant_dojo.commands.notify import _send_webhook
+        import json
+
+        with patch("urllib.request.urlopen") as mock_open:
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_resp.__enter__ = lambda s: s
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_open.return_value = mock_resp
+
+            _send_webhook("https://oapi.dingtalk.com/robot/xxx", "title", "body")
+
+            req = mock_open.call_args[0][0]
+            payload = json.loads(req.data)
+            assert payload["msgtype"] == "text"
+
+
+# ═══════════════════════════════════════════════════════════
+# report command
+# ═══════════════════════════════════════════════════════════
+
+class TestReportCommand:
+    def test_weekly_report_auto_week(self):
+        """无参数时应自动计算当前 ISO 周"""
+        from quant_dojo.commands.report import generate_report
+
+        with patch("pipeline.weekly_report.generate_weekly_report") as mock_gen:
+            mock_gen.return_value = {"path": "/tmp/report.md"}
+            generate_report()
+            call_week = mock_gen.call_args[0][0]
+            # 应是 YYYY-WNN 格式
+            assert "-W" in call_week
+
+    def test_weekly_report_explicit_week(self):
+        """指定周应传递到报告生成"""
+        from quant_dojo.commands.report import generate_report
+
+        with patch("pipeline.weekly_report.generate_weekly_report") as mock_gen:
+            mock_gen.return_value = {"path": "/tmp/report.md"}
+            generate_report(week="2026-W14")
+            mock_gen.assert_called_once_with("2026-W14")
+
+    def test_backtest_report_no_runs_exits(self):
+        """无回测记录时应 exit(1)"""
+        from quant_dojo.commands.report import generate_report
+
+        with patch("pipeline.run_store.list_runs", return_value=[]):
+            with pytest.raises(SystemExit) as exc_info:
+                generate_report(backtest=True)
+            assert exc_info.value.code == 1
+
+    def test_report_dispatch_from_cli(self):
+        """CLI 应正确调度 report 命令"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "report", "--week", "2026-W14"]):
+            with patch("quant_dojo.commands.report.generate_report") as mock:
+                main()
+                mock.assert_called_once_with(week="2026-W14", backtest=False)
+
+
+# ═══════════════════════════════════════════════════════════
+# activate command
+# ═══════════════════════════════════════════════════════════
+
+class TestActivateCommand:
+    def test_activate_show_mode(self):
+        """--show 应显示当前策略"""
+        from quant_dojo.commands.activate import run_activate
+
+        with patch("pipeline.active_strategy.get_active_strategy", return_value="v7"):
+            with patch("pipeline.active_strategy.get_strategy_history", return_value=[]):
+                with patch("pipeline.active_strategy.VALID_STRATEGIES", {"v7", "v8", "ad_hoc"}):
+                    run_activate(show=True)  # 不应崩溃
+
+    def test_activate_invalid_strategy_exits(self):
+        """无效策略应 exit(1)"""
+        from quant_dojo.commands.activate import run_activate
+
+        with patch("pipeline.active_strategy.get_active_strategy", return_value="v7"):
+            with patch("pipeline.active_strategy.VALID_STRATEGIES", {"v7", "v8"}):
+                with pytest.raises(SystemExit) as exc_info:
+                    run_activate(strategy="nonexistent")
+                assert exc_info.value.code == 1
+
+    def test_activate_same_strategy_noop(self):
+        """已是当前策略时应提示无需切换"""
+        from quant_dojo.commands.activate import run_activate
+
+        with patch("pipeline.active_strategy.get_active_strategy", return_value="v7"):
+            with patch("pipeline.active_strategy.VALID_STRATEGIES", {"v7", "v8"}):
+                with patch("pipeline.active_strategy.set_active_strategy") as mock_set:
+                    run_activate(strategy="v7")
+                    mock_set.assert_not_called()
+
+
+# ═══════════════════════════════════════════════════════════
 # doctor command
 # ═══════════════════════════════════════════════════════════
 
