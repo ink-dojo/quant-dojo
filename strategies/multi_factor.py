@@ -189,8 +189,9 @@ class MultiFactorStrategy(BaseStrategy):
                     old_w = current_weights.get(sym, 0.0)
                     new_w = new_weights.get(sym, 0.0)
                     turnover += abs(new_w - old_w)
-                # turnover 已是双边（买入 + 卖出的绝对变化之和）
-                transaction_cost = self.config.commission * 2 * turnover  # 双边 0.3%
+                # turnover 已是双边（买入权重变化 + 卖出权重变化之和）
+                # commission 是单边费率，turnover 已含买卖两边，不需要再 ×2
+                transaction_cost = self.config.commission * turnover
 
                 current_holdings = new_holdings
                 current_weights = new_weights
