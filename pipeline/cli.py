@@ -47,8 +47,8 @@ def _check_data_freshness_warning():
             print(f"⚠️  [数据警告] 本地数据已 {days_stale} 个交易日未更新（最新：{latest}）", file=sys.stderr)
             if missing_count:
                 print(f"⚠️  [数据警告] 有 {missing_count} 只股票数据缺失", file=sys.stderr)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️  [数据警告] 数据新鲜度检查本身失败: {e}", file=sys.stderr)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -901,7 +901,11 @@ def main():
             sys.exit(0)
         if action == "quote":
             def _live_quote(a):
-                from providers.sina_provider import fetch_realtime_quotes
+                try:
+                    from providers.sina_provider import fetch_realtime_quotes
+                except ImportError:
+                    print("❌ providers.sina_provider 不可用，请确认 providers/ 目录完整", file=sys.stderr)
+                    sys.exit(1)
                 syms = a.symbols if a.symbols else ["600000", "000001", "600519"]
                 quotes = fetch_realtime_quotes(syms)
                 print(f"\n{'代码':<8} {'名称':<10} {'现价':>8} {'涨跌':>8} {'成交额':>10}")
@@ -912,12 +916,20 @@ def main():
             handler = _live_quote
         elif action == "poll":
             def _live_poll(a):
-                from pipeline.live_data_service import poll_realtime
+                try:
+                    from pipeline.live_data_service import poll_realtime
+                except ImportError:
+                    print("❌ pipeline.live_data_service 不可用", file=sys.stderr)
+                    sys.exit(1)
                 poll_realtime(interval=a.interval)
             handler = _live_poll
         elif action == "eod":
             def _live_eod(a):
-                from pipeline.live_data_service import run_eod_update
+                try:
+                    from pipeline.live_data_service import run_eod_update
+                except ImportError:
+                    print("❌ pipeline.live_data_service 不可用", file=sys.stderr)
+                    sys.exit(1)
                 run_eod_update()
             handler = _live_eod
         else:
