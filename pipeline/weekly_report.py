@@ -170,7 +170,10 @@ def _try_factor_health() -> Optional[dict]:
     """
     try:
         from pipeline.factor_monitor import factor_health_report, FACTOR_PRESETS
-        return factor_health_report(factors=FACTOR_PRESETS["v7"])
+        from pipeline.active_strategy import get_active_strategy
+        _active = get_active_strategy()
+        _preset_key = _active if _active in FACTOR_PRESETS else "v7"
+        return factor_health_report(factors=FACTOR_PRESETS[_preset_key])
     except Exception:
         return None
 
