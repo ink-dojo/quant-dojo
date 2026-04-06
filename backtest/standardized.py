@@ -241,6 +241,55 @@ def _compute_metrics(returns: pd.Series) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════
+# 数据质量检查
+# ══════════════════════════════════════════════════════════════
+
+def _validate_price_data(price_wide: pd.DataFrame) -> list[str]:
+    """
+    检查价格数据质量，返回警告列表。
+
+    检查项:
+      1. NaN 覆盖率：每只股票的非空数据占比
+      2. 价格跳跃：单日涨跌幅 > 20%（可能是数据错误）
+      3. 零价格：价格为 0 的记录（明确的数据错误）
+      4. 时间连续性：是否有大段缺失的交易日
+    """
+    warnings_list = []
+
+    # 1. NaN 覆盖率
+    nan_ratio = price_wide.isna().mean().mean()
+    if nan_ratio > 0.5:
+        warnings_list.append(f"数据缺失率过高: {nan_ratio:.1%}（超过50%），结果可能不可靠")
+    elif nan_ratio > 0.2:
+        warnings_list.append(f"数据缺失率偏高: {nan_ratio:.1%}")
+
+    # 2. 价格跳跃
+    daily_ret = price_wide.pct_change().abs()
+    extreme_count = (daily_ret > 0.20).sum().sum()
+    if extreme_count > 0:
+        total_cells = daily_ret.size
+        extreme_ratio = extreme_count / total_cells
+        if extreme_ratio > 0.001:
+            warnings_list.append(
+                f"发现 {extreme_count} 个极端日收益率 (>20%)，占比 {extreme_ratio:.4%}"
+            )
+
+    # 3. 零价格
+    zero_count = (price_wide == 0).sum().sum()
+    if zero_count > 0:
+        warnings_list.append(f"发现 {zero_count} 个零价格记录，可能是数据错误")
+
+    # 4. 时间连续性
+    if len(price_wide.index) >= 2:
+        date_diffs = pd.Series(price_wide.index).diff().dt.days
+        max_gap = date_diffs.max()
+        if max_gap > 10:
+            warnings_list.append(f"最大日期间隔 {max_gap} 天（可能有数据缺失期间）")
+
+    return warnings_list
+
+
+# ══════════════════════════════════════════════════════════════
 # 基准加载
 # ══════════════════════════════════════════════════════════════
 
@@ -343,6 +392,11 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
             raise ValueError("无法加载价格数据")
 
         print(f"  价格数据: {price_wide.shape[0]} 天 x {price_wide.shape[1]} 只股票")
+
+        # 数据质量检查
+        data_warnings = _validate_price_data(price_wide)
+        for w in data_warnings:
+            print(f"  [数据警告] {w}")
 
         # ── 2. 计算因子 ──────────────────────────────────────
         print("  计算因子...")
