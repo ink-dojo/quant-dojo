@@ -59,6 +59,11 @@ def main():
     # ── status ──
     sub.add_parser("status", help="系统全局状态一览")
 
+    # ── report ──
+    p_rep = sub.add_parser("report", help="生成报告（周报/回测报告）")
+    p_rep.add_argument("--week", type=str, help="ISO 周次 (如 2026-W13)")
+    p_rep.add_argument("--backtest", action="store_true", help="重新生成最近回测的 HTML 报告")
+
     # ── dashboard ──
     p_dash = sub.add_parser("dashboard", help="启动可视化仪表盘")
     p_dash.add_argument("--port", type=int, default=8501, help="端口号（默认 8501）")
@@ -88,6 +93,7 @@ def main():
         "run": cmd_run,
         "backtest": cmd_backtest,
         "status": cmd_status,
+        "report": cmd_report,
         "dashboard": cmd_dashboard,
         "activate": cmd_activate,
         "schedule": cmd_schedule,
@@ -124,6 +130,12 @@ def cmd_status(args):
     """系统状态"""
     from quant_dojo.commands.status import show_status
     show_status()
+
+
+def cmd_report(args):
+    """生成报告"""
+    from quant_dojo.commands.report import generate_report
+    generate_report(week=args.week, backtest=args.backtest)
 
 
 def cmd_dashboard(args):
