@@ -14,6 +14,7 @@ from backtest.report import (
     _render_factor_table,
     _render_config_table,
     _render_trade_log,
+    _render_correlation_matrix,
     _render_monthly_heatmap,
     _compute_monthly_returns,
     _heatmap_color,
@@ -144,6 +145,29 @@ class TestRenderConfigTable:
 # ═══════════════════════════════════════════════════════════
 # Trade log
 # ═══════════════════════════════════════════════════════════
+
+class TestRenderCorrelationMatrix:
+    def test_empty(self):
+        assert "无相关性数据" in _render_correlation_matrix(None)
+
+    def test_with_data(self):
+        corr = {
+            "momentum": {"momentum": 1.0, "vol": 0.3},
+            "vol": {"momentum": 0.3, "vol": 1.0},
+        }
+        html = _render_correlation_matrix(corr)
+        assert "momentum" in html
+        assert "1.00" in html
+        assert "0.30" in html
+
+    def test_high_correlation_highlighted(self):
+        corr = {
+            "a": {"a": 1.0, "b": 0.85},
+            "b": {"a": 0.85, "b": 1.0},
+        }
+        html = _render_correlation_matrix(corr)
+        assert "#ff7675" in html  # high correlation color
+
 
 class TestRenderTradeLog:
     def test_empty(self):

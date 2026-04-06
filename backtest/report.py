@@ -80,6 +80,9 @@ def generate_html_report(result: "BacktestResult") -> Path:
     # 因子统计表
     factor_html = _render_factor_table(factor_stats)
 
+    # 因子相关性矩阵
+    corr_html = _render_correlation_matrix(factor_stats.get("_correlation_matrix"))
+
     # 调仓日志
     trade_html = _render_trade_log(result.trade_log)
 
@@ -156,6 +159,11 @@ canvas {{ width: 100% !important; }}
 <div class="card">
 <h2>因子统计</h2>
 {factor_html}
+</div>
+
+<div class="card">
+<h2>因子相关性矩阵</h2>
+{corr_html}
 </div>
 
 <div class="card">
@@ -367,6 +375,8 @@ def _render_factor_table(factor_stats: dict) -> str:
 
     rows = []
     for name, stats in factor_stats.items():
+        if name.startswith("_"):
+            continue
         ic_mean = stats.get("ic_mean", 0)
         ic_std = stats.get("ic_std", 0)
         icir = stats.get("icir", 0)
@@ -402,6 +412,40 @@ def _render_config_table(config) -> str:
 
     rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in items)
     return f"<table><tbody>{rows}</tbody></table>"
+
+
+def _render_correlation_matrix(corr_data: dict | None) -> str:
+    """渲染因子相关性矩阵"""
+    if not corr_data:
+        return "<p>无相关性数据</p>"
+
+    factors = list(corr_data.keys())
+    header = "<tr><th></th>" + "".join(f"<th>{f}</th>" for f in factors) + "</tr>"
+
+    rows = []
+    for f1 in factors:
+        cells = []
+        for f2 in factors:
+            val = corr_data[f1].get(f2, 0)
+            # 颜色：高相关性 = 红色警告
+            abs_val = abs(val)
+            if f1 == f2:
+                bg = "#f8f9fa"
+            elif abs_val > 0.7:
+                bg = "#ff7675"
+            elif abs_val > 0.5:
+                bg = "#fab1a0"
+            elif abs_val > 0.3:
+                bg = "#ffeaa7"
+            else:
+                bg = "#dfe6e9"
+            cells.append(f'<td style="background:{bg};text-align:center">{val:.2f}</td>')
+        rows.append(f"<tr><td><strong>{f1}</strong></td>{''.join(cells)}</tr>")
+
+    return (
+        '<table class="heatmap-table"><thead>' + header + '</thead><tbody>'
+        + "".join(rows) + '</tbody></table>'
+    )
 
 
 def _render_trade_log(trade_log: list) -> str:

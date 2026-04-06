@@ -458,14 +458,16 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
         factor_names = list(factors.keys())
         print(f"  因子: {', '.join(factor_names)}")
 
-        # 因子统计
+        # 因子统计 + 相关性矩阵
         from utils.factor_analysis import compute_ic_series
         ret_wide = price_wide.pct_change()
         factor_stats = {}
+        ic_dict = {}
         for name, (fac_wide, direction) in factors.items():
             try:
                 ic_s = compute_ic_series(fac_wide, ret_wide, method="spearman")
                 if not ic_s.empty:
+                    ic_dict[name] = ic_s
                     factor_stats[name] = {
                         "ic_mean": round(float(ic_s.mean()), 6),
                         "ic_std": round(float(ic_s.std()), 6),
@@ -474,6 +476,16 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
                     }
             except Exception:
                 pass
+
+        # 因子间相关性（基于 IC 序列）
+        if len(ic_dict) >= 2:
+            ic_df = pd.DataFrame(ic_dict)
+            corr_matrix = ic_df.corr()
+            factor_stats["_correlation_matrix"] = {
+                row: {col: round(float(corr_matrix.loc[row, col]), 4) for col in corr_matrix.columns}
+                for row in corr_matrix.index
+            }
+
         result.factor_stats = factor_stats
 
         # ── 3. 加载 ST 数据 ──────────────────────────────────
