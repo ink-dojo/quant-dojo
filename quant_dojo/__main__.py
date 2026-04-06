@@ -61,6 +61,11 @@ def main():
     p_qs.add_argument("--data-dir", type=str, help="本地行情数据目录路径")
     p_qs.add_argument("--skip-download", action="store_true", help="跳过数据下载")
 
+    # ── update ──
+    p_upd = sub.add_parser("update", help="增量更新本地行情数据")
+    p_upd.add_argument("--dry-run", action="store_true", help="空跑模式，仅查看待更新范围")
+    p_upd.add_argument("--full", action="store_true", help="全量重新下载")
+
     # ── run ──
     p_run = sub.add_parser("run", help="执行每日全流程（数据→信号→调仓→风控→报告）")
     p_run.add_argument("--date", type=str, help="交易日期 YYYY-MM-DD（默认自动检测）")
@@ -122,6 +127,7 @@ def main():
     dispatch = {
         "init": cmd_init,
         "quickstart": cmd_quickstart,
+        "update": cmd_update,
         "run": cmd_run,
         "backtest": cmd_backtest,
         "status": cmd_status,
@@ -146,6 +152,12 @@ def cmd_quickstart(args):
     """零配置一键启动"""
     from quant_dojo.commands.quickstart import run_quickstart
     run_quickstart(data_dir=args.data_dir, skip_download=args.skip_download)
+
+
+def cmd_update(args):
+    """数据更新"""
+    from quant_dojo.commands.update import run_update
+    run_update(dry_run=args.dry_run, full=args.full)
 
 
 def cmd_run(args):

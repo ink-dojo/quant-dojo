@@ -468,6 +468,35 @@ class TestQuickstartCommand:
 
 
 # ═══════════════════════════════════════════════════════════
+# update command
+# ═══════════════════════════════════════════════════════════
+
+class TestUpdateCommand:
+    def test_update_dry_run(self):
+        """dry_run 应不实际下载"""
+        from quant_dojo.commands.update import run_update
+
+        with patch("utils.runtime_config.get_local_data_dir") as mock_dir:
+            from pathlib import Path
+            mock_dir.return_value = Path("/tmp/test-data")
+            with patch("pathlib.Path.exists", return_value=True):
+                with patch("pathlib.Path.glob", return_value=["a.csv"]):
+                    with patch("pipeline.data_update.run_update") as mock_update:
+                        mock_update.return_value = {"updated": [], "skipped": ["000001"], "failed": []}
+                        run_update(dry_run=True)
+                        mock_update.assert_called_once()
+
+    def test_update_cli_dispatch(self):
+        """CLI 应正确调度 update 命令"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "update", "--dry-run"]):
+            with patch("quant_dojo.commands.update.run_update") as mock:
+                main()
+                mock.assert_called_once_with(dry_run=True, full=False)
+
+
+# ═══════════════════════════════════════════════════════════
 # schedule command
 # ═══════════════════════════════════════════════════════════
 
