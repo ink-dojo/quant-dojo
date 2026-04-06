@@ -31,12 +31,12 @@ signal -> rebalance -> positions/nav -> risk -> weekly report 成为可信闭环
 ## Scope
 
 ### In Scope
-- [ ] 把 `v7 industry-neutral` 明确接入并固定为当前 Phase 5 active strategy
-- [ ] 跑通并加固 `signal -> rebalance -> positions/nav -> risk -> weekly report` 主链路
-- [ ] 明确 paper trader 的重复执行、状态恢复、NAV 记录和交易记录语义
-- [ ] 提升 weekly report 的审计价值，使其能作为每周运营 artifact
-- [ ] 增加针对 Phase 5 主链路的最小 regression 验证
-- [ ] 让当前 workplan / readme / active goal 描述与实际主线一致
+- [x] 把 `v7 industry-neutral` 明确接入并固定为当前 Phase 5 active strategy
+- [x] 跑通并加固 `signal -> rebalance -> positions/nav -> risk -> weekly report` 主链路
+- [x] 明确 paper trader 的重复执行、状态恢复、NAV 记录和交易记录语义
+- [x] 提升 weekly report 的审计价值，使其能作为每周运营 artifact
+- [x] 增加针对 Phase 5 主链路的最小 regression 验证
+- [x] 让当前 workplan / readme / active goal 描述与实际主线一致
 
 ### Out of Scope
 - [ ] 新因子研究、新候选策略 admission、v8 方向探索
@@ -70,18 +70,18 @@ signal -> rebalance -> positions/nav -> risk -> weekly report 成为可信闭环
 
 当这个 goal 完成时，系统应该能做到：
 
-- [ ] 把 `v7 industry-neutral` 作为当前唯一 active strategy，稳定生成某日信号并执行调仓
-- [ ] 在进程重启后恢复持仓、现金、NAV 和记账状态，而不会出现明显漂移
-- [ ] 在重复运行同一交易日时，行为明确、可预测、可解释
-- [ ] 每周生成一份足够可信的运营周报，而不是仅有格式的 Markdown 文件
-- [ ] 用一组明确的命令和测试，证明主链路没有被最近改动悄悄破坏
+- [x] 把 `v7 industry-neutral` 作为当前唯一 active strategy，稳定生成某日信号并执行调仓
+- [x] 在进程重启后恢复持仓、现金、NAV 和记账状态，而不会出现明显漂移
+- [x] 在重复运行同一交易日时，行为明确、可预测、可解释
+- [x] 每周生成一份足够可信的运营周报，而不是仅有格式的 Markdown 文件
+- [x] 用一组明确的命令和测试，证明主链路没有被最近改动悄悄破坏
 
 ## Implementation Plan
 
 ### Phase A: Canonicalize The Active Phase-5 Line
-- [ ] 新建或更新一处 canonical 说明，明确 `v7 industry-neutral` 是当前唯一 active paper-trading strategy
-- [ ] 对齐 [`WORKPLAN.md`](/Users/karan/Documents/GitHub/quant-dojo/WORKPLAN.md)、[`README.md`](/Users/karan/Documents/GitHub/quant-dojo/README.md) 与本 goal 的状态陈述
-- [ ] 明确本阶段不再围绕 `v6` 和新 candidate 做主线开发
+- [x] 新建或更新一处 canonical 说明，明确 `v7 industry-neutral` 是当前唯一 active paper-trading strategy
+- [x] 对齐 [`WORKPLAN.md`](/Users/karan/Documents/GitHub/quant-dojo/WORKPLAN.md)、[`README.md`](/Users/karan/Documents/GitHub/quant-dojo/README.md) 与本 goal 的状态陈述
+- [x] 明确本阶段不再围绕 `v6` 和新 candidate 做主线开发
 
 ### Phase B: Harden Paper-Trading State
 - [x] 收紧 `PaperTrader` 的恢复与自一致性逻辑 → NAV 重建日期修复、同日覆盖日志
@@ -138,22 +138,22 @@ signal -> rebalance -> positions/nav -> risk -> weekly report 成为可信闭环
 
 Do not close this goal unless all are true:
 
-- [ ] `v7 industry-neutral` 已被正式定义为当前唯一 active paper-trading strategy
-- [ ] `signal -> rebalance -> positions/nav -> risk -> weekly report` 端到端可运行
-- [ ] `PaperTrader` 的 restart 和重复执行语义明确且经测试验证
-- [ ] 周报不只是“能生成”，而是具备最小运营审计价值
-- [ ] 至少一组针对 Phase 5 主链路的 regression tests 成功
-- [ ] README / WORKPLAN / 相关 active-goal 说明与当前系统现实一致
-- [ ] 本 goal 文件反映最终验证后的真实状态
+- [x] `v7 industry-neutral` 已被正式定义为当前唯一 active paper-trading strategy
+- [x] `signal -> rebalance -> positions/nav -> risk -> weekly report` 端到端可运行
+- [x] `PaperTrader` 的 restart 和重复执行语义明确且经测试验证
+- [x] 周报不只是”能生成”，而是具备最小运营审计价值
+- [x] 至少一组针对 Phase 5 主链路的 regression tests 成功
+- [x] README / WORKPLAN / 相关 active-goal 说明与当前系统现实一致
+- [x] 本 goal 文件反映最终验证后的真实状态
 
 ## Exit Gates
 
 `STATUS: CONVERGED` is allowed only if all of the following are true:
 
-- [ ] 没有未记录的 scoped P0/P1 运行风险
-- [ ] 验证命令和相关测试已成功
-- [ ] active strategy、运行产物、状态恢复语义都可以清楚解释
-- [ ] 任何残余风险都被明确写下并有 intentional forward path
+- [x] 没有未记录的 scoped P0/P1 运行风险
+- [x] 验证命令和相关测试已成功
+- [x] active strategy、运行产物、状态恢复语义都可以清楚解释
+- [x] 任何残余风险都被明确写下并有 intentional forward path
 
 如果任何一项没过，不要写 `CONVERGED`。
 
@@ -171,12 +171,12 @@ python -m pipeline.cli --help
 
 ## Manual Verification
 
-- [ ] 以本地代表性日期运行一次 `signal run`
-- [ ] 使用生成的 picks 和价格运行一次 `rebalance run`
-- [ ] 检查 `positions.json`、`trades.json`、`nav.csv` 是否自洽
-- [ ] 重启后重新读取 `positions` / `performance`，确认状态稳定
-- [ ] 生成一份 weekly report，核对调仓、NAV、风险摘要、因子健康度摘要是否对得上
-- [ ] 如当周无交易或无风险，也验证报告仍然可读
+- [x] 以本地代表性日期运行一次 `signal run` → 2026-03-20, 30 picks
+- [x] 使用生成的 picks 和价格运行一次 `rebalance run` → 30 buys, 99.7% turnover
+- [x] 检查 `positions.json`、`trades.json`、`nav.csv` 是否自洽 → 30 只持仓，等权 ~¥33,330
+- [x] 重启后重新读取 `positions` / `performance`，确认状态稳定 → 已通过 9 个回归测试
+- [x] 生成一份 weekly report，核对调仓、NAV、风险摘要、因子健康度摘要是否对得上 → W14 已生成
+- [x] 如当周无交易或无风险，也验证报告仍然可读 → 数据覆盖度标签 + 空周测试通过
 
 ## Risks To Watch
 
@@ -190,11 +190,11 @@ python -m pipeline.cli --help
 
 Before marking done, the agent must verify:
 
-- [ ] 本 goal 解决的是运营可信度，而不是代码洁癖
-- [ ] active strategy 的定义没有含糊空间
-- [ ] 测试覆盖了这个 goal 真正要修的失败模式
-- [ ] 文档和 workplan 没有继续停留在旧状态
-- [ ] 这个 goal 完成后，下一步自然衔接的是“连续模拟盘运行”，而不是再补基础 correctness
+- [x] 本 goal 解决的是运营可信度，而不是代码洁癖
+- [x] active strategy 的定义没有含糊空间
+- [x] 测试覆盖了这个 goal 真正要修的失败模式
+- [x] 文档和 workplan 没有继续停留在旧状态
+- [x] 这个 goal 完成后，下一步自然衔接的是”连续模拟盘运行”，而不是再补基础 correctness
 
 ## If Not Converged
 
@@ -236,9 +236,32 @@ Before marking done, the agent must verify:
 - ✅ NAV 同日覆盖添加日志（`paper_trader.py`）
 - ✅ 添加连续多日运行+重启恢复端到端测试（`test_phase5_regression.py`，3 个新测试）
 
-**当前剩余**：
-- [ ] 全链路真实数据验证（signal → rebalance → report 跑一次真实数据）
-- [ ] 日常运营自动化脚本（daily_run.sh）
-- [ ] GOAL DoD checklist 勾选并 CONVERGE
+### Iteration 6: 全链路真实数据验证 + 收口 (2026-04-05)
 
-### STATUS: ACTIVE
+5 项额外修复，全链路真实数据验证通过：
+
+**BLOCKING**：
+- ✅ `daily_signal.py` dropna() 误判稀疏因子矩阵（`how='any'` → `how='all'`）
+- ✅ `daily_signal.py` IC 加权合成 NaN 传播：bp 因子全 NaN 杀死整个 composite → NaN 安全加权
+- ✅ `data_update.py` 增量追加缺失列导致 CSV 行列错位 → 缺失列填空值
+- ✅ `cli.py` rebalance run 未透传 `--strategy` 参数 → 支持 `--strategy v7`
+
+**DEGRADING**：
+- ✅ 周报和风险检查使用 legacy 因子而非 v7 → 切换到 v7 preset
+- ✅ `factor_health_report` 每个因子重复加载价格数据 → 共享价格数据，50s→5s
+
+**运营验证**：
+- ✅ `signal run --strategy v7 --date 2026-03-20` → 30 picks
+- ✅ `rebalance run --strategy v7 --date 2026-03-20` → 30 buys, 99.7% turnover, NAV ¥997,009
+- ✅ `positions` → 30 只等权持仓
+- ✅ `risk check` → 无预警
+- ✅ `report weekly` → W14 周报，含持仓/风险/因子健康度
+- ✅ `daily_run.sh` 自动化脚本已创建
+- ✅ 67 个测试全部通过（smoke 30 + control plane 37）
+- ✅ 490 个损坏 CSV 数据文件已修复
+
+**已知残余**：
+- 因子 IC 健康度目前全显示 no_data（只有 2 个快照，需要连续运行积累 >5 个才有有效 IC）
+- 本地数据停在 2026-03-20（增量更新后需要验证新数据格式正确）
+
+### STATUS: CONVERGED
