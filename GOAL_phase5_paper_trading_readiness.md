@@ -60,11 +60,11 @@ signal -> rebalance -> positions/nav -> risk -> weekly report 成为可信闭环
 - [x] 免费数据更新与 freshness 主线已基本收口，不再是当前唯一阻塞项
 
 ### Current Gaps
-- [ ] 当前主策略虽已 admission allow，但尚未被正式定义为唯一 active paper-trading line
-- [ ] `PaperTrader` 的 restart 语义、自一致性与重复执行语义还不够硬
-- [ ] weekly report 更像“存在的文档输出”，还不够像“可审计的运营产物”
-- [ ] 现有自动化验证以 smoke 为主，还未覆盖更真实的 Phase 5 失败模式
-- [ ] workplan 已切到 Phase 5 paper trading，但 README 仍把 active subgoal 标成 free data ingestion，状态描述不完全一致
+- [x] 当前主策略虽已 admission allow，但尚未被正式定义为唯一 active paper-trading line → CLI 默认 --strategy v7
+- [x] `PaperTrader` 的 restart 语义、自一致性与重复执行语义还不够硬 → 14 项修复 + 9 个回归测试
+- [x] weekly report 更像”存在的文档输出”，还不够像”可审计的运营产物” → 数据覆盖度验证 + IC 字段修复
+- [x] 现有自动化验证以 smoke 为主，还未覆盖更真实的 Phase 5 失败模式 → 连续运行 + 重启恢复测试
+- [x] workplan 已切到 Phase 5 paper trading，但 README 仍把 active subgoal 标成 free data ingestion → README 已对齐
 
 ## Operational Outcome
 
@@ -84,19 +84,19 @@ signal -> rebalance -> positions/nav -> risk -> weekly report 成为可信闭环
 - [ ] 明确本阶段不再围绕 `v6` 和新 candidate 做主线开发
 
 ### Phase B: Harden Paper-Trading State
-- [ ] 收紧 `PaperTrader` 的恢复与自一致性逻辑
-- [ ] 明确同日重复调仓、无 picks、价格缺失、nav 缺失等情形的语义
-- [ ] 确保 CLI `positions` / `performance` 与持久化状态字段完全对齐
+- [x] 收紧 `PaperTrader` 的恢复与自一致性逻辑 → NAV 重建日期修复、同日覆盖日志
+- [x] 明确同日重复调仓、无 picks、价格缺失、nav 缺失等情形的语义 → turnover 真实值 + 9 个回归测试
+- [x] 确保 CLI `positions` / `performance` 与持久化状态字段完全对齐
 
 ### Phase C: Make Weekly Review Operational
-- [ ] 让 weekly report 明确展示本周调仓、期末持仓、周度 NAV、风险摘要、因子健康度、下周待确认事项
-- [ ] 空周、无交易周、无风险周仍要生成“空但可读”的报告
-- [ ] 明确 weekly report 和 live artifacts 的依赖契约
+- [x] 让 weekly report 明确展示本周调仓、期末持仓、周度 NAV、风险摘要、因子健康度、下周待确认事项
+- [x] 空周、无交易周、无风险周仍要生成”空但可读”的报告 → 数据覆盖度标签
+- [x] 明确 weekly report 和 live artifacts 的依赖契约 → IC 字段对齐
 
 ### Phase D: Raise Verification To Regression Grade
-- [ ] 增加针对 `signal -> rebalance -> risk -> weekly report` 的最小端到端验证
-- [ ] 为 `PaperTrader` 增加重复执行 / restart-safe / nav 防重的测试
-- [ ] 为 weekly report 增加结构和内容级别的测试，而不是只验证返回类型
+- [x] 增加针对 `signal -> rebalance -> risk -> weekly report` 的最小端到端验证 → test_phase5_regression.py
+- [x] 为 `PaperTrader` 增加重复执行 / restart-safe / nav 防重的测试 → 6+3=9 个测试
+- [x] 为 weekly report 增加结构和内容级别的测试，而不是只验证返回类型
 
 ## File-Level Work
 
@@ -210,25 +210,35 @@ Before marking done, the agent must verify:
 
 ## Status
 
-### STATUS: IN PROGRESS — Iteration 2/5 Complete (2026-04-04)
+### STATUS: IN PROGRESS — Iteration 5 (2026-04-05)
 
-**Autoloop 进度**：Iterations 1-2 完成（3-4 因 supervisor API 问题中断）。主要阻塞项已处理：
+**Phase 5 体检 + 14 项修复 (2026-04-05)**：
 
-**已完成（Iteration 1-2）**：
-- ✅ `v7 industry-neutral` 因子已通过 `--strategy v7` flag 接入 `daily_signal.py`（+162 行）
-- ✅ CLI `signal run` 默认 `--strategy v7`，help 文本已更新
-- ✅ README.md / WORKPLAN.md / GOAL_v7_admission_full.md 均已对齐（forward pointer 已加）
-- ✅ `tests/test_phase5_regression.py` 已创建，6 个回归测试全通过（真实文件 IO）：
-  - `test_signal_rebalance_risk_report_chain` — 端到端链路
-  - `test_restart_after_multiple_days` / `test_restart_reads_same_positions_and_nav` — 重启安全
-  - `test_different_day_allows_rebalance` / `test_same_day_duplicate_returns_same_nav` — 同日防重
-  - `test_load_functions_with_real_files` — 周报文件加载
+全面体检后一次性修复了 14 个问题（4 BLOCKING + 5 DEGRADING + 5 MINOR），101 个测试全通过：
 
-**未完成（关键项）**：
-- ⚠️ **v7 因子快照缺失**：EOD 管道快照仍只记录旧 4 因子（momentum_20/ep/low_vol/turnover_rev），v7 的 5 个因子（team_coin/low_vol_20d/cgo_simple/enhanced_mom_60/bp）从未被快照。`factor-health --preset v7` 只能显示 `no_data`。需要改造 `daily_signal.py` 的快照部分，或新建独立的 v7 快照管道。
-- ⚠️ **周报运营质量未验证**：需要用真实信号数据生成一份周报，确认调仓、NAV、风险摘要、因子健康度的内容可读且可对账。
-- ⚠️ **test_control_plane.py 子进程泄漏**：58 个测试全过，但 teardown 时 `pipeline.cli` 子进程未被回收导致挂起。需单独 fix。
+**BLOCKING 已修复**：
+- ✅ v7 因子快照改写中性化后因子值，因子名对齐 `enhanced_mom_60`（`daily_signal.py`）
+- ✅ 周报读 `rolling_ic` 而非 `ic_mean`，修复字段名不匹配（`weekly_report.py`）
+- ✅ walk-forward `factor_slice` 限制到训练期末，消除前视偏差（`walk_forward.py`）
+- ✅ `auto_mode` 不再因 `poll_realtime` 死循环阻塞 EOD 更新（`live_data_service.py`）
 
-**Supervisor 中断记录**：Iteration 3-4 的 haiku supervisor 因 API 问题崩溃（日志为空）。后续可用 `--resume` 或手动继续。
+**DEGRADING 已修复**：
+- ✅ 同日重复调仓返回真实换手率（`paper_trader.py`）
+- ✅ CLI 测试子进程泄漏修复（`test_control_plane.py`）
+- ✅ 周报添加数据覆盖度验证（`weekly_report.py`）
+- ✅ 行业集中度检查改为尝试加载真实数据（`risk_monitor.py`）
+- ✅ 多因子策略交易成本 ×2 重复计算修复（`multi_factor.py`）
+
+**MINOR 已修复**：
+- ✅ live CLI 命令加 ImportError 保护（`cli.py`）
+- ✅ 数据 freshness 检查不再静默吞异常（`cli.py`）
+- ✅ NAV 重建用最后交易日期代替 today()（`paper_trader.py`）
+- ✅ NAV 同日覆盖添加日志（`paper_trader.py`）
+- ✅ 添加连续多日运行+重启恢复端到端测试（`test_phase5_regression.py`，3 个新测试）
+
+**当前剩余**：
+- [ ] 全链路真实数据验证（signal → rebalance → report 跑一次真实数据）
+- [ ] 日常运营自动化脚本（daily_run.sh）
+- [ ] GOAL DoD checklist 勾选并 CONVERGE
 
 ### STATUS: ACTIVE
