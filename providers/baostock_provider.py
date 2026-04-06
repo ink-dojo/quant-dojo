@@ -33,8 +33,19 @@ def _normalize_date(d: str) -> str:
     return d
 
 
-_FIELDS = "date,open,high,low,close,volume,amount"
-_NUMERIC_COLS = ["open", "high", "low", "close", "volume", "amount"]
+_FIELDS = "date,open,high,low,close,preclose,volume,amount,turn,peTTM,pbMRQ,psTTM,pcfNcfTTM,isST"
+_NUMERIC_COLS = ["open", "high", "low", "close", "preclose", "volume", "amount",
+                 "turn", "peTTM", "pbMRQ", "psTTM", "pcfNcfTTM", "isST"]
+# BaoStock 字段 → 本地 CSV 英文列名
+_RENAME_MAP = {
+    "preclose": "prev_close",
+    "turn": "turnover",
+    "peTTM": "pe_ttm",
+    "pbMRQ": "pb",
+    "psTTM": "ps_ttm",
+    "pcfNcfTTM": "pcf",
+    "isST": "is_st",
+}
 
 
 class BaoStockProvider(BaseDataProvider):
@@ -187,6 +198,7 @@ class BaoStockProvider(BaseDataProvider):
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
         df = df.dropna(subset=["close"])
+        df = df.rename(columns=_RENAME_MAP)
         return df
 
     def incremental_update(
