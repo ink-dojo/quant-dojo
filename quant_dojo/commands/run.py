@@ -71,8 +71,9 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
         results["signal"] = result
         n_picks = result.get("n_picks", 0)
         print(f"  [OK] 选出 {n_picks} 只股票")
-        if result.get("top_picks"):
-            print(f"  Top 5: {', '.join(result['top_picks'][:5])}")
+        top = result.get("top_picks", [])
+        if top:
+            print(f"  Top 5: {', '.join(top[:5])}")
     except Exception as e:
         print(f"  [失败] 信号生成失败: {e}")
         results["signal"] = {"status": "failed", "error": str(e)}
@@ -80,10 +81,11 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
         logger.error("信号生成失败", exc_info=True)
 
     # ── Step 4: 模拟调仓 ──
+    signal_picks = results.get("signal", {}).get("top_picks", [])
     if not halted:
         print("\n━━━ Step 3/6: 模拟调仓 ━━━")
         try:
-            result = _step_rebalance(date=date, strategy=strategy, dry_run=dry_run)
+            result = _step_rebalance(date=date, strategy=strategy, dry_run=dry_run, picks=signal_picks)
             results["rebalance"] = result
             print(f"  [OK] 买入 {result.get('n_buys', 0)} / 卖出 {result.get('n_sells', 0)}")
         except Exception as e:
@@ -205,12 +207,12 @@ def _step_signal(date: str, strategy: str, dry_run: bool = False) -> dict:
     return {
         "status": "ok",
         "n_picks": len(picks),
-        "top_picks": picks[:10],
+        "top_picks": picks,  # full list, used by rebalance
         "scores": result.get("scores", {}),
     }
 
 
-def _step_rebalance(date: str, strategy: str, dry_run: bool = False) -> dict:
+def _step_rebalance(date: str, strategy: str, dry_run: bool = False, picks: list = None) -> dict:
     """Step 3: 模拟调仓"""
     if dry_run:
         return {"status": "ok", "n_buys": 0, "n_sells": 0, "dry_run": True}
@@ -219,15 +221,16 @@ def _step_rebalance(date: str, strategy: str, dry_run: bool = False) -> dict:
     from utils.local_data_loader import load_price_wide
     import json
 
-    # 读取今日信号
-    signal_path = PROJECT_ROOT / "live" / "signals" / f"{date}.json"
-    if not signal_path.exists():
-        raise FileNotFoundError(f"信号文件不存在: {signal_path}")
+    # 优先使用内存传递的 picks，降级到文件
+    if not picks:
+        signal_path = PROJECT_ROOT / "live" / "signals" / f"{date}.json"
+        if not signal_path.exists():
+            raise FileNotFoundError(f"信号文件不存在: {signal_path}")
 
-    with open(signal_path) as f:
-        signal = json.load(f)
+        with open(signal_path) as f:
+            signal = json.load(f)
+        picks = signal.get("picks", [])
 
-    picks = signal.get("picks", [])
     if not picks:
         return {"status": "ok", "n_buys": 0, "n_sells": 0, "note": "无选股信号"}
 
