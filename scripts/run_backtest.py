@@ -51,13 +51,19 @@ def main():
     parser.add_argument("--no-neutralize", action="store_true", help="关闭行业中性化")
     parser.add_argument("--report", action="store_true", help="生成 HTML 报告")
     parser.add_argument(
+        "--walk-forward", action="store_true",
+        help="运行 Walk-Forward 滚动样本外验证（替代单次回测）",
+    )
+    parser.add_argument("--train-years", type=int, default=3, help="Walk-Forward 训练窗口（年，默认 3）")
+    parser.add_argument("--test-months", type=int, default=6, help="Walk-Forward 测试窗口（月，默认 6）")
+    parser.add_argument(
         "--compare", type=str, nargs="*", metavar="RUN_ID",
         help="与指定 run_id 对比绩效",
     )
 
     args = parser.parse_args()
 
-    from backtest.standardized import run_backtest, BacktestConfig
+    from backtest.standardized import run_backtest, run_walk_forward, BacktestConfig
 
     config = BacktestConfig(
         strategy=args.strategy,
@@ -68,6 +74,12 @@ def main():
         initial_capital=args.capital,
         neutralize=not args.no_neutralize,
     )
+
+    if args.walk_forward:
+        wf = run_walk_forward(config, train_years=args.train_years, test_months=args.test_months)
+        print(f"\n窗口结果:")
+        print(wf["windows"].to_string())
+        return
 
     result = run_backtest(config)
 

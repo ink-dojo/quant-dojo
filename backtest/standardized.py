@@ -457,7 +457,134 @@ def _persist_result(result: BacktestResult) -> str:
     return run_id
 
 
+def run_walk_forward(config: BacktestConfig, train_years: int = 3, test_months: int = 6) -> dict:
+    """
+    运行滚动样本外验证（Walk-Forward Test）。
+
+    在 config.start ~ config.end 范围内，用滑动窗口反复训练+测试，
+    评估策略在样本外的稳定性。
+
+    参数:
+        config: BacktestConfig 实例
+        train_years: 训练窗口长度（年）
+        test_months: 测试窗口长度（月）
+
+    返回:
+        dict: {
+            "windows": DataFrame（每个窗口的 sharpe/mdd/return），
+            "summary": dict（均值/中位数汇总），
+            "config": BacktestConfig,
+            "equity_curve": 拼接的样本外收益序列,
+        }
+    """
+    from utils.walk_forward import walk_forward_test
+
+    _validate_config(config)
+    np.random.seed(config.random_seed)
+
+    print(f"[Walk-Forward] 策略={config.strategy} | {config.start} ~ {config.end}")
+    print(f"  训练窗口={train_years}年 | 测试窗口={test_months}月")
+
+    # 加载数据
+    symbols = get_all_symbols()
+    lookback_start = str(int(config.start[:4]) - config.lookback_years) + config.start[4:]
+    price_wide = load_price_wide(symbols, lookback_start, config.end, field="close")
+    if price_wide.empty:
+        raise ValueError("无法加载价格数据")
+
+    # 计算因子（全量）
+    factors = _compute_factors(
+        strategy=config.strategy,
+        price_wide=price_wide,
+        symbols=symbols,
+        start=lookback_start,
+        end=config.end,
+        neutralize=config.neutralize,
+    )
+    if not factors:
+        raise ValueError("无有效因子可用")
+
+    # 加载 ST 数据
+    is_st_wide = None
+    try:
+        is_st_wide = load_factor_wide(symbols, "is_st", lookback_start, config.end)
+        if is_st_wide.empty:
+            is_st_wide = None
+    except Exception:
+        pass
+
+    # 构造 strategy_fn 给 walk_forward_test 使用
+    def strategy_fn(full_price, factor_data, train_start, train_end, test_start, test_end):
+        """Walk-forward 策略函数：在 train 期训练因子，返回 test 期收益"""
+        strat_config = StrategyConfig(
+            name=f"{config.strategy}_wf",
+            initial_capital=config.initial_capital,
+            commission=config.commission,
+        )
+
+        strategy = MultiFactorStrategy(
+            config=strat_config,
+            factors=factor_data,
+            is_st_wide=is_st_wide,
+            n_stocks=config.n_stocks,
+        )
+
+        bt = strategy.run(full_price)
+
+        # 只返回测试期的收益
+        test_returns = bt.loc[test_start:test_end, "portfolio_return"]
+        return test_returns
+
+    # 运行 walk-forward
+    wf_results = walk_forward_test(
+        strategy_fn=strategy_fn,
+        price_wide=price_wide,
+        factor_data=factors,
+        train_years=train_years,
+        test_months=test_months,
+    )
+
+    # 汇总
+    valid = wf_results.dropna(subset=["sharpe"])
+    summary = {}
+    if not valid.empty:
+        summary = {
+            "n_windows": len(wf_results),
+            "n_valid": len(valid),
+            "sharpe_mean": round(float(valid["sharpe"].mean()), 4),
+            "sharpe_median": round(float(valid["sharpe"].median()), 4),
+            "sharpe_std": round(float(valid["sharpe"].std()), 4),
+            "max_drawdown_mean": round(float(valid["max_drawdown"].mean()), 6),
+            "max_drawdown_worst": round(float(valid["max_drawdown"].min()), 6),
+            "total_return_mean": round(float(valid["total_return"].mean()), 6),
+            "win_rate": round(float((valid["total_return"] > 0).mean()), 4),
+        }
+
+    print(f"\n{'='*50}")
+    print(f"  Walk-Forward 完成: {config.strategy}")
+    print(f"{'='*50}")
+    print(f"  窗口总数: {summary.get('n_windows', 0)}")
+    print(f"  有效窗口: {summary.get('n_valid', 0)}")
+    print(f"  样本外夏普均值: {summary.get('sharpe_mean', 0):.2f}")
+    print(f"  样本外夏普中位数: {summary.get('sharpe_median', 0):.2f}")
+    print(f"  最差最大回撤: {summary.get('max_drawdown_worst', 0):.2%}")
+    print(f"  窗口胜率: {summary.get('win_rate', 0):.0%}")
+    print(f"{'='*50}")
+
+    return {
+        "windows": wf_results,
+        "summary": summary,
+        "config": config,
+    }
+
+
 if __name__ == "__main__":
     print("标准化回测框架")
-    print("用法: from backtest.standardized import run_backtest, BacktestConfig")
-    print("      result = run_backtest(BacktestConfig(strategy='v7', start='2024-01-01', end='2026-03-31'))")
+    print("用法:")
+    print("  # 单次回测")
+    print("  from backtest.standardized import run_backtest, BacktestConfig")
+    print("  result = run_backtest(BacktestConfig(strategy='v7', start='2024-01-01', end='2026-03-31'))")
+    print()
+    print("  # Walk-Forward 验证")
+    print("  from backtest.standardized import run_walk_forward, BacktestConfig")
+    print("  wf = run_walk_forward(BacktestConfig(strategy='v7', start='2023-01-01', end='2026-03-31'))")

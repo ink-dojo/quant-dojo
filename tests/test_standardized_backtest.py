@@ -17,6 +17,7 @@ from backtest.standardized import (
     _compute_metrics,
     _validate_config,
     run_backtest,
+    run_walk_forward,
 )
 
 
@@ -243,3 +244,59 @@ class TestRunBacktestMocked:
         result = run_backtest(config)
         assert result.status == "failed"
         assert "必须指定" in result.error
+
+
+# ═══════════════════════════════════════════════════════════
+# Walk-Forward 测试
+# ═══════════════════════════════════════════════════════════
+
+class TestRunWalkForward:
+    """Walk-Forward 集成测试"""
+
+    def _make_mock_data(self):
+        np.random.seed(42)
+        # 需要足够长的数据来支撑 train_years=1 + test_months=3
+        dates = pd.date_range("2022-01-01", periods=800, freq="B")
+        symbols = [f"00{i:04d}.SZ" for i in range(1, 51)]
+        price = pd.DataFrame(
+            np.cumprod(1 + np.random.randn(800, 50) * 0.01, axis=0) * 10,
+            index=dates,
+            columns=symbols,
+        )
+        return dates, symbols, price
+
+    @patch("backtest.standardized._compute_factors")
+    @patch("backtest.standardized.load_price_wide")
+    @patch("backtest.standardized.get_all_symbols")
+    @patch("backtest.standardized.load_factor_wide", return_value=pd.DataFrame())
+    def test_walk_forward_runs(
+        self, mock_st, mock_symbols, mock_price, mock_factors,
+    ):
+        dates, symbols, price = self._make_mock_data()
+        mock_symbols.return_value = symbols
+        mock_price.return_value = price
+
+        factor1 = pd.DataFrame(np.random.randn(800, 50), index=dates, columns=symbols)
+        factor2 = pd.DataFrame(np.random.randn(800, 50), index=dates, columns=symbols)
+        mock_factors.return_value = {
+            "factor_a": (factor1, 1),
+            "factor_b": (factor2, 1),
+        }
+
+        config = BacktestConfig(
+            strategy="v7",
+            start="2022-01-01",
+            end="2025-03-31",
+            n_stocks=10,
+        )
+        wf = run_walk_forward(config, train_years=1, test_months=3)
+
+        assert "windows" in wf
+        assert "summary" in wf
+        assert len(wf["windows"]) > 0
+        assert "sharpe_mean" in wf["summary"]
+
+    def test_walk_forward_invalid_config(self):
+        config = BacktestConfig(strategy="v7", start="", end="")
+        with pytest.raises(ValueError, match="必须指定"):
+            run_walk_forward(config)
