@@ -152,11 +152,11 @@ def _append_rows(csv_path: Path, new_df: pd.DataFrame, is_new_file: bool) -> int
     rename_map = {en: orig for en, orig in en_to_orig.items() if en in write_df.columns}
     adapted = write_df.rename(columns=rename_map)
 
-    # 只写入原文件有的列
-    cols_to_write = [c for c in existing_cols if c in adapted.columns]
-    if not cols_to_write:
-        logger.warning("新数据与 %s 列名不匹配，跳过追加", csv_path.name)
-        return 0
+    # 写入原文件所有列，缺失列填空值（避免行列数不匹配导致数据错位）
+    cols_to_write = existing_cols
+    for col in cols_to_write:
+        if col not in adapted.columns:
+            adapted[col] = ""
 
     adapted[cols_to_write].to_csv(
         csv_path, mode="a", header=False, index=False, encoding="utf-8-sig"
