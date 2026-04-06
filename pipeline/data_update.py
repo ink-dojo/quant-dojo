@@ -33,8 +33,16 @@ _ZH_TO_EN = {
     "最低价": "low",
     "收盘": "close",
     "收盘价": "close",
+    "前收盘价": "prev_close",
     "成交量": "volume",
     "成交额": "amount",
+    "换手率": "turnover",
+    "涨跌幅": "pct_change",
+    "滚动市盈率": "pe_ttm",
+    "市净率": "pb",
+    "滚动市销率": "ps_ttm",
+    "滚动市现率": "pcf",
+    "是否ST": "is_st",
 }
 
 # 必要列（英文）
@@ -388,9 +396,9 @@ def run_update(
             logger.warning("写入 %s 失败: %s", dest_path, e)
             failed.append(symbol)
 
-        # 请求间隔，防止被数据源限流
+        # 请求间隔（BaoStock 不需要限流，保留最小间隔防止 CPU 占满）
         if not dry_run and idx < total:
-            time.sleep(0.5)
+            time.sleep(0.05)
 
     return {
         "updated": updated,
