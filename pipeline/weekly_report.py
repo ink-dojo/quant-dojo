@@ -482,9 +482,28 @@ def generate_weekly_report(week: Optional[str] = None) -> str:
     # 构建报告
     sections = []
 
+    # 数据覆盖度评估
+    has_trades = bool(trades)
+    has_positions = bool(positions) and any(k != "__cash__" for k in positions)
+    has_nav = bool(nav_rows)
+    coverage_items = [
+        ("调仓记录", has_trades),
+        ("持仓数据", has_positions),
+        ("净值数据", has_nav),
+    ]
+    coverage_count = sum(1 for _, v in coverage_items if v)
+    if coverage_count == 0:
+        coverage_label = "空周（无任何交易数据）"
+    elif coverage_count < len(coverage_items):
+        missing = [name for name, v in coverage_items if not v]
+        coverage_label = f"部分数据缺失（缺：{', '.join(missing)}）"
+    else:
+        coverage_label = "数据完整"
+
     # 标题与元信息
     sections.append(f"# 周报：{week}（{week_start} ~ {week_end}）\n")
     sections.append(f"> 生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    sections.append(f"> **数据覆盖度：{coverage_label}**\n")
 
     # 六个结构化段落
     sections.append(_render_trades_section(trades))
