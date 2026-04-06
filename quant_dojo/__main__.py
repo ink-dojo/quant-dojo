@@ -88,7 +88,7 @@ def main():
 
     # ── compare ──
     p_cmp = sub.add_parser("compare", help="多策略对比回测")
-    p_cmp.add_argument("strategies", nargs="+", help="策略名列表 (如 v7 v8)")
+    p_cmp.add_argument("strategies", nargs="*", help="策略名列表 (如 v7 v8)，不指定则对比全部")
     p_cmp.add_argument("--start", type=str, help="开始日期")
     p_cmp.add_argument("--end", type=str, help="结束日期")
     p_cmp.add_argument("--n-stocks", type=int, default=30, help="选股数量")
@@ -190,8 +190,13 @@ def cmd_status(args):
 def cmd_compare(args):
     """策略对比"""
     from quant_dojo.commands.compare import run_compare
+    strategies = args.strategies
+    if not strategies:
+        # 无参数 → 对比所有已知策略
+        from pipeline.active_strategy import VALID_STRATEGIES
+        strategies = sorted(VALID_STRATEGIES)
     run_compare(
-        strategies=args.strategies,
+        strategies=strategies,
         start=args.start,
         end=args.end,
         n_stocks=args.n_stocks,
