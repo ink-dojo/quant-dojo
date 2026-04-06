@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""
+quant_dojo — 统一入口
+
+用法:
+    python -m quant_dojo init                  # 首次设置
+    python -m quant_dojo run                   # 每日全流程
+    python -m quant_dojo run --date 2026-04-03 # 指定日期
+    python -m quant_dojo backtest              # 回测（默认 v7，最近2年）
+    python -m quant_dojo backtest --strategy v8 --start 2024-01-01 --end 2026-03-31
+    python -m quant_dojo status                # 一眼看全局
+"""
+import argparse
+import sys
+from pathlib import Path
+
+# 确保项目根目录在 sys.path
+ROOT = Path(__file__).parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="quant_dojo",
+        description="quant-dojo 量化研究自动化 — 一个命令通到底",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python -m quant_dojo init                       # 首次设置
+  python -m quant_dojo run                        # 每日全流程
+  python -m quant_dojo backtest                   # 快速回测
+  python -m quant_dojo status                     # 系统状态
+  python -m quant_dojo doctor                     # 诊断问题
+        """,
+    )
+
+    sub = parser.add_subparsers(dest="command", help="命令")
+
+    # ── init ──
+    p_init = sub.add_parser("init", help="首次设置（配置数据目录）")
+    p_init.add_argument("--data-dir", type=str, help="本地行情数据目录路径")
+
+    # ── run ──
+    p_run = sub.add_parser("run", help="执行每日全流程（数据→信号→调仓→风控→报告）")
+    p_run.add_argument("--date", type=str, help="交易日期 YYYY-MM-DD（默认自动检测）")
+    p_run.add_argument("--strategy", type=str, default=None, help="策略名（默认从配置读取）")
+    p_run.add_argument("--dry-run", action="store_true", help="空跑模式，不执行实际操作")
+
+    # ── backtest ──
+    p_bt = sub.add_parser("backtest", help="运行回测（自动生成报告）")
+    p_bt.add_argument("--strategy", type=str, default="v7", help="策略名（默认 v7）")
+    p_bt.add_argument("--start", type=str, help="开始日期（默认2年前）")
+    p_bt.add_argument("--end", type=str, help="结束日期（默认今天）")
+    p_bt.add_argument("--n-stocks", type=int, default=30, help="选股数量（默认30）")
+    p_bt.add_argument("--no-report", action="store_true", help="不生成 HTML 报告")
+
+    # ── status ──
+    sub.add_parser("status", help="系统全局状态一览")
+
+    # ── doctor ──
+    sub.add_parser("doctor", help="诊断系统问题")
+
+    args = parser.parse_args()
+
+    if args.command is None:
+        parser.print_help()
+        return
+
+    dispatch = {
+        "init": cmd_init,
+        "run": cmd_run,
+        "backtest": cmd_backtest,
+        "status": cmd_status,
+        "doctor": cmd_doctor,
+    }
+    dispatch[args.command](args)
+
+
+def cmd_init(args):
+    """首次设置"""
+    from quant_dojo.commands.init import run_init
+    run_init(data_dir=args.data_dir)
+
+
+def cmd_run(args):
+    """每日全流程"""
+    from quant_dojo.commands.run import run_daily
+    run_daily(date=args.date, strategy=args.strategy, dry_run=args.dry_run)
+
+
+def cmd_backtest(args):
+    """运行回测"""
+    from quant_dojo.commands.backtest import run_backtest_cmd
+    run_backtest_cmd(
+        strategy=args.strategy,
+        start=args.start,
+        end=args.end,
+        n_stocks=args.n_stocks,
+        report=not args.no_report,
+    )
+
+
+def cmd_status(args):
+    """系统状态"""
+    from quant_dojo.commands.status import show_status
+    show_status()
+
+
+def cmd_doctor(args):
+    """系统诊断"""
+    from quant_dojo.commands.doctor import run_doctor
+    run_doctor()
+
+
+if __name__ == "__main__":
+    main()
