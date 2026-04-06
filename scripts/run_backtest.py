@@ -61,13 +61,17 @@ def main():
         help="参数扫描：选股数量列表 (如 --sweep-n-stocks 20 30 50)",
     )
     parser.add_argument(
+        "--verify", type=str, metavar="RUN_ID",
+        help="验证指定 run_id 的可重复性",
+    )
+    parser.add_argument(
         "--compare", type=str, nargs="*", metavar="RUN_ID",
         help="与指定 run_id 对比绩效",
     )
 
     args = parser.parse_args()
 
-    from backtest.standardized import run_backtest, run_walk_forward, run_parameter_sweep, BacktestConfig
+    from backtest.standardized import run_backtest, run_walk_forward, run_parameter_sweep, verify_reproducibility, BacktestConfig
 
     config = BacktestConfig(
         strategy=args.strategy,
@@ -78,6 +82,18 @@ def main():
         initial_capital=args.capital,
         neutralize=not args.no_neutralize,
     )
+
+    if args.verify:
+        result = verify_reproducibility(args.verify)
+        if result["reproducible"]:
+            print("可重复性验证通过")
+        else:
+            print("可重复性验证失败")
+            for k, v in result.get("diffs", {}).items():
+                if not v.get("match", True):
+                    print(f"  {k}: original={v['original']}, replay={v['replay']}, diff={v['diff']}")
+            sys.exit(1)
+        return
 
     if args.walk_forward:
         wf = run_walk_forward(config, train_years=args.train_years, test_months=args.test_months)
