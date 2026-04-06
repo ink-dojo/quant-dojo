@@ -106,4 +106,12 @@ class RiskGuard:
         ctx.set("risk_alerts", alerts)
         ctx.set("risk_level", result["risk_level"])
 
+        # 发送告警通知
+        if alerts:
+            try:
+                from pipeline.alert_notifier import send_risk_alerts
+                send_risk_alerts(alerts, date=ctx.date)
+            except Exception:
+                pass
+
         return result

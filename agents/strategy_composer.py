@@ -219,6 +219,11 @@ class StrategyComposer:
                     f"自动升级策略: {current} → {target_strategy}",
                     reason,
                 )
+                try:
+                    from pipeline.alert_notifier import send_strategy_change_alert
+                    send_strategy_change_alert(current, target_strategy, reason, date=ctx.date)
+                except Exception:
+                    pass
             return upgrade_result
 
         return {"changed": False}
