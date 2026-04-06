@@ -136,3 +136,19 @@
 - [2026-04-02 21:32] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
 
 - [2026-04-02 21:34] 行业集中度检查：当前无 sector 映射数据，跳过该检查项。待接入行业分类数据后启用（参考 utils/fundamental_loader.py）
+
+- [2026-04-06 16:07] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
+
+- [2026-04-06 16:08] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
+
+- [2026-04-06 16:09] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
+
+- [2026-04-06 16:11] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
+
+- [2026-04-06 16:14] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
+
+- [2026-04-06 16:23] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
+
+- [2026-04-06 16:44] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
+
+- [2026-04-06 17:09] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
