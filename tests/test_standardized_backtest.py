@@ -16,6 +16,7 @@ from backtest.standardized import (
     STRATEGY_FACTORS,
     _compute_metrics,
     _validate_config,
+    _validate_price_data,
     run_backtest,
     run_walk_forward,
     run_parameter_sweep,
@@ -383,3 +384,43 @@ class TestParameterSweep:
         assert all(r.status == "success" for r in results)
         # Should be sorted by sharpe (descending)
         assert results[0].metrics["sharpe"] >= results[1].metrics["sharpe"]
+
+
+# ═══════════════════════════════════════════════════════════
+# Data Validation 测试
+# ═══════════════════════════════════════════════════════════
+
+class TestValidatePriceData:
+    def test_clean_data_no_warnings(self):
+        np.random.seed(42)
+        dates = pd.date_range("2024-01-01", periods=252, freq="B")
+        price = pd.DataFrame(
+            np.cumprod(1 + np.random.randn(252, 10) * 0.01, axis=0) * 10,
+            index=dates, columns=[f"S{i}" for i in range(10)],
+        )
+        warnings = _validate_price_data(price)
+        assert len(warnings) == 0
+
+    def test_high_nan_ratio(self):
+        dates = pd.date_range("2024-01-01", periods=100, freq="B")
+        price = pd.DataFrame(np.nan, index=dates, columns=["A", "B"])
+        price.iloc[:10, 0] = 10  # only 10% data
+        warnings = _validate_price_data(price)
+        assert any("缺失率" in w for w in warnings)
+
+    def test_zero_prices(self):
+        dates = pd.date_range("2024-01-01", periods=100, freq="B")
+        price = pd.DataFrame(10.0, index=dates, columns=["A"])
+        price.iloc[50, 0] = 0
+        warnings = _validate_price_data(price)
+        assert any("零价格" in w for w in warnings)
+
+    def test_extreme_returns(self):
+        dates = pd.date_range("2024-01-01", periods=100, freq="B")
+        price = pd.DataFrame(10.0, index=dates, columns=[f"S{i}" for i in range(20)])
+        # Inject 50% jump in many stocks → enough to trigger threshold
+        for i in range(20):
+            price.iloc[50, i] = 15.0  # 50% jump
+            price.iloc[51, i] = 10.0  # -33% drop back
+        warnings = _validate_price_data(price)
+        assert any("极端" in w for w in warnings)
