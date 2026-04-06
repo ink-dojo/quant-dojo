@@ -93,6 +93,22 @@ class TestInitCommand:
         issues = _quick_check(tmp_path / "nonexistent")
         assert any("不存在" in i for i in issues)
 
+    def test_download_data_calls_run_update(self, tmp_path):
+        """--download 应调用 pipeline.data_update.run_update"""
+        from quant_dojo.commands.init import _download_data
+
+        with patch("pipeline.data_update.run_update") as mock_update:
+            mock_update.return_value = {"updated": ["000001", "600000"], "skipped": [], "failed": []}
+            _download_data(tmp_path)
+            mock_update.assert_called_once()
+
+    def test_download_handles_missing_dep(self, tmp_path):
+        """缺少依赖时应提示安装"""
+        from quant_dojo.commands.init import _download_data
+
+        with patch("pipeline.data_update.run_update", side_effect=ImportError("No module named 'baostock'")):
+            _download_data(tmp_path)  # 不应崩溃
+
 
 # ═══════════════════════════════════════════════════════════
 # run command

@@ -16,7 +16,7 @@ CONFIG_FILE = CONFIG_DIR / "config.yaml"
 CONFIG_EXAMPLE = CONFIG_DIR / "config.example.yaml"
 
 
-def run_init(data_dir: str = None):
+def run_init(data_dir: str = None, download: bool = False):
     """运行初始化设置"""
     print("╔═══════════════════════════════════════════════╗")
     print("║  quant-dojo 初始化设置                        ║")
@@ -38,10 +38,13 @@ def run_init(data_dir: str = None):
     csv_files = list(data_path.glob("*.csv"))
     if csv_files:
         print(f"  [OK] 发现 {len(csv_files)} 个 CSV 数据文件")
+    elif download:
+        print("  [下载] 正在下载 A 股日线数据...")
+        _download_data(data_path)
     else:
-        print("  [注意] 数据目录为空，需要先下载行情数据")
-        print(f"         将 A 股日线 CSV 放入: {data_path}")
-        print("         文件格式: sh.600000.csv / sz.000001.csv")
+        print("  [注意] 数据目录为空")
+        print("         运行 python -m quant_dojo init --download 自动下载")
+        print("         或手动将 CSV 放入: {data_path}")
 
     # ── 2. 配置文件 ──
     if CONFIG_FILE.exists():
@@ -69,17 +72,56 @@ def run_init(data_dir: str = None):
         print("  [OK] 系统就绪")
 
     # ── 5. 下一步 ──
+    csv_files = list(data_path.glob("*.csv"))  # re-check after potential download
     print(f"\n{'='*50}")
     print("  初始化完成! 下一步:")
     print(f"{'='*50}")
     if not csv_files:
-        print("  1. 下载 A 股日线数据到数据目录")
-        print("     或运行: python -m pipeline.cli data update")
+        print("  1. 下载数据:")
+        print("     python -m quant_dojo init --download")
     print("  2. 运行回测验证:")
     print("     python -m quant_dojo backtest")
     print("  3. 启动每日流水线:")
     print("     python -m quant_dojo run")
     print()
+
+
+def _download_data(data_path: Path):
+    """下载 A 股日线数据到指定目录"""
+    import sys
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+    try:
+        from pipeline.data_update import run_update
+
+        # 先尝试获取少量股票做测试
+        print("  正在获取股票列表...")
+        result = run_update(end_date=None, dry_run=False)
+
+        n_updated = len(result.get("updated", []))
+        n_failed = len(result.get("failed", []))
+        n_skipped = len(result.get("skipped", []))
+
+        print(f"\n  下载完成:")
+        print(f"    成功: {n_updated}")
+        print(f"    跳过: {n_skipped}")
+        if n_failed:
+            print(f"    失败: {n_failed}")
+
+        csv_count = len(list(data_path.glob("*.csv")))
+        if csv_count > 0:
+            print(f"  [OK] 数据目录现有 {csv_count} 个文件")
+        else:
+            print("  [注意] 下载完成但数据目录仍为空")
+            print("         可能需要检查网络或数据源配置")
+
+    except ImportError as e:
+        print(f"  [失败] 缺少依赖: {e}")
+        print("         pip install baostock  # 推荐")
+        print("         pip install akshare   # 备选")
+    except Exception as e:
+        print(f"  [失败] 下载失败: {e}")
+        print("         请检查网络连接后重试")
 
 
 def _detect_data_dir() -> Path:

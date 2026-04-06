@@ -41,6 +41,7 @@ def main():
     # ── init ──
     p_init = sub.add_parser("init", help="首次设置（配置数据目录）")
     p_init.add_argument("--data-dir", type=str, help="本地行情数据目录路径")
+    p_init.add_argument("--download", action="store_true", help="自动下载 A 股日线数据")
 
     # ── run ──
     p_run = sub.add_parser("run", help="执行每日全流程（数据→信号→调仓→风控→报告）")
@@ -113,7 +114,7 @@ def main():
 def cmd_init(args):
     """首次设置"""
     from quant_dojo.commands.init import run_init
-    run_init(data_dir=args.data_dir)
+    run_init(data_dir=args.data_dir, download=args.download)
 
 
 def cmd_run(args):
