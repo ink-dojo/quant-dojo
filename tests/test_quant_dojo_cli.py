@@ -300,6 +300,81 @@ class TestStatusCommand:
 
 
 # ═══════════════════════════════════════════════════════════
+# compare command
+# ═══════════════════════════════════════════════════════════
+
+class TestCompareCommand:
+    def test_compare_needs_two_strategies(self):
+        """至少需要 2 个策略"""
+        from quant_dojo.commands.compare import run_compare
+
+        with pytest.raises(SystemExit) as exc_info:
+            run_compare(strategies=["v7"])
+        assert exc_info.value.code == 1
+
+    def test_compare_two_strategies(self):
+        """两个策略对比应成功"""
+        from quant_dojo.commands.compare import run_compare
+
+        mock_result = MagicMock()
+        mock_result.status = "success"
+        mock_result.metrics = {
+            "total_return": 0.12,
+            "annualized_return": 0.06,
+            "sharpe": 1.1,
+            "max_drawdown": -0.08,
+        }
+        mock_result.config = MagicMock()
+        mock_result.config.strategy = "v7"
+
+        mock_result2 = MagicMock()
+        mock_result2.status = "success"
+        mock_result2.metrics = {
+            "total_return": 0.08,
+            "annualized_return": 0.04,
+            "sharpe": 0.7,
+            "max_drawdown": -0.12,
+        }
+        mock_result2.config = MagicMock()
+        mock_result2.config.strategy = "v8"
+
+        with patch("backtest.standardized.run_backtest", side_effect=[mock_result, mock_result2]):
+            with patch("backtest.comparison.generate_comparison_report", return_value="/tmp/report.html"):
+                run_compare(
+                    strategies=["v7", "v8"],
+                    start="2024-01-01",
+                    end="2025-12-31",
+                )
+
+    def test_compare_all_fail_exits(self):
+        """所有回测都失败应 exit(1)"""
+        from quant_dojo.commands.compare import run_compare
+
+        mock_result = MagicMock()
+        mock_result.status = "failed"
+        mock_result.error = "no data"
+
+        with patch("backtest.standardized.run_backtest", return_value=mock_result):
+            with pytest.raises(SystemExit) as exc_info:
+                run_compare(strategies=["v7", "v8"])
+            assert exc_info.value.code == 1
+
+    def test_compare_cli_dispatch(self):
+        """CLI 应正确调度 compare 命令"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "compare", "v7", "v8"]):
+            with patch("quant_dojo.commands.compare.run_compare") as mock:
+                main()
+                mock.assert_called_once_with(
+                    strategies=["v7", "v8"],
+                    start=None,
+                    end=None,
+                    n_stocks=30,
+                )
+
+
+# ═══════════════════════════════════════════════════════════
 # doctor command
 # ═══════════════════════════════════════════════════════════
 
