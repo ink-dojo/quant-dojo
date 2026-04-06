@@ -17,6 +17,7 @@ from backtest.standardized import (
     _compute_metrics,
     _validate_config,
     _validate_price_data,
+    _compute_rolling_metrics,
     run_backtest,
     run_walk_forward,
     run_parameter_sweep,
@@ -424,3 +425,33 @@ class TestValidatePriceData:
             price.iloc[51, i] = 10.0  # -33% drop back
         warnings = _validate_price_data(price)
         assert any("极端" in w for w in warnings)
+
+
+# ═══════════════════════════════════════════════════════════
+# Rolling Metrics 测试
+# ═══════════════════════════════════════════════════════════
+
+class TestRollingMetrics:
+    def test_basic_rolling(self):
+        np.random.seed(42)
+        returns = pd.Series(np.random.randn(200) * 0.01,
+                            index=pd.date_range("2024-01-01", periods=200, freq="B"))
+        rm = _compute_rolling_metrics(returns, window=63)
+        assert "rolling_sharpe" in rm.columns
+        assert "rolling_volatility" in rm.columns
+        assert "rolling_drawdown" in rm.columns
+        assert "rolling_win_rate" in rm.columns
+        assert len(rm) == 200
+
+    def test_short_series(self):
+        returns = pd.Series([0.01, 0.02],
+                            index=pd.date_range("2024-01-01", periods=2, freq="B"))
+        rm = _compute_rolling_metrics(returns, window=63)
+        assert rm.empty or rm.columns.tolist() == []
+
+    def test_rolling_sharpe_values(self):
+        # All positive returns should give positive rolling sharpe
+        returns = pd.Series(0.005, index=pd.date_range("2024-01-01", periods=200, freq="B"))
+        rm = _compute_rolling_metrics(returns, window=63)
+        valid = rm["rolling_sharpe"].dropna()
+        assert (valid > 0).all()
