@@ -155,7 +155,7 @@ def run_daily_pipeline(
             "team_coin": team_coin_wide,
             "low_vol_20d": low_vol_wide,
             "cgo_simple": cgo_simple_wide,
-            "enhanced_momentum": enhanced_mom_wide,
+            "enhanced_mom_60": enhanced_mom_wide,
             "bp": bp_wide,
         }
 
@@ -213,6 +213,8 @@ def run_daily_pipeline(
         composite = composite_series.dropna().sort_values(ascending=False)
         # Store raw (non-neutralized) factors for factor_values output
         factor_dict = {name: raw_factors[name].iloc[-1] for name in raw_factors}
+        # 快照用中性化后的因子（factor_monitor 需要这些做 IC 计算）
+        snapshot_dict = {name: fac_wide.iloc[-1] for name, fac_wide in neutralized_factors.items()}
 
     else:
         # ── ad_hoc 策略（默认） ──────────────────────────────
@@ -247,6 +249,8 @@ def run_daily_pipeline(
         scored = (scored - scored.mean()) / scored.std()
         # 等权合成
         composite = scored.mean(axis=1)
+        # ad_hoc 分支：快照与 factor_dict 一致（无中性化步骤）
+        snapshot_dict = factor_dict
 
     # ── 过滤 ──────────────────────────────────────────────────
     excluded = {"st": 0, "new_listing": 0, "low_price": 0}
@@ -333,7 +337,7 @@ def run_daily_pipeline(
 
     # ── 因子快照写入（可选，失败时仅警告） ──────────────────
     try:
-        snapshot = pd.DataFrame(factor_dict)
+        snapshot = pd.DataFrame(snapshot_dict)
         snapshot.to_parquet(snapshot_tmp)
         snapshot_tmp.rename(snapshot_path)
     except Exception as e:
