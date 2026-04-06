@@ -87,6 +87,13 @@ def main():
 
     if args.sweep_n_stocks:
         results = run_parameter_sweep(config, {"n_stocks": args.sweep_n_stocks})
+        if results and args.report:
+            try:
+                from backtest.comparison import generate_comparison_report
+                report_path = generate_comparison_report(results, title="参数扫描对比")
+                print(f"\n对比报告: {report_path}")
+            except Exception as e:
+                print(f"\n对比报告生成失败: {e}")
         print(f"\n最优参数 run_id: {results[0].run_id if results else 'N/A'}")
         return
 
