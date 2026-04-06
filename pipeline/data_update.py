@@ -164,6 +164,96 @@ def _append_rows(csv_path: Path, new_df: pd.DataFrame, is_new_file: bool) -> int
     return len(adapted)
 
 
+def _run_batch_update(
+    provider, symbols: List[str], end_date: str,
+    data_dir: Path, dry_run: bool
+) -> Dict:
+    """
+    批量模式更新（Tushare 专用）。
+
+    按日期拉取全市场数据，然后分发到各股票 CSV。
+    一天的数据 = 2~3 次 API 调用，比逐只 5477 次快 1000x。
+    """
+    # 找到全局最新日期（所有 CSV 中的最早"最新日期"）
+    latest_dates = []
+    for symbol in symbols[:100]:  # 抽样检查
+        csv_path = _get_csv_path(data_dir, symbol)
+        if csv_path:
+            ld = _read_latest_date(csv_path)
+            if ld is not None:
+                latest_dates.append(ld)
+
+    if latest_dates:
+        global_latest = min(latest_dates)  # 保守：取最旧的
+        since_date = (global_latest + timedelta(days=1)).strftime("%Y-%m-%d")
+    else:
+        since_date = "2020-01-01"
+
+    if pd.Timestamp(since_date) > pd.Timestamp(end_date):
+        print(f"数据已是最新（最新日期 >= {end_date}）")
+        return {"updated": [], "skipped": symbols, "failed": [], "end_date": end_date}
+
+    print(f"批量更新: {since_date} → {end_date}")
+
+    if dry_run:
+        print(f"[DRY RUN] 将拉取 {since_date} 到 {end_date} 的全市场数据")
+        return {"updated": symbols, "skipped": [], "failed": [], "end_date": end_date}
+
+    # 拉取全市场日期范围数据
+    try:
+        all_data = provider.batch_daily_range(since_date, end_date)
+    except Exception as e:
+        logger.error("批量拉取失败: %s", e)
+        return {"updated": [], "skipped": [], "failed": symbols, "end_date": end_date}
+
+    if all_data.empty:
+        print("无新数据（可能是非交易日）")
+        return {"updated": [], "skipped": symbols, "failed": [], "end_date": end_date}
+
+    print(f"拉取完成: {len(all_data)} 条记录，{all_data['symbol'].nunique()} 只股票")
+
+    # 分发到各股票 CSV
+    updated = []
+    skipped = []
+    failed = []
+    symbol_set = set(symbols)
+
+    for symbol, group in all_data.groupby("symbol"):
+        if symbol not in symbol_set:
+            continue
+
+        csv_path = _get_csv_path(data_dir, symbol)
+        is_new = csv_path is None
+
+        # 构造写入 DataFrame（英文列名）
+        write_df = group[["date", "open", "high", "low", "close", "volume", "amount"]].copy()
+        for extra in ["prev_close", "turnover", "pct_change", "pe_ttm", "pb", "ps_ttm", "is_st"]:
+            if extra in group.columns:
+                write_df[extra] = group[extra].values
+
+        dest = csv_path if not is_new else _new_csv_path(data_dir, symbol)
+        try:
+            n = _append_rows(dest, write_df, is_new_file=is_new)
+            updated.append(symbol)
+        except Exception as e:
+            logger.warning("写入 %s 失败: %s", symbol, e)
+            failed.append(symbol)
+
+    # 清除 parquet 缓存（数据已更新）
+    cache_dir = data_dir.parent / "quant-dojo" / "data" / "cache" / "local"
+    if not cache_dir.exists():
+        cache_dir = Path(__file__).parent.parent / "data" / "cache" / "local"
+    if cache_dir.exists():
+        for pf in cache_dir.glob("*.parquet"):
+            sym = pf.stem
+            if sym in updated:
+                pf.unlink(missing_ok=True)
+        print(f"已清除 {len(updated)} 个缓存文件")
+
+    print(f"\n批量更新完成: 更新 {len(updated)} | 跳过 {len(skipped)} | 失败 {len(failed)}")
+    return {"updated": updated, "skipped": skipped, "failed": failed, "end_date": end_date}
+
+
 def run_update(
     symbols: Optional[List[str]] = None,
     end_date: Optional[str] = None,
@@ -199,17 +289,21 @@ def run_update(
     from utils.runtime_config import get_local_data_dir
 
     if provider is None:
-        # 优先 AkShare，连不上时自动降级到 BaoStock
+        # 优先 Tushare → AkShare → BaoStock
         try:
-            from providers.akshare_provider import AkShareProvider
-            provider = AkShareProvider()
-            # 快速探测：尝试拉一只股票验证连通性
-            provider.fetch_daily_history("000001", "20260101", "20260102")
-            logger.info("使用 AkShareProvider")
+            from providers.tushare_provider import TushareProvider
+            provider = TushareProvider()
+            logger.info("使用 TushareProvider（批量模式）")
         except Exception:
-            logger.warning("AkShare 不可用，降级到 BaoStockProvider")
-            from providers.baostock_provider import BaoStockProvider
-            provider = BaoStockProvider()
+            try:
+                from providers.akshare_provider import AkShareProvider
+                provider = AkShareProvider()
+                provider.fetch_daily_history("000001", "20260101", "20260102")
+                logger.info("使用 AkShareProvider")
+            except Exception:
+                logger.warning("Tushare/AkShare 均不可用，降级到 BaoStockProvider")
+                from providers.baostock_provider import BaoStockProvider
+                provider = BaoStockProvider()
 
     # 统一截止日期格式
     if end_date is None:
@@ -236,6 +330,10 @@ def run_update(
     failed: List[str] = []
     total = len(symbols)
     end_ts = pd.Timestamp(end_date)
+
+    # ── Tushare 批量模式：按日期批量拉取，不逐只遍历 ──────────
+    if hasattr(provider, "batch_daily"):
+        return _run_batch_update(provider, symbols, end_date, data_dir, dry_run)
 
     for idx, symbol in enumerate(symbols, 1):
         tag = f"[{idx}/{total}]"
