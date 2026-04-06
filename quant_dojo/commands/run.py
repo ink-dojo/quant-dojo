@@ -27,6 +27,10 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
 
     # 读取配置
     sys.path.insert(0, str(PROJECT_ROOT))
+
+    # 前置检查：是否已初始化
+    _check_initialized()
+
     from utils.runtime_config import get_config, get_pipeline_param
 
     cfg = get_config()
@@ -169,6 +173,29 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
 
     if n_fail > 0:
         sys.exit(1)
+
+
+def _check_initialized():
+    """检查系统是否已初始化，未初始化则提示"""
+    config_file = PROJECT_ROOT / "config" / "config.yaml"
+    if not config_file.exists():
+        print("  [错误] 系统尚未初始化")
+        print()
+        print("  请先运行:")
+        print("    python -m quant_dojo quickstart    # 一键设置（推荐）")
+        print("    python -m quant_dojo init           # 仅初始化配置")
+        sys.exit(1)
+
+    # 检查数据
+    try:
+        from utils.runtime_config import get_local_data_dir
+        data_dir = get_local_data_dir()
+        if data_dir.exists() and not list(data_dir.glob("*.csv")):
+            print("  [警告] 数据目录为空，可能影响信号生成")
+            print("         运行: python -m quant_dojo init --download")
+            print()
+    except Exception:
+        pass
 
 
 def _detect_latest_date() -> str:

@@ -79,15 +79,16 @@ class TestEndToEnd:
         # ── Step 5: run (dry) ──
         from quant_dojo.commands.run import run_daily
 
-        with patch("quant_dojo.commands.run._detect_latest_date", return_value="2026-04-03"):
-            with patch("quant_dojo.commands.run._step_data_update", return_value={"status": "ok", "summary": "fresh"}):
-                with patch("quant_dojo.commands.run._step_signal", return_value={"status": "ok", "n_picks": 0, "dry_run": True}):
-                    with patch("quant_dojo.commands.run._step_rebalance", return_value={"status": "ok", "n_buys": 0, "n_sells": 0, "dry_run": True}):
-                        with patch("quant_dojo.commands.run._step_risk_check", return_value={"status": "ok", "level": "ok", "alerts": []}):
-                            with patch("quant_dojo.commands.run._step_export_dashboard"):
-                                with patch("quant_dojo.commands.run._step_show_summary"):
-                                    with patch("quant_dojo.commands.run._save_run_log"):
-                                        run_daily(dry_run=True)
+        with patch("quant_dojo.commands.run._check_initialized"):
+            with patch("quant_dojo.commands.run._detect_latest_date", return_value="2026-04-03"):
+                with patch("quant_dojo.commands.run._step_data_update", return_value={"status": "ok", "summary": "fresh"}):
+                    with patch("quant_dojo.commands.run._step_signal", return_value={"status": "ok", "n_picks": 0, "dry_run": True}):
+                        with patch("quant_dojo.commands.run._step_rebalance", return_value={"status": "ok", "n_buys": 0, "n_sells": 0, "dry_run": True}):
+                            with patch("quant_dojo.commands.run._step_risk_check", return_value={"status": "ok", "level": "ok", "alerts": []}):
+                                with patch("quant_dojo.commands.run._step_export_dashboard"):
+                                    with patch("quant_dojo.commands.run._step_show_summary"):
+                                        with patch("quant_dojo.commands.run._save_run_log"):
+                                            run_daily(dry_run=True)
 
         # ── Step 6: status again ──
         with patch("quant_dojo.commands.status.PROJECT_ROOT", tmp_path):

@@ -150,6 +150,26 @@ class TestRunCommand:
         result = _step_rebalance(date="2026-04-03", strategy="v7", dry_run=True)
         assert result["dry_run"]
 
+    def test_check_initialized_no_config_exits(self, tmp_path):
+        """无 config.yaml 时应 exit(1)"""
+        from quant_dojo.commands.run import _check_initialized
+
+        with patch("quant_dojo.commands.run.PROJECT_ROOT", tmp_path):
+            with pytest.raises(SystemExit) as exc_info:
+                _check_initialized()
+            assert exc_info.value.code == 1
+
+    def test_check_initialized_with_config(self, tmp_path):
+        """有 config.yaml 时不应退出"""
+        from quant_dojo.commands.run import _check_initialized
+
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text("pipeline:\n  default_strategy: v7\n")
+
+        with patch("quant_dojo.commands.run.PROJECT_ROOT", tmp_path):
+            _check_initialized()  # 不应崩溃
+
     def test_save_run_log(self, tmp_path):
         """运行日志应保存到 logs/"""
         from quant_dojo.commands.run import _save_run_log
@@ -163,6 +183,7 @@ class TestRunCommand:
         assert data["date"] == "2026-04-03"
         assert data["elapsed_sec"] == 10.5
 
+    @patch("quant_dojo.commands.run._check_initialized")
     @patch("quant_dojo.commands.run._save_run_log")
     @patch("quant_dojo.commands.run._step_show_summary")
     @patch("quant_dojo.commands.run._step_risk_check", return_value={"status": "ok", "level": "ok", "alerts": []})
@@ -176,6 +197,7 @@ class TestRunCommand:
         # 不应 sys.exit
         run_daily(dry_run=True)
 
+    @patch("quant_dojo.commands.run._check_initialized")
     @patch("quant_dojo.commands.run._save_run_log")
     @patch("quant_dojo.commands.run._step_show_summary")
     @patch("quant_dojo.commands.run._step_risk_check", return_value={"status": "ok", "level": "ok", "alerts": []})
