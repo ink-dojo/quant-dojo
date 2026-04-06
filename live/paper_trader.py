@@ -543,6 +543,65 @@ class PaperTrader:
         return pd.DataFrame(rows)
 
 
+    def get_position_attribution(self) -> pd.DataFrame:
+        """
+        计算持仓级别的盈亏归因。
+
+        返回:
+            DataFrame with columns:
+              - symbol: 股票代码
+              - shares: 持股数
+              - cost_price: 成本价
+              - current_price: 现价
+              - market_value: 市值
+              - pnl: 绝对盈亏（元）
+              - pnl_pct: 盈亏百分比
+              - weight: 仓位占比
+              - contribution: 对组合收益的贡献
+        """
+        positions_df = self.get_current_positions()
+        if positions_df.empty:
+            return pd.DataFrame(columns=[
+                "symbol", "shares", "cost_price", "current_price",
+                "market_value", "pnl", "pnl_pct", "weight", "contribution",
+            ])
+
+        # 计算市值和绝对盈亏
+        positions_df["market_value"] = positions_df["shares"] * positions_df["current_price"]
+        positions_df["cost_value"] = positions_df["shares"] * positions_df["cost_price"]
+        positions_df["pnl"] = positions_df["market_value"] - positions_df["cost_value"]
+
+        # 组合总市值
+        total_mv = positions_df["market_value"].sum()
+        total_cost = positions_df["cost_value"].sum()
+
+        # 仓位权重
+        positions_df["weight"] = (
+            positions_df["market_value"] / total_mv if total_mv > 0
+            else 0.0
+        )
+
+        # 对组合收益的贡献 = weight * pnl_pct
+        positions_df["contribution"] = positions_df["weight"] * positions_df["pnl_pct"]
+
+        # 排序：按贡献降序
+        positions_df = positions_df.sort_values("contribution", ascending=False)
+
+        # 清理列
+        result = positions_df[[
+            "symbol", "shares", "cost_price", "current_price",
+            "market_value", "pnl", "pnl_pct", "weight", "contribution",
+        ]].copy()
+
+        # 四舍五入
+        for col in ["market_value", "pnl"]:
+            result[col] = result[col].round(2)
+        for col in ["pnl_pct", "weight", "contribution"]:
+            result[col] = result[col].round(6)
+
+        return result.reset_index(drop=True)
+
+
 if __name__ == "__main__":
     # 最小验证：创建模拟盘并打印持仓
     trader = PaperTrader(initial_capital=1_000_000)
