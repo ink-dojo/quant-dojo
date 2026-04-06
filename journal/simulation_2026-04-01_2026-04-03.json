@@ -1,0 +1,32 @@
+[
+  {
+    "date": "2026-04-01",
+    "n_picks": 30,
+    "nav": 984699.14,
+    "n_buys": 12,
+    "n_sells": 19,
+    "turnover": 0.1524,
+    "overlap_rate": null,
+    "n_failed": 0
+  },
+  {
+    "date": "2026-04-02",
+    "n_picks": 30,
+    "nav": 972013.13,
+    "n_buys": 20,
+    "n_sells": 10,
+    "turnover": 0.0825,
+    "overlap_rate": 0.9666666666666667,
+    "n_failed": 0
+  },
+  {
+    "date": "2026-04-03",
+    "n_picks": 30,
+    "nav": 954748.63,
+    "n_buys": 21,
+    "n_sells": 19,
+    "turnover": 0.7013,
+    "overlap_rate": 0.9333333333333333,
+    "n_failed": 0
+  }
+]

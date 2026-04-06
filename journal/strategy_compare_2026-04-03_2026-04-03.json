@@ -1,0 +1,52 @@
+[
+  {
+    "date": "2026-04-03",
+    "v7_n": 30,
+    "v8_n": 30,
+    "overlap_n": 19,
+    "overlap_rate": 0.6333,
+    "only_v7": [
+      "002127",
+      "002564",
+      "002878",
+      "003001",
+      "300183"
+    ],
+    "only_v8": [
+      "002189",
+      "002992",
+      "300700",
+      "301168",
+      "301309"
+    ],
+    "score_rank_corr": 0.7509,
+    "v7_excluded": {
+      "st": 121,
+      "new_listing": 10,
+      "low_price": 44
+    },
+    "v8_excluded": {
+      "st": 121,
+      "new_listing": 10,
+      "low_price": 44
+    },
+    "v7_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "team_coin"
+    ],
+    "v8_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "shadow_lower",
+      "team_coin"
+    ],
+    "new_in_v8": [
+      "shadow_lower"
+    ]
+  }
+]

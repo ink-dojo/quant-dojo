@@ -1,0 +1,103 @@
+{
+  "date": "2026-04-03",
+  "mode": "weekly",
+  "dry_run": false,
+  "total_time_sec": 132.42,
+  "stages": [
+    {
+      "name": "data_check",
+      "status": "success",
+      "duration_sec": 0.5,
+      "error": null
+    },
+    {
+      "name": "factor_mine",
+      "status": "success",
+      "duration_sec": 44.61,
+      "error": null
+    },
+    {
+      "name": "strategy_compose",
+      "status": "success",
+      "duration_sec": 0.0,
+      "error": null
+    },
+    {
+      "name": "signal",
+      "status": "success",
+      "duration_sec": 42.49,
+      "error": null
+    },
+    {
+      "name": "execute",
+      "status": "success",
+      "duration_sec": 0.03,
+      "error": null
+    },
+    {
+      "name": "risk_guard",
+      "status": "success",
+      "duration_sec": 3.88,
+      "error": null
+    },
+    {
+      "name": "factor_doctor",
+      "status": "success",
+      "duration_sec": 3.96,
+      "error": null
+    },
+    {
+      "name": "report",
+      "status": "success",
+      "duration_sec": 36.95,
+      "error": null
+    }
+  ],
+  "decisions": [
+    {
+      "time": "2026-04-06T17:08:05.346273",
+      "agent": "DataAgent",
+      "decision": "跳过数据更新: 数据足够新鲜",
+      "reasoning": "延迟 3 天 <= 阈值 3 天"
+    },
+    {
+      "time": "2026-04-06T17:08:50.078209",
+      "agent": "FactorMiner",
+      "decision": "推荐 4 个因子: ['shadow_lower', 'team_coin', 'str_salience', 'low_vol_20d']",
+      "reasoning": "从 15 个候选中筛选，|ICIR|>=0.2，相关性<0.7"
+    },
+    {
+      "time": "2026-04-06T17:08:50.079539",
+      "agent": "StrategyComposer",
+      "decision": "策略建议: keep",
+      "reasoning": "新组合 ICIR=0.1881 未显著优于 v7 ICIR=0.3406 (需 >115%)"
+    },
+    {
+      "time": "2026-04-06T17:09:32.573809",
+      "agent": "SignalProducer",
+      "decision": "信号生成完成: 30 只股票",
+      "reasoning": "策略=v7, 排除 ST=121"
+    },
+    {
+      "time": "2026-04-06T17:09:32.603290",
+      "agent": "ExecutorAgent",
+      "decision": "调仓完成: 买 21 卖 19",
+      "reasoning": "换手率 69.8%, NAV 959,573"
+    },
+    {
+      "time": "2026-04-06T17:09:36.477521",
+      "agent": "RiskGuard",
+      "decision": "风控检查: 0 WARNING, 3 CRITICAL",
+      "reasoning": "继续运行（模拟盘模式不中止）"
+    },
+    {
+      "time": "2026-04-06T17:09:40.441576",
+      "agent": "FactorDoctor",
+      "decision": "推荐替换 2 个因子: {'cgo_simple': 'shadow_lower', 'enhanced_mom_60': 'str_salience'}",
+      "reasoning": "存活因子: ['team_coin', 'low_vol_20d'], 新组合: ['team_coin', 'low_vol_20d', 'shadow_lower', 'str_salience']"
+    }
+  ],
+  "halted": false,
+  "halt_reason": "",
+  "timestamp": "2026-04-06T17:10:17.390057"
+}

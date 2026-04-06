@@ -1,0 +1,252 @@
+[
+  {
+    "date": "2026-03-30",
+    "v7_n": 30,
+    "v8_n": 30,
+    "overlap_n": 23,
+    "overlap_rate": 0.7667,
+    "only_v7": [
+      "002829",
+      "300474",
+      "300700",
+      "302132",
+      "603869"
+    ],
+    "only_v8": [
+      "002111",
+      "002189",
+      "002542",
+      "002878",
+      "300213"
+    ],
+    "score_rank_corr": 0.5377,
+    "v7_excluded": {
+      "st": 122,
+      "new_listing": 14,
+      "low_price": 34
+    },
+    "v8_excluded": {
+      "st": 122,
+      "new_listing": 14,
+      "low_price": 34
+    },
+    "v7_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "team_coin"
+    ],
+    "v8_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "shadow_lower",
+      "team_coin"
+    ],
+    "new_in_v8": [
+      "shadow_lower"
+    ]
+  },
+  {
+    "date": "2026-03-31",
+    "v7_n": 30,
+    "v8_n": 30,
+    "overlap_n": 22,
+    "overlap_rate": 0.7333,
+    "only_v7": [
+      "002829",
+      "300474",
+      "301168",
+      "301592",
+      "302132"
+    ],
+    "only_v8": [
+      "002111",
+      "002189",
+      "300046",
+      "300532",
+      "300563"
+    ],
+    "score_rank_corr": 0.712,
+    "v7_excluded": {
+      "st": 121,
+      "new_listing": 14,
+      "low_price": 36
+    },
+    "v8_excluded": {
+      "st": 121,
+      "new_listing": 14,
+      "low_price": 36
+    },
+    "v7_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "team_coin"
+    ],
+    "v8_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "shadow_lower",
+      "team_coin"
+    ],
+    "new_in_v8": [
+      "shadow_lower"
+    ]
+  },
+  {
+    "date": "2026-04-01",
+    "v7_n": 30,
+    "v8_n": 30,
+    "overlap_n": 21,
+    "overlap_rate": 0.7,
+    "only_v7": [
+      "002127",
+      "002564",
+      "002829",
+      "300474",
+      "301314"
+    ],
+    "only_v8": [
+      "300532",
+      "300563",
+      "300700",
+      "301309",
+      "600379"
+    ],
+    "score_rank_corr": 0.3365,
+    "v7_excluded": {
+      "st": 121,
+      "new_listing": 14,
+      "low_price": 37
+    },
+    "v8_excluded": {
+      "st": 121,
+      "new_listing": 14,
+      "low_price": 37
+    },
+    "v7_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "team_coin"
+    ],
+    "v8_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "shadow_lower",
+      "team_coin"
+    ],
+    "new_in_v8": [
+      "shadow_lower"
+    ]
+  },
+  {
+    "date": "2026-04-02",
+    "v7_n": 30,
+    "v8_n": 30,
+    "overlap_n": 22,
+    "overlap_rate": 0.7333,
+    "only_v7": [
+      "002127",
+      "002564",
+      "002878",
+      "300474",
+      "301592"
+    ],
+    "only_v8": [
+      "300532",
+      "300700",
+      "600379",
+      "600438",
+      "600536"
+    ],
+    "score_rank_corr": 0.5528,
+    "v7_excluded": {
+      "st": 121,
+      "new_listing": 11,
+      "low_price": 39
+    },
+    "v8_excluded": {
+      "st": 121,
+      "new_listing": 11,
+      "low_price": 39
+    },
+    "v7_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "team_coin"
+    ],
+    "v8_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "shadow_lower",
+      "team_coin"
+    ],
+    "new_in_v8": [
+      "shadow_lower"
+    ]
+  },
+  {
+    "date": "2026-04-03",
+    "v7_n": 30,
+    "v8_n": 30,
+    "overlap_n": 19,
+    "overlap_rate": 0.6333,
+    "only_v7": [
+      "002127",
+      "002564",
+      "002878",
+      "003001",
+      "300183"
+    ],
+    "only_v8": [
+      "002189",
+      "002992",
+      "300700",
+      "301168",
+      "301309"
+    ],
+    "score_rank_corr": 0.7509,
+    "v7_excluded": {
+      "st": 121,
+      "new_listing": 10,
+      "low_price": 44
+    },
+    "v8_excluded": {
+      "st": 121,
+      "new_listing": 10,
+      "low_price": 44
+    },
+    "v7_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "team_coin"
+    ],
+    "v8_factors": [
+      "bp",
+      "cgo_simple",
+      "enhanced_mom_60",
+      "low_vol_20d",
+      "shadow_lower",
+      "team_coin"
+    ],
+    "new_in_v8": [
+      "shadow_lower"
+    ]
+  }
+]
