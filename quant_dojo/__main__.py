@@ -105,6 +105,11 @@ def main():
     p_sched.add_argument("--time", type=str, default="16:30", help="执行时间 HH:MM（默认 16:30）")
     p_sched.add_argument("--remove", action="store_true", help="移除定时任务")
 
+    # ── logs ──
+    p_logs = sub.add_parser("logs", help="查看最近运行记录")
+    p_logs.add_argument("-n", type=int, default=10, help="显示条数（默认 10）")
+    p_logs.add_argument("--detail", action="store_true", help="显示步骤详情")
+
     # ── doctor ──
     sub.add_parser("doctor", help="诊断系统问题")
 
@@ -125,6 +130,7 @@ def main():
         "dashboard": cmd_dashboard,
         "activate": cmd_activate,
         "schedule": cmd_schedule,
+        "logs": cmd_logs,
         "doctor": cmd_doctor,
     }
     dispatch[args.command](args)
@@ -199,6 +205,12 @@ def cmd_schedule(args):
     """定时任务"""
     from quant_dojo.commands.schedule import setup_schedule
     setup_schedule(time=args.time, remove=args.remove)
+
+
+def cmd_logs(args):
+    """查看运行记录"""
+    from quant_dojo.commands.logs import show_logs
+    show_logs(n=args.n, detail=args.detail)
 
 
 def cmd_doctor(args):
