@@ -604,6 +604,72 @@ def cmd_strategies(args):
         print()
 
 
+def cmd_pipeline_run(args):
+    """执行 AI Agent 流水线"""
+    from pipeline.orchestrator import build_default_pipeline
+
+    date = getattr(args, "date", None)
+    mode = getattr(args, "mode", "daily")
+    dry_run = getattr(args, "dry_run", False)
+    only = getattr(args, "only", None)
+
+    orch = build_default_pipeline()
+
+    if only:
+        only_stages = set(only.split(","))
+        orch.stages = [s for s in orch.stages if s.name in only_stages]
+
+    ctx = orch.execute(date=date, mode=mode, dry_run=dry_run)
+
+    n_failed = sum(1 for r in ctx.stage_results if r.status.value == "failed")
+    if n_failed:
+        sys.exit(1)
+
+
+def cmd_pipeline_mine(args):
+    """执行因子挖掘（快捷方式）"""
+    from pipeline.orchestrator import build_default_pipeline
+
+    date = getattr(args, "date", None)
+    orch = build_default_pipeline()
+    orch.stages = [s for s in orch.stages if s.name in ("factor_mine", "strategy_compose")]
+    orch.execute(date=date, mode="full")
+
+
+def cmd_pipeline_status(args):
+    """查看最近流水线运行状态"""
+    import json
+    from pathlib import Path
+
+    journal_dir = Path(__file__).parent.parent / "journal"
+    files = sorted(journal_dir.glob("pipeline_*.json"), reverse=True)[:5]
+
+    if not files:
+        print("暂无流水线运行记录")
+        return
+
+    print(f"\n{'='*60}")
+    print("最近流水线运行")
+    print(f"{'='*60}\n")
+
+    for f in files:
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            date = data.get("date", "?")
+            mode = data.get("mode", "?")
+            total_time = data.get("total_time_sec", 0)
+            stages = data.get("stages", [])
+            n_ok = sum(1 for s in stages if s["status"] == "success")
+            n_fail = sum(1 for s in stages if s["status"] == "failed")
+            halted = data.get("halted", False)
+            status = "HALTED" if halted else "FAIL" if n_fail else "OK"
+            print(f"  {date} [{mode}] {status} | {n_ok} ok, {n_fail} fail | {total_time:.0f}s")
+        except Exception:
+            pass
+
+    print()
+
+
 def cmd_doctor(args):
     """系统诊断 — 检查环境、数据、模块是否可用"""
     print(f"\n{'='*50}")
@@ -792,6 +858,24 @@ def main():
 
     live_sub.add_parser("eod", help="执行收盘后 EOD 更新")
 
+    # ── pipeline ──────────────────────────────────────────────
+    p_pipe = subparsers.add_parser("pipeline", help="AI Agent 流水线（运行/挖掘/状态）")
+    pipe_sub = p_pipe.add_subparsers(dest="pipe_action")
+
+    p_pipe_run = pipe_sub.add_parser("run", help="执行流水线")
+    p_pipe_run.add_argument("--date", type=str, default=None, help="日期 YYYY-MM-DD")
+    p_pipe_run.add_argument("--mode", type=str, default="daily",
+                            choices=["daily", "weekly", "full"],
+                            help="模式: daily/weekly/full")
+    p_pipe_run.add_argument("--dry-run", dest="dry_run", action="store_true")
+    p_pipe_run.add_argument("--only", type=str, default=None,
+                            help="只执行指定阶段（逗号分隔）")
+
+    p_pipe_mine = pipe_sub.add_parser("mine", help="执行因子挖掘")
+    p_pipe_mine.add_argument("--date", type=str, default=None)
+
+    p_pipe_status = pipe_sub.add_parser("status", help="查看最近流水线运行状态")
+
     # ── 独立命令 ─────────────────────────────────────────────
     subparsers.add_parser("positions", help="查看当前模拟盘持仓")
     subparsers.add_parser("performance", help="查看模拟盘绩效指标")
@@ -896,6 +980,16 @@ def main():
         handler = {
             "status": cmd_data_status,
             "update": cmd_data_update,
+        }.get(action)
+    elif args.command == "pipeline":
+        action = getattr(args, "pipe_action", None)
+        if action is None:
+            p_pipe.print_help()
+            sys.exit(0)
+        handler = {
+            "run": cmd_pipeline_run,
+            "mine": cmd_pipeline_mine,
+            "status": cmd_pipeline_status,
         }.get(action)
     elif args.command == "live":
         action = getattr(args, "live_action", None)
