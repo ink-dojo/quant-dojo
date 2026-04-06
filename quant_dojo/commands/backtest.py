@@ -39,6 +39,20 @@ def run_backtest_cmd(
     print(f"  选股: {n_stocks}")
     print()
 
+    # 前置检查：数据是否可用
+    try:
+        from utils.local_data_loader import get_all_symbols
+        symbols = get_all_symbols()
+        if not symbols:
+            print("  [错误] 未找到股票数据")
+            print("         请先下载数据或运行: python -m quant_dojo init")
+            sys.exit(1)
+        print(f"  数据: {len(symbols)} 只股票")
+    except Exception as e:
+        print(f"  [错误] 数据加载失败: {e}")
+        print("         请先运行: python -m quant_dojo init")
+        sys.exit(1)
+
     from backtest.standardized import run_backtest, BacktestConfig
 
     config = BacktestConfig(

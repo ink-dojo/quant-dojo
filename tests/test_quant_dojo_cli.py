@@ -184,7 +184,8 @@ class TestBacktestCommand:
         from quant_dojo.commands.backtest import run_backtest_cmd
         from datetime import datetime, timedelta
 
-        with patch("backtest.standardized.run_backtest") as mock_bt:
+        with patch("utils.local_data_loader.get_all_symbols", return_value=["000001"]), \
+             patch("backtest.standardized.run_backtest") as mock_bt:
             mock_result = MagicMock()
             mock_result.status = "success"
             mock_result.metrics = {"total_return": 0.1, "sharpe": 1.0, "max_drawdown": -0.05}
@@ -206,7 +207,8 @@ class TestBacktestCommand:
         """显式日期应传递到 BacktestConfig"""
         from quant_dojo.commands.backtest import run_backtest_cmd
 
-        with patch("backtest.standardized.run_backtest") as mock_bt:
+        with patch("utils.local_data_loader.get_all_symbols", return_value=["000001"]), \
+             patch("backtest.standardized.run_backtest") as mock_bt:
             mock_result = MagicMock()
             mock_result.status = "success"
             mock_result.metrics = {"total_return": 0.05, "sharpe": 0.5, "max_drawdown": -0.1}
@@ -225,12 +227,22 @@ class TestBacktestCommand:
         """失败的回测应 sys.exit(1)"""
         from quant_dojo.commands.backtest import run_backtest_cmd
 
-        with patch("backtest.standardized.run_backtest") as mock_bt:
-            mock_result = MagicMock()
-            mock_result.status = "failed"
-            mock_result.error = "no data"
-            mock_bt.return_value = mock_result
+        with patch("utils.local_data_loader.get_all_symbols", return_value=["000001"]):
+            with patch("backtest.standardized.run_backtest") as mock_bt:
+                mock_result = MagicMock()
+                mock_result.status = "failed"
+                mock_result.error = "no data"
+                mock_bt.return_value = mock_result
 
+                with pytest.raises(SystemExit) as exc_info:
+                    run_backtest_cmd(report=False)
+                assert exc_info.value.code == 1
+
+    def test_backtest_exits_when_no_data(self):
+        """无数据时应 sys.exit(1) 并提示"""
+        from quant_dojo.commands.backtest import run_backtest_cmd
+
+        with patch("utils.local_data_loader.get_all_symbols", return_value=[]):
             with pytest.raises(SystemExit) as exc_info:
                 run_backtest_cmd(report=False)
             assert exc_info.value.code == 1
