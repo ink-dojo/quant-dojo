@@ -154,3 +154,39 @@ class TestCLIEntryPoint:
             with patch("quant_dojo.commands.activate.run_activate") as mock:
                 main()
                 mock.assert_called_once_with(strategy="v8", reason="test", show=False)
+
+    def test_main_dispatches_update(self):
+        """main 应正确调度 update"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "update", "--dry-run"]):
+            with patch("quant_dojo.commands.update.run_update") as mock:
+                main()
+                mock.assert_called_once_with(dry_run=True, full=False)
+
+    def test_main_dispatches_logs(self):
+        """main 应正确调度 logs"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "logs", "--detail"]):
+            with patch("quant_dojo.commands.logs.show_logs") as mock:
+                main()
+                mock.assert_called_once_with(n=10, detail=True)
+
+    def test_main_dispatches_schedule(self):
+        """main 应正确调度 schedule"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "schedule", "--time", "17:00"]):
+            with patch("quant_dojo.commands.schedule.setup_schedule") as mock:
+                main()
+                mock.assert_called_once_with(time="17:00", remove=False)
+
+    def test_main_dispatches_doctor(self):
+        """main 应正确调度 doctor"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "doctor"]):
+            with patch("quant_dojo.commands.doctor.run_doctor") as mock:
+                main()
+                mock.assert_called_once()
