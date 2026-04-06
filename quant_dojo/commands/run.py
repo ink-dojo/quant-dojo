@@ -110,6 +110,14 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
         print(f"  [跳过] 风控检查失败: {e}")
         results["risk"] = {"status": "skipped", "error": str(e)}
 
+    # ── Weekly: 因子挖掘 + 策略评估（周一执行）──
+    if _is_monday(date):
+        print("\n━━━ [周任务] 因子挖掘 & 策略评估 ━━━")
+        try:
+            _step_weekly_analysis(date, strategy)
+        except Exception as e:
+            print(f"  [跳过] 周任务失败: {e}")
+
     # ── Step 6: Dashboard 数据导出 ──
     print("\n━━━ Step 5/6: Dashboard 数据导出 ━━━")
     try:
@@ -139,6 +147,13 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
 
     # 保存运行日志
     _save_run_log(date, results, elapsed)
+
+    # 发送通知（如果配置了 webhook）
+    try:
+        from quant_dojo.commands.notify import send_run_notification
+        send_run_notification(date, results, elapsed)
+    except Exception:
+        pass
 
     if n_fail > 0:
         sys.exit(1)
@@ -323,6 +338,37 @@ def _step_show_summary(date: str, strategy: str):
                 print(f"  NAV: ¥{latest_nav:,.0f} ({ret:+.2%})")
     except Exception as e:
         print(f"  状态获取失败: {e}")
+
+
+def _is_monday(date: str) -> bool:
+    """判断是否为周一"""
+    try:
+        dt = datetime.strptime(date, "%Y-%m-%d")
+        return dt.weekday() == 0
+    except Exception:
+        return False
+
+
+def _step_weekly_analysis(date: str, strategy: str):
+    """周一额外任务：因子健康检查 + 周报"""
+    # 因子健康检查
+    try:
+        from pipeline.cli import cmd_factor_health
+        import argparse
+        args = argparse.Namespace(window=20)
+        print("  因子健康检查...")
+        cmd_factor_health(args)
+    except Exception as e:
+        print(f"  因子健康检查跳过: {e}")
+
+    # 自动生成周报
+    try:
+        now = datetime.strptime(date, "%Y-%m-%d")
+        week = now.strftime("%G-W%V")
+        from quant_dojo.commands.report import generate_report
+        generate_report(week=week)
+    except Exception as e:
+        print(f"  周报生成跳过: {e}")
 
 
 def _save_run_log(date: str, results: dict, elapsed: float):
