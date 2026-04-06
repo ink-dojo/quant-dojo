@@ -158,6 +158,7 @@ def load_local_stock(symbol: str) -> pd.DataFrame:
     # 解析日期并设为索引
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"])
+        df = df.drop_duplicates(subset=["date"], keep="last")
         df = df.set_index("date").sort_index()
 
     # 写 parquet 缓存（原子写入：先写临时文件再 rename，防止中断导致损坏）
