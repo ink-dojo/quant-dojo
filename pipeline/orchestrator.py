@@ -94,6 +94,10 @@ class PipelineStage:
     critical: bool = False
     # 超时（秒）
     timeout: int = 600
+    # 失败重试次数（0 = 不重试）
+    max_retries: int = 0
+    # 重试间隔基数（秒），实际等待 = base * 2^(attempt-1)
+    retry_backoff_sec: float = 5.0
 
 
 class PipelineOrchestrator:
@@ -118,6 +122,8 @@ class PipelineOrchestrator:
         schedule: str = "daily",
         critical: bool = False,
         timeout: int = 600,
+        max_retries: int = 0,
+        retry_backoff_sec: float = 5.0,
     ):
         """注册一个流水线阶段"""
         self.stages.append(PipelineStage(
@@ -126,6 +132,8 @@ class PipelineOrchestrator:
             schedule=schedule,
             critical=critical,
             timeout=timeout,
+            max_retries=max_retries,
+            retry_backoff_sec=retry_backoff_sec,
         ))
 
     def execute(
@@ -181,41 +189,59 @@ class PipelineOrchestrator:
                 ctx.stage_results.append(result)
                 continue
 
-            # 执行阶段
+            # 执行阶段（支持重试）
             print(f"▸ [{stage.name}] 开始...")
             stage_t0 = time.time()
+            max_attempts = 1 + stage.max_retries
+            last_error = None
 
-            try:
-                output = stage.agent_fn(ctx)
-                duration = time.time() - stage_t0
-                result = StageResult(
-                    name=stage.name,
-                    status=StageStatus.SUCCESS,
-                    duration_sec=round(duration, 2),
-                    output=output,
-                )
-                print(f"  [{stage.name}] 完成 ({duration:.1f}s)")
-
-            except Exception as e:
-                duration = time.time() - stage_t0
-                error_msg = f"{type(e).__name__}: {e}"
-                result = StageResult(
-                    name=stage.name,
-                    status=StageStatus.FAILED,
-                    duration_sec=round(duration, 2),
-                    error=error_msg,
-                )
-                print(f"  [{stage.name}] 失败 ({duration:.1f}s): {error_msg}")
-                logger.error("阶段 %s 失败:\n%s", stage.name, traceback.format_exc())
-
-                if stage.critical:
-                    ctx.halt = True
-                    ctx.halt_reason = f"关键阶段 {stage.name} 失败: {error_msg}"
-                    ctx.log_decision(
-                        "orchestrator",
-                        f"中止流水线: {stage.name} 失败",
-                        error_msg,
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    output = stage.agent_fn(ctx)
+                    duration = time.time() - stage_t0
+                    result = StageResult(
+                        name=stage.name,
+                        status=StageStatus.SUCCESS,
+                        duration_sec=round(duration, 2),
+                        output=output,
                     )
+                    if attempt > 1:
+                        print(f"  [{stage.name}] 重试成功 (attempt {attempt}, {duration:.1f}s)")
+                    else:
+                        print(f"  [{stage.name}] 完成 ({duration:.1f}s)")
+                    last_error = None
+                    break
+
+                except Exception as e:
+                    last_error = e
+                    error_msg = f"{type(e).__name__}: {e}"
+
+                    if attempt < max_attempts:
+                        wait = stage.retry_backoff_sec * (2 ** (attempt - 1))
+                        print(f"  [{stage.name}] 失败 (attempt {attempt}/{max_attempts}): {error_msg}")
+                        print(f"  [{stage.name}] 等待 {wait:.0f}s 后重试...")
+                        time.sleep(wait)
+                    else:
+                        duration = time.time() - stage_t0
+                        result = StageResult(
+                            name=stage.name,
+                            status=StageStatus.FAILED,
+                            duration_sec=round(duration, 2),
+                            error=error_msg,
+                        )
+                        retry_note = f" (经过 {max_attempts} 次尝试)" if max_attempts > 1 else ""
+                        print(f"  [{stage.name}] 失败{retry_note} ({duration:.1f}s): {error_msg}")
+                        logger.error("阶段 %s 失败:\n%s", stage.name, traceback.format_exc())
+
+            if last_error is not None and stage.critical:
+                ctx.halt = True
+                error_msg = f"{type(last_error).__name__}: {last_error}"
+                ctx.halt_reason = f"关键阶段 {stage.name} 失败: {error_msg}"
+                ctx.log_decision(
+                    "orchestrator",
+                    f"中止流水线: {stage.name} 失败",
+                    error_msg,
+                )
 
             ctx.stage_results.append(result)
 
@@ -298,7 +324,8 @@ def build_default_pipeline() -> PipelineOrchestrator:
     reporter = Reporter()
 
     orch = PipelineOrchestrator()
-    orch.add_stage("data_check", data_agent.run, schedule="daily", critical=True)
+    orch.add_stage("data_check", data_agent.run, schedule="daily", critical=True,
+                   max_retries=2, retry_backoff_sec=10)
     orch.add_stage("factor_mine", factor_miner.run, schedule="weekly")
     orch.add_stage("strategy_compose", strategy_composer.run, schedule="weekly")
     orch.add_stage("signal", signal_producer.run, schedule="daily", critical=True)
