@@ -411,6 +411,68 @@ def _render_factor_health_section(health: Optional[dict]) -> str:
     return "\n".join(lines)
 
 
+def _render_factor_research_section() -> str:
+    """
+    渲染「因子研究」段落：从最近一次 FactorMiner 结果生成。
+
+    返回:
+        Markdown 字符串
+    """
+    lines = ["## 因子研究（最近一次挖掘）\n"]
+
+    research_dir = Path(__file__).parent.parent / "live" / "factor_research"
+    if not research_dir.exists():
+        lines.append("无因子挖掘记录。\n")
+        return "\n".join(lines)
+
+    # 找最近的 mining 结果
+    mining_files = sorted(research_dir.glob("mining_*.json"), reverse=True)
+    if not mining_files:
+        lines.append("无因子挖掘记录。\n")
+        return "\n".join(lines)
+
+    try:
+        with open(mining_files[0], "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        lines.append("因子挖掘结果读取失败。\n")
+        return "\n".join(lines)
+
+    mining_date = data.get("date", "?")
+    rankings = data.get("rankings", [])
+    recommended = data.get("recommended", [])
+
+    lines.append(f"挖掘日期: {mining_date}\n")
+
+    if rankings:
+        lines.append("| 排名 | 因子 | IC均值 | ICIR | t统计量 | L/S夏普 | 类别 |")
+        lines.append("|------|------|--------|------|---------|---------|------|")
+        for i, r in enumerate(rankings[:10], 1):
+            lines.append(
+                f"| {i} | {r['name']} | {r['IC_mean']:.4f} | "
+                f"{r['ICIR']:.4f} | {r['t_stat']:.4f} | "
+                f"{r['ls_sharpe']:.4f} | {r['category']} |"
+            )
+        lines.append("")
+
+    if recommended:
+        lines.append(f"**推荐因子组合**: {', '.join(recommended)}\n")
+
+    # 策略建议
+    strategy_files = sorted(research_dir.glob("strategy_*.json"), reverse=True)
+    if strategy_files:
+        try:
+            with open(strategy_files[0], "r", encoding="utf-8") as f:
+                strategy = json.load(f)
+            rec = strategy.get("recommendation", "keep")
+            reason = strategy.get("reason", "")
+            lines.append(f"**策略建议**: {rec.upper()} — {reason}\n")
+        except Exception:
+            pass
+
+    return "\n".join(lines)
+
+
 def _render_todo_section() -> str:
     """
     渲染「下周待确认事项」段落（静态清单）。
@@ -511,6 +573,7 @@ def generate_weekly_report(week: Optional[str] = None) -> str:
     sections.append(_render_nav_section(nav_rows, all_nav, week_start))
     sections.append(_render_risk_section(risk_alerts))
     sections.append(_render_factor_health_section(factor_health))
+    sections.append(_render_factor_research_section())
     sections.append(_render_todo_section())
 
     report = "\n".join(sections)
