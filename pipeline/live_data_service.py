@@ -71,13 +71,15 @@ def is_after_close() -> bool:
 # 1. 实时行情轮询
 # ══════════════════════════════════════════════════════════════
 
-def poll_realtime(interval: int = 5, symbols: list = None):
+def poll_realtime(interval: int = 5, symbols: list = None, max_duration: int = 0):
     """
     盘中实时行情轮询。
 
     参数:
         interval: 轮询间隔（秒），默认 5
         symbols: 监控的股票列表，None 时用模拟仓持仓
+        max_duration: 最大运行时长（秒），0 表示无限制（Ctrl-C 退出）。
+                      auto_mode 会传入有限值以避免阻塞。
     """
     from providers.sina_provider import fetch_realtime_quotes
 
@@ -104,12 +106,18 @@ def poll_realtime(interval: int = 5, symbols: list = None):
     live_dir = ROOT / "live" / "realtime"
     live_dir.mkdir(parents=True, exist_ok=True)
 
+    start_time = time.monotonic()
+
     try:
         while True:
+            # 超时检查：max_duration > 0 时到期自动退出
+            if max_duration > 0 and (time.monotonic() - start_time) >= max_duration:
+                logger.info("轮询已达最大时长 %ds，退出", max_duration)
+                return
+
             if not is_market_hours():
-                logger.info("非交易时间，等待开盘...")
-                time.sleep(60)
-                continue
+                logger.info("非交易时间，退出轮询")
+                return
 
             try:
                 quotes = fetch_realtime_quotes(symbols)
@@ -208,8 +216,8 @@ def auto_mode(interval: int = 5):
         now = datetime.datetime.now()
 
         if is_market_hours():
-            # 盘中轮询
-            poll_realtime(interval=interval)
+            # 盘中轮询，每 5 分钟返回一次检查是否收盘
+            poll_realtime(interval=interval, max_duration=300)
             eod_done_today = False
 
         elif is_after_close() and not eod_done_today:
