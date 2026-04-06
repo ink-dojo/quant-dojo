@@ -211,6 +211,21 @@ class TestRunStore(unittest.TestCase):
 class TestCLI(unittest.TestCase):
     """测试 CLI 编译和基本功能"""
 
+    def _run_cli(self, args, timeout=30):
+        """运行 CLI 子进程并保证超时后回收，防止子进程泄漏。"""
+        import subprocess
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "pipeline.cli"] + args,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+        # 返回一个类似 CompletedProcess 的对象
+        return subprocess.CompletedProcess(proc.args, proc.returncode, stdout, stderr)
+
     def test_cli_compiles(self):
         """cli.py 应能正常编译"""
         import py_compile
@@ -219,11 +234,7 @@ class TestCLI(unittest.TestCase):
 
     def test_cli_help_output(self):
         """--help 应成功退出且包含关键命令"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "--help"],
-            capture_output=True, text=True, timeout=30,
-        )
+        result = self._run_cli(["--help"])
         self.assertEqual(result.returncode, 0)
         self.assertIn("backtest", result.stdout)
         self.assertIn("signal", result.stdout)
@@ -232,80 +243,48 @@ class TestCLI(unittest.TestCase):
 
     def test_backtest_list_works(self):
         """backtest list 应能运行（即使无记录）"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "backtest", "list"],
-            capture_output=True, text=True, timeout=30,
-        )
+        result = self._run_cli(["backtest", "list"])
         self.assertEqual(result.returncode, 0)
 
     def test_strategies_command(self):
         """strategies 命令应列出已注册策略"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "strategies"],
-            capture_output=True, text=True, timeout=30,
-        )
+        result = self._run_cli(["strategies"])
         self.assertEqual(result.returncode, 0)
         self.assertIn("dual_ma", result.stdout)
         self.assertIn("multi_factor", result.stdout)
 
     def test_signal_date_legacy(self):
         """旧命令 signal --date 应正确分发（无 argparse 错误）"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "signal", "--date", "2026-03-20"],
-            capture_output=True, text=True, timeout=60,
-        )
+        result = self._run_cli(["signal", "--date", "2026-03-20"], timeout=60)
         # 允许底层管道因数据问题失败，但 CLI 本身不应出现 argparse 解析错误
         self.assertNotIn("unrecognized arguments", result.stderr)
         self.assertNotIn("error: the following arguments are required", result.stderr)
 
     def test_signal_run_new(self):
         """新命令 signal run --date 应正确分发（无 argparse 错误）"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "signal", "run", "--date", "2026-03-20"],
-            capture_output=True, text=True, timeout=60,
-        )
+        result = self._run_cli(["signal", "run", "--date", "2026-03-20"], timeout=60)
         # 允许底层管道因数据问题失败，但 CLI 本身不应出现 argparse 解析错误
         self.assertNotIn("unrecognized arguments", result.stderr)
         self.assertNotIn("error: the following arguments are required", result.stderr)
 
     def test_risk_check_legacy(self):
         """旧命令 risk-check 应成功运行（returncode 0）"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "risk-check"],
-            capture_output=True, text=True, timeout=60,
-        )
+        result = self._run_cli(["risk-check"], timeout=60)
         self.assertEqual(result.returncode, 0)
 
     def test_weekly_report_legacy(self):
         """旧命令 weekly-report 应成功运行（returncode 0）"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "weekly-report"],
-            capture_output=True, text=True, timeout=60,
-        )
+        result = self._run_cli(["weekly-report"], timeout=60)
         self.assertEqual(result.returncode, 0)
 
     def test_risk_check_new(self):
         """新命令 risk check 应成功运行（returncode 0）"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "risk", "check"],
-            capture_output=True, text=True, timeout=60,
-        )
+        result = self._run_cli(["risk", "check"], timeout=60)
         self.assertEqual(result.returncode, 0)
 
     def test_report_weekly_new(self):
         """新命令 report weekly 应成功运行（returncode 0）"""
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "-m", "pipeline.cli", "report", "weekly"],
-            capture_output=True, text=True, timeout=60,
-        )
+        result = self._run_cli(["report", "weekly"], timeout=60)
         self.assertEqual(result.returncode, 0)
 
 
