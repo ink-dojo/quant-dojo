@@ -50,7 +50,7 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
     halted = False
 
     # ── Step 2: 数据更新 ──
-    print("━━━ Step 1/5: 数据更新 ━━━")
+    print("━━━ Step 1/6: 数据更新 ━━━")
     try:
         result = _step_data_update(dry_run=dry_run)
         results["data_update"] = result
@@ -61,7 +61,7 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
         results["data_update"] = {"status": "skipped", "error": str(e)}
 
     # ── Step 3: 信号生成 ──
-    print("\n━━━ Step 2/5: 信号生成 ━━━")
+    print("\n━━━ Step 2/6: 信号生成 ━━━")
     try:
         result = _step_signal(date=date, strategy=strategy, dry_run=dry_run)
         results["signal"] = result
@@ -77,7 +77,7 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
 
     # ── Step 4: 模拟调仓 ──
     if not halted:
-        print("\n━━━ Step 3/5: 模拟调仓 ━━━")
+        print("\n━━━ Step 3/6: 模拟调仓 ━━━")
         try:
             result = _step_rebalance(date=date, strategy=strategy, dry_run=dry_run)
             results["rebalance"] = result
@@ -87,12 +87,12 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
             results["rebalance"] = {"status": "failed", "error": str(e)}
             logger.error("调仓失败", exc_info=True)
     else:
-        print("\n━━━ Step 3/5: 模拟调仓 ━━━")
+        print("\n━━━ Step 3/6: 模拟调仓 ━━━")
         print("  [跳过] 信号生成失败，无法调仓")
         results["rebalance"] = {"status": "skipped"}
 
     # ── Step 5: 风控检查 ──
-    print("\n━━━ Step 4/5: 风控检查 ━━━")
+    print("\n━━━ Step 4/6: 风控检查 ━━━")
     try:
         result = _step_risk_check()
         results["risk"] = result
@@ -104,8 +104,16 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
         print(f"  [跳过] 风控检查失败: {e}")
         results["risk"] = {"status": "skipped", "error": str(e)}
 
-    # ── Step 6: 状态报告 ──
-    print("\n━━━ Step 5/5: 状态报告 ━━━")
+    # ── Step 6: Dashboard 数据导出 ──
+    print("\n━━━ Step 5/6: Dashboard 数据导出 ━━━")
+    try:
+        _step_export_dashboard()
+        print("  [OK] Dashboard 数据已更新")
+    except Exception as e:
+        print(f"  [跳过] 导出失败: {e}")
+
+    # ── Step 7: 状态报告 ──
+    print("\n━━━ Step 6/6: 状态报告 ━━━")
     try:
         _step_show_summary(date, strategy)
     except Exception as e:
@@ -260,6 +268,20 @@ def _step_risk_check() -> dict:
         return {"status": "ok", "level": level, "alerts": alerts}
     except Exception as e:
         return {"status": "ok", "level": "unknown", "alerts": [], "note": str(e)}
+
+
+def _step_export_dashboard():
+    """Step 5: 导出 Dashboard 数据"""
+    from pipeline.dashboard_export import export_dashboard
+    import json
+
+    data = export_dashboard(include_ic=False)
+
+    out_dir = PROJECT_ROOT / "live" / "dashboard"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "dashboard_data.json"
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, default=str)
 
 
 def _step_show_summary(date: str, strategy: str):
