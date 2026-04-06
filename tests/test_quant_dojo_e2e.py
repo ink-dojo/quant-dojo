@@ -110,7 +110,7 @@ class TestCLIEntryPoint:
         with patch("sys.argv", ["quant_dojo", "init", "--data-dir", "/tmp/test"]):
             with patch("quant_dojo.commands.init.run_init") as mock:
                 main()
-                mock.assert_called_once_with(data_dir="/tmp/test")
+                mock.assert_called_once_with(data_dir="/tmp/test", download=False)
 
     def test_main_dispatches_status(self):
         """main 应正确调度 status 命令"""
