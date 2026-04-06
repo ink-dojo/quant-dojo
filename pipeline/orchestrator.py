@@ -286,6 +286,7 @@ def build_default_pipeline() -> PipelineOrchestrator:
     from agents.executor_agent import ExecutorAgent
     from agents.risk_guard import RiskGuard
     from agents.reporter import Reporter
+    from agents.factor_doctor import FactorDoctor
 
     data_agent = DataAgent()
     factor_miner = FactorMiner()
@@ -293,6 +294,7 @@ def build_default_pipeline() -> PipelineOrchestrator:
     signal_producer = SignalProducer()
     executor = ExecutorAgent()
     risk_guard = RiskGuard()
+    factor_doctor = FactorDoctor()
     reporter = Reporter()
 
     orch = PipelineOrchestrator()
@@ -302,6 +304,7 @@ def build_default_pipeline() -> PipelineOrchestrator:
     orch.add_stage("signal", signal_producer.run, schedule="daily", critical=True)
     orch.add_stage("execute", executor.run, schedule="daily")
     orch.add_stage("risk_guard", risk_guard.run, schedule="daily")
+    orch.add_stage("factor_doctor", factor_doctor.run, schedule="weekly")
     orch.add_stage("report", reporter.run, schedule="daily")
 
     return orch
