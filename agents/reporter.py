@@ -133,6 +133,32 @@ class Reporter:
             report_lines.append(f"- 原因: {reason}")
             report_lines.append("")
 
+        # ── LLM 深度分析（可选）─────────────────────────────
+        try:
+            from agents.factor_analyst import FactorAnalyst
+            analyst = FactorAnalyst()
+
+            # 因子排行分析
+            if rankings:
+                commentary = analyst.analyze_rankings(rankings, date)
+                if commentary:
+                    report_lines.append("## AI 分析")
+                    report_lines.append("")
+                    report_lines.append(commentary)
+                    report_lines.append("")
+
+            # 信号洞察
+            if signal:
+                insight = analyst.daily_market_insight(signal)
+                if insight:
+                    if not rankings:
+                        report_lines.append("## AI 分析")
+                        report_lines.append("")
+                    report_lines.append(f"**今日洞察**: {insight}")
+                    report_lines.append("")
+        except Exception:
+            pass
+
         # ── 决策日志 ──────────────────────────────────────────
         if ctx.decisions:
             report_lines.append("## 决策日志")
