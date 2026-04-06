@@ -236,11 +236,14 @@ class PaperTrader:
             nav = self._portfolio_value(prices or {})
             n_buys = sum(1 for t in existing_today if t["action"] == "buy")
             n_sells = sum(1 for t in existing_today if t["action"] == "sell")
+            # 计算已执行调仓的真实换手率
+            trade_volume = sum(t["shares"] * t["price"] for t in existing_today)
+            actual_turnover = trade_volume / nav if nav > 0 else 0.0
             return {
                 "date": date,
                 "n_buys": n_buys,
                 "n_sells": n_sells,
-                "turnover": 0.0,
+                "turnover": round(actual_turnover, 4),
                 "cash_after": round(self._get_cash(), 2),
                 "nav_after": round(nav, 2),
             }
