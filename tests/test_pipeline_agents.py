@@ -222,6 +222,167 @@ class TestPipelineOrchestrator(unittest.TestCase):
             self.assertEqual(len(journal["stages"]), 1)
             self.assertEqual(journal["stages"][0]["status"], "success")
 
+    def test_context_data_isolation_between_stages(self):
+        """阶段 A 写入的数据应可被阶段 B 读取"""
+        def stage_writer(ctx):
+            ctx.set("shared_key", "hello_from_a")
+
+        def stage_reader(ctx):
+            val = ctx.get("shared_key")
+            if val != "hello_from_a":
+                raise AssertionError(f"Expected 'hello_from_a', got {val!r}")
+            ctx.set("read_ok", True)
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("writer", stage_writer)
+        orch.add_stage("reader", stage_reader)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("pipeline.orchestrator.JOURNAL_DIR", Path(tmp)):
+                ctx = orch.execute(date="2026-01-01")
+
+        self.assertTrue(all(r.status == StageStatus.SUCCESS for r in ctx.stage_results))
+        self.assertTrue(ctx.get("read_ok"))
+
+    def test_stage_output_captured_in_result(self):
+        """阶段返回值应被记录在 StageResult.output"""
+        def returns_dict(ctx):
+            return {"answer": 42}
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("returns", returns_dict)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("pipeline.orchestrator.JOURNAL_DIR", Path(tmp)):
+                ctx = orch.execute(date="2026-01-01")
+
+        self.assertEqual(ctx.stage_results[0].output, {"answer": 42})
+
+    def test_weekly_stages_run_in_full_mode(self):
+        """full 模式 → weekly 阶段无论星期几都应执行"""
+        ran = []
+
+        def weekly_fn(ctx):
+            ran.append(True)
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("weekly_task", weekly_fn, schedule="weekly")
+
+        # 2026-04-03 是周五，但 mode=full 应运行
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("pipeline.orchestrator.JOURNAL_DIR", Path(tmp)):
+                ctx = orch.execute(date="2026-04-03", mode="full")
+
+        self.assertTrue(ran)
+        self.assertEqual(ctx.stage_results[0].status, StageStatus.SUCCESS)
+
+    def test_critical_halt_skips_multiple_subsequent(self):
+        """critical 失败后应跳过所有后续阶段（不只一个）"""
+        ran = []
+
+        def failing(ctx):
+            raise RuntimeError("critical failure")
+
+        def s2(ctx):
+            ran.append("s2")
+
+        def s3(ctx):
+            ran.append("s3")
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("critical_step", failing, critical=True)
+        orch.add_stage("step2", s2)
+        orch.add_stage("step3", s3)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("pipeline.orchestrator.JOURNAL_DIR", Path(tmp)):
+                ctx = orch.execute(date="2026-01-01")
+
+        self.assertEqual(len(ran), 0)
+        self.assertTrue(ctx.halt)
+        self.assertEqual(ctx.stage_results[0].status, StageStatus.FAILED)
+        self.assertEqual(ctx.stage_results[1].status, StageStatus.SKIPPED)
+        self.assertEqual(ctx.stage_results[2].status, StageStatus.SKIPPED)
+
+    def test_journal_records_halt(self):
+        """中止的流水线在审计日志中应标记 halted=True"""
+        def failing(ctx):
+            raise RuntimeError("boom")
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("bad", failing, critical=True)
+        orch.add_stage("after", lambda ctx: None)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            journal_dir = Path(tmp)
+            with patch("pipeline.orchestrator.JOURNAL_DIR", journal_dir):
+                orch.execute(date="2026-02-01")
+
+            journal_file = journal_dir / "pipeline_2026-02-01.json"
+            with open(journal_file) as f:
+                journal = json.load(f)
+
+            self.assertTrue(journal["halted"])
+            self.assertIn("bad", journal["halt_reason"])
+            self.assertEqual(len(journal["decisions"]), 1)
+            self.assertEqual(journal["decisions"][0]["agent"], "orchestrator")
+
+    def test_retry_backoff_timing(self):
+        """重试应使用指数退避（验证 sleep 调用）"""
+        call_count = [0]
+
+        def always_fail(ctx):
+            call_count[0] += 1
+            raise RuntimeError("fail")
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("retry_test", always_fail, max_retries=2, retry_backoff_sec=1.0)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("pipeline.orchestrator.JOURNAL_DIR", Path(tmp)):
+                with patch("pipeline.orchestrator.time.sleep") as mock_sleep:
+                    ctx = orch.execute(date="2026-01-01")
+
+        self.assertEqual(call_count[0], 3)  # 1 initial + 2 retries
+        # Backoff: first retry = 1*2^0=1s, second retry = 1*2^1=2s
+        sleep_calls = [c[0][0] for c in mock_sleep.call_args_list]
+        self.assertEqual(sleep_calls, [1.0, 2.0])
+
+    def test_multiple_failures_only_first_critical_halts(self):
+        """多个非关键阶段失败不会 halt，但第一个关键失败会"""
+        ran = []
+
+        def ok(ctx):
+            ran.append("ok")
+
+        def fail_non_critical(ctx):
+            raise RuntimeError("soft fail")
+
+        def fail_critical(ctx):
+            raise RuntimeError("hard fail")
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("s1_ok", ok)
+        orch.add_stage("s2_soft_fail", fail_non_critical, critical=False)
+        orch.add_stage("s3_ok", ok)
+        orch.add_stage("s4_hard_fail", fail_critical, critical=True)
+        orch.add_stage("s5_should_skip", ok)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("pipeline.orchestrator.JOURNAL_DIR", Path(tmp)):
+                ctx = orch.execute(date="2026-01-01")
+
+        self.assertEqual(ran, ["ok", "ok"])  # s1 and s3 ran
+        self.assertTrue(ctx.halt)
+        statuses = [r.status for r in ctx.stage_results]
+        self.assertEqual(statuses, [
+            StageStatus.SUCCESS,   # s1
+            StageStatus.FAILED,    # s2 non-critical
+            StageStatus.SUCCESS,   # s3
+            StageStatus.FAILED,    # s4 critical
+            StageStatus.SKIPPED,   # s5
+        ])
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # 2. PipelineContext
