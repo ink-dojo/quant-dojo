@@ -423,6 +423,12 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
         if bt_result.empty:
             raise ValueError(f"回测窗口 {config.start}~{config.end} 内无交易数据")
 
+        # 提取调仓记录（只保留回测窗口内的）
+        result.trade_log = [
+            t for t in strategy.trade_log
+            if config.start <= t["date"] <= config.end
+        ]
+
         # ── 6. 计算绩效指标 ──────────────────────────────────
         returns = bt_result["portfolio_return"]
         metrics = _compute_metrics(returns)
@@ -457,6 +463,11 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
             print(f"  基准总收益: {bm.get('total_return', 0):.2%}")
             print(f"  基准夏普: {bm.get('sharpe', 0):.2f}")
             print(f"  超额收益: {metrics.get('excess_return', 0):.2%}")
+        if result.trade_log:
+            avg_turnover = np.mean([t["turnover"] for t in result.trade_log])
+            print(f"  --- 调仓统计 ---")
+            print(f"  调仓次数: {len(result.trade_log)}")
+            print(f"  平均换手率: {avg_turnover:.2%}")
         print(f"{'='*50}")
 
         # ── 7. 持久化 ────────────────────────────────────────

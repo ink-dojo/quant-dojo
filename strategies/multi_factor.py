@@ -52,6 +52,7 @@ class MultiFactorStrategy(BaseStrategy):
         self.is_st_wide = is_st_wide
         self.n_stocks = n_stocks
         self.rebalance_freq = rebalance_freq
+        self.trade_log: list = []  # 调仓记录
 
     @staticmethod
     def _winsorize_zscore(series: pd.Series, sigma: float = 3.0) -> pd.Series:
@@ -164,6 +165,7 @@ class MultiFactorStrategy(BaseStrategy):
         portfolio_returns = []
         current_holdings: set = set()  # 当前持仓股票集合
         current_weights: dict = {}     # 当前持仓权重 {symbol: weight}
+        self.trade_log = []
 
         rebalance_set = set(rebalance_dates)
 
@@ -192,6 +194,20 @@ class MultiFactorStrategy(BaseStrategy):
                 # turnover 已是双边（买入权重变化 + 卖出权重变化之和）
                 # commission 是单边费率，turnover 已含买卖两边，不需要再 ×2
                 transaction_cost = self.config.commission * turnover
+
+                # 记录调仓
+                buys = sorted(new_holdings - current_holdings)
+                sells = sorted(current_holdings - new_holdings)
+                self.trade_log.append({
+                    "date": str(date.date()) if hasattr(date, 'date') else str(date),
+                    "n_holdings": n,
+                    "n_buys": len(buys),
+                    "n_sells": len(sells),
+                    "buys": buys,
+                    "sells": sells,
+                    "turnover": round(turnover, 4),
+                    "cost": round(transaction_cost, 6),
+                })
 
                 current_holdings = new_holdings
                 current_weights = new_weights
