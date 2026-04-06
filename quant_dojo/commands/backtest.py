@@ -85,4 +85,10 @@ def run_backtest_cmd(
     print(f"  Run ID: {result.run_id}")
     print(f"{'─'*40}")
 
+    # 提示下一步
+    if sharpe >= 0.5 and total > 0:
+        print(f"\n  下一步:")
+        print(f"    python -m quant_dojo activate {strategy}   # 激活此策略")
+        print(f"    python -m quant_dojo run                   # 开始每日运行")
+
     return result

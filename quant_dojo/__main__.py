@@ -59,6 +59,12 @@ def main():
     # ── status ──
     sub.add_parser("status", help="系统全局状态一览")
 
+    # ── activate ──
+    p_act = sub.add_parser("activate", help="切换 live 运行策略")
+    p_act.add_argument("strategy", nargs="?", type=str, help="策略名 (v7/v8/ad_hoc)")
+    p_act.add_argument("--reason", type=str, default="", help="切换原因")
+    p_act.add_argument("--show", action="store_true", help="查看当前策略")
+
     # ── schedule ──
     p_sched = sub.add_parser("schedule", help="设置每日定时自动运行")
     p_sched.add_argument("--time", type=str, default="16:30", help="执行时间 HH:MM（默认 16:30）")
@@ -78,6 +84,7 @@ def main():
         "run": cmd_run,
         "backtest": cmd_backtest,
         "status": cmd_status,
+        "activate": cmd_activate,
         "schedule": cmd_schedule,
         "doctor": cmd_doctor,
     }
@@ -112,6 +119,12 @@ def cmd_status(args):
     """系统状态"""
     from quant_dojo.commands.status import show_status
     show_status()
+
+
+def cmd_activate(args):
+    """策略激活"""
+    from quant_dojo.commands.activate import run_activate
+    run_activate(strategy=args.strategy, reason=args.reason, show=args.show)
 
 
 def cmd_schedule(args):
