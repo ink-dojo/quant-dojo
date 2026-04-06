@@ -133,6 +133,21 @@ class Reporter:
             report_lines.append(f"- 原因: {reason}")
             report_lines.append("")
 
+        # ── 因子暴露分析 ──────────────────────────────────────
+        if signal:
+            factor_exposure = self._analyze_factor_exposure(signal)
+            if factor_exposure:
+                report_lines.append("## 因子暴露分析")
+                report_lines.append("")
+                report_lines.append(f"| 因子 | 均值 | 标准差 | 覆盖率 | 主要贡献 |")
+                report_lines.append(f"|------|------|--------|--------|----------|")
+                for fe in factor_exposure:
+                    report_lines.append(
+                        f"| {fe['name']} | {fe['mean']:.4f} | {fe['std']:.4f} | "
+                        f"{fe['coverage']:.0%} | {fe['top_contributor']} |"
+                    )
+                report_lines.append("")
+
         # ── LLM 深度分析（可选）─────────────────────────────
         try:
             from agents.factor_analyst import FactorAnalyst
@@ -186,6 +201,44 @@ class Reporter:
             print(f"  仪表盘导出跳过: {e}")
 
         return {"report_path": str(report_path), "sections": len(ctx.stage_results)}
+
+    def _analyze_factor_exposure(self, signal: dict) -> list:
+        """分析选股组合的因子暴露"""
+        factor_values = signal.get("factor_values", {})
+        picks = signal.get("picks", [])
+
+        if not factor_values or not picks:
+            return []
+
+        import numpy as np
+
+        exposure = []
+        for name, values in factor_values.items():
+            # values is {symbol: factor_value}
+            vals = [v for s, v in values.items() if s in picks and v is not None]
+            if not vals:
+                continue
+
+            arr = np.array(vals)
+            coverage = len(vals) / max(len(picks), 1)
+
+            # 找出因子值最高的股票（主要贡献者）
+            sorted_items = sorted(
+                [(s, v) for s, v in values.items() if s in picks and v is not None],
+                key=lambda x: abs(x[1]),
+                reverse=True,
+            )
+            top = sorted_items[0][0] if sorted_items else ""
+
+            exposure.append({
+                "name": name,
+                "mean": round(float(arr.mean()), 4),
+                "std": round(float(arr.std()), 4),
+                "coverage": round(coverage, 4),
+                "top_contributor": top,
+            })
+
+        return exposure
 
     def _save_report(self, report_text: str, date: str) -> Path:
         """保存报告为 Markdown"""
