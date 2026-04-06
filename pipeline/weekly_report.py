@@ -398,9 +398,10 @@ def _render_factor_health_section(health: Optional[dict]) -> str:
     }
     for factor, info in health.items():
         if isinstance(info, dict):
-            ic_mean = info.get("ic_mean")
+            # factor_monitor 返回 "rolling_ic"，兼容旧版 "ic_mean"
+            ic_mean = info.get("rolling_ic", info.get("ic_mean"))
             status = info.get("status", "no_data")
-            ic_str = f"{ic_mean:.4f}" if ic_mean is not None else "-"
+            ic_str = f"{ic_mean:.4f}" if ic_mean is not None and not (isinstance(ic_mean, float) and ic_mean != ic_mean) else "-"
             status_str = status_map.get(status, status)
         else:
             ic_str = "-"
