@@ -168,6 +168,40 @@ class TestPipelineOrchestrator(unittest.TestCase):
         self.assertTrue(ran)
         self.assertEqual(ctx.stage_results[0].status, StageStatus.SUCCESS)
 
+    def test_retry_on_failure_then_success(self):
+        """重试后成功应记录为 SUCCESS"""
+        call_count = [0]
+
+        def flaky_stage(ctx):
+            call_count[0] += 1
+            if call_count[0] < 3:
+                raise RuntimeError("transient error")
+            return "ok"
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("flaky", flaky_stage, max_retries=2, retry_backoff_sec=0.01)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("pipeline.orchestrator.JOURNAL_DIR", Path(tmp)):
+                ctx = orch.execute(date="2026-01-01")
+
+        self.assertEqual(call_count[0], 3)
+        self.assertEqual(ctx.stage_results[0].status, StageStatus.SUCCESS)
+
+    def test_retry_exhausted_fails(self):
+        """重试耗尽应记录为 FAILED"""
+        def always_fail(ctx):
+            raise RuntimeError("permanent error")
+
+        orch = PipelineOrchestrator()
+        orch.add_stage("bad", always_fail, max_retries=1, retry_backoff_sec=0.01)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("pipeline.orchestrator.JOURNAL_DIR", Path(tmp)):
+                ctx = orch.execute(date="2026-01-01")
+
+        self.assertEqual(ctx.stage_results[0].status, StageStatus.FAILED)
+
     def test_journal_saved(self):
         """执行后应保存审计日志"""
         orch = PipelineOrchestrator()
@@ -684,10 +718,10 @@ class TestExecutorAgent(unittest.TestCase):
 class TestBuildDefaultPipeline(unittest.TestCase):
     """测试 build_default_pipeline 能正常构建"""
 
-    def test_build_creates_7_stages(self):
+    def test_build_creates_8_stages(self):
         from pipeline.orchestrator import build_default_pipeline
         orch = build_default_pipeline()
-        self.assertEqual(len(orch.stages), 7)
+        self.assertEqual(len(orch.stages), 8)
 
     def test_stage_names(self):
         from pipeline.orchestrator import build_default_pipeline
