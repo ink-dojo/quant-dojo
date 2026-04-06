@@ -661,6 +661,77 @@ def run_walk_forward(config: BacktestConfig, train_years: int = 3, test_months: 
     }
 
 
+def run_parameter_sweep(
+    base_config: BacktestConfig,
+    param_grid: dict[str, list],
+) -> list[BacktestResult]:
+    """
+    参数扫描：对 BacktestConfig 中的参数进行网格搜索。
+
+    参数:
+        base_config: 基础配置（未被扫描的参数使用此值）
+        param_grid: 参数网格，如 {"n_stocks": [20, 30, 50], "commission": [0.0003, 0.001]}
+
+    返回:
+        BacktestResult 列表，按夏普比率降序排列
+
+    用法:
+        results = run_parameter_sweep(
+            BacktestConfig(strategy="v7", start="2024-01-01", end="2026-03-31"),
+            {"n_stocks": [20, 30, 50], "commission": [0.0003, 0.001]}
+        )
+    """
+    import itertools
+
+    _validate_config(base_config)
+
+    # 展开参数网格
+    keys = list(param_grid.keys())
+    values = list(param_grid.values())
+    combinations = list(itertools.product(*values))
+
+    print(f"[参数扫描] 共 {len(combinations)} 组参数组合")
+    print(f"  扫描参数: {keys}")
+
+    results = []
+    for i, combo in enumerate(combinations, 1):
+        params = dict(zip(keys, combo))
+        config = BacktestConfig(**{**asdict(base_config), **params})
+
+        print(f"\n--- 组合 {i}/{len(combinations)}: {params} ---")
+        result = run_backtest(config)
+        results.append(result)
+
+    # 按夏普排序（失败的排最后）
+    results.sort(
+        key=lambda r: r.metrics.get("sharpe", float("-inf")) if r.status == "success" else float("-inf"),
+        reverse=True,
+    )
+
+    # 打印排行
+    print(f"\n{'='*60}")
+    print(f"  参数扫描结果排行（按夏普比率）")
+    print(f"{'='*60}")
+    print(f"  {'排名':>4} {'参数':<30} {'夏普':>8} {'总收益':>10} {'回撤':>10}")
+    print(f"  {'-'*4} {'-'*30} {'-'*8} {'-'*10} {'-'*10}")
+    for i, r in enumerate(results[:10], 1):
+        if r.status != "success":
+            print(f"  {i:>4} FAILED: {r.error}")
+            continue
+        # 提取扫描参数的值
+        swept = {k: getattr(r.config, k) for k in keys}
+        m = r.metrics
+        print(
+            f"  {i:>4} {str(swept):<30} "
+            f"{m.get('sharpe', 0):>8.2f} "
+            f"{m.get('total_return', 0):>9.2%} "
+            f"{m.get('max_drawdown', 0):>9.2%}"
+        )
+    print(f"{'='*60}")
+
+    return results
+
+
 if __name__ == "__main__":
     print("标准化回测框架")
     print("用法:")
@@ -671,3 +742,7 @@ if __name__ == "__main__":
     print("  # Walk-Forward 验证")
     print("  from backtest.standardized import run_walk_forward, BacktestConfig")
     print("  wf = run_walk_forward(BacktestConfig(strategy='v7', start='2023-01-01', end='2026-03-31'))")
+    print()
+    print("  # 参数扫描")
+    print("  from backtest.standardized import run_parameter_sweep, BacktestConfig")
+    print('  results = run_parameter_sweep(config, {"n_stocks": [20, 30, 50]})')
