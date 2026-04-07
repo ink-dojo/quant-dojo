@@ -182,6 +182,23 @@ class TestCLIEntryPoint:
                 main()
                 mock.assert_called_once_with(time="17:00", remove=False)
 
+    def test_main_dispatches_generate(self):
+        """main 应正确调度 generate"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "generate", "--top", "5", "--activate"]):
+            with patch("quant_dojo.commands.generate.run_generate") as mock:
+                main()
+                mock.assert_called_once_with(
+                    top_n=5,
+                    min_icir=0.2,
+                    max_corr=0.6,
+                    start=None,
+                    end=None,
+                    n_stocks=30,
+                    activate=True,
+                )
+
     def test_main_dispatches_doctor(self):
         """main 应正确调度 doctor"""
         from quant_dojo.__main__ import main

@@ -828,6 +828,177 @@ class TestLogsCommand:
 # doctor command
 # ═══════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════
+# generate command
+# ═══════════════════════════════════════════════════════════
+
+class TestGenerateCommand:
+    def _make_mock_data(self):
+        """创建模拟数据"""
+        dates = pd.date_range("2024-01-01", "2025-12-31", freq="B")
+        symbols = [f"00000{i}" for i in range(1, 51)]
+        np.random.seed(42)
+        price = pd.DataFrame(
+            np.random.randn(len(dates), len(symbols)).cumsum(axis=0) + 100,
+            index=dates, columns=symbols,
+        )
+        return {"price": price}
+
+    def test_generate_cli_dispatch(self):
+        """CLI 应正确调度 generate 命令"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "generate", "--top", "4", "--min-icir", "0.15"]):
+            with patch("quant_dojo.commands.generate.run_generate") as mock:
+                main()
+                mock.assert_called_once_with(
+                    top_n=4,
+                    min_icir=0.15,
+                    max_corr=0.6,
+                    start=None,
+                    end=None,
+                    n_stocks=30,
+                    activate=False,
+                )
+
+    def test_generate_cli_activate_flag(self):
+        """--activate 标志应传递"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "generate", "--activate"]):
+            with patch("quant_dojo.commands.generate.run_generate") as mock:
+                main()
+                mock.assert_called_once_with(
+                    top_n=6,
+                    min_icir=0.2,
+                    max_corr=0.6,
+                    start=None,
+                    end=None,
+                    n_stocks=30,
+                    activate=True,
+                )
+
+    def test_evaluate_factors(self):
+        """因子评估应返回排序后的统计"""
+        from quant_dojo.commands.generate import _evaluate_factors
+
+        dates = pd.date_range("2024-01-01", periods=100, freq="B")
+        symbols = [f"00000{i}" for i in range(1, 51)]
+        np.random.seed(42)
+
+        ret_wide = pd.DataFrame(
+            np.random.randn(len(dates), len(symbols)) * 0.02,
+            index=dates, columns=symbols,
+        )
+
+        # 创建一个有信号的因子和一个纯噪声因子
+        good_factor = ret_wide.shift(1) * 3 + pd.DataFrame(
+            np.random.randn(len(dates), len(symbols)) * 0.01,
+            index=dates, columns=symbols,
+        )
+        noise_factor = pd.DataFrame(
+            np.random.randn(len(dates), len(symbols)),
+            index=dates, columns=symbols,
+        )
+
+        factors = {"good": good_factor, "noise": noise_factor}
+
+        with patch("utils.factor_analysis.compute_ic_series") as mock_ic:
+            # 模拟 IC 序列
+            ic_good = pd.Series(np.random.normal(0.05, 0.03, 80), index=dates[:80])
+            ic_noise = pd.Series(np.random.normal(0.0, 0.05, 80), index=dates[:80])
+            mock_ic.side_effect = [ic_good, ic_noise]
+
+            stats = _evaluate_factors(factors, ret_wide)
+
+        assert len(stats) == 2
+        # good 因子应排在前面（|ICIR| 更大）
+        assert stats[0]["name"] == "good"
+
+    def test_build_strategy_definition(self):
+        """策略定义应包含正确字段"""
+        from quant_dojo.commands.generate import _build_strategy_definition
+
+        selected = [
+            {"name": "low_vol_20d", "IC_mean": -0.03, "ICIR": -0.35, "pct_pos": 0.4, "IC_std": 0.08, "n_days": 100},
+            {"name": "bp", "IC_mean": 0.02, "ICIR": 0.25, "pct_pos": 0.55, "IC_std": 0.08, "n_days": 100},
+        ]
+
+        strategy = _build_strategy_definition(selected)
+
+        assert strategy["name"] == "auto_gen"
+        assert len(strategy["factors"]) == 2
+        assert strategy["factors"][0]["direction"] == -1  # low_vol IC 为负，反向
+        assert strategy["factors"][1]["direction"] == 1   # bp IC 为正，正向
+        assert strategy["weighting"] == "ic_weighted"
+        assert strategy["neutralize"] is True
+
+    def test_select_uncorrelated_removes_redundant(self):
+        """去冗余应移除高相关因子"""
+        from quant_dojo.commands.generate import _select_uncorrelated
+
+        dates = pd.date_range("2024-01-01", periods=200, freq="B")
+        symbols = [f"00000{i}" for i in range(1, 51)]
+        np.random.seed(42)
+
+        base = pd.DataFrame(
+            np.random.randn(len(dates), len(symbols)),
+            index=dates, columns=symbols,
+        )
+        # factor_b 几乎和 factor_a 完全一样（相关性 > 0.95）
+        factor_a = base
+        factor_b = base + pd.DataFrame(
+            np.random.randn(len(dates), len(symbols)) * 0.05,
+            index=dates, columns=symbols,
+        )
+        factor_c = pd.DataFrame(
+            np.random.randn(len(dates), len(symbols)),
+            index=dates, columns=symbols,
+        )
+
+        qualified = [
+            {"name": "a", "IC_mean": 0.05, "ICIR": 0.5},
+            {"name": "b", "IC_mean": 0.04, "ICIR": 0.4},
+            {"name": "c", "IC_mean": 0.03, "ICIR": 0.3},
+        ]
+        factors = {"a": factor_a, "b": factor_b, "c": factor_c}
+
+        selected = _select_uncorrelated(qualified, factors, max_corr=0.6, top_n=3)
+
+        names = [s["name"] for s in selected]
+        assert "a" in names
+        # b 应被过滤掉（与 a 高度相关），c 应保留
+        assert "b" not in names
+        assert "c" in names
+
+    def test_save_strategy(self, tmp_path):
+        """策略保存应写入 JSON 文件"""
+        from quant_dojo.commands.generate import _save_strategy
+
+        strategy_def = {
+            "name": "auto_gen",
+            "factors": [{"name": "bp", "direction": 1, "icir": 0.3, "ic_mean": 0.02}],
+            "weighting": "ic_weighted",
+            "neutralize": True,
+            "n_stocks": 30,
+            "generated_at": "2026-04-06",
+        }
+        metrics = {"sharpe": 1.5, "total_return": 0.2, "max_drawdown": -0.1}
+        selected = [{"name": "bp", "IC_mean": 0.02, "ICIR": 0.3}]
+
+        with patch("quant_dojo.commands.generate.PROJECT_ROOT", tmp_path):
+            path = _save_strategy(strategy_def, metrics, selected)
+
+        assert path.exists()
+        content = json.loads(path.read_text())
+        assert content["strategy"]["name"] == "auto_gen"
+        assert content["backtest_metrics"]["sharpe"] == 1.5
+
+        # latest 也应存在
+        latest = tmp_path / "strategies" / "generated" / "auto_gen_latest.json"
+        assert latest.exists()
+
+
 class TestDoctorCommand:
     def test_doctor_runs(self):
         """doctor 命令不应崩溃"""

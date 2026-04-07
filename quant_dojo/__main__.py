@@ -123,6 +123,16 @@ def main():
     p_logs.add_argument("-n", type=int, default=10, help="显示条数（默认 10）")
     p_logs.add_argument("--detail", action="store_true", help="显示步骤详情")
 
+    # ── generate ──
+    p_gen = sub.add_parser("generate", help="自动生成最优策略（因子筛选→组合→回测）")
+    p_gen.add_argument("--top", type=int, default=6, help="选取因子数量（默认 6）")
+    p_gen.add_argument("--min-icir", type=float, default=0.2, help="ICIR 最低门槛（默认 0.2）")
+    p_gen.add_argument("--max-corr", type=float, default=0.6, help="因子间最大相关性（默认 0.6）")
+    p_gen.add_argument("--start", type=str, help="评估起始日期")
+    p_gen.add_argument("--end", type=str, help="评估结束日期")
+    p_gen.add_argument("--n-stocks", type=int, default=30, help="选股数量（默认 30）")
+    p_gen.add_argument("--activate", action="store_true", help="自动激活生成的策略")
+
     # ── doctor ──
     sub.add_parser("doctor", help="诊断系统问题")
 
@@ -146,6 +156,7 @@ def main():
         "schedule": cmd_schedule,
         "signals": cmd_signals,
         "logs": cmd_logs,
+        "generate": cmd_generate,
         "doctor": cmd_doctor,
     }
     dispatch[args.command](args)
@@ -243,6 +254,20 @@ def cmd_logs(args):
     """查看运行记录"""
     from quant_dojo.commands.logs import show_logs
     show_logs(n=args.n, detail=args.detail)
+
+
+def cmd_generate(args):
+    """自动生成策略"""
+    from quant_dojo.commands.generate import run_generate
+    run_generate(
+        top_n=args.top,
+        min_icir=args.min_icir,
+        max_corr=args.max_corr,
+        start=args.start,
+        end=args.end,
+        n_stocks=args.n_stocks,
+        activate=args.activate,
+    )
 
 
 def cmd_doctor(args):
