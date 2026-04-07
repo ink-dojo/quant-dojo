@@ -113,6 +113,11 @@ def main():
     p_sched.add_argument("--time", type=str, default="16:30", help="执行时间 HH:MM（默认 16:30）")
     p_sched.add_argument("--remove", action="store_true", help="移除定时任务")
 
+    # ── signals ──
+    p_sig = sub.add_parser("signals", help="查看选股信号历史")
+    p_sig.add_argument("-n", type=int, default=5, help="显示天数（默认 5）")
+    p_sig.add_argument("--date", type=str, help="查看指定日期的信号")
+
     # ── logs ──
     p_logs = sub.add_parser("logs", help="查看最近运行记录")
     p_logs.add_argument("-n", type=int, default=10, help="显示条数（默认 10）")
@@ -139,6 +144,7 @@ def main():
         "dashboard": cmd_dashboard,
         "activate": cmd_activate,
         "schedule": cmd_schedule,
+        "signals": cmd_signals,
         "logs": cmd_logs,
         "doctor": cmd_doctor,
     }
@@ -225,6 +231,12 @@ def cmd_schedule(args):
     """定时任务"""
     from quant_dojo.commands.schedule import setup_schedule
     setup_schedule(time=args.time, remove=args.remove)
+
+
+def cmd_signals(args):
+    """查看信号历史"""
+    from quant_dojo.commands.signals import show_signals
+    show_signals(n=args.n, date=args.date)
 
 
 def cmd_logs(args):
