@@ -713,6 +713,57 @@ class TestActivateCommand:
 
 
 # ═══════════════════════════════════════════════════════════
+# signals command
+# ═══════════════════════════════════════════════════════════
+
+class TestSignalsCommand:
+    def test_signals_no_dir(self, tmp_path):
+        """无 signals 目录时不崩溃"""
+        from quant_dojo.commands.signals import show_signals
+
+        with patch("quant_dojo.commands.signals.PROJECT_ROOT", tmp_path):
+            show_signals()
+
+    def test_signals_with_data(self, tmp_path):
+        """有信号文件时应显示"""
+        from quant_dojo.commands.signals import show_signals
+
+        signal_dir = tmp_path / "live" / "signals"
+        signal_dir.mkdir(parents=True)
+        sig = {
+            "date": "2026-04-03",
+            "strategy": "v7",
+            "picks": ["000001", "600036", "000858"],
+            "scores": {"000001": 0.85, "600036": 0.72, "000858": 0.65},
+        }
+        (signal_dir / "2026-04-03.json").write_text(json.dumps(sig))
+
+        with patch("quant_dojo.commands.signals.PROJECT_ROOT", tmp_path):
+            show_signals()
+
+    def test_signals_specific_date(self, tmp_path):
+        """指定日期应显示该天信号"""
+        from quant_dojo.commands.signals import show_signals
+
+        signal_dir = tmp_path / "live" / "signals"
+        signal_dir.mkdir(parents=True)
+        sig = {"date": "2026-04-03", "picks": ["000001"], "scores": {}}
+        (signal_dir / "2026-04-03.json").write_text(json.dumps(sig))
+
+        with patch("quant_dojo.commands.signals.PROJECT_ROOT", tmp_path):
+            show_signals(date="2026-04-03")
+
+    def test_signals_cli_dispatch(self):
+        """CLI 应正确调度 signals 命令"""
+        from quant_dojo.__main__ import main
+
+        with patch("sys.argv", ["quant_dojo", "signals", "-n", "3"]):
+            with patch("quant_dojo.commands.signals.show_signals") as mock:
+                main()
+                mock.assert_called_once_with(n=3, date=None)
+
+
+# ═══════════════════════════════════════════════════════════
 # logs command
 # ═══════════════════════════════════════════════════════════
 
