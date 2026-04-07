@@ -70,20 +70,29 @@ def run_quickstart(data_dir: str = None, skip_download: bool = False):
     # ── Step 3: Backtest ──
     print("━━━ Step 3/5: 回测验证 ━━━")
     best_strategy = "v7"
-    try:
-        from quant_dojo.commands.backtest import run_backtest_cmd
-        result = run_backtest_cmd(strategy="v7", report=True)
+    best_sharpe = -999
 
-        if result.status == "success":
-            sharpe = result.metrics.get("sharpe", 0)
-            total_ret = result.metrics.get("total_return", 0)
-            print(f"  [OK] v7 回测完成: 收益 {total_ret:+.2%} | 夏普 {sharpe:.2f}\n")
-        else:
-            print(f"  [注意] v7 回测未成功，使用默认配置继续\n")
-    except SystemExit:
-        print("  [注意] 回测遇到问题，使用默认配置继续\n")
-    except Exception as e:
-        print(f"  [注意] 回测失败: {e}，使用默认配置继续\n")
+    from quant_dojo.commands.backtest import run_backtest_cmd
+
+    for strat in ["v7", "v8"]:
+        try:
+            result = run_backtest_cmd(strategy=strat, report=(strat == "v7"))
+
+            if result.status == "success":
+                sharpe = result.metrics.get("sharpe", 0)
+                total_ret = result.metrics.get("total_return", 0)
+                print(f"  [OK] {strat}: 收益 {total_ret:+.2%} | 夏普 {sharpe:.2f}")
+                if sharpe > best_sharpe:
+                    best_sharpe = sharpe
+                    best_strategy = strat
+            else:
+                print(f"  [注意] {strat} 回测未成功")
+        except SystemExit:
+            print(f"  [注意] {strat} 回测遇到问题")
+        except Exception as e:
+            print(f"  [注意] {strat} 回测失败: {e}")
+
+    print(f"\n  推荐策略: {best_strategy} (夏普 {best_sharpe:.2f})\n")
 
     # ── Step 4: Activate ──
     print("━━━ Step 4/5: 策略激活 ━━━")
