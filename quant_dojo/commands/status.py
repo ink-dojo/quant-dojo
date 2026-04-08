@@ -33,6 +33,7 @@ def show_status():
     _show_risk_status()
     _show_last_run()
     _show_recent_backtests()
+    _show_backtest_divergence()
 
     print()
 
@@ -271,3 +272,66 @@ def _show_recent_backtests():
                 print(f"  {rid} | 收益 {ret:.2%} | 夏普 {sharpe:.2f}")
             except Exception:
                 pass
+
+
+def _show_backtest_divergence():
+    """实盘 vs 最近一次成功回测 的 NAV 偏差（摘要）"""
+    print()
+    print("━━━ 偏差 (live vs backtest) ━━━")
+
+    runs_dir = PROJECT_ROOT / "live" / "runs"
+    nav_path = PROJECT_ROOT / "live" / "portfolio" / "nav.csv"
+    if not runs_dir.exists() or not nav_path.exists():
+        print("  无可用数据")
+        return
+
+    # 找到最新的成功回测 run（必须带 equity_csv）
+    latest = None
+    for p in sorted(runs_dir.glob("*.json"),
+                    key=lambda f: f.stat().st_mtime, reverse=True):
+        try:
+            with open(p) as f:
+                data = json.load(f)
+        except Exception:
+            continue
+        if data.get("status") != "success":
+            continue
+        if not data.get("artifacts", {}).get("equity_csv"):
+            continue
+        latest = p
+        break
+
+    if latest is None:
+        print("  无成功的回测记录")
+        return
+
+    try:
+        from pipeline.live_vs_backtest import compute_divergence
+        div = compute_divergence(live_nav_path=nav_path, backtest_run_path=latest)
+    except Exception as e:
+        print(f"  [?] 计算失败: {e}")
+        return
+
+    if div.get("status") != "ok":
+        print(f"  [?] 无法对照: {div.get('reason', div.get('status'))}")
+        return
+
+    s = div["summary"]
+    n = s["n_overlap_days"]
+    gap = s["total_delta"]
+    std_dd = s["std_daily_delta"]
+
+    if abs(gap) < 0.005:
+        tag = "跟踪良好"
+    elif abs(s["mean_daily_delta"]) < 1e-4 and std_dd > 0.005:
+        tag = "纯噪声（无漂移）"
+    elif gap < 0:
+        tag = f"系统性少赚 {abs(gap):.2%}"
+    else:
+        tag = f"系统性多赚 {abs(gap):.2%}"
+
+    print(f"  基于 {latest.stem} ({n} 天共同窗口)")
+    print(f"  live {s['live_total_return']:+.2%}  bt {s['backtest_total_return']:+.2%}  "
+          f"gap {gap:+.2%}  σ {std_dd:.2%}")
+    print(f"  结论: {tag}")
+    print(f"  详情: python -m quant_dojo diff {latest.stem}")
