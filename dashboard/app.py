@@ -96,6 +96,41 @@ def _register_routers() -> None:
     except (ImportError, Exception):
         pass
 
+    # 工作流总览（data → signal → portfolio → risk → weekly → research）
+    try:
+        from dashboard.routers import flow
+        app.include_router(flow.router, prefix="/api/flow")
+    except (ImportError, Exception):
+        pass
+
+    # 策略详情（当前策略 / 所有策略）
+    try:
+        from dashboard.routers import strategies
+        app.include_router(strategies.router, prefix="/api/strategies")
+    except (ImportError, Exception):
+        pass
+
+    # Phase 7 研究助理（实验列表 + 当前提议）
+    try:
+        from dashboard.routers import research
+        app.include_router(research.router, prefix="/api/research")
+    except (ImportError, Exception):
+        pass
+
+    # 仓库 markdown 文档浏览
+    try:
+        from dashboard.routers import docs
+        app.include_router(docs.router, prefix="/api/docs")
+    except (ImportError, Exception):
+        pass
+
+    # Jupyter notebook 列表
+    try:
+        from dashboard.routers import notebooks
+        app.include_router(notebooks.router, prefix="/api/notebooks")
+    except (ImportError, Exception):
+        pass
+
 
 _register_routers()
 
