@@ -169,7 +169,10 @@ Phase 5  模拟实盘基础设施  █████████▉  95%  🔄
       （app.py "总览" + "持仓分析" 已覆盖）
 - [x] 风险页：预警、因子健康、数据 freshness、失败状态
       （app.py "因子健康" + "告警中心" 已覆盖）
-- [ ] 操作页：手动触发 signal / rebalance / weekly report
+- [x] 操作页：手动触发 signal / rebalance / weekly report
+      （`dashboard/routers/trigger.py` + `POST /api/trigger/rebalance`、
+       `POST /api/trigger/weekly-report`；signal.run 已由
+       `/api/pipeline/run` 覆盖）
 
 **交付物：**
 - 一个终端做完所有策略回测与运行
