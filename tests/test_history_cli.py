@@ -261,3 +261,80 @@ class TestSinceFilter:
         history_cmd.run_history(limit=10)
         out = capsys.readouterr().out
         assert "since=*" in out
+
+
+class TestNormalizeSince:
+    def test_none_returns_none(self):
+        assert history_cmd._normalize_since(None) is None
+
+    def test_empty_returns_none(self):
+        assert history_cmd._normalize_since("") is None
+        assert history_cmd._normalize_since("   ") is None
+
+    def test_absolute_date_passes_through(self):
+        assert history_cmd._normalize_since("2026-04-01") == "2026-04-01"
+
+    def test_iso_timestamp_passes_through(self):
+        assert history_cmd._normalize_since("2026-04-01T10:00:00") == "2026-04-01T10:00:00"
+
+    def test_relative_days(self):
+        from datetime import datetime
+        now = datetime(2026, 4, 10, 12, 0, 0)
+        result = history_cmd._normalize_since("7d", now=now)
+        assert result == "2026-04-03T12:00:00"
+
+    def test_relative_weeks(self):
+        from datetime import datetime
+        now = datetime(2026, 4, 15, 0, 0, 0)
+        result = history_cmd._normalize_since("2w", now=now)
+        assert result == "2026-04-01T00:00:00"
+
+    def test_relative_hours(self):
+        from datetime import datetime
+        now = datetime(2026, 4, 10, 12, 0, 0)
+        result = history_cmd._normalize_since("24h", now=now)
+        assert result == "2026-04-09T12:00:00"
+
+    def test_relative_minutes(self):
+        from datetime import datetime
+        now = datetime(2026, 4, 10, 12, 30, 0)
+        result = history_cmd._normalize_since("30m", now=now)
+        assert result == "2026-04-10T12:00:00"
+
+    def test_unknown_shape_passed_through_as_literal(self):
+        """'7days' 不符合 <N><单位> 正则 → 原样传下去。对齐不是'崩溃'"""
+        assert history_cmd._normalize_since("bogus") == "bogus"
+
+    def test_relative_since_filters_old_rows(self, fake_dirs, capsys, monkeypatch):
+        # 让"现在"停在 2026-04-07T21:00 — 1d 截止 = 2026-04-06T21:00
+        # fake_dirs 中的 created_at：
+        #   v7 success @ 04-07T20:38  ✓ 保留
+        #   v7 failed  @ 04-06T19:59  ✗ 过滤
+        #   v8 success @ 04-06T18:00  ✗ 过滤
+        #   daily      @ 04-07T22:00  ✓ 保留
+        #   daily      @ 04-07T22:05  ✓ 保留
+        from datetime import datetime
+        class FakeDT(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2026, 4, 7, 21, 0, 0)
+        monkeypatch.setattr(history_cmd, "datetime", FakeDT)
+        history_cmd.run_history(since="1d", as_json=True, limit=10)
+        data = json.loads(capsys.readouterr().out)
+        run_ids = {r["run_id"] for r in data}
+        assert "v7_20260407_success" in run_ids       # 保留
+        assert "v7_20260406_failed" not in run_ids    # 过滤掉
+        assert "v8_20260406_success" not in run_ids   # 过滤掉
+
+    def test_relative_since_wider_window(self, fake_dirs, capsys, monkeypatch):
+        """3 天窗口应当能把 04-07 的 run 都拿到"""
+        from datetime import datetime
+        class FakeDT(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2026, 4, 8, 0, 0, 0)
+        monkeypatch.setattr(history_cmd, "datetime", FakeDT)
+        history_cmd.run_history(since="3d", as_json=True, limit=10)
+        data = json.loads(capsys.readouterr().out)
+        run_ids = {r["run_id"] for r in data}
+        assert "v7_20260407_success" in run_ids
