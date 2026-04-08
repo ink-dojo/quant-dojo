@@ -233,3 +233,31 @@ class TestPurgeFailedRuns:
         out = capsys.readouterr().out
         assert "将删除 1 个空壳 failed run" in out
         assert (runs_dir / "v7_20260406_failed.json").exists()
+
+
+class TestSinceFilter:
+    def test_since_drops_older_records(self, fake_dirs, capsys):
+        # fake_dirs 里最新的 backtest 是 2026-04-07T20:38，最旧是 2026-04-06T18:00
+        # 把 since 设成 2026-04-07 应把 v8（2026-04-06）过滤掉
+        history_cmd.run_history(since="2026-04-07", as_json=True, limit=10)
+        out = capsys.readouterr().out
+        data = json.loads(out)
+        run_ids = {r["run_id"] for r in data}
+        assert "v7_20260407_success" in run_ids
+        assert "v8_20260406_success" not in run_ids
+
+    def test_since_far_future_returns_empty(self, fake_dirs, capsys):
+        history_cmd.run_history(since="2099-01-01", as_json=True, limit=10)
+        out = capsys.readouterr().out
+        data = json.loads(out)
+        assert data == []
+
+    def test_since_header_reflects_filter(self, fake_dirs, capsys):
+        history_cmd.run_history(since="2026-04-07", limit=10)
+        out = capsys.readouterr().out
+        assert "since=2026-04-07" in out
+
+    def test_since_default_star_in_header(self, fake_dirs, capsys):
+        history_cmd.run_history(limit=10)
+        out = capsys.readouterr().out
+        assert "since=*" in out
