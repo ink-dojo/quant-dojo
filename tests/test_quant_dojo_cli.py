@@ -353,6 +353,73 @@ class TestStatusCommand:
         with patch("quant_dojo.commands.status.PROJECT_ROOT", tmp_path):
             _show_portfolio_status()  # 不应崩溃
 
+    def test_show_backtest_divergence_with_success_run(self, tmp_path, capsys):
+        """存在成功回测 run 时，status 应显示 live vs bt 摘要"""
+        from quant_dojo.commands.status import _show_backtest_divergence
+
+        # 构造最小 live/runs + live/portfolio
+        runs_dir = tmp_path / "live" / "runs"
+        portfolio_dir = tmp_path / "live" / "portfolio"
+        runs_dir.mkdir(parents=True)
+        portfolio_dir.mkdir(parents=True)
+
+        eq_csv = runs_dir / "eq.csv"
+        eq_csv.write_text(
+            "date,cumulative_return\n2026-03-20,0.00\n2026-03-21,0.01\n"
+        )
+        run = runs_dir / "v7_fixture.json"
+        run.write_text(json.dumps({
+            "run_id": "v7_fixture",
+            "strategy_id": "v7",
+            "status": "success",
+            "artifacts": {"equity_csv": str(eq_csv)},
+        }))
+
+        (portfolio_dir / "nav.csv").write_text(
+            "date,nav\n2026-03-20,1000000\n2026-03-21,1020000\n"
+        )
+
+        with patch("quant_dojo.commands.status.PROJECT_ROOT", tmp_path):
+            _show_backtest_divergence()
+
+        out = capsys.readouterr().out
+        assert "偏差 (live vs backtest)" in out
+        assert "v7_fixture" in out
+        assert "共同窗口" in out
+
+    def test_show_backtest_divergence_no_success_run(self, tmp_path, capsys):
+        """只有失败回测时，应提示无成功记录"""
+        from quant_dojo.commands.status import _show_backtest_divergence
+
+        runs_dir = tmp_path / "live" / "runs"
+        portfolio_dir = tmp_path / "live" / "portfolio"
+        runs_dir.mkdir(parents=True)
+        portfolio_dir.mkdir(parents=True)
+
+        (runs_dir / "v7_bad.json").write_text(json.dumps({
+            "run_id": "v7_bad",
+            "strategy_id": "v7",
+            "status": "failed",
+            "artifacts": {},
+        }))
+        (portfolio_dir / "nav.csv").write_text("date,nav\n2026-03-20,1000000\n")
+
+        with patch("quant_dojo.commands.status.PROJECT_ROOT", tmp_path):
+            _show_backtest_divergence()
+
+        out = capsys.readouterr().out
+        assert "无成功的回测记录" in out
+
+    def test_show_backtest_divergence_missing_files(self, tmp_path, capsys):
+        """runs 或 nav 缺失时应静默提示，不崩溃"""
+        from quant_dojo.commands.status import _show_backtest_divergence
+
+        with patch("quant_dojo.commands.status.PROJECT_ROOT", tmp_path):
+            _show_backtest_divergence()
+
+        out = capsys.readouterr().out
+        assert "无可用数据" in out
+
 
 # ═══════════════════════════════════════════════════════════
 # compare command
