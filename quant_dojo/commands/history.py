@@ -140,6 +140,7 @@ def run_history(
     as_json: bool = False,
     purge_failed: bool = False,
     dry_run: bool = False,
+    since: Optional[str] = None,
 ):
     """
     列出运行历史。
@@ -152,6 +153,7 @@ def run_history(
         as_json      : JSON 输出
         purge_failed : 先删除 live/runs/ 下空壳 failed 记录再列表
         dry_run      : purge 模式下只打印不删除
+        since        : 只保留 created_at >= since 的记录（YYYY-MM-DD）
     """
     if purge_failed:
         removed = _purge_failed_backtest_runs(dry_run=dry_run)
@@ -172,6 +174,9 @@ def run_history(
         rows = [r for r in rows if r.get("strategy", "").startswith(strategy)]
     if status:
         rows = [r for r in rows if r.get("status") == status]
+    if since:
+        # 字符串比较即可：ISO 时间戳 >= 'YYYY-MM-DD' 对 '2026-04-01T10:00' 正确工作
+        rows = [r for r in rows if (r.get("created_at") or "") >= since]
 
     rows.sort(key=_sort_key, reverse=True)
     rows = rows[:limit]
@@ -184,7 +189,7 @@ def run_history(
     print("║  quant-dojo 运行历史                           ║")
     print("╚═══════════════════════════════════════════════╝")
     print(f"  筛选: kind={kind or '全部'} strategy={strategy or '*'} "
-          f"status={status or '*'} limit={limit}")
+          f"status={status or '*'} since={since or '*'} limit={limit}")
     print(f"  共找到 {len(rows)} 条\n")
 
     if not rows:
