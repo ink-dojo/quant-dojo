@@ -142,8 +142,7 @@ def run_generate(
     if activate and result["sharpe"] >= 0.5:
         print(f"\n  自动激活 auto_gen 策略...")
         try:
-            from pipeline.active_strategy import set_active_strategy, VALID_STRATEGIES
-            VALID_STRATEGIES.add("auto_gen")
+            from pipeline.active_strategy import set_active_strategy
             set_active_strategy("auto_gen", reason=f"自动生成，夏普 {result['sharpe']:.2f}")
             print("  [OK] 策略已激活")
         except Exception as e:

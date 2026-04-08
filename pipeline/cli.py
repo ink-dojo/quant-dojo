@@ -861,7 +861,8 @@ def main():
 
     p_sig_run = sig_sub.add_parser("run", help="运行每日选股信号生成")
     p_sig_run.add_argument("--date", type=str, default=None, help="日期 YYYY-MM-DD（默认今日）")
-    p_sig_run.add_argument("--strategy", type=str, choices=["ad_hoc", "v7"], default="v7",
+    p_sig_run.add_argument("--strategy", type=str,
+                           choices=["ad_hoc", "v7", "v8", "auto_gen"], default="v7",
                            help="因子策略（默认 v7）")
 
     # ── rebalance ────────────────────────────────────────────
@@ -872,7 +873,8 @@ def main():
 
     p_reb_run = reb_sub.add_parser("run", help="执行调仓")
     p_reb_run.add_argument("--date", type=str, required=True, help="调仓日期 YYYY-MM-DD")
-    p_reb_run.add_argument("--strategy", type=str, choices=["ad_hoc", "v7"], default="v7",
+    p_reb_run.add_argument("--strategy", type=str,
+                           choices=["ad_hoc", "v7", "v8", "auto_gen"], default="v7",
                            help="因子策略（默认 v7）")
 
     # ── risk ─────────────────────────────────────────────────

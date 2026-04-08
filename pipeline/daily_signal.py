@@ -119,7 +119,99 @@ def run_daily_pipeline(
     # ── 计算因子 ──────────────────────────────────────────────
     factor_dict = {}
 
-    if strategy in ("v7", "v8"):
+    if strategy == "auto_gen":
+        # ── auto_gen 策略：从 strategies/generated/auto_gen_latest.json 加载 ──
+        from pipeline.auto_gen_loader import (
+            load_auto_gen_definition,
+            compute_auto_gen_factors,
+        )
+        try:
+            strategy_def = load_auto_gen_definition()
+        except FileNotFoundError as e:
+            return {
+                "date": actual_date,
+                "picks": [],
+                "scores": {},
+                "error": str(e),
+            }
+
+        try:
+            factors_with_dir = compute_auto_gen_factors(
+                strategy_def, price_wide, symbols, start, end,
+            )
+        except Exception as e:
+            return {
+                "date": actual_date,
+                "picks": [],
+                "scores": {},
+                "error": f"auto_gen 因子计算失败: {e}",
+            }
+
+        # 应用方向并构建 raw_factors（与 v7/v8 同结构）
+        raw_factors = {}
+        for name, (fac_wide, direction) in factors_with_dir.items():
+            raw_factors[name] = fac_wide * direction
+
+        # 行业中性化（若策略定义要求）
+        do_neutralize = bool(strategy_def.get("neutralize", True))
+        if do_neutralize:
+            try:
+                industry_df = get_industry_classification(symbols=symbols)
+            except Exception as e:
+                warnings.warn(f"行业分类加载失败: {e}")
+                industry_df = pd.DataFrame(columns=["symbol", "industry_code"])
+        else:
+            industry_df = pd.DataFrame(columns=["symbol", "industry_code"])
+
+        neutralized_factors = {}
+        ic_series_dict = {}
+        for name, fac_wide in raw_factors.items():
+            if fac_wide.empty or fac_wide.dropna(how="all").shape[0] < 30:
+                continue
+            if do_neutralize:
+                try:
+                    neutral = neutralize_factor_by_industry(fac_wide, industry_df)
+                except Exception as e:
+                    warnings.warn(f"中性化失败 {name}: {e}")
+                    neutral = fac_wide
+            else:
+                neutral = fac_wide
+            neutralized_factors[name] = neutral
+            try:
+                ic_s = compute_ic_series(neutral, ret_wide, method="spearman")
+                ic_series_dict[name] = ic_s
+            except Exception:
+                pass
+
+        # IC 加权合成（同 v7/v8）
+        if neutralized_factors and ic_series_dict:
+            ic_df = pd.DataFrame(ic_series_dict)
+            rolling_ic = ic_df.rolling(60, min_periods=20).mean()
+            last_ic = rolling_ic.iloc[-1].abs()
+            total_ic = last_ic.sum()
+            if total_ic > 0:
+                weights = last_ic / total_ic
+            else:
+                weights = pd.Series(1.0 / len(neutralized_factors), index=last_ic.index)
+        else:
+            n = len(neutralized_factors) or 1
+            weights = pd.Series(1.0 / n, index=neutralized_factors.keys())
+
+        last_day_vals = {name: fac_wide.iloc[-1] for name, fac_wide in neutralized_factors.items()}
+        factor_df = pd.DataFrame(last_day_vals)
+        weight_series = pd.Series({n: weights.get(n, 0) for n in factor_df.columns})
+        valid_mask = factor_df.notna()
+        effective_weights = valid_mask.multiply(weight_series, axis=1)
+        weight_sums = effective_weights.sum(axis=1)
+        effective_weights = effective_weights.div(weight_sums, axis=0)
+        composite_series = (factor_df * effective_weights).sum(axis=1)
+        composite_series[weight_sums == 0] = np.nan
+
+        composite = composite_series.dropna().sort_values(ascending=False)
+        factor_dict = {name: raw_factors[name].iloc[-1] for name in raw_factors}
+        snapshot_dict = {name: fac_wide.iloc[-1] for name, fac_wide in neutralized_factors.items()}
+
+    elif strategy in ("v7", "v8"):
         # ── v7/v8 策略：行业中性化 + IC 加权合成 ────────────────
         # v8 在 v7 基础上加入 shadow_lower（微观结构因子，ICIR=0.51）
         # 计算各因子宽表（日期 × 股票）
@@ -396,8 +488,8 @@ if __name__ == "__main__":
         "--strategy",
         type=str,
         default="ad_hoc",
-        choices=["ad_hoc", "v7", "v8"],
-        help="因子策略：ad_hoc/v7/v8（v8=v7+shadow_lower微观结构因子）",
+        choices=["ad_hoc", "v7", "v8", "auto_gen"],
+        help="因子策略：ad_hoc/v7/v8/auto_gen（auto_gen 由 quant_dojo generate 生成）",
     )
     args = parser.parse_args()
 

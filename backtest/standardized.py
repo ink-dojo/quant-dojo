@@ -51,7 +51,18 @@ STRATEGY_FACTORS = {
     "v7": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp"],
     "v8": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp", "shadow_lower"],
     "ad_hoc": ["momentum_20", "ep", "low_vol", "turnover_rev"],
+    # auto_gen 因子列表是动态的，从 strategies/generated/auto_gen_latest.json 加载
+    "auto_gen": [],
 }
+
+
+def _load_auto_gen_factor_names() -> list[str]:
+    """从 strategies/generated/auto_gen_latest.json 读取因子名（用于校验/展示）"""
+    try:
+        from pipeline.auto_gen_loader import get_auto_gen_factor_names
+        return get_auto_gen_factor_names()
+    except Exception:
+        return []
 
 
 @dataclass
@@ -117,7 +128,30 @@ def _compute_factors(
 
     factors = {}
 
-    if strategy in ("v7", "v8"):
+    if strategy == "auto_gen":
+        from pipeline.auto_gen_loader import (
+            load_auto_gen_definition,
+            compute_auto_gen_factors,
+        )
+        try:
+            strategy_def = load_auto_gen_definition()
+        except (FileNotFoundError, ValueError) as e:
+            logger.error("auto_gen 策略加载失败: %s", e)
+            return factors
+
+        try:
+            factors = compute_auto_gen_factors(
+                strategy_def, price_wide, symbols, start, end,
+            )
+        except Exception as e:
+            logger.error("auto_gen 因子计算失败: %s", e)
+            return factors
+
+        # 行业中性化（按策略定义）
+        if neutralize and strategy_def.get("neutralize", True):
+            factors = _neutralize_factors(factors, symbols)
+
+    elif strategy in ("v7", "v8"):
         # team_coin
         try:
             factors["team_coin"] = (team_coin(price_wide), 1)
