@@ -160,3 +160,63 @@ class TestRunDiffEndToEnd:
         )
         out = capsys.readouterr().out
         assert "2026-03-24 ~ 2026-03-24" in out
+
+    def test_run_diff_trend_mode_prints_per_day_bars(self, setup, capsys):
+        run_path, nav_path = setup
+        diff_cmd.run_diff(
+            run=str(run_path), live_nav=str(nav_path), trend=True
+        )
+        out = capsys.readouterr().out
+        assert "逐日累计偏差趋势" in out
+        # 每天都应有一行
+        assert "2026-03-20" in out
+        assert "2026-03-21" in out
+        assert "2026-03-24" in out
+        # 表头的 gap 列名
+        assert "gap" in out
+        # 至少有一条 bar 字符（非零偏差）
+        assert "█" in out
+
+
+class TestRenderTrend:
+    def test_all_zero_gap_prints_only_zero_line(self):
+        lines = diff_cmd._render_trend(
+            ["2026-03-20", "2026-03-21"],
+            [0.0, 0.01],
+            [0.0, 0.01],
+        )
+        assert len(lines) == 3  # 表头 + 2 天
+        # 所有 data 行都不该画 bar
+        for line in lines[1:]:
+            assert "█" not in line
+
+    def test_negative_gap_renders_on_left_side(self):
+        lines = diff_cmd._render_trend(
+            ["2026-03-20", "2026-03-21"],
+            [0.0, 0.01],   # live
+            [0.0, 0.03],   # backtest (赢家)
+            width=20,
+        )
+        # 第 2 行是 2026-03-21，gap = -2% → bar 画在 '|' 左侧
+        row = [l for l in lines if "2026-03-21" in l][0]
+        assert "█" in row
+        bar_start = row.index("█")
+        pipe_pos = row.index("|")
+        assert bar_start < pipe_pos, "负偏差应画在零线左侧"
+
+    def test_positive_gap_renders_on_right_side(self):
+        lines = diff_cmd._render_trend(
+            ["2026-03-20", "2026-03-21"],
+            [0.0, 0.03],   # live (赢家)
+            [0.0, 0.01],
+            width=20,
+        )
+        row = [l for l in lines if "2026-03-21" in l][0]
+        assert "█" in row
+        bar_start = row.index("█")
+        pipe_pos = row.index("|")
+        assert bar_start > pipe_pos, "正偏差应画在零线右侧"
+
+    def test_empty_returns_placeholder(self):
+        lines = diff_cmd._render_trend([], [], [])
+        assert lines == ["  (无数据)"]
