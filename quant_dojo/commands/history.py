@@ -56,6 +56,8 @@ def _load_backtest_runs() -> list[dict]:
             "max_drawdown": metrics.get("max_drawdown"),
             "error": data.get("error") or "",
             "path": str(path),
+            # Phase 7: AI 研究助理触发的回测会写 experiment_id
+            "experiment_id": data.get("experiment_id"),
         })
     return out
 
@@ -175,6 +177,7 @@ def run_history(
     purge_failed: bool = False,
     dry_run: bool = False,
     since: Optional[str] = None,
+    ai_only: bool = False,
 ):
     """
     列出运行历史。
@@ -188,6 +191,8 @@ def run_history(
         purge_failed : 先删除 live/runs/ 下空壳 failed 记录再列表
         dry_run      : purge 模式下只打印不删除
         since        : 只保留 created_at >= since 的记录（YYYY-MM-DD）
+        ai_only      : Phase 7 — 只显示由 AI 研究助理触发的 run
+                       （有 experiment_id 的 backtest）
     """
     if purge_failed:
         removed = _purge_failed_backtest_runs(dry_run=dry_run)
@@ -208,6 +213,9 @@ def run_history(
         rows = [r for r in rows if r.get("strategy", "").startswith(strategy)]
     if status:
         rows = [r for r in rows if r.get("status") == status]
+    if ai_only:
+        # 只保留 AI 研究助理触发的 run（有 experiment_id 的 backtest）
+        rows = [r for r in rows if r.get("experiment_id")]
     since_normalized = _normalize_since(since)
     if since_normalized:
         # 字符串比较即可：ISO 时间戳 >= 'YYYY-MM-DD' 对 '2026-04-01T10:00' 正确工作
@@ -223,8 +231,9 @@ def run_history(
     print("╔═══════════════════════════════════════════════╗")
     print("║  quant-dojo 运行历史                           ║")
     print("╚═══════════════════════════════════════════════╝")
+    ai_tag = " ai-only" if ai_only else ""
     print(f"  筛选: kind={kind or '全部'} strategy={strategy or '*'} "
-          f"status={status or '*'} since={since or '*'} limit={limit}")
+          f"status={status or '*'} since={since or '*'} limit={limit}{ai_tag}")
     print(f"  共找到 {len(rows)} 条\n")
 
     if not rows:
@@ -241,12 +250,15 @@ def run_history(
         if r["kind"] == "backtest":
             ret = r.get("total_return")
             sharpe = r.get("sharpe")
+            # Phase 7: AI 研究助理触发的 run 在 run_id 前加 [AI] 标签
+            ai_prefix = "[AI] " if r.get("experiment_id") else ""
+            run_label = f"{ai_prefix}{r['run_id']}"
             if ret is not None and sharpe is not None:
-                tail = f"{r['run_id'][:28]:<28}  收益 {ret:+.2%}  夏普 {sharpe:+.2f}"
+                tail = f"{run_label[:28]:<28}  收益 {ret:+.2%}  夏普 {sharpe:+.2f}"
             elif r.get("error"):
-                tail = f"{r['run_id'][:28]:<28}  error: {r['error'][:40]}"
+                tail = f"{run_label[:28]:<28}  error: {r['error'][:40]}"
             else:
-                tail = r["run_id"]
+                tail = run_label
         else:
             n_ok = r.get("n_ok", 0)
             n_fail = r.get("n_fail", 0)

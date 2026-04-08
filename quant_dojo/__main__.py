@@ -151,6 +151,8 @@ def main():
                         help="配合 --purge-failed：只列出不删除")
     p_hist.add_argument("--since", type=str,
                         help="只显示 created_at >= 该日期的记录（YYYY-MM-DD 或相对时间 7d/2w/24h/30m）")
+    p_hist.add_argument("--ai-only", dest="ai_only", action="store_true",
+                        help="只显示由 AI 研究助理触发的 run（带 experiment_id 的 backtest）")
 
     # ── diff ──
     p_diff = sub.add_parser("diff", help="实盘 vs 回测差异分析（滑点、延迟）")
@@ -321,6 +323,7 @@ def cmd_history(args):
         purge_failed=args.purge_failed,
         dry_run=args.dry_run,
         since=args.since,
+        ai_only=getattr(args, "ai_only", False),
     )
 
 
