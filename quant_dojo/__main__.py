@@ -149,6 +149,8 @@ def main():
                         help="删除 live/runs 下空壳 failed 记录")
     p_hist.add_argument("--dry-run", action="store_true",
                         help="配合 --purge-failed：只列出不删除")
+    p_hist.add_argument("--since", type=str,
+                        help="只显示 created_at >= 该日期的记录（YYYY-MM-DD）")
 
     # ── diff ──
     p_diff = sub.add_parser("diff", help="实盘 vs 回测差异分析（滑点、延迟）")
@@ -318,6 +320,7 @@ def cmd_history(args):
         as_json=args.as_json,
         purge_failed=args.purge_failed,
         dry_run=args.dry_run,
+        since=args.since,
     )
 
 
