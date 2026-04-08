@@ -10,6 +10,7 @@ quant_dojo diff — 实盘 vs 回测差异分析
   python -m quant_dojo diff --start 2026-03-20              # 限定起始日
   python -m quant_dojo diff --save journal/diff.md          # 保存 markdown 报告
   python -m quant_dojo diff --json                          # 打印摘要的 JSON 形式
+  python -m quant_dojo diff --trend                         # 逐日累计偏差迷你图
 """
 import json
 import sys
@@ -57,6 +58,38 @@ def _resolve_run_path(run: Optional[str], strategy_hint: Optional[str]) -> Optio
     return None
 
 
+def _render_trend(dates: list, live_cum: list, bt_cum: list, width: int = 24) -> list[str]:
+    """
+    把逐日累计偏差（live - bt）渲染成一段定宽的 ASCII 迷你图。
+
+    规则：
+      - 每行一个交易日
+      - 居中有一列 '|'，表示零线
+      - 正偏差画在右侧，负偏差画在左侧
+      - 字符密度按 max(|gap|) 归一化到 width 个半格
+
+    设计目标是让用户一眼看出"gap 在收敛 / 发散 / 稳定"。
+    """
+    gaps = [lc - bc for lc, bc in zip(live_cum, bt_cum)]
+    if not gaps:
+        return ["  (无数据)"]
+    max_abs = max((abs(g) for g in gaps), default=0.0)
+    if max_abs == 0:
+        max_abs = 1e-9  # 避免除零，满图都是零线
+    half = width // 2
+
+    lines = []
+    lines.append(f"  {'日期':<12}  {'gap':>8}  " + " " * (half - 1) + "0" + " " * half)
+    for d, g in zip(dates, gaps):
+        cells = int(round(abs(g) / max_abs * half))
+        cells = min(cells, half)
+        left = " " * (half - cells) + ("█" * cells) if g < 0 else " " * half
+        right = ("█" * cells) + " " * (half - cells) if g > 0 else " " * half
+        bar = left + "|" + right
+        lines.append(f"  {d[:12]:<12}  {g:+7.2%}  {bar}")
+    return lines
+
+
 def run_diff(
     run: Optional[str] = None,
     live_nav: Optional[str] = None,
@@ -65,6 +98,7 @@ def run_diff(
     end: Optional[str] = None,
     save: Optional[str] = None,
     as_json: bool = False,
+    trend: bool = False,
 ):
     """入口：CLI 层负责参数解析，调用 pipeline.live_vs_backtest 做计算"""
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -131,6 +165,12 @@ def run_diff(
         else:
             direction = "少赚" if s["total_delta"] < 0 else "多赚"
             print(f"  结论: 有系统性漂移，实盘{direction} {abs(s['total_delta']):.2%}")
+
+        if trend:
+            print()
+            print("━━━ 逐日累计偏差趋势 ━━━")
+            for line in _render_trend(div["dates"], div["live_cum"], div["bt_cum"]):
+                print(line)
 
     if save:
         save_path = Path(save)
