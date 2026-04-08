@@ -210,68 +210,39 @@ def _show_last_run():
 
 
 def _show_recent_backtests():
-    """最近回测记录"""
+    """最近回测记录 — 复用 history._load_backtest_runs 作为单一真相源"""
     print("━━━ 回测 ━━━")
-    runs_dir = PROJECT_ROOT / "live" / "runs"
-    if not runs_dir.exists():
+    try:
+        from quant_dojo.commands.history import _load_backtest_runs
+    except Exception:
+        print("  [?] 无法加载 history 模块")
+        return
+
+    all_rows = _load_backtest_runs()
+    if not all_rows:
         print("  无回测记录")
         return
 
-    # 查找最近的回测 run
-    run_dirs = sorted(
-        [d for d in runs_dir.iterdir() if d.is_dir()],
-        key=lambda d: d.stat().st_mtime,
-        reverse=True,
-    )[:3]
+    success = [r for r in all_rows if r.get("status") == "success"]
+    n_failed = sum(1 for r in all_rows if r.get("status") == "failed")
 
-    if not run_dirs:
-        # 查找 JSON 文件 — 优先展示成功的回测，过滤失败的
-        all_files = sorted(runs_dir.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
-        success_runs = []
-        n_failed = 0
-        for f in all_files:
-            try:
-                with open(f) as fh:
-                    data = json.load(fh)
-                if data.get("status") == "success":
-                    success_runs.append(data)
-                    if len(success_runs) >= 3:
-                        break
-                elif data.get("status") == "failed":
-                    n_failed += 1
-            except Exception:
-                pass
-
-        if not success_runs:
-            print("  无成功的回测记录")
-            if n_failed > 0:
-                print(f"  ({n_failed} 个失败记录已隐藏)")
-            return
-
-        for data in success_runs:
-            rid = data.get("run_id", "?")[:30]
-            strategy = data.get("strategy_id", "?")
-            metrics = data.get("metrics", {})
-            ret = metrics.get("total_return", 0)
-            sharpe = metrics.get("sharpe", 0)
-            print(f"  {rid} | {strategy} | 收益 {ret:+.2%} | 夏普 {sharpe:.2f}")
-
+    if not success:
+        print("  无成功的回测记录")
         if n_failed > 0:
             print(f"  ({n_failed} 个失败记录已隐藏)")
         return
 
-    for d in run_dirs:
-        meta_path = d / "meta.json"
-        if meta_path.exists():
-            try:
-                with open(meta_path) as f:
-                    meta = json.load(f)
-                rid = meta.get("run_id", d.name)[:30]
-                ret = meta.get("metrics", {}).get("total_return", 0)
-                sharpe = meta.get("metrics", {}).get("sharpe", 0)
-                print(f"  {rid} | 收益 {ret:.2%} | 夏普 {sharpe:.2f}")
-            except Exception:
-                pass
+    # 按 created_at 倒序，取前 3 条
+    success.sort(key=lambda r: r.get("created_at") or r.get("run_id", ""), reverse=True)
+    for r in success[:3]:
+        rid = (r.get("run_id") or "?")[:30]
+        strategy = r.get("strategy") or "?"
+        ret = r.get("total_return") or 0
+        sharpe = r.get("sharpe") or 0
+        print(f"  {rid} | {strategy} | 收益 {ret:+.2%} | 夏普 {sharpe:.2f}")
+
+    if n_failed > 0:
+        print(f"  ({n_failed} 个失败记录已隐藏)")
 
 
 def _show_backtest_divergence():
