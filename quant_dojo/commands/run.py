@@ -319,7 +319,7 @@ def _step_risk_check() -> dict:
         if positions.empty:
             return {"status": "ok", "level": "ok", "alerts": [], "note": "无持仓"}
 
-        alerts = check_risk_alerts()
+        alerts = check_risk_alerts(trader)
         level = "ok"
         if any(a.get("level") == "critical" for a in alerts):
             level = "critical"
