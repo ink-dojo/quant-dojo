@@ -93,6 +93,8 @@ def main():
     p_cmp.add_argument("--start", type=str, help="开始日期")
     p_cmp.add_argument("--end", type=str, help="结束日期")
     p_cmp.add_argument("--n-stocks", type=int, default=30, help="选股数量")
+    p_cmp.add_argument("--runs", nargs="+", default=None,
+                       help="直接对比已有 run_id（跳过重跑）")
 
     # ── report ──
     p_rep = sub.add_parser("report", help="生成报告（周报/回测报告）")
@@ -235,7 +237,8 @@ def cmd_compare(args):
     """策略对比"""
     from quant_dojo.commands.compare import run_compare
     strategies = args.strategies
-    if not strategies:
+    run_ids = getattr(args, "runs", None)
+    if not strategies and not run_ids:
         # 无参数 → 对比所有已知策略
         from pipeline.active_strategy import VALID_STRATEGIES
         strategies = sorted(VALID_STRATEGIES)
@@ -244,6 +247,7 @@ def cmd_compare(args):
         start=args.start,
         end=args.end,
         n_stocks=args.n_stocks,
+        run_ids=run_ids,
     )
 
 
