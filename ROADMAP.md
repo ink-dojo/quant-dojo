@@ -149,16 +149,26 @@ Phase 5  模拟实盘基础设施  █████████▉  95%  🔄
 
 ### CLI（必须补齐）
 - [ ] 统一命令树：`backtest run / compare / signal / rebalance / report / doctor`
-- [ ] 策略注册表：每个策略有标准名字、参数、输入契约
-- [ ] 标准化回测产物：指标、参数、日期区间、图表、日志
-- [ ] 运行历史索引：知道每次 backtest / pipeline run 发生了什么
-- [ ] 比较命令：多个策略/参数组合可直接横向比较
+      （当前是扁平树；重构动作大，暂留）
+- [x] 策略注册表：每个策略有标准名字、参数、输入契约
+      （`pipeline/active_strategy.VALID_STRATEGIES` + `BacktestConfig`）
+- [x] 标准化回测产物：指标、参数、日期区间、图表、日志
+      （`live/runs/<run_id>.json` + `<run_id>_equity.csv`）
+- [x] 运行历史索引：知道每次 backtest / pipeline run 发生了什么
+      （`quant_dojo history` 覆盖 live/runs + logs/quant_dojo_run_*.json，
+       支持 --type/--strategy/--status/--limit/--json 过滤）
+- [x] 比较命令：多个策略/参数组合可直接横向比较
+      （`quant_dojo compare`；支持 `--runs <id1> <id2>` 直接对比已有 run，不重跑）
 
 ### Dashboard（必须补齐）
-- [ ] 策略列表页：显示每个策略最近一次回测与核心指标
-- [ ] 回测结果页：收益、回撤、换手、因子暴露、参数版本
-- [ ] 组合页：当前模拟盘持仓、NAV、来源策略
-- [ ] 风险页：预警、因子健康、数据 freshness、失败状态
+- [x] 策略列表页：显示每个策略最近一次回测与核心指标
+      （现有 streamlit app.py "回测" 页，展示 `pipeline/run_store` 下历史 run）
+- [x] 回测结果页：收益、回撤、换手、因子暴露、参数版本
+      （app.py "回测" 页已覆盖）
+- [x] 组合页：当前模拟盘持仓、NAV、来源策略
+      （app.py "总览" + "持仓分析" 已覆盖）
+- [x] 风险页：预警、因子健康、数据 freshness、失败状态
+      （app.py "因子健康" + "告警中心" 已覆盖）
 - [ ] 操作页：手动触发 signal / rebalance / weekly report
 
 **交付物：**
