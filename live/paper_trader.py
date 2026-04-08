@@ -161,6 +161,8 @@ class PaperTrader:
             new_row = pd.DataFrame([{"date": trade_date, "nav": nav}])
             nav_df = pd.concat([nav_df, new_row], ignore_index=True)
 
+        # 按日期排序，避免乱序写入导致下游读取最后一行 != 最新日期
+        nav_df = nav_df.sort_values("date").reset_index(drop=True)
         nav_df.to_csv(NAV_FILE, index=False)
 
     def _validate_state(self) -> list:
@@ -242,12 +244,24 @@ class PaperTrader:
         existing_today = [t for t in self.trades if t.get("date") == date]
         if existing_today:
             print(f"⚠ 当日已执行过调仓 ({date})，跳过重复执行")
+            # 用当日最新价格 mark-to-market 持仓，避免 positions.json 与 nav.csv 不一致
+            for sym in list(self.positions.keys()):
+                if sym == "__cash__":
+                    continue
+                if sym in prices and prices[sym]:
+                    self.positions[sym]["current_price"] = prices[sym]
+
             nav = self._portfolio_value(prices or {})
             n_buys = sum(1 for t in existing_today if t["action"] == "buy")
             n_sells = sum(1 for t in existing_today if t["action"] == "sell")
             # 计算已执行调仓的真实换手率
             trade_volume = sum(t["shares"] * t["price"] for t in existing_today)
             actual_turnover = trade_volume / nav if nav > 0 else 0.0
+
+            # 持久化 mark-to-market 后的 NAV/positions（覆盖当日 NAV 行）
+            self._append_nav(date, nav)
+            self._save_positions()
+
             return {
                 "date": date,
                 "n_buys": n_buys,
