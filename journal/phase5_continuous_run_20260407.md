@@ -1,0 +1,84 @@
+# Phase 5 连续运行验证 — 2026-04-07
+
+> 目标：证明系统可以连续 10 天稳定跑完整 `signal → rebalance → risk → dashboard → status` 流程，状态持久化无漂移。
+>
+> 这是 ROADMAP Phase 5 "证明系统可连续稳定跑完整周 / 整月模拟盘" 的核心交付。
+
+## 实验设置
+
+- **策略**: v7 (industry-neutral, 5 因子)
+- **窗口**: 2026-03-23 → 2026-04-03（10 个交易日）
+- **入口**: `python -m quant_dojo run --date <D> --strategy v7`
+- **初始资金**: ¥1,000,000
+- **状态**: 清空 `live/portfolio/{positions.json,nav.csv,trades.json}` 后做干净 replay；测试结束后恢复原状态
+
+## 结果
+
+| 日期 | NAV | 日变化 | 累计 |
+|------|----:|------:|----:|
+| 2026-03-23 | 997,009 | -0.30% | -0.30% |
+| 2026-03-24 | 1,024,136 | +2.72% | +2.41% |
+| 2026-03-25 | 1,038,778 | +1.43% | +3.88% |
+| 2026-03-26 | 1,020,463 | -1.76% | +2.05% |
+| 2026-03-27 | 1,028,965 | +0.83% | +2.90% |
+| 2026-03-30 | 1,027,267 | -0.17% | +2.73% |
+| 2026-03-31 | 1,014,115 | -1.28% | +1.41% |
+| 2026-04-01 | 1,022,726 | +0.85% | +2.27% |
+| 2026-04-02 | 1,006,355 | -1.60% | +0.64% |
+| 2026-04-03 | 988,904 | -1.73% | **-0.81%** |
+
+10 天收益率 **-0.81%** （样本太短，不具备统计意义；这次只验证流程稳定性）。
+
+## 验证项
+
+| 检查项 | 期望 | 实际 | 结论 |
+|--------|------|------|------|
+| 每日 6 步流程都跑完 | 4/4 步成功 | 10/10 天 4/4 步成功 | ✓ |
+| NAV 行数 = 交易日数 | 10 | 10 | ✓ |
+| NAV 按日期排序 | 升序 | 升序 | ✓ |
+| `mv + cash` ≈ 最后一行 NAV | 完全相等 | 988,860.49 + 43.02 = 988,903.51 = NAV | ✓ |
+| 交易记录覆盖所有日期 | 10 个日期 | 10 个日期，共 310 笔 | ✓ |
+| 每日风控不误报 | risk=ok | 全部 ok（之前的 IC dead 误报已修复） | ✓ |
+| 同日重复 run 是幂等的 | trades / NAV 不变 | 重跑 2026-04-03 后 trades=310, NAV 行=10 | ✓ |
+| 状态文件可被下次读取 | next run 加载成功 | 11 次连续运行无 IO 错误 | ✓ |
+
+## 风控
+
+10 天里风控等级全部 **ok**。修复 `factor_health_report` 的样本量门禁后，
+v7 因子不再被误判为 dead。等 `live/factor_snapshot/` 累积 ≥ 20 个快照
+（大约 1 个月连续运行）后，因子衰减检测才会自动启用真实判断。
+
+## 性能
+
+每日全流程耗时 51 ~ 66 秒（在 Apple M-series 上），主要消耗在：
+- 数据加载 + 因子计算 ~30s
+- IC weighting 与中性化 ~10s
+- 风控 / dashboard 导出 / 状态报告 ~10s
+
+10 天连续运行总耗时 ~9 分钟。可接受。
+
+## 已修复的根因
+
+本次连续运行能跑完，依赖于今天先做的几个 Phase 5 修复：
+
+1. `fix: pass trader to check_risk_alerts in run command` (3343e36)
+2. `fix: accept config.example.yaml as initialized state` (c1c215b)
+3. `fix: sort nav by date and mark-to-market on idempotent rebalance` (b2d09a4)
+4. `fix: require min sample size before declaring factor dead` (aa19cb2)
+
+如果没有 #3，第 11 次（idempotent）重跑后 `positions.json` 与 `nav.csv` 会
+出现 ~2% 的偏差。如果没有 #4，10 天里每天的风控都会刷三个 critical 告警。
+
+## 落盘
+
+- `journal/phase5_continuous_run_20260407.md` — 本文件
+- 测试期间产生的 `live/factor_snapshot/2026-03-23.parquet` ~ `2026-04-03.parquet` 已保留
+- `live/runs/`、`live/dashboard/`、`live/signals/` 也都有相应的运行产物
+
+## 跟进
+
+- [x] 跑完 10 天流程，所有检查项通过
+- [x] 验证幂等性：重跑同一天不产生重复交易
+- [x] NAV 与持仓状态在每次启动后可正确恢复
+- [ ] 把这一套作为 nightly 集成测试运行（需要数据 fixtures，留作 Phase 5 收尾项）
+- [ ] 等 `live/factor_snapshot/` 累积 ≥ 20 个真实生产快照后，验证 factor_health_report 自动启用
