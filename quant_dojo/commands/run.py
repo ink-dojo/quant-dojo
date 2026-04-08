@@ -176,10 +176,16 @@ def run_daily(date: str = None, strategy: str = None, dry_run: bool = False):
 
 
 def _check_initialized():
-    """检查系统是否已初始化，未初始化则提示"""
+    """
+    检查系统是否已初始化，未初始化则提示。
+
+    runtime_config 会按 config.yaml → config.example.yaml → 硬编码默认值
+    的顺序回退，因此只要任一存在就视为可运行。
+    """
     config_file = PROJECT_ROOT / "config" / "config.yaml"
-    if not config_file.exists():
-        print("  [错误] 系统尚未初始化")
+    config_example = PROJECT_ROOT / "config" / "config.example.yaml"
+    if not config_file.exists() and not config_example.exists():
+        print("  [错误] 系统尚未初始化（缺少 config/config.yaml）")
         print()
         print("  请先运行:")
         print("    python -m quant_dojo quickstart    # 一键设置（推荐）")
