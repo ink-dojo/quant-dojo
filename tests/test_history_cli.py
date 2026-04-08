@@ -338,3 +338,64 @@ class TestNormalizeSince:
         data = json.loads(capsys.readouterr().out)
         run_ids = {r["run_id"] for r in data}
         assert "v7_20260407_success" in run_ids
+
+
+# ─────────────────────────────────────────────────────────────
+# Phase 7：AI 研究助理触发的 run 过滤 + 标签
+# ─────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def fake_dirs_with_ai_run(fake_dirs):
+    """在 fake_dirs 基础上再写一个带 experiment_id 的 AI run。"""
+    runs_dir, _ = fake_dirs
+    (runs_dir / "v7_ai_20260408.json").write_text(json.dumps({
+        "run_id": "v7_ai_20260408_exp",
+        "strategy_id": "v7",
+        "status": "success",
+        "created_at": "2026-04-08T10:00:00",
+        "start_date": "2024-01-01",
+        "end_date": "2026-03-31",
+        "metrics": {"total_return": 0.5, "sharpe": 1.0, "max_drawdown": -0.2},
+        "error": None,
+        "artifacts": {},
+        "experiment_id": "exp_20260408_abcdef01",
+    }))
+    return fake_dirs
+
+
+class TestAIFilter:
+    def test_load_includes_experiment_id(self, fake_dirs_with_ai_run):
+        rows = history_cmd._load_backtest_runs()
+        by_id = {r["run_id"]: r for r in rows}
+        assert by_id["v7_ai_20260408_exp"]["experiment_id"] == "exp_20260408_abcdef01"
+        assert by_id["v7_20260407_success"]["experiment_id"] is None
+
+    def test_ai_only_filters_non_ai_runs(self, fake_dirs_with_ai_run, capsys):
+        history_cmd.run_history(ai_only=True, as_json=True, limit=10)
+        data = json.loads(capsys.readouterr().out)
+        run_ids = {r["run_id"] for r in data}
+        assert "v7_ai_20260408_exp" in run_ids
+        assert "v7_20260407_success" not in run_ids
+        assert "v8_20260406_success" not in run_ids
+
+    def test_ai_tag_in_text_output(self, fake_dirs_with_ai_run, capsys):
+        history_cmd.run_history(kind="backtest", limit=10)
+        out = capsys.readouterr().out
+        assert "[AI]" in out
+        # 非 AI 的 run 不应有 [AI] 标签
+        non_ai_line = [l for l in out.splitlines() if "v7_20260407_success" in l]
+        assert non_ai_line
+        assert "[AI]" not in non_ai_line[0]
+
+    def test_ai_only_header(self, fake_dirs_with_ai_run, capsys):
+        history_cmd.run_history(ai_only=True, limit=10)
+        out = capsys.readouterr().out
+        assert "ai-only" in out
+
+    def test_ai_only_combines_with_other_filters(self, fake_dirs_with_ai_run, capsys):
+        # ai_only + status=success 应仍只返回 AI run
+        history_cmd.run_history(ai_only=True, status="success", as_json=True, limit=10)
+        data = json.loads(capsys.readouterr().out)
+        assert len(data) == 1
+        assert data[0]["run_id"] == "v7_ai_20260408_exp"
