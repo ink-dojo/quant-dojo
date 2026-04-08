@@ -224,23 +224,39 @@ def _show_recent_backtests():
     )[:3]
 
     if not run_dirs:
-        # 查找 JSON 文件
-        run_files = sorted(runs_dir.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)[:3]
-        if not run_files:
-            print("  无回测记录")
-            return
-        for f in run_files:
+        # 查找 JSON 文件 — 优先展示成功的回测，过滤失败的
+        all_files = sorted(runs_dir.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+        success_runs = []
+        n_failed = 0
+        for f in all_files:
             try:
                 with open(f) as fh:
                     data = json.load(fh)
-                rid = data.get("run_id", f.stem)[:30]
-                strategy = data.get("strategy_id", "?")
-                metrics = data.get("metrics", {})
-                ret = metrics.get("total_return", 0)
-                sharpe = metrics.get("sharpe", 0)
-                print(f"  {rid} | {strategy} | 收益 {ret:.2%} | 夏普 {sharpe:.2f}")
+                if data.get("status") == "success":
+                    success_runs.append(data)
+                    if len(success_runs) >= 3:
+                        break
+                elif data.get("status") == "failed":
+                    n_failed += 1
             except Exception:
                 pass
+
+        if not success_runs:
+            print("  无成功的回测记录")
+            if n_failed > 0:
+                print(f"  ({n_failed} 个失败记录已隐藏)")
+            return
+
+        for data in success_runs:
+            rid = data.get("run_id", "?")[:30]
+            strategy = data.get("strategy_id", "?")
+            metrics = data.get("metrics", {})
+            ret = metrics.get("total_return", 0)
+            sharpe = metrics.get("sharpe", 0)
+            print(f"  {rid} | {strategy} | 收益 {ret:+.2%} | 夏普 {sharpe:.2f}")
+
+        if n_failed > 0:
+            print(f"  ({n_failed} 个失败记录已隐藏)")
         return
 
     for d in run_dirs:
