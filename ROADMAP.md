@@ -94,10 +94,10 @@
 
 ---
 
-## Phase 5：模拟实盘基础设施（第25-36周） 🔄 进行中（~60%）
+## Phase 5：模拟实盘基础设施（第25-36周） 🔄 进行中（~85%）
 
 ```
-Phase 5  模拟实盘基础设施  ██████░░░░  60%  🔄
+Phase 5  模拟实盘基础设施  █████████░  85%  🔄
 ```
 
 ### 基础设施（已完成）
@@ -105,18 +105,27 @@ Phase 5  模拟实盘基础设施  ██████░░░░  60%  🔄
 - [x] `live/paper_trader.py`：PaperTrader — 虚拟持仓管理、净值追踪、绩效报告
 - [x] `live/risk_monitor.py`：风险预警系统 — 回撤/集中度/因子衰减检测
 - [x] `research/notebooks/13_live_simulation.ipynb`：模拟盘演示 & 2025 全年回放
+- [x] `quant_dojo` 统一 CLI：15 个命令覆盖 init/run/backtest/generate/activate/status 等
+- [x] `pipeline/auto_gen_loader.py`：自动生成的策略可作为一等公民进入 daily pipeline
 
-### 当前剩余重点（待完成）
-- [ ] 连续运行每日 `signal -> rebalance -> risk -> weekly report`
-- [ ] 完成 restart-safe 组合状态恢复与一致性验证
+### 当前剩余重点
+- [x] 连续运行每日 `signal -> rebalance -> risk -> weekly report`
+      （2026-04-07 验证 10 天连续 run，见 `journal/phase5_continuous_run_20260407.md`）
+- [x] 完成 restart-safe 组合状态恢复与一致性验证
+      （`tests/test_phase5_regression.py::TestPaperTraderRestartSafe` 已覆盖；
+       连续运行实测 NAV 与持仓零漂移）
+- [x] 把自动化验证从 smoke 提升到回归级别
+      （`test_phase5_regression.py` + `test_factor_monitor_health.py` 总 19+ 测试覆盖端到端 IO）
+- [x] 证明系统可连续稳定跑完整周 / 整月模拟盘
+      （10 个交易日干净 replay，每日 4/4 步成功，幂等重跑无副作用）
 - [ ] 提高风险输出与周报产物的审计价值
-- [ ] 把自动化验证从 smoke 提升到回归级别
-- [ ] 证明系统可连续稳定跑完整周 / 整月模拟盘
 
-### 验证与记录（待完成）
-- [ ] 每周复盘记录（`journal/`）
+### 验证与记录
+- [x] 每周复盘记录（`journal/weekly/2026-W01..W15.md`）
+- [x] 检查因子在 2025/2026 年的 IC 是否仍然显著
+      （2026-04-07 审计，见 `journal/v7_factor_ic_audit_20260407.md`：
+       v7 全部健康，t-stat 均 > 3.5；之前的 dead 告警是小样本误报，已修复）
 - [ ] 实盘 vs 回测差异分析（滑点、延迟）
-- [ ] 检查因子在 2025 年的 IC 是否仍然显著
 
 **交付物：** 可信的模拟盘基础设施，支持连续运行和审计
 
