@@ -181,7 +181,16 @@ FACTOR_PRESETS = {
 }
 
 
-def factor_health_report(factors: list[str] | None = None) -> dict:
+#: 声明因子 dead/degraded 所需的最小快照样本数。
+#: Phase 5 早期 live/factor_snapshot/ 可能只有几个快照，统计量没有意义；
+#: 低于该阈值时一律返回 insufficient_data，避免误报。
+MIN_OBS_FOR_VERDICT = 20
+
+
+def factor_health_report(
+    factors: list[str] | None = None,
+    min_obs: int = MIN_OBS_FOR_VERDICT,
+) -> dict:
     """
     生成因子健康度报告
 
@@ -189,20 +198,26 @@ def factor_health_report(factors: list[str] | None = None) -> dict:
       1. 滚动 IC（60 日窗口）
       2. IC 均值（作为因子有效性指标）
       3. 状态：
-         - "healthy"  : |IC 均值| > 0.02，因子有效
-         - "degraded" : |IC 均值| < 0.02，因子衰减
-         - "dead"     : |IC 均值| ≈ 0 且 t-stat < 1，因子失效
-         - "no_data"  : 无快照数据，无法评估
+         - "healthy"           : |IC 均值| > 0.02，因子有效
+         - "degraded"          : |IC 均值| < 0.02 且 |t-stat| >= 1，因子衰减
+         - "dead"              : |IC 均值| ≈ 0 且 |t-stat| < 1，因子失效
+         - "insufficient_data" : 有效样本数 < min_obs，无法做统计判断
+         - "no_data"           : 无快照数据
 
     参数:
-        factors: 要检查的因子名列表。默认为 legacy 预设（momentum_20/ep/low_vol/turnover_rev）。
-                可传入 FACTOR_PRESETS["v7"] 或任意因子名列表。
+        factors  : 要检查的因子名列表。默认为 legacy 预设
+                  （momentum_20/ep/low_vol/turnover_rev）。
+                  可传入 FACTOR_PRESETS["v7"] 或任意因子名列表。
+        min_obs  : 判定 healthy/degraded/dead 所需的最小样本天数，
+                  低于此值返回 insufficient_data。默认 20。
 
     返回:
         dict : {
             factor_name: {
-                "rolling_ic": float,   # 滚动 IC 均值
-                "status": str          # "healthy" / "degraded" / "dead" / "no_data"
+                "rolling_ic": float,    # 滚动 IC 均值
+                "n_obs":      int,      # 有效样本天数
+                "t_stat":     float,    # IC 的 t 统计量
+                "status":     str       # 见上
             },
             ...
         }
@@ -245,6 +260,8 @@ def factor_health_report(factors: list[str] | None = None) -> dict:
             # 无数据，标记为 no_data
             report[factor_name] = {
                 "rolling_ic": np.nan,
+                "n_obs": 0,
+                "t_stat": np.nan,
                 "status": "no_data",
             }
             continue
@@ -253,6 +270,8 @@ def factor_health_report(factors: list[str] | None = None) -> dict:
         if ic_clean.empty:
             report[factor_name] = {
                 "rolling_ic": np.nan,
+                "n_obs": 0,
+                "t_stat": np.nan,
                 "status": "no_data",
             }
             continue
@@ -268,17 +287,23 @@ def factor_health_report(factors: list[str] | None = None) -> dict:
             else 0.0
         )
 
-        # 判断因子状态
-        abs_mean_ic = abs(mean_ic)
-        if abs_mean_ic > 0.02:
-            status = "healthy"
-        elif abs_mean_ic < 0.02 and abs(t_stat) >= 1:
-            status = "degraded"
+        # 样本不足时拒绝下结论：Phase 5 早期 live/factor_snapshot/
+        # 可能只有几个快照，IC 统计量没有意义。
+        if n_obs < min_obs:
+            status = "insufficient_data"
         else:
-            status = "dead"
+            abs_mean_ic = abs(mean_ic)
+            if abs_mean_ic > 0.02:
+                status = "healthy"
+            elif abs(t_stat) >= 1:
+                status = "degraded"
+            else:
+                status = "dead"
 
         report[factor_name] = {
             "rolling_ic": mean_ic,
+            "n_obs": n_obs,
+            "t_stat": t_stat,
             "status": status,
         }
 

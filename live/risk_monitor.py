@@ -181,12 +181,17 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
         health = factor_health_report(factors=FACTOR_PRESETS[_preset_key])
         for factor_name, info in health.items():
             status = info.get("status")
+            # insufficient_data / no_data 不是告警，只是 Phase 5 早期常态
             if status in ("degraded", "dead"):
                 code = "FACTOR_DEGRADED" if status == "degraded" else "FACTOR_DEAD"
+                n_obs = info.get("n_obs", 0)
                 alerts.append({
                     "level": "warning" if status == "degraded" else "critical",
                     "code": code,
-                    "msg": f"因子 {factor_name} 状态: {status}，IC 已衰减，请检查因子有效性",
+                    "msg": (
+                        f"因子 {factor_name} 状态: {status}，"
+                        f"IC 已衰减（n={n_obs}），请检查因子有效性"
+                    ),
                     "symbol": "",
                     "as_of_date": date.today().isoformat(),
                 })
