@@ -163,6 +163,8 @@ def main():
     p_diff.add_argument("--save", type=str, help="保存 markdown 报告路径")
     p_diff.add_argument("--json", dest="as_json", action="store_true",
                         help="输出 JSON 摘要")
+    p_diff.add_argument("--trend", action="store_true",
+                        help="打印逐日累计偏差的 ASCII 迷你图")
 
     # ── doctor ──
     sub.add_parser("doctor", help="诊断系统问题")
@@ -330,6 +332,7 @@ def cmd_diff(args):
         end=args.end,
         save=args.save,
         as_json=args.as_json,
+        trend=args.trend,
     )
 
 
