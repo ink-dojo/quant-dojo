@@ -807,6 +807,130 @@ def cmd_doctor(args):
 
 
 # ══════════════════════════════════════════════════════════════
+# research 命令组（Phase 7 AI 研究助理）
+# ══════════════════════════════════════════════════════════════
+
+def _collect_system_state():
+    """
+    读取当前因子健康度 / 风险告警 / 实盘回测偏差，作为 planner 输入。
+    任一步失败都只打印警告并回退成空 dict，不让 CLI 整体挂掉。
+    """
+    factor_health = {}
+    risk_alerts: list = []
+    divergence = {}
+    try:
+        from pipeline.factor_monitor import factor_health_report
+        factor_health = factor_health_report() or {}
+    except Exception as e:
+        print(f"⚠️  factor_health_report 不可用: {e}", file=sys.stderr)
+    try:
+        from live.paper_trader import PaperTrader
+        from live.risk_monitor import check_risk_alerts
+        risk_alerts = check_risk_alerts(PaperTrader()) or []
+    except Exception as e:
+        print(f"⚠️  risk_alerts 不可用: {e}", file=sys.stderr)
+    try:
+        from pipeline.live_vs_backtest import compute_divergence
+        divergence = compute_divergence() or {}
+    except Exception as e:
+        print(f"⚠️  divergence 不可用: {e}", file=sys.stderr)
+    return factor_health, risk_alerts, divergence
+
+
+def cmd_research_propose(args):
+    """扫描系统状态 → 生成 research plan（不落盘、不跑回测）。"""
+    from pipeline.research_planner import plan_research, render_plan_markdown
+
+    factor_health, risk_alerts, divergence = _collect_system_state()
+    questions = plan_research(
+        factor_health=factor_health,
+        risk_alerts=risk_alerts,
+        divergence=divergence,
+    )
+    print(render_plan_markdown(questions))
+
+
+def cmd_research_run(args):
+    """扫描系统状态 → plan → propose + run experiments（需 --approved 才真跑）。"""
+    from pipeline.research_planner import plan_research
+    from pipeline.experiment_runner import run_experiments, propose_experiment
+
+    factor_health, risk_alerts, divergence = _collect_system_state()
+    questions = plan_research(
+        factor_health=factor_health,
+        risk_alerts=risk_alerts,
+        divergence=divergence,
+    )
+    print(f"plan 产出 {len(questions)} 条 research question")
+
+    if not args.approved:
+        # 未批准：只 propose，不调回测
+        records = [propose_experiment(q) for q in questions]
+        print("\n未 --approved，仅落 proposed 记录（未执行回测）：")
+        for r in records:
+            print(f"  {r.experiment_id}  {r.question_type:<20}  {r.status}")
+        return
+
+    records = run_experiments(
+        questions,
+        max_runs=args.max_runs,
+    )
+    print(f"\n执行完成，共 {len(records)} 条实验：")
+    for r in records:
+        line = f"  {r.experiment_id}  {r.status:<10}  {r.question_type}"
+        if r.run_id:
+            line += f"  run_id={r.run_id}"
+        if r.error:
+            line += f"  ({r.error})"
+        print(line)
+
+
+def cmd_research_list(args):
+    """列出历史 experiment 记录。"""
+    from pipeline.experiment_store import list_experiments
+
+    records = list_experiments(
+        status=args.status,
+        question_type=args.type,
+        limit=args.limit,
+    )
+    if not records:
+        print("（无 experiment 记录）")
+        return
+    print(f"{'experiment_id':<32} {'status':<10} {'priority':<8} {'question_type':<22} run_id")
+    print("-" * 100)
+    for r in records:
+        print(
+            f"{r.experiment_id:<32} "
+            f"{r.status:<10} "
+            f"{r.priority:<8} "
+            f"{r.question_type:<22} "
+            f"{r.run_id or '-'}"
+        )
+
+
+def cmd_research_summarize(args):
+    """对 experiment 做 baseline 对比汇总。"""
+    from pipeline.experiment_store import list_experiments
+    from pipeline.experiment_summarizer import (
+        render_summary_markdown,
+        summarize_experiments,
+    )
+
+    records = list_experiments(status=args.status, limit=args.limit)
+    baseline = None
+    if args.baseline_run:
+        try:
+            from pipeline.run_store import get_run
+            baseline = get_run(args.baseline_run).metrics or None
+        except Exception as e:
+            print(f"⚠️  读取 baseline run 失败：{e}", file=sys.stderr)
+
+    summary = summarize_experiments(records, baseline=baseline)
+    print(render_summary_markdown(summary))
+
+
+# ══════════════════════════════════════════════════════════════
 # CLI 主入口
 # ══════════════════════════════════════════════════════════════
 
@@ -935,6 +1059,32 @@ def main():
     p_pipe_status = pipe_sub.add_parser("status", help="查看最近流水线运行状态")
 
     # ── 独立命令 ─────────────────────────────────────────────
+    # ── research 命令组（Phase 7 AI 研究助理）────────────────
+    p_rs = subparsers.add_parser("research", help="AI 研究助理（提议/执行/列表/总结实验）")
+    rs_sub = p_rs.add_subparsers(dest="rs_action")
+
+    rs_sub.add_parser("propose", help="扫描系统状态并打印 research plan（不跑回测）")
+
+    p_rs_run = rs_sub.add_parser("run", help="运行 research plan 对应的实验")
+    p_rs_run.add_argument("--approved", action="store_true",
+                          help="明确批准才真的拉起回测，否则只 propose")
+    p_rs_run.add_argument("--max-runs", type=int, default=None,
+                          help="最多执行多少条，超过的仅保留 proposed 状态")
+
+    p_rs_list = rs_sub.add_parser("list", help="列出历史 experiment 记录")
+    p_rs_list.add_argument("--status", type=str, default=None,
+                           help="按 status 过滤 (proposed/running/success/failed/skipped)")
+    p_rs_list.add_argument("--type", type=str, default=None,
+                           help="按 question_type 过滤")
+    p_rs_list.add_argument("--limit", type=int, default=20)
+
+    p_rs_sum = rs_sub.add_parser("summarize", help="对 experiment 做 baseline 对比汇总")
+    p_rs_sum.add_argument("--status", type=str, default="success",
+                          help="只汇总指定 status 的实验，默认 success")
+    p_rs_sum.add_argument("--limit", type=int, default=20)
+    p_rs_sum.add_argument("--baseline-run", type=str, default=None,
+                          help="对比的 baseline run_id")
+
     subparsers.add_parser("positions", help="查看当前模拟盘持仓")
     subparsers.add_parser("performance", help="查看模拟盘绩效指标")
     p_fh = subparsers.add_parser("factor-health", help="因子健康度检查")
@@ -1048,6 +1198,17 @@ def main():
             "run": cmd_pipeline_run,
             "mine": cmd_pipeline_mine,
             "status": cmd_pipeline_status,
+        }.get(action)
+    elif args.command == "research":
+        action = getattr(args, "rs_action", None)
+        if action is None:
+            p_rs.print_help()
+            sys.exit(0)
+        handler = {
+            "propose": cmd_research_propose,
+            "run": cmd_research_run,
+            "list": cmd_research_list,
+            "summarize": cmd_research_summarize,
         }.get(action)
     elif args.command == "live":
         action = getattr(args, "live_action", None)
