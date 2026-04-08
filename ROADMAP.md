@@ -94,10 +94,10 @@
 
 ---
 
-## Phase 5：模拟实盘基础设施（第25-36周） 🔄 进行中（~85%）
+## Phase 5：模拟实盘基础设施（第25-36周） 🔄 进行中（~95%）
 
 ```
-Phase 5  模拟实盘基础设施  █████████░  85%  🔄
+Phase 5  模拟实盘基础设施  █████████▉  95%  🔄
 ```
 
 ### 基础设施（已完成）
@@ -105,7 +105,7 @@ Phase 5  模拟实盘基础设施  █████████░  85%  🔄
 - [x] `live/paper_trader.py`：PaperTrader — 虚拟持仓管理、净值追踪、绩效报告
 - [x] `live/risk_monitor.py`：风险预警系统 — 回撤/集中度/因子衰减检测
 - [x] `research/notebooks/13_live_simulation.ipynb`：模拟盘演示 & 2025 全年回放
-- [x] `quant_dojo` 统一 CLI：15 个命令覆盖 init/run/backtest/generate/activate/status 等
+- [x] `quant_dojo` 统一 CLI：16 个命令覆盖 init/run/backtest/generate/activate/status/diff 等
 - [x] `pipeline/auto_gen_loader.py`：自动生成的策略可作为一等公民进入 daily pipeline
 
 ### 当前剩余重点
@@ -118,14 +118,19 @@ Phase 5  模拟实盘基础设施  █████████░  85%  🔄
       （`test_phase5_regression.py` + `test_factor_monitor_health.py` 总 19+ 测试覆盖端到端 IO）
 - [x] 证明系统可连续稳定跑完整周 / 整月模拟盘
       （10 个交易日干净 replay，每日 4/4 步成功，幂等重跑无副作用）
-- [ ] 提高风险输出与周报产物的审计价值
+- [x] 提高风险输出与周报产物的审计价值
+      （周报增加 git commit / 指纹 / 最大回撤 / 因子 t-stat；
+       风险告警过滤 insufficient_data；见 `test_weekly_report_audit.py`）
 
 ### 验证与记录
 - [x] 每周复盘记录（`journal/weekly/2026-W01..W15.md`）
 - [x] 检查因子在 2025/2026 年的 IC 是否仍然显著
       （2026-04-07 审计，见 `journal/v7_factor_ic_audit_20260407.md`：
        v7 全部健康，t-stat 均 > 3.5；之前的 dead 告警是小样本误报，已修复）
-- [ ] 实盘 vs 回测差异分析（滑点、延迟）
+- [x] 实盘 vs 回测差异分析（滑点、延迟）
+      （`pipeline/live_vs_backtest.py` + `quant_dojo diff` CLI；
+       2026-04-07 首次对照 8 天，见 `journal/live_vs_backtest_v7_20260407_analysis.md`，
+       量化出 -2.05% 累计偏差，主因是 fresh-start 方法论差异 + 交易成本）
 
 **交付物：** 可信的模拟盘基础设施，支持连续运行和审计
 
