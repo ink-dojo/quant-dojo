@@ -145,6 +145,10 @@ def main():
     p_hist.add_argument("--limit", type=int, default=20, help="最多显示条数 (默认 20)")
     p_hist.add_argument("--json", dest="as_json", action="store_true",
                         help="输出 JSON 格式")
+    p_hist.add_argument("--purge-failed", action="store_true",
+                        help="删除 live/runs 下空壳 failed 记录")
+    p_hist.add_argument("--dry-run", action="store_true",
+                        help="配合 --purge-failed：只列出不删除")
 
     # ── diff ──
     p_diff = sub.add_parser("diff", help="实盘 vs 回测差异分析（滑点、延迟）")
@@ -310,6 +314,8 @@ def cmd_history(args):
         status=args.status,
         limit=args.limit,
         as_json=args.as_json,
+        purge_failed=args.purge_failed,
+        dry_run=args.dry_run,
     )
 
 
