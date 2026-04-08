@@ -104,6 +104,8 @@ class RunRecord:
     error: Optional[str] = None
     created_at: str = ""
     artifacts: dict = field(default_factory=dict)
+    # Phase 7：若此回测由 AI 研究助理发起，反向指回 ExperimentRecord.experiment_id
+    experiment_id: Optional[str] = None
 
 
 def generate_run_id(strategy_id: str, start: str, end: str, params: dict) -> str:
@@ -308,6 +310,7 @@ def _dict_to_record(data: dict) -> RunRecord:
         error=data.get("error"),
         created_at=data.get("created_at", ""),
         artifacts=data.get("artifacts", {}),
+        experiment_id=data.get("experiment_id"),
     )
 
 

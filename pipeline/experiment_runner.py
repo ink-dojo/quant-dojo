@@ -141,6 +141,8 @@ def run_experiment(
 
     try:
         call_params = dict(record.params or {})
+        # 反向 tag：让生成的 RunRecord 记住是哪个 experiment 触发的
+        call_params["experiment_id"] = record.experiment_id
         result = executor("backtest.run", approved=True, **call_params)
     except Exception as e:
         return update_experiment(

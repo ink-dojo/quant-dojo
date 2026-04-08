@@ -253,9 +253,15 @@ def _backtest_run(
     start: str,
     end: str,
     params: Optional[dict] = None,
+    experiment_id: Optional[str] = None,
     **kwargs,
 ):
-    """运行回测"""
+    """
+    运行回测
+
+    参数:
+        experiment_id: Phase 7 — 若由 AI 研究助理发起，会反向写入 RunRecord.experiment_id
+    """
     import datetime
     from pipeline.strategy_registry import run_strategy, get_strategy
     from pipeline.run_store import generate_run_id, RunRecord, save_run
@@ -278,6 +284,7 @@ def _backtest_run(
             metrics={},
             error=result["error"],
             created_at=datetime.datetime.now().isoformat(),
+            experiment_id=experiment_id,
         )
         save_run(record)
         # 通过 raise 让 execute() 返回正确的 {"status": "error"} 信封
@@ -295,6 +302,7 @@ def _backtest_run(
         status="success",
         metrics=metrics,
         created_at=datetime.datetime.now().isoformat(),
+        experiment_id=experiment_id,
     )
     save_run(record, equity_df=result.get("results_df"))
 
