@@ -506,7 +506,93 @@ class TestCompareCommand:
                     start=None,
                     end=None,
                     n_stocks=30,
+                    run_ids=None,
                 )
+
+    def test_compare_runs_loads_existing_runs(self, tmp_path, capsys, monkeypatch):
+        """--runs 模式应直接加载 run_id，不调 run_backtest"""
+        from quant_dojo.commands import compare as compare_mod
+
+        runs_dir = tmp_path / "runs"
+        runs_dir.mkdir()
+        (runs_dir / "v7_aaa.json").write_text(json.dumps({
+            "run_id": "v7_aaa",
+            "strategy_id": "v7",
+            "status": "success",
+            "metrics": {
+                "total_return": 0.25,
+                "annualized_return": 0.12,
+                "sharpe": 1.3,
+                "max_drawdown": -0.08,
+            },
+        }))
+        (runs_dir / "v8_bbb.json").write_text(json.dumps({
+            "run_id": "v8_bbb",
+            "strategy_id": "v8",
+            "status": "success",
+            "metrics": {
+                "total_return": 0.15,
+                "annualized_return": 0.07,
+                "sharpe": 0.8,
+                "max_drawdown": -0.12,
+            },
+        }))
+        monkeypatch.setattr(compare_mod, "LIVE_RUNS_DIR", runs_dir)
+
+        # 如果不小心调了 run_backtest 就会报错，间接验证"不重跑"
+        with patch("backtest.standardized.run_backtest",
+                   side_effect=AssertionError("run_backtest should not be called")):
+            compare_mod.run_compare(
+                strategies=[], run_ids=["v7_aaa", "v8_bbb"],
+            )
+        out = capsys.readouterr().out
+        assert "v7_aaa" in out
+        assert "v8_bbb" in out
+        assert "最优" in out
+        # 夏普高的 v7 应标为最优
+        assert out.index("v7") < out.index("v8  ")
+
+    def test_compare_runs_requires_two(self, tmp_path, capsys, monkeypatch):
+        """--runs 只给 1 个应 exit(1)"""
+        from quant_dojo.commands import compare as compare_mod
+
+        runs_dir = tmp_path / "runs"
+        runs_dir.mkdir()
+        monkeypatch.setattr(compare_mod, "LIVE_RUNS_DIR", runs_dir)
+        with pytest.raises(SystemExit) as exc_info:
+            compare_mod.run_compare(strategies=[], run_ids=["v7_only"])
+        assert exc_info.value.code == 1
+
+    def test_compare_runs_skips_failed_runs(self, tmp_path, capsys, monkeypatch):
+        """失败状态 / 不存在的 run_id 应被过滤"""
+        from quant_dojo.commands import compare as compare_mod
+
+        runs_dir = tmp_path / "runs"
+        runs_dir.mkdir()
+        (runs_dir / "v7_ok.json").write_text(json.dumps({
+            "run_id": "v7_ok",
+            "strategy_id": "v7",
+            "status": "success",
+            "metrics": {"total_return": 0.1, "sharpe": 1.0, "max_drawdown": -0.05,
+                        "annualized_return": 0.05},
+        }))
+        (runs_dir / "v7_bad.json").write_text(json.dumps({
+            "run_id": "v7_bad",
+            "strategy_id": "v7",
+            "status": "failed",
+            "metrics": {},
+        }))
+        monkeypatch.setattr(compare_mod, "LIVE_RUNS_DIR", runs_dir)
+
+        # 1 成功 + 1 失败 + 1 不存在 → 只剩 1 个，应当 exit(1)
+        with pytest.raises(SystemExit) as exc_info:
+            compare_mod.run_compare(
+                strategies=[],
+                run_ids=["v7_ok", "v7_bad", "v7_missing"],
+            )
+        assert exc_info.value.code == 1
+        out = capsys.readouterr().out
+        assert "跳过" in out
 
 
 # ═══════════════════════════════════════════════════════════
