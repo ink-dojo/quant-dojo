@@ -134,6 +134,16 @@ def main():
     p_gen.add_argument("--n-stocks", type=int, default=30, help="选股数量（默认 30）")
     p_gen.add_argument("--activate", action="store_true", help="自动激活生成的策略")
 
+    # ── history ──
+    p_hist = sub.add_parser("history", help="运行历史索引（回测 + 每日 pipeline）")
+    p_hist.add_argument("--type", dest="kind", choices=["backtest", "daily"],
+                        help="筛选类型 (不指定则显示所有)")
+    p_hist.add_argument("--strategy", type=str, help="筛选策略名前缀")
+    p_hist.add_argument("--status", type=str, help="筛选状态 (success/failed)")
+    p_hist.add_argument("--limit", type=int, default=20, help="最多显示条数 (默认 20)")
+    p_hist.add_argument("--json", dest="as_json", action="store_true",
+                        help="输出 JSON 格式")
+
     # ── diff ──
     p_diff = sub.add_parser("diff", help="实盘 vs 回测差异分析（滑点、延迟）")
     p_diff.add_argument("run", nargs="?", type=str,
@@ -172,6 +182,7 @@ def main():
         "signals": cmd_signals,
         "logs": cmd_logs,
         "generate": cmd_generate,
+        "history": cmd_history,
         "diff": cmd_diff,
         "doctor": cmd_doctor,
     }
@@ -283,6 +294,18 @@ def cmd_generate(args):
         end=args.end,
         n_stocks=args.n_stocks,
         activate=args.activate,
+    )
+
+
+def cmd_history(args):
+    """运行历史索引"""
+    from quant_dojo.commands.history import run_history
+    run_history(
+        kind=args.kind,
+        strategy=args.strategy,
+        status=args.status,
+        limit=args.limit,
+        as_json=args.as_json,
     )
 
 
