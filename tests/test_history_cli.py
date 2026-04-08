@@ -1,0 +1,168 @@
+"""
+test_history_cli.py — quant_dojo history 子命令测试
+
+用 tmp_path 构造一份假的 live/runs 目录 + logs 目录，
+验证 run_history 的过滤、排序、格式化与 --json 输出。
+"""
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+PROJECT_ROOT = Path(__file__).parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from quant_dojo.commands import history as history_cmd
+
+
+@pytest.fixture
+def fake_dirs(tmp_path, monkeypatch):
+    """构造 live/runs + logs 的假数据"""
+    runs_dir = tmp_path / "live_runs"
+    logs_dir = tmp_path / "logs"
+    runs_dir.mkdir()
+    logs_dir.mkdir()
+
+    # 2 个回测 run — 1 success + 1 failed
+    (runs_dir / "v7_20260407_success.json").write_text(json.dumps({
+        "run_id": "v7_20260407_success",
+        "strategy_id": "v7",
+        "status": "success",
+        "created_at": "2026-04-07T20:38:09",
+        "start_date": "2024-01-01",
+        "end_date": "2026-03-31",
+        "metrics": {
+            "total_return": 0.485,
+            "sharpe": 0.62,
+            "max_drawdown": -0.26,
+        },
+        "error": None,
+        "artifacts": {"equity_csv": str(runs_dir / "eq.csv")},
+    }))
+    (runs_dir / "v7_20260406_failed.json").write_text(json.dumps({
+        "run_id": "v7_20260406_failed",
+        "strategy_id": "v7",
+        "status": "failed",
+        "created_at": "2026-04-06T19:59:23",
+        "start_date": "",
+        "end_date": "",
+        "metrics": {},
+        "error": "必须指定 start 和 end 日期",
+        "artifacts": {},
+    }))
+    # 另一个策略的 run
+    (runs_dir / "v8_20260406_success.json").write_text(json.dumps({
+        "run_id": "v8_20260406_success",
+        "strategy_id": "v8",
+        "status": "success",
+        "created_at": "2026-04-06T18:00:00",
+        "metrics": {"total_return": 0.3, "sharpe": 1.1, "max_drawdown": -0.15},
+    }))
+    # 非 run 的杂项（应当被忽略）
+    (runs_dir / "stray.json").write_text(json.dumps({"some": "garbage"}))
+
+    # 2 个 daily pipeline log — 1 ok + 1 有失败步骤
+    (logs_dir / "quant_dojo_run_2026-03-20.json").write_text(json.dumps({
+        "date": "2026-03-20",
+        "timestamp": "2026-04-07T22:00:00",
+        "elapsed_sec": 55.0,
+        "steps": {
+            "data_update": {"status": "ok"},
+            "signal": {"status": "ok"},
+            "rebalance": {"status": "ok"},
+            "risk": {"status": "ok"},
+        },
+    }))
+    (logs_dir / "quant_dojo_run_2026-03-21.json").write_text(json.dumps({
+        "date": "2026-03-21",
+        "timestamp": "2026-04-07T22:05:00",
+        "elapsed_sec": 60.0,
+        "steps": {
+            "data_update": {"status": "ok"},
+            "signal": {"status": "failed", "error": "boom"},
+        },
+    }))
+
+    monkeypatch.setattr(history_cmd, "LIVE_RUNS_DIR", runs_dir)
+    monkeypatch.setattr(history_cmd, "LOGS_DIR", logs_dir)
+    return runs_dir, logs_dir
+
+
+class TestLoaders:
+    def test_load_backtest_runs_skips_stray(self, fake_dirs):
+        rows = history_cmd._load_backtest_runs()
+        run_ids = {r["run_id"] for r in rows}
+        assert "v7_20260407_success" in run_ids
+        assert "v7_20260406_failed" in run_ids
+        assert "v8_20260406_success" in run_ids
+        # stray.json has neither run_id nor strategy_id → filtered
+        assert len(rows) == 3
+
+    def test_load_daily_runs_marks_failed_step(self, fake_dirs):
+        rows = history_cmd._load_daily_runs()
+        by_date = {r["run_id"]: r for r in rows}
+        assert by_date["daily_2026-03-20"]["status"] == "success"
+        assert by_date["daily_2026-03-21"]["status"] == "failed"
+        assert by_date["daily_2026-03-21"]["n_fail"] == 1
+
+
+class TestRunHistory:
+    def test_default_lists_everything_sorted_desc(self, fake_dirs, capsys):
+        history_cmd.run_history(limit=10)
+        out = capsys.readouterr().out
+        # 最新一条应该是 v7_20260407_success (2026-04-07T20:38)
+        # 它应该出现在 daily 之前（daily 是 2026-04-07T22，更晚）
+        lines = [l for l in out.splitlines() if "success" in l or "failed" in l]
+        assert len(lines) >= 3
+        # 应当同时包含 backtest 与 daily 两种
+        assert any("backtest" in l for l in lines)
+        assert any("daily" in l for l in lines)
+
+    def test_filter_by_kind_backtest_only(self, fake_dirs, capsys):
+        history_cmd.run_history(kind="backtest", limit=10)
+        out = capsys.readouterr().out
+        assert "backtest" in out
+        assert "daily" not in out.split("共找到")[1].split("\n\n")[-1]  # only in filter header
+
+    def test_filter_by_strategy_prefix(self, fake_dirs, capsys):
+        history_cmd.run_history(strategy="v8", limit=10)
+        out = capsys.readouterr().out
+        assert "v8" in out
+        assert "v7_2026" not in out  # run_id 中的 v7 不该出现
+
+    def test_filter_by_status_success(self, fake_dirs, capsys):
+        history_cmd.run_history(status="success", limit=10)
+        out = capsys.readouterr().out
+        # failed 的 run 不应出现
+        assert "v7_20260406_failed" not in out
+        # success 的 run 应出现
+        assert "v7_20260407_success" in out
+
+    def test_json_output_is_valid(self, fake_dirs, capsys):
+        history_cmd.run_history(as_json=True, limit=10)
+        out = capsys.readouterr().out
+        data = json.loads(out)
+        assert isinstance(data, list)
+        assert len(data) >= 3
+        # 排序应该是倒序
+        created_ats = [r.get("created_at", "") for r in data if r.get("created_at")]
+        assert created_ats == sorted(created_ats, reverse=True)
+
+    def test_limit_respected(self, fake_dirs, capsys):
+        history_cmd.run_history(as_json=True, limit=2)
+        out = capsys.readouterr().out
+        data = json.loads(out)
+        assert len(data) == 2
+
+    def test_empty_dirs_prints_no_records(self, tmp_path, monkeypatch, capsys):
+        empty_runs = tmp_path / "empty_runs"
+        empty_logs = tmp_path / "empty_logs"
+        empty_runs.mkdir()
+        empty_logs.mkdir()
+        monkeypatch.setattr(history_cmd, "LIVE_RUNS_DIR", empty_runs)
+        monkeypatch.setattr(history_cmd, "LOGS_DIR", empty_logs)
+        history_cmd.run_history(limit=10)
+        out = capsys.readouterr().out
+        assert "无记录" in out
