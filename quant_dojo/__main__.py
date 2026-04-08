@@ -150,7 +150,7 @@ def main():
     p_hist.add_argument("--dry-run", action="store_true",
                         help="配合 --purge-failed：只列出不删除")
     p_hist.add_argument("--since", type=str,
-                        help="只显示 created_at >= 该日期的记录（YYYY-MM-DD）")
+                        help="只显示 created_at >= 该日期的记录（YYYY-MM-DD 或相对时间 7d/2w/24h/30m）")
 
     # ── diff ──
     p_diff = sub.add_parser("diff", help="实盘 vs 回测差异分析（滑点、延迟）")

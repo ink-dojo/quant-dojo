@@ -17,8 +17,9 @@ quant_dojo history — 运行历史索引
 一行一条、固定宽度，方便 grep / 人眼扫描。
 """
 import json
+import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -99,6 +100,39 @@ def _sort_key(row: dict) -> str:
     return row.get("created_at") or row.get("run_id", "")
 
 
+_RELATIVE_SINCE_RE = re.compile(r"^(\d+)([dwhm])$")
+
+
+def _normalize_since(since: Optional[str], *, now: Optional[datetime] = None) -> Optional[str]:
+    """
+    把 --since 字符串归一化成 'YYYY-MM-DD'。
+
+    支持两种写法：
+      - 绝对日期 'YYYY-MM-DD' / 'YYYY-MM-DDTHH:MM' → 原样返回
+      - 相对时间 '7d' / '2w' / '24h' / '30m' → 从 now 往回偏移
+
+    参数中传 now 是为了单元测试可以把"现在"固定住。
+    """
+    if since is None:
+        return None
+    since = since.strip()
+    if not since:
+        return None
+    m = _RELATIVE_SINCE_RE.match(since)
+    if not m:
+        return since  # 绝对日期，原样传下去做字符串比较
+    amount = int(m.group(1))
+    unit = m.group(2)
+    delta = {
+        "d": timedelta(days=amount),
+        "w": timedelta(weeks=amount),
+        "h": timedelta(hours=amount),
+        "m": timedelta(minutes=amount),
+    }[unit]
+    base = now or datetime.now()
+    return (base - delta).strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def _purge_failed_backtest_runs(dry_run: bool = False) -> list[str]:
     """
     删除 live/runs/ 下状态为 failed 且无有用 metrics 的回测 run JSON。
@@ -174,9 +208,10 @@ def run_history(
         rows = [r for r in rows if r.get("strategy", "").startswith(strategy)]
     if status:
         rows = [r for r in rows if r.get("status") == status]
-    if since:
+    since_normalized = _normalize_since(since)
+    if since_normalized:
         # 字符串比较即可：ISO 时间戳 >= 'YYYY-MM-DD' 对 '2026-04-01T10:00' 正确工作
-        rows = [r for r in rows if (r.get("created_at") or "") >= since]
+        rows = [r for r in rows if (r.get("created_at") or "") >= since_normalized]
 
     rows.sort(key=_sort_key, reverse=True)
     rows = rows[:limit]
