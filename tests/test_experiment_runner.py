@@ -235,6 +235,23 @@ class TestRunBatch:
         assert results[0].status == "skipped"
         assert calls == []
 
+    def test_experiment_id_is_passed_to_executor(self, tmp_store):
+        """experiment_runner 应把 experiment_id 注入到 executor kwargs 里，
+        这样 control_surface 的 _backtest_run 才能 tag RunRecord。"""
+        q = ResearchQuestion(
+            id="q_pass", type="factor_decay", priority="high",
+            question="?", rationale="r",
+            proposed_experiment={"command": "backtest.run", "params": {"drop_factor": "x"}},
+        )
+        seen_kwargs = {}
+        def capture(command, approved=False, **kwargs):
+            seen_kwargs.update(kwargs)
+            return {"status": "success", "data": {"run_id": "r1", "metrics": {}}}
+        from pipeline.experiment_runner import propose_experiment
+        rec = propose_experiment(q)
+        run_experiment(rec, executor=capture)
+        assert seen_kwargs.get("experiment_id") == rec.experiment_id
+
     def test_mixed_with_insufficient(self, tmp_store):
         health = {
             "bp": {"status": "dead", "rolling_ic": 0.0, "t_stat": 0.1, "n_obs": 100},
