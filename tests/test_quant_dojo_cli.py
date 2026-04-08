@@ -999,6 +999,126 @@ class TestGenerateCommand:
         assert latest.exists()
 
 
+# ═══════════════════════════════════════════════════════════
+# auto_gen loader / pipeline integration
+# ═══════════════════════════════════════════════════════════
+
+class TestAutoGenLoader:
+    def _write_strategy(self, tmp_path, factors):
+        """在 tmp_path 下写一个 auto_gen_latest.json"""
+        gen_dir = tmp_path / "strategies" / "generated"
+        gen_dir.mkdir(parents=True)
+        latest = gen_dir / "auto_gen_latest.json"
+        payload = {
+            "strategy": {
+                "name": "auto_gen",
+                "factors": factors,
+                "weighting": "ic_weighted",
+                "neutralize": True,
+                "n_stocks": 30,
+                "generated_at": "2026-04-07T00:00:00",
+            },
+            "backtest_metrics": {"sharpe": 1.5},
+            "factor_details": [],
+        }
+        latest.write_text(json.dumps(payload))
+        return latest
+
+    def test_load_definition(self, tmp_path):
+        """正常加载策略定义"""
+        from pipeline import auto_gen_loader
+
+        latest = self._write_strategy(tmp_path, [
+            {"name": "low_vol_20d", "direction": -1, "icir": 0.4, "ic_mean": -0.03},
+            {"name": "bp", "direction": 1, "icir": 0.3, "ic_mean": 0.02},
+        ])
+
+        with patch.object(auto_gen_loader, "LATEST_FILE", latest):
+            strategy = auto_gen_loader.load_auto_gen_definition()
+
+        assert strategy["name"] == "auto_gen"
+        assert len(strategy["factors"]) == 2
+        assert strategy["factors"][0]["direction"] == -1
+
+    def test_load_definition_missing(self, tmp_path):
+        """缺少文件时抛 FileNotFoundError"""
+        from pipeline import auto_gen_loader
+
+        with patch.object(auto_gen_loader, "LATEST_FILE", tmp_path / "missing.json"):
+            with pytest.raises(FileNotFoundError):
+                auto_gen_loader.load_auto_gen_definition()
+
+    def test_get_factor_names_empty(self, tmp_path):
+        """缺少文件时返回空列表，不抛"""
+        from pipeline import auto_gen_loader
+
+        with patch.object(auto_gen_loader, "LATEST_FILE", tmp_path / "missing.json"):
+            assert auto_gen_loader.get_auto_gen_factor_names() == []
+
+    def test_get_factor_names_with_file(self, tmp_path):
+        """有文件时返回名字列表"""
+        from pipeline import auto_gen_loader
+
+        latest = self._write_strategy(tmp_path, [
+            {"name": "bp", "direction": 1},
+            {"name": "low_vol_20d", "direction": -1},
+        ])
+
+        with patch.object(auto_gen_loader, "LATEST_FILE", latest):
+            names = auto_gen_loader.get_auto_gen_factor_names()
+
+        assert names == ["bp", "low_vol_20d"]
+
+    def test_compute_auto_gen_factors_filters_unknown(self, tmp_path):
+        """compute_auto_gen_factors 应跳过 build_fast_factors 不认识的因子"""
+        from pipeline.auto_gen_loader import compute_auto_gen_factors
+
+        dates = pd.date_range("2024-01-01", periods=120, freq="B")
+        symbols = [f"00000{i}" for i in range(1, 21)]
+        np.random.seed(7)
+        price = pd.DataFrame(
+            np.cumsum(np.random.randn(len(dates), len(symbols)) * 0.5, axis=0) + 100,
+            index=dates, columns=symbols,
+        )
+
+        strategy_def = {
+            "factors": [
+                {"name": "low_vol_20d", "direction": -1},
+                {"name": "team_coin", "direction": 1},
+                {"name": "totally_made_up_factor", "direction": 1},
+            ],
+        }
+
+        with patch("utils.local_data_loader.load_price_wide", return_value=pd.DataFrame()):
+            with patch("utils.local_data_loader.load_factor_wide", return_value=pd.DataFrame()):
+                result = compute_auto_gen_factors(
+                    strategy_def, price, symbols, "2024-01-01", "2024-06-30",
+                )
+
+        assert "low_vol_20d" in result
+        assert "team_coin" in result
+        assert "totally_made_up_factor" not in result
+        # 方向被保留
+        assert result["low_vol_20d"][1] == -1
+
+
+class TestActiveStrategyAutoGen:
+    def test_auto_gen_in_valid_strategies(self):
+        """auto_gen 应在合法策略集中"""
+        from pipeline.active_strategy import VALID_STRATEGIES
+        assert "auto_gen" in VALID_STRATEGIES
+
+    def test_set_active_to_auto_gen(self, tmp_path):
+        """可以激活 auto_gen 策略"""
+        from pipeline import active_strategy
+
+        state_file = tmp_path / "strategy_state.json"
+        with patch.object(active_strategy, "STATE_FILE", state_file):
+            result = active_strategy.set_active_strategy("auto_gen", reason="test")
+            assert result["current"] == "auto_gen"
+            assert active_strategy.get_active_strategy() == "auto_gen"
+
+
 class TestDoctorCommand:
     def test_doctor_runs(self):
         """doctor 命令不应崩溃"""
