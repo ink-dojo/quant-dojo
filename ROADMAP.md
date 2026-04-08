@@ -186,18 +186,26 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
 
 让 AI 从“解释结果”升级为“能提出实验、运行实验、总结结果”的研究助理。
 
-### 第一阶段（现实可做）
-- [ ] AI 根据周报 / 风险状态提出新的研究问题
-- [ ] AI 批量运行标准化 backtest
-- [ ] AI 比较不同策略 / 参数 / 区间的结果
-- [ ] AI 输出实验总结和建议，但不直接执行交易
+### 第一阶段（现实可做）—— 2026-W15 基本完成
+- [x] AI 根据周报 / 风险状态提出新的研究问题
+      (`pipeline/research_planner.py` — factor_decay / risk_alert / live_vs_bt_drift)
+- [x] AI 批量运行标准化 backtest
+      (`pipeline/experiment_runner.py` 通过 control_surface 拉起回测)
+- [x] AI 比较不同策略 / 参数 / 区间的结果
+      (`pipeline/experiment_summarizer.py` + baseline metric diff)
+- [x] AI 输出实验总结和建议，但不直接执行交易
+      (`python -m pipeline.cli research summarize`)
 
-### 第二阶段（需要门禁）
-- [ ] 风险门禁：不满足约束时禁止进入模拟盘
-- [ ] 批准流：AI 提议后必须人工批准才能执行
-- [ ] 运行日志：记录 AI 提议、参数、结论、最终动作
+### 第二阶段（需要门禁）—— 2026-W15 落了骨架
+- [x] 风险门禁：不满足约束时禁止进入模拟盘
+      (`pipeline/risk_gate.py` + DEFAULT_RULES 对齐 CLAUDE.md 评审门槛)
+- [x] 批准流：AI 提议后必须人工批准才能执行
+      (`research run --approved`；默认只 propose 不执行)
+- [x] 运行日志：记录 AI 提议、参数、结论、最终动作
+      (`pipeline/experiment_store.py` + `RunRecord.experiment_id` 反向索引 +
+       `quant_dojo history --ai-only` 标签过滤)
 
-**交付物：** AI 成为量化研究操作员，而不是聊天玩具
+**交付物：** AI 成为量化研究操作员，而不是聊天玩具 ✅
 
 ---
 
