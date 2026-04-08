@@ -166,3 +166,70 @@ class TestRunHistory:
         history_cmd.run_history(limit=10)
         out = capsys.readouterr().out
         assert "无记录" in out
+
+
+class TestPurgeFailedRuns:
+    def test_deletes_empty_failed_runs(self, fake_dirs):
+        runs_dir, _ = fake_dirs
+        # 前置: fake_dirs 里有 1 个 failed 且 metrics 为空的 run
+        before = {p.name for p in runs_dir.glob("*.json")}
+        assert "v7_20260406_failed.json" in before
+
+        removed = history_cmd._purge_failed_backtest_runs(dry_run=False)
+        assert len(removed) == 1
+        assert "v7_20260406_failed.json" in removed[0]
+
+        after = {p.name for p in runs_dir.glob("*.json")}
+        assert "v7_20260406_failed.json" not in after
+        # success run 必须保留
+        assert "v7_20260407_success.json" in after
+        assert "v8_20260406_success.json" in after
+
+    def test_dry_run_does_not_delete(self, fake_dirs):
+        runs_dir, _ = fake_dirs
+        removed = history_cmd._purge_failed_backtest_runs(dry_run=True)
+        assert len(removed) == 1
+        # 文件仍在
+        assert (runs_dir / "v7_20260406_failed.json").exists()
+
+    def test_preserves_failed_with_metrics(self, tmp_path, monkeypatch):
+        """failed 但是有 total_return 的 run 不应该被误删（比如风控触发终止但已经跑出结果）"""
+        runs_dir = tmp_path / "runs"
+        runs_dir.mkdir()
+        (runs_dir / "failed_with_metrics.json").write_text(json.dumps({
+            "run_id": "failed_with_metrics",
+            "strategy_id": "v7",
+            "status": "failed",
+            "metrics": {"total_return": 0.1, "sharpe": 0.5},
+            "error": "risk stop",
+        }))
+        monkeypatch.setattr(history_cmd, "LIVE_RUNS_DIR", runs_dir)
+        removed = history_cmd._purge_failed_backtest_runs()
+        assert removed == []
+        assert (runs_dir / "failed_with_metrics.json").exists()
+
+    def test_empty_dir_returns_empty_list(self, tmp_path, monkeypatch):
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        monkeypatch.setattr(history_cmd, "LIVE_RUNS_DIR", empty)
+        assert history_cmd._purge_failed_backtest_runs() == []
+
+    def test_missing_dir_returns_empty_list(self, tmp_path, monkeypatch):
+        missing = tmp_path / "nope"
+        monkeypatch.setattr(history_cmd, "LIVE_RUNS_DIR", missing)
+        assert history_cmd._purge_failed_backtest_runs() == []
+
+    def test_run_history_with_purge_prints_preamble(self, fake_dirs, capsys):
+        history_cmd.run_history(purge_failed=True, limit=10)
+        out = capsys.readouterr().out
+        assert "已删除 1 个空壳 failed run" in out
+        # 删除后 failed run 不应再出现在下方的列表区（只允许出现在预告里）
+        listing = out.split("quant-dojo 运行历史", 1)[1]
+        assert "v7_20260406_failed" not in listing
+
+    def test_run_history_purge_dry_run_keeps_file(self, fake_dirs, capsys):
+        runs_dir, _ = fake_dirs
+        history_cmd.run_history(purge_failed=True, dry_run=True, limit=10)
+        out = capsys.readouterr().out
+        assert "将删除 1 个空壳 failed run" in out
+        assert (runs_dir / "v7_20260406_failed.json").exists()
