@@ -89,6 +89,13 @@ def _register_routers() -> None:
     except (ImportError, Exception):
         pass
 
+    # 操作触发路由（rebalance / weekly report）
+    try:
+        from dashboard.routers import trigger
+        app.include_router(trigger.router, prefix="/api/trigger")
+    except (ImportError, Exception):
+        pass
+
 
 _register_routers()
 
