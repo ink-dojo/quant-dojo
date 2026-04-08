@@ -166,7 +166,7 @@ def _show_risk_status():
             print()
             return
 
-        alerts = check_risk_alerts()
+        alerts = check_risk_alerts(trader)
         if not alerts:
             print("  [OK] 无告警")
         else:
