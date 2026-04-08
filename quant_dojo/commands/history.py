@@ -99,23 +99,69 @@ def _sort_key(row: dict) -> str:
     return row.get("created_at") or row.get("run_id", "")
 
 
+def _purge_failed_backtest_runs(dry_run: bool = False) -> list[str]:
+    """
+    删除 live/runs/ 下状态为 failed 且无有用 metrics 的回测 run JSON。
+
+    这些多来自"忘了传 --start/--end"之类的调试失败，保留它们只会污染
+    `quant_dojo status` 的回测记录列表。
+
+    返回被删除（或 dry_run 模式下将会被删除）的路径列表。
+    """
+    if not LIVE_RUNS_DIR.exists():
+        return []
+    deleted: list[str] = []
+    for path in LIVE_RUNS_DIR.glob("*.json"):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if data.get("status") != "failed":
+            continue
+        metrics = data.get("metrics") or {}
+        # 只删真正空壳的 failed run，保留包含有用 metrics 的失败记录
+        if metrics.get("total_return"):
+            continue
+        deleted.append(str(path))
+        if not dry_run:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+    return deleted
+
+
 def run_history(
     kind: Optional[str] = None,
     strategy: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 20,
     as_json: bool = False,
+    purge_failed: bool = False,
+    dry_run: bool = False,
 ):
     """
     列出运行历史。
 
     参数:
-        kind     : "backtest" / "daily" / None (所有)
-        strategy : 筛选策略前缀
-        status   : 筛选状态 ("success" / "failed" / ...)
-        limit    : 最多显示条数
-        as_json  : JSON 输出
+        kind         : "backtest" / "daily" / None (所有)
+        strategy     : 筛选策略前缀
+        status       : 筛选状态 ("success" / "failed" / ...)
+        limit        : 最多显示条数
+        as_json      : JSON 输出
+        purge_failed : 先删除 live/runs/ 下空壳 failed 记录再列表
+        dry_run      : purge 模式下只打印不删除
     """
+    if purge_failed:
+        removed = _purge_failed_backtest_runs(dry_run=dry_run)
+        label = "(dry-run) 将删除" if dry_run else "已删除"
+        print(f"  {label} {len(removed)} 个空壳 failed run")
+        for p in removed:
+            print(f"    - {Path(p).name}")
+        if removed:
+            print()
+
     rows: list[dict] = []
     if kind in (None, "backtest"):
         rows.extend(_load_backtest_runs())
