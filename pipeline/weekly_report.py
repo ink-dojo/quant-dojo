@@ -4,11 +4,20 @@
 从 live/portfolio/ 目录读取交易、持仓、净值数据，
 调用风险监控和因子健康度模块，生成 Markdown 格式的周报，
 保存到 journal/weekly/{YYYY-Www}.md。
+
+为了让周报真正有审计价值，每份报告会附上：
+  - 活跃策略名 + git 提交哈希 + Python 版本（重现条件）
+  - 各源文件的 sha256 摘要（数据指纹）
+  - 因子健康度的样本量和 t 统计量（而不只是状态）
 """
 
 import datetime
+import hashlib
 import json
 import os
+import platform
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -179,6 +188,64 @@ def _try_factor_health() -> Optional[dict]:
 
 
 # ---------------------------------------------------------------------------
+# 审计元信息
+# ---------------------------------------------------------------------------
+
+def _get_git_commit() -> str:
+    """
+    获取当前 git HEAD 的短哈希。
+
+    返回：
+        7 位短哈希；不在 git 仓库或 git 不可用时返回 "unknown"。
+    """
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=Path(__file__).parent.parent,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        )
+        return out.decode().strip()
+    except Exception:
+        return "unknown"
+
+
+def _get_active_strategy_name() -> str:
+    """获取当前活跃策略名，失败返回 'unknown'"""
+    try:
+        from pipeline.active_strategy import get_active_strategy
+        s = get_active_strategy()
+        if isinstance(s, dict):
+            return s.get("strategy", "unknown")
+        return str(s)
+    except Exception:
+        return "unknown"
+
+
+def _file_fingerprint(path: Path) -> dict:
+    """
+    返回单个数据文件的指纹（sha256 + size + mtime）。
+
+    用于让周报可被独立审计：知道哪个数据快照产生了这份报告。
+    """
+    if not path.exists():
+        return {"path": str(path), "exists": False}
+    try:
+        data = path.read_bytes()
+        return {
+            "path": str(path.name),
+            "exists": True,
+            "size_bytes": len(data),
+            "sha256_short": hashlib.sha256(data).hexdigest()[:12],
+            "mtime": datetime.datetime.fromtimestamp(
+                path.stat().st_mtime
+            ).strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    except Exception:
+        return {"path": str(path.name), "exists": True, "sha256_short": "error"}
+
+
+# ---------------------------------------------------------------------------
 # 各报告段落的渲染函数
 # ---------------------------------------------------------------------------
 
@@ -286,7 +353,13 @@ def _render_positions_section(positions: dict) -> str:
 
 def _render_nav_section(nav_rows: list, all_nav: list, week_start: str) -> str:
     """
-    渲染「本周 NAV 表现」段落，计算周收益率。
+    渲染「本周 NAV 表现」段落。
+
+    输出：
+      - 每日 NAV 表（含日变化）
+      - 周内首末收益、相对上周末收益
+      - 周内最大回撤、最佳/最差单日
+      - 周内日收益波动率（粗估）
 
     参数：
         nav_rows: 当周净值数据
@@ -310,10 +383,20 @@ def _render_nav_section(nav_rows: list, all_nav: list, week_start: str) -> str:
         else:
             break
 
-    lines.append("| 日期 | 净值 |")
-    lines.append("|------|-----:|")
+    # 构造每日 NAV 表，附带日变化
+    lines.append("| 日期 | 净值 | 日变化 |")
+    lines.append("|------|-----:|-------:|")
+    daily_returns = []
+    base_for_daily = prev_nav  # 第一天的"前一天"用上周末基准；没有则跳过
     for row in nav_rows:
-        lines.append(f"| {row['date']} | {row['nav']:,.2f} |")
+        if base_for_daily is not None and base_for_daily > 0:
+            d_ret = (row["nav"] / base_for_daily - 1) * 100
+            daily_returns.append(d_ret)
+            d_str = f"{d_ret:+.2f}%"
+        else:
+            d_str = "-"
+        lines.append(f"| {row['date']} | {row['nav']:,.2f} | {d_str} |")
+        base_for_daily = row["nav"]
     lines.append("")
 
     end_nav = nav_rows[-1]["nav"]
@@ -322,15 +405,42 @@ def _render_nav_section(nav_rows: list, all_nav: list, week_start: str) -> str:
     # 周内收益
     if len(nav_rows) >= 2:
         intra_ret = (end_nav / start_nav - 1) * 100
-        lines.append(f"**周内收益（首日到末日）：** {intra_ret:+.4f}%\n")
+        lines.append(f"- **周内收益（首日到末日）**: {intra_ret:+.4f}%")
 
     # 相对上周末
     if prev_nav is not None and prev_nav > 0:
         weekly_ret = (end_nav / prev_nav - 1) * 100
-        lines.append(f"**周收益（vs 上周末）：** {weekly_ret:+.4f}%\n")
+        lines.append(f"- **周收益（vs 上周末）**: {weekly_ret:+.4f}%")
     else:
-        lines.append("**周收益：** 无上周基准，无法计算\n")
+        lines.append("- **周收益（vs 上周末）**: 无上周基准，无法计算")
 
+    # 最大回撤（在本周 + 上周末基准的范围内）
+    nav_seq = ([prev_nav] if prev_nav is not None else []) + [r["nav"] for r in nav_rows]
+    if len(nav_seq) >= 2:
+        peak = nav_seq[0]
+        max_dd = 0.0
+        for v in nav_seq[1:]:
+            if v > peak:
+                peak = v
+            dd = (v / peak - 1) if peak > 0 else 0
+            if dd < max_dd:
+                max_dd = dd
+        lines.append(f"- **周内最大回撤**: {max_dd * 100:+.4f}%")
+
+    # 最佳 / 最差单日
+    if daily_returns:
+        best = max(daily_returns)
+        worst = min(daily_returns)
+        lines.append(f"- **最佳单日**: {best:+.2f}% | **最差单日**: {worst:+.2f}%")
+
+        # 粗估日收益波动率（n>=2 才有意义）
+        if len(daily_returns) >= 2:
+            mean = sum(daily_returns) / len(daily_returns)
+            var = sum((r - mean) ** 2 for r in daily_returns) / (len(daily_returns) - 1)
+            std = var ** 0.5
+            lines.append(f"- **日收益波动**: σ = {std:.2f}%（n={len(daily_returns)}）")
+
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -375,6 +485,12 @@ def _render_factor_health_section(health: Optional[dict]) -> str:
     """
     渲染「因子健康度摘要」段落。
 
+    输出包含：
+      - IC 均值（rolling_ic）
+      - 样本天数 n_obs（用于判断"是否样本太小"）
+      - t 统计量（统计显著性）
+      - 状态（healthy/degraded/dead/insufficient_data/no_data）
+
     参数：
         health: factor_health_report 返回的字典，或 None
 
@@ -391,25 +507,92 @@ def _render_factor_health_section(health: Optional[dict]) -> str:
         lines.append("无因子快照数据。\n")
         return "\n".join(lines)
 
-    lines.append("| 因子 | IC 均值 | 状态 |")
-    lines.append("|------|--------:|------|")
+    lines.append("| 因子 | IC 均值 | n | t 统计 | 状态 |")
+    lines.append("|------|--------:|--:|-------:|------|")
     status_map = {
         "healthy": "健康",
         "degraded": "衰减",
         "dead": "失效",
+        "insufficient_data": "样本不足",
         "no_data": "无数据",
     }
     for factor, info in health.items():
         if isinstance(info, dict):
             # factor_monitor 返回 "rolling_ic"，兼容旧版 "ic_mean"
             ic_mean = info.get("rolling_ic", info.get("ic_mean"))
+            n_obs = info.get("n_obs", 0)
+            t_stat = info.get("t_stat")
             status = info.get("status", "no_data")
-            ic_str = f"{ic_mean:.4f}" if ic_mean is not None and not (isinstance(ic_mean, float) and ic_mean != ic_mean) else "-"
+            ic_str = (
+                f"{ic_mean:+.4f}"
+                if ic_mean is not None
+                and not (isinstance(ic_mean, float) and ic_mean != ic_mean)
+                else "-"
+            )
+            t_str = (
+                f"{t_stat:+.2f}"
+                if t_stat is not None
+                and not (isinstance(t_stat, float) and t_stat != t_stat)
+                else "-"
+            )
             status_str = status_map.get(status, status)
         else:
             ic_str = "-"
+            n_obs = "-"
+            t_str = "-"
             status_str = str(info)
-        lines.append(f"| {factor} | {ic_str} | {status_str} |")
+        lines.append(f"| {factor} | {ic_str} | {n_obs} | {t_str} | {status_str} |")
+    lines.append("")
+    lines.append(
+        "> 状态判定：|IC|>0.02 → healthy；|IC|<0.02 且 |t|≥1 → degraded；"
+        "其余 → dead；样本天数 < `MIN_OBS_FOR_VERDICT` 时返回 insufficient_data，"
+        "不再下结论。\n"
+    )
+    return "\n".join(lines)
+
+
+def _render_audit_footer(
+    trades_path: Path,
+    positions_path: Path,
+    nav_path: Path,
+) -> str:
+    """
+    渲染「重现条件」段落 — 让周报可独立审计。
+
+    输出：
+      - 当前 git 提交哈希
+      - Python 版本与平台
+      - 各源文件的 sha256 短哈希、字节数、mtime
+
+    后续如果有人想问"这份报告是基于哪份数据生成的"，看这一段就够了。
+    """
+    lines = ["## 重现条件\n"]
+    commit = _get_git_commit()
+    strategy = _get_active_strategy_name()
+    py_version = sys.version.split()[0]
+    pf = f"{platform.system()} {platform.release()}"
+
+    lines.append(f"- **活跃策略**: `{strategy}`")
+    lines.append(f"- **代码版本**: `{commit}` (git short hash)")
+    lines.append(f"- **运行环境**: Python {py_version} on {pf}")
+    lines.append("")
+    lines.append("### 数据指纹")
+    lines.append("")
+    lines.append("| 文件 | 大小 | sha256 (前 12 位) | 最后修改 |")
+    lines.append("|------|-----:|:------------------|:---------|")
+    for label, p in (
+        ("trades.json", trades_path),
+        ("positions.json", positions_path),
+        ("nav.csv", nav_path),
+    ):
+        fp = _file_fingerprint(p)
+        if fp.get("exists"):
+            size = fp.get("size_bytes", "-")
+            sha = fp.get("sha256_short", "-")
+            mt = fp.get("mtime", "-")
+            lines.append(f"| {label} | {size} B | `{sha}` | {mt} |")
+        else:
+            lines.append(f"| {label} | _missing_ | - | - |")
     lines.append("")
     return "\n".join(lines)
 
@@ -568,9 +751,13 @@ def generate_weekly_report(week: Optional[str] = None) -> str:
     # 标题与元信息
     sections.append(f"# 周报：{week}（{week_start} ~ {week_end}）\n")
     sections.append(f"> 生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    sections.append(
+        f"> 活跃策略：`{_get_active_strategy_name()}` | "
+        f"代码版本：`{_get_git_commit()}`\n"
+    )
     sections.append(f"> **数据覆盖度：{coverage_label}**\n")
 
-    # 六个结构化段落
+    # 七个结构化段落 + 重现条件
     sections.append(_render_trades_section(trades))
     sections.append(_render_positions_section(positions))
     sections.append(_render_nav_section(nav_rows, all_nav, week_start))
@@ -578,6 +765,7 @@ def generate_weekly_report(week: Optional[str] = None) -> str:
     sections.append(_render_factor_health_section(factor_health))
     sections.append(_render_factor_research_section())
     sections.append(_render_todo_section())
+    sections.append(_render_audit_footer(trades_path, positions_path, nav_path))
 
     report = "\n".join(sections)
 
