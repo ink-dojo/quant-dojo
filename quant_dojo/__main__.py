@@ -46,6 +46,7 @@ def main():
 日常使用:
   python -m quant_dojo status                     # 系统状态
   python -m quant_dojo compare v7 v8              # 策略对比
+  python -m quant_dojo diff                       # 实盘 vs 回测差异
   python -m quant_dojo dashboard                  # 可视化仪表盘
   python -m quant_dojo doctor                     # 诊断问题
         """,
@@ -133,6 +134,20 @@ def main():
     p_gen.add_argument("--n-stocks", type=int, default=30, help="选股数量（默认 30）")
     p_gen.add_argument("--activate", action="store_true", help="自动激活生成的策略")
 
+    # ── diff ──
+    p_diff = sub.add_parser("diff", help="实盘 vs 回测差异分析（滑点、延迟）")
+    p_diff.add_argument("run", nargs="?", type=str,
+                        help="回测 run_id 或 JSON 路径（默认取 live/runs 最新）")
+    p_diff.add_argument("--strategy", type=str, default=None,
+                        help="筛选 run 的策略前缀（如 v7）")
+    p_diff.add_argument("--live-nav", type=str, default=None,
+                        help="live nav.csv 路径（默认 live/portfolio/nav.csv）")
+    p_diff.add_argument("--start", type=str, help="窗口起始日 YYYY-MM-DD")
+    p_diff.add_argument("--end", type=str, help="窗口结束日 YYYY-MM-DD")
+    p_diff.add_argument("--save", type=str, help="保存 markdown 报告路径")
+    p_diff.add_argument("--json", dest="as_json", action="store_true",
+                        help="输出 JSON 摘要")
+
     # ── doctor ──
     sub.add_parser("doctor", help="诊断系统问题")
 
@@ -157,6 +172,7 @@ def main():
         "signals": cmd_signals,
         "logs": cmd_logs,
         "generate": cmd_generate,
+        "diff": cmd_diff,
         "doctor": cmd_doctor,
     }
     dispatch[args.command](args)
@@ -267,6 +283,20 @@ def cmd_generate(args):
         end=args.end,
         n_stocks=args.n_stocks,
         activate=args.activate,
+    )
+
+
+def cmd_diff(args):
+    """实盘 vs 回测差异分析"""
+    from quant_dojo.commands.diff import run_diff
+    run_diff(
+        run=args.run,
+        live_nav=args.live_nav,
+        strategy=args.strategy,
+        start=args.start,
+        end=args.end,
+        save=args.save,
+        as_json=args.as_json,
     )
 
 
