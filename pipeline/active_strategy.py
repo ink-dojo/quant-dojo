@@ -23,7 +23,9 @@ logger = logging.getLogger(__name__)
 STATE_FILE = Path(__file__).parent.parent / "live" / "strategy_state.json"
 
 # 合法的策略版本
-VALID_STRATEGIES = {"ad_hoc", "v7", "v8"}
+# auto_gen: 由 quant_dojo generate 自动生成的策略，定义存于
+# strategies/generated/auto_gen_latest.json
+VALID_STRATEGIES = {"ad_hoc", "v7", "v8", "auto_gen"}
 
 # 默认策略
 DEFAULT_STRATEGY = "v7"

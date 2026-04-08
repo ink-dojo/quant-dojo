@@ -104,7 +104,7 @@ def main():
 
     # ── activate ──
     p_act = sub.add_parser("activate", help="切换 live 运行策略")
-    p_act.add_argument("strategy", nargs="?", type=str, help="策略名 (v7/v8/ad_hoc)")
+    p_act.add_argument("strategy", nargs="?", type=str, help="策略名 (v7/v8/ad_hoc/auto_gen)")
     p_act.add_argument("--reason", type=str, default="", help="切换原因")
     p_act.add_argument("--show", action="store_true", help="查看当前策略")
 
