@@ -5,678 +5,1053 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>quant-dojo 驾驶舱</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     html, body { background: #0b0f17; color: #e5e7eb; }
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    .tab-btn { border-bottom: 2px solid transparent; transition: color .15s; }
     .tab-btn.active { background: #1f2937; color: #fff; border-color: #3b82f6; }
-    .tab-btn { border-bottom: 2px solid transparent; }
     .card { background: #111827; border: 1px solid #1f2937; border-radius: 8px; }
     .card-h { font-weight: 600; color: #f3f4f6; }
     .muted { color: #9ca3af; }
     .chip { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; }
-    .chip-ok     { background: #064e3b; color: #6ee7b7; }
-    .chip-warn   { background: #78350f; color: #fcd34d; }
-    .chip-err    { background: #7f1d1d; color: #fca5a5; }
-    .chip-idle   { background: #1f2937; color: #9ca3af; }
-    .chip-att    { background: #1e3a8a; color: #93c5fd; }
-    .chip-miss   { background: #374151; color: #d1d5db; }
-    .btn {
-      display: inline-block; padding: 6px 14px;
-      background: #2563eb; color: white; border-radius: 6px;
-      font-size: 13px; cursor: pointer; border: none;
-      transition: background 0.15s;
-    }
+    .chip-ok    { background: #064e3b; color: #6ee7b7; }
+    .chip-warn  { background: #78350f; color: #fcd34d; }
+    .chip-err   { background: #7f1d1d; color: #fca5a5; }
+    .chip-idle  { background: #1f2937; color: #9ca3af; }
+    .chip-att   { background: #1e3a8a; color: #93c5fd; }
+    .chip-miss  { background: #374151; color: #d1d5db; }
+    .btn { display: inline-block; padding: 6px 14px; background: #2563eb; color: white;
+           border-radius: 6px; font-size: 13px; cursor: pointer; border: none; transition: background .15s; }
     .btn:hover { background: #1d4ed8; }
+    .btn:disabled { opacity: .4; cursor: default; }
     .btn-ghost { background: #1f2937; }
     .btn-ghost:hover { background: #374151; }
-    .markdown h1 { font-size: 1.6rem; font-weight: 700; margin: 1rem 0 0.6rem; color: #f9fafb; }
-    .markdown h2 { font-size: 1.25rem; font-weight: 600; margin: 1.2rem 0 0.5rem; color: #f3f4f6; border-bottom: 1px solid #374151; padding-bottom: 4px; }
-    .markdown h3 { font-size: 1.05rem; font-weight: 600; margin: 1rem 0 0.4rem; color: #e5e7eb; }
-    .markdown p, .markdown li { line-height: 1.65; color: #d1d5db; margin: 0.4rem 0; }
-    .markdown code { background: #1f2937; padding: 1px 6px; border-radius: 3px; font-size: 0.88em; color: #fbbf24; }
-    .markdown pre { background: #0f172a; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 0.6rem 0; }
-    .markdown pre code { background: transparent; padding: 0; color: #e5e7eb; }
-    .markdown ul { list-style: disc; padding-left: 1.4rem; }
-    .markdown ol { list-style: decimal; padding-left: 1.4rem; }
-    .markdown table { border-collapse: collapse; margin: 0.6rem 0; }
-    .markdown th, .markdown td { border: 1px solid #374151; padding: 6px 10px; }
-    .markdown th { background: #1f2937; }
-    .markdown blockquote { border-left: 3px solid #3b82f6; padding-left: 10px; color: #9ca3af; margin: 0.6rem 0; }
-    .markdown a { color: #60a5fa; text-decoration: underline; }
-    .explain-block {
-      background: #0f172a; border-left: 3px solid #3b82f6;
-      padding: 10px 14px; margin-bottom: 16px; border-radius: 4px;
-      color: #cbd5e1; font-size: 13px; line-height: 1.6;
-    }
-    .loading { color: #6b7280; font-style: italic; }
+    .btn-green { background: #065f46; }
+    .btn-green:hover { background: #047857; }
+    .btn-purple { background: #5b21b6; }
+    .btn-purple:hover { background: #6d28d9; }
+    .stat-card { background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; }
+    .markdown h1 { font-size:1.5rem; font-weight:700; margin:1rem 0 .5rem; color:#f9fafb; }
+    .markdown h2 { font-size:1.2rem; font-weight:600; margin:1rem 0 .4rem; color:#f3f4f6;
+                    border-bottom:1px solid #374151; padding-bottom:3px; }
+    .markdown h3 { font-size:1rem; font-weight:600; margin:.8rem 0 .3rem; color:#e5e7eb; }
+    .markdown p, .markdown li { line-height:1.65; color:#d1d5db; margin:.3rem 0; }
+    .markdown code { background:#1f2937; padding:1px 5px; border-radius:3px; font-size:.88em; color:#fbbf24; }
+    .markdown pre { background:#0f172a; padding:10px; border-radius:6px; overflow-x:auto; font-size:12px; margin:.5rem 0; }
+    .markdown pre code { background:transparent; padding:0; color:#e5e7eb; }
+    .markdown ul { list-style:disc; padding-left:1.4rem; }
+    .markdown ol { list-style:decimal; padding-left:1.4rem; }
+    .markdown table { border-collapse:collapse; margin:.5rem 0; font-size:13px; }
+    .markdown th, .markdown td { border:1px solid #374151; padding:4px 8px; }
+    .markdown th { background:#1f2937; }
+    .markdown blockquote { border-left:3px solid #3b82f6; padding-left:8px; color:#9ca3af; margin:.5rem 0; }
+    .markdown a { color:#60a5fa; text-decoration:underline; }
+    .explain-block { background:#0f172a; border-left:3px solid #3b82f6; padding:10px 14px;
+                     margin-bottom:16px; border-radius:4px; color:#cbd5e1; font-size:13px; line-height:1.6; }
+    .pulse-dot::after { content:''; display:inline-block; width:5px; height:5px; background:#10b981;
+                        border-radius:50%; margin-left:5px; animation:pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+    .stage-bull { border-left:3px solid #10b981; }
+    .stage-bear { border-left:3px solid #ef4444; }
+    .stage-mod  { border-left:3px solid #f59e0b; }
+    .stage-result { border-left:3px solid #6366f1; }
+    .loading { color:#6b7280; font-style:italic; }
   </style>
 </head>
 <body class="min-h-screen">
 
-<!-- ═══════════════════════════════════════════════════════════
-     顶部栏
-     ═══════════════════════════════════════════════════════════ -->
-<header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur sticky top-0 z-20">
-  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-3">
+<!-- ════════ 顶部导航 ════════ -->
+<header class="border-b border-gray-800 bg-gray-900/60 backdrop-blur sticky top-0 z-20">
+  <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-2 flex-wrap">
+    <div class="flex items-center gap-2">
       <span class="text-xl">🎯</span>
       <div>
-        <h1 class="text-lg font-semibold">quant-dojo 驾驶舱</h1>
-        <p class="text-xs muted">A 股量化研究 · 零经验也能上手</p>
+        <h1 class="text-base font-semibold leading-tight">quant-dojo 驾驶舱</h1>
+        <p class="text-xs muted hidden sm:block">A 股量化研究</p>
       </div>
     </div>
-    <nav class="flex gap-1">
-      <button data-tab="home"      class="tab-btn active px-4 py-2 rounded-t text-sm">🏠 总览</button>
-      <button data-tab="factors"   class="tab-btn px-4 py-2 rounded-t text-sm">📊 因子库</button>
-      <button data-tab="strategy"  class="tab-btn px-4 py-2 rounded-t text-sm">🎯 策略</button>
-      <button data-tab="research"  class="tab-btn px-4 py-2 rounded-t text-sm">🧪 研究</button>
-      <button data-tab="docs"      class="tab-btn px-4 py-2 rounded-t text-sm">📖 文档</button>
-      <button data-tab="notebooks" class="tab-btn px-4 py-2 rounded-t text-sm">📓 课程</button>
+    <nav class="flex flex-wrap gap-1 text-sm">
+      <button data-tab="home"      class="tab-btn active px-3 py-2 rounded-t">🏠 总览</button>
+      <button data-tab="portfolio" class="tab-btn px-3 py-2 rounded-t">📈 组合</button>
+      <button data-tab="strategy"  class="tab-btn px-3 py-2 rounded-t">🎯 策略</button>
+      <button data-tab="factors"   class="tab-btn px-3 py-2 rounded-t">📊 因子库</button>
+      <button data-tab="research"  class="tab-btn px-3 py-2 rounded-t">🧪 研究</button>
+      <button data-tab="docs"      class="tab-btn px-3 py-2 rounded-t">📖 文档</button>
+      <button data-tab="notebooks" class="tab-btn px-3 py-2 rounded-t">📓 课程</button>
     </nav>
+    <div class="text-xs muted hidden lg:block">
+      <span id="last-refresh"></span>
+    </div>
   </div>
 </header>
 
-<main class="max-w-7xl mx-auto px-6 py-6">
+<main class="max-w-7xl mx-auto px-4 py-5">
 
-<!-- ═══════════════════════════════════════════════════════════
+<!-- ════════════════════════════════════════════
      Tab 1 · 总览
-     ═══════════════════════════════════════════════════════════ -->
-<section id="tab-home" class="tab-pane">
+     ════════════════════════════════════════════ -->
+<section id="tab-home" class="tab-pane space-y-4">
 
   <div class="explain-block">
-    <b>这是什么？</b> 这是 quant-dojo 的工作台首页。你在这里能一眼看到：
-    ① 数据新不新鲜 ② 最近的选股信号 ③ 模拟盘的净值 ④ 风险告警 ⑤ 周报 ⑥ AI 研究助理提议。
-    系统会帮你判断「现在最该做什么」，并在下面的卡片里给出按钮。你完全不需要懂代码。
+    <b>这是什么？</b> 整个项目的状态中心：① 系统下一步建议 ② 持仓/信号/因子/风险 快照
+    ③ 选股 Pipeline 控制。一个页面掌握系统当前状态。
   </div>
 
-  <!-- 下一步建议 Hero 卡 -->
-  <div id="next-action" class="card p-5 mb-5 border-l-4 border-blue-500">
+  <!-- 下一步建议 -->
+  <div id="next-action" class="card p-4 border-l-4 border-blue-500">
     <div class="flex items-center gap-3">
       <span class="text-2xl">👉</span>
       <div class="flex-1">
         <div class="text-xs uppercase tracking-wider muted">下一步建议</div>
-        <div id="next-title" class="text-lg card-h mt-1">加载中…</div>
-        <div id="next-explain" class="text-sm muted mt-1"></div>
+        <div id="next-title" class="text-base card-h mt-1">加载中…</div>
+        <div id="next-explain" class="text-xs muted mt-1"></div>
       </div>
-      <button id="next-cta" class="btn hidden">执行</button>
+      <button id="next-cta" class="btn hidden text-xs">执行</button>
     </div>
   </div>
 
-  <!-- 6 张状态卡片 -->
-  <div id="flow-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    <div class="card p-5 loading">加载工作流状态…</div>
+  <!-- 4 张快照卡片 -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="stat-card">
+      <div class="text-xs muted mb-2">📦 模拟盘净值</div>
+      <div id="card-portfolio"><span class="loading">…</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="text-xs muted mb-2">🔍 今日选股</div>
+      <div id="card-signals"><span class="loading">…</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="text-xs muted mb-2">📊 因子健康</div>
+      <div id="card-factors"><span class="loading">…</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="text-xs muted mb-2">⚠ 风险预警</div>
+      <div id="card-risk"><span class="loading">…</span></div>
+    </div>
   </div>
 
-  <!-- 活跃策略快讯 -->
-  <div class="card p-5 mt-6">
-    <div class="flex items-center justify-between mb-3">
-      <div>
-        <div class="text-xs uppercase tracking-wider muted">当前生产策略</div>
-        <div id="home-strategy-name" class="text-lg card-h mt-1">加载中…</div>
+  <!-- 工作流状态卡片 -->
+  <div id="flow-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div class="card p-4 loading">加载工作流状态…</div>
+  </div>
+
+  <!-- Pipeline 控制 + 实时行情 并排 -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+    <!-- Pipeline 触发 -->
+    <div class="card p-4 space-y-3">
+      <h3 class="card-h">▶ Pipeline 控制</h3>
+      <div class="flex gap-2">
+        <input id="pipeline-date" type="date"
+          class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+        <button onclick="runPipeline()" id="btn-pipeline" class="btn btn-green text-xs whitespace-nowrap">运行选股</button>
       </div>
-      <button data-tab="strategy" class="btn btn-ghost tab-btn-nav">查看详情 →</button>
+      <div id="pipeline-progress" class="space-y-1 max-h-48 overflow-y-auto"></div>
+      <div id="pipeline-result" class="hidden">
+        <div class="text-xs muted mb-1">选股结果（前10）</div>
+        <div id="pipeline-picks" class="flex flex-wrap gap-1"></div>
+      </div>
     </div>
-    <p id="home-strategy-desc" class="text-sm muted"></p>
-    <div id="home-strategy-factors" class="mt-3 flex flex-wrap gap-2"></div>
+
+    <!-- 实时行情 -->
+    <div class="card p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="card-h">📡 实时行情</h3>
+        <div class="flex gap-1 items-center">
+          <span id="quote-time" class="text-xs muted"></span>
+          <button onclick="loadQuotes()" class="btn btn-ghost text-xs px-2 py-1">刷新</button>
+          <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" class="btn btn-ghost text-xs px-2 py-1">自动</button>
+        </div>
+      </div>
+      <div id="quotes-grid" class="grid grid-cols-2 gap-2">
+        <div class="muted text-xs">点击刷新查看行情</div>
+      </div>
+    </div>
+
   </div>
 
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════
-     Tab 2 · 因子库
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════
+     Tab 2 · 组合
+     ════════════════════════════════════════════ -->
+<section id="tab-portfolio" class="tab-pane hidden space-y-4">
+
+  <div class="explain-block">
+    <b>模拟盘净值走势。</b> 策略按选股信号虚拟调仓、每日计算净值，
+    和沪深300对比看超额收益。不碰真钱，纯粹验证策略在模拟环境的表现。
+  </div>
+
+  <!-- 净值图 -->
+  <div class="card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="card-h">净值走势</h2>
+      <div class="flex gap-1">
+        <button onclick="switchRange('1M')" data-range="1M" class="range-btn btn btn-ghost text-xs px-3 py-1">1M</button>
+        <button onclick="switchRange('3M')" data-range="3M" class="range-btn btn btn-ghost text-xs px-3 py-1">3M</button>
+        <button onclick="switchRange('6M')" data-range="6M" class="range-btn btn btn-ghost text-xs px-3 py-1">6M</button>
+        <button onclick="switchRange('ALL')" data-range="ALL" class="range-btn btn btn-ghost text-xs px-3 py-1 border border-blue-600">全部</button>
+      </div>
+    </div>
+    <div id="nav-empty" class="hidden text-center muted py-8">暂无历史数据 — 先在总览页运行 Pipeline 生成信号</div>
+    <div style="height:260px;position:relative;"><canvas id="nav-chart"></canvas></div>
+  </div>
+
+  <!-- 持仓详情卡片 -->
+  <div class="card p-5">
+    <h2 class="card-h mb-3">当前持仓</h2>
+    <div id="portfolio-detail"><span class="loading">加载中…</span></div>
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════
+     Tab 3 · 策略
+     ════════════════════════════════════════════ -->
+<section id="tab-strategy" class="tab-pane hidden space-y-4">
+
+  <div class="explain-block">
+    <b>当前策略是什么、用了哪些因子。</b> 左边是活跃策略的因子组成；
+    下面是所有已注册的策略 + 历史回测记录（可勾选对比多次回测）。
+  </div>
+
+  <!-- 当前策略 -->
+  <div class="card p-5">
+    <div class="flex items-start justify-between flex-wrap gap-3 mb-3">
+      <div>
+        <div class="text-xs muted">当前激活</div>
+        <h2 id="strat-name" class="text-xl card-h mt-1">加载中…</h2>
+        <p id="strat-tagline" class="text-sm muted mt-1"></p>
+      </div>
+      <span id="strat-id-chip" class="chip chip-ok mt-1"></span>
+    </div>
+    <p id="strat-desc" class="text-sm text-gray-300 leading-relaxed mb-4"></p>
+    <div id="strat-factors" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div class="loading">加载中…</div>
+    </div>
+  </div>
+
+  <!-- 策略注册表 + 最近回测 -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <div class="card p-4 space-y-2">
+      <h3 class="card-h">所有策略</h3>
+      <div id="strategy-list"><div class="loading">加载中…</div></div>
+    </div>
+
+    <div class="card p-4 lg:col-span-2 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="card-h">最近回测</h3>
+        <span id="runs-count" class="text-xs muted"></span>
+      </div>
+      <div id="runs-empty" class="hidden muted text-sm py-4">
+        暂无回测。CLI: <code class="bg-gray-800 px-2 py-0.5 rounded text-xs">python -m pipeline.cli backtest run multi_factor --start 2023-01-01 --end 2024-12-31</code>
+      </div>
+      <div id="compare-bar" class="hidden flex items-center gap-2 bg-gray-800 rounded px-3 py-2 text-sm">
+        <span class="muted">已选 <span id="compare-count">0</span> 条</span>
+        <button onclick="openCompare()" class="btn text-xs px-3 py-1">对比</button>
+        <button onclick="clearCompare()" class="muted text-xs hover:text-gray-300">清除</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table id="runs-table" class="hidden w-full text-sm">
+          <thead><tr class="text-left text-xs muted border-b border-gray-800">
+            <th class="py-2 pr-1 w-8"><input type="checkbox" id="runs-select-all" onchange="toggleSelectAll(this)" /></th>
+            <th class="py-2 pr-3">策略</th>
+            <th class="py-2 pr-3">区间</th>
+            <th class="py-2 pr-3 text-right">年化</th>
+            <th class="py-2 pr-3 text-right">夏普</th>
+            <th class="py-2 pr-3 text-right">回撤</th>
+            <th class="py-2 text-right">状态</th>
+          </tr></thead>
+          <tbody id="runs-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════
+     Tab 4 · 因子库
+     ════════════════════════════════════════════ -->
 <section id="tab-factors" class="tab-pane hidden">
 
   <div class="explain-block">
-    <b>什么是因子？</b> 因子是一个把「股票特征」转成「打分」的规则。比如「动量因子」给近期涨多的股票高分。
-    好策略 = 多个相互独立的因子合成 → 更抗周期。下面列出仓库里所有已研究的因子，点任意一个看 README。
+    <b>什么是因子？</b> 因子是把股票特征转成打分的规则。好策略 = 多个独立因子合成。
+    点左侧任意因子查看完整研究文档。
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-    <div class="lg:col-span-1">
-      <div class="card p-3">
-        <div class="text-xs uppercase tracking-wider muted mb-2 px-2">因子目录</div>
-        <ul id="factor-list" class="space-y-1">
-          <li class="loading px-2">加载中…</li>
-        </ul>
-      </div>
+    <div class="card p-3">
+      <div class="text-xs muted mb-2 px-2">因子目录</div>
+      <ul id="factor-list" class="space-y-1"><li class="loading px-2">加载中…</li></ul>
     </div>
-    <div class="lg:col-span-2">
-      <div class="card p-6 min-h-[400px]">
-        <div id="factor-readme" class="markdown">
-          <p class="muted text-sm">← 从左侧选择一个因子查看研究文档。</p>
-        </div>
+    <div class="card p-5 lg:col-span-2 min-h-96">
+      <div id="factor-readme" class="markdown">
+        <p class="muted text-sm">← 从左侧选择一个因子查看研究文档。</p>
       </div>
     </div>
   </div>
 
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════
-     Tab 3 · 策略
-     ═══════════════════════════════════════════════════════════ -->
-<section id="tab-strategy" class="tab-pane hidden">
+<!-- ════════════════════════════════════════════
+     Tab 5 · 研究
+     ════════════════════════════════════════════ -->
+<section id="tab-research" class="tab-pane hidden space-y-4">
 
   <div class="explain-block">
-    <b>什么是策略？</b> 策略 = 因子组合方式。同样 5 个因子，等权合成和 IC 加权合成是两个不同的策略。
-    下面展示当前生产环境正在用哪一个，以及它由哪些因子组成、每个因子健康度如何。
+    <b>两个研究工具合在一起。</b> 上方：Phase 7 AI 助理自动提议的回测实验（必须人工批准才执行）。
+    下方：AI 股票分析——输入代码，让 claude 做多空辩论。
   </div>
 
-  <div class="card p-6 mb-6">
-    <div class="flex items-start justify-between flex-wrap gap-3">
-      <div>
-        <div class="text-xs uppercase tracking-wider muted">当前激活</div>
-        <h2 id="strat-name" class="text-2xl card-h mt-1">加载中…</h2>
-        <p id="strat-tagline" class="text-sm muted mt-1"></p>
-      </div>
-      <div>
-        <span id="strat-id-chip" class="chip chip-ok"></span>
-      </div>
+  <!-- Phase 7 研究助理 -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div>
+      <h3 class="card-h mb-2">💡 当前提议</h3>
+      <div id="research-questions" class="space-y-2"><div class="card p-3 loading">加载中…</div></div>
     </div>
-    <p id="strat-desc" class="text-sm text-gray-300 mt-4 leading-relaxed"></p>
+    <div>
+      <h3 class="card-h mb-2">📋 历史实验</h3>
+      <div id="research-experiments" class="space-y-2"><div class="card p-3 loading">加载中…</div></div>
+    </div>
   </div>
 
-  <h3 class="text-lg card-h mb-3">📦 因子组成</h3>
-  <div id="strat-factors" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-    <div class="loading">加载中…</div>
-  </div>
-
-  <h3 class="text-lg card-h mb-3">🗂 所有策略</h3>
-  <div id="strat-all" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
-
-  <h3 class="text-lg card-h mb-3">🔁 切换历史</h3>
-  <div id="strat-history" class="card p-4">
-    <p class="muted text-sm">加载中…</p>
+  <!-- AI 股票分析 -->
+  <div class="card p-5 space-y-3">
+    <h3 class="card-h">🤖 AI 个股分析</h3>
+    <div class="flex gap-2 flex-wrap">
+      <input id="ai-symbol" type="text" placeholder="股票代码，如 000001"
+        class="flex-1 min-w-36 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500" />
+      <textarea id="ai-context" rows="1" placeholder="可选：背景数据（PE、PB、ROE 等）"
+        class="flex-1 min-w-48 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500 resize-none"></textarea>
+      <button onclick="runAnalyze()" id="btn-analyze" class="btn text-xs">分析</button>
+      <button onclick="runDebate()" id="btn-debate" class="btn btn-purple text-xs">多空辩论</button>
+    </div>
+    <div id="ai-result" class="space-y-2 max-h-72 overflow-y-auto"></div>
   </div>
 
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════
-     Tab 4 · 研究（Phase 7 AI 助理）
-     ═══════════════════════════════════════════════════════════ -->
-<section id="tab-research" class="tab-pane hidden">
-
-  <div class="explain-block">
-    <b>这个页面是做什么的？</b> Phase 7 的 AI 研究助理会盯着因子健康和风险状态，自动把异常
-    翻译成「要不要跑一次 backtest 验证」的提议。所有提议都<b>必须人工批准</b>才会真执行 ——
-    这里只展示提议和历史实验，不替你做决定。
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div>
-      <h3 class="text-lg card-h mb-3">💡 当前提议</h3>
-      <div id="research-questions" class="space-y-3">
-        <div class="card p-4 loading">加载中…</div>
-      </div>
-    </div>
-    <div>
-      <h3 class="text-lg card-h mb-3">📋 历史实验</h3>
-      <div id="research-experiments" class="space-y-3">
-        <div class="card p-4 loading">加载中…</div>
-      </div>
-    </div>
-  </div>
-
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════
-     Tab 5 · 文档
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════
+     Tab 6 · 文档
+     ════════════════════════════════════════════ -->
 <section id="tab-docs" class="tab-pane hidden">
 
   <div class="explain-block">
-    <b>仓库里所有 markdown 都在这里。</b> 不用再打开 VSCode 或去 GitHub 翻了。
-    默认按更新时间倒序，可以按类型过滤：根目录（ROADMAP/TODO/CLAUDE）· journal（阶段日志）·
-    weekly（周报）· factor（因子研究）· notes（笔记）。
+    <b>仓库所有 markdown 都在这里。</b> 按更新时间倒序，可按类别过滤。
+    建议先读：ROADMAP.md → CLAUDE.md → 最近 weekly。
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-    <div class="lg:col-span-1">
-      <div class="card p-3">
-        <div class="flex gap-1 mb-3 flex-wrap text-xs" id="doc-filter">
-          <button data-cat="all"     class="btn btn-ghost active px-2 py-1">全部</button>
-          <button data-cat="root"    class="btn btn-ghost px-2 py-1">根目录</button>
-          <button data-cat="journal" class="btn btn-ghost px-2 py-1">日志</button>
-          <button data-cat="weekly"  class="btn btn-ghost px-2 py-1">周报</button>
-          <button data-cat="factor"  class="btn btn-ghost px-2 py-1">因子</button>
-          <button data-cat="notes"   class="btn btn-ghost px-2 py-1">笔记</button>
-        </div>
-        <ul id="doc-list" class="space-y-1 max-h-[70vh] overflow-y-auto">
-          <li class="loading px-2">加载中…</li>
-        </ul>
+    <div class="card p-3">
+      <div class="flex gap-1 mb-2 flex-wrap text-xs" id="doc-filter">
+        <button data-cat="all"    class="btn btn-ghost border border-blue-600 px-2 py-1">全部</button>
+        <button data-cat="root"   class="btn btn-ghost px-2 py-1">根目录</button>
+        <button data-cat="journal" class="btn btn-ghost px-2 py-1">日志</button>
+        <button data-cat="weekly"  class="btn btn-ghost px-2 py-1">周报</button>
+        <button data-cat="factor"  class="btn btn-ghost px-2 py-1">因子</button>
+        <button data-cat="notes"   class="btn btn-ghost px-2 py-1">笔记</button>
       </div>
+      <ul id="doc-list" class="space-y-1 max-h-[70vh] overflow-y-auto"><li class="loading px-2">加载中…</li></ul>
     </div>
-    <div class="lg:col-span-2">
-      <div class="card p-6 min-h-[70vh]">
-        <div id="doc-reader" class="markdown">
-          <p class="muted text-sm">← 从左侧选择一份文档查看。</p>
-          <p class="muted text-xs mt-2">建议先读：ROADMAP.md → CLAUDE.md → 最近的 journal/weekly/。</p>
-        </div>
+    <div class="card p-5 lg:col-span-2 min-h-96">
+      <div id="doc-reader" class="markdown">
+        <p class="muted text-sm">← 从左侧选择一份文档。</p>
       </div>
     </div>
   </div>
 
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════
-     Tab 6 · 课程（Notebooks）
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════
+     Tab 7 · 课程
+     ════════════════════════════════════════════ -->
 <section id="tab-notebooks" class="tab-pane hidden">
 
   <div class="explain-block">
-    <b>从零到一的学习路径。</b> research/notebooks/ 里的 13 份 notebook 是入门教程 —— 从拉数据
-    到做回测到跑模拟盘，顺序学完就能完整理解 quant-dojo 是怎么运转的。
-    想跑任意一份：终端里 <code>jupyter lab research/notebooks/</code>。
+    <b>从零到一的 13 份教程。</b> 顺序学完就能理解 quant-dojo 全流程。
+    跑任意 notebook：<code>jupyter lab research/notebooks/</code>
   </div>
 
-  <div id="nb-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    <div class="card p-5 loading">加载中…</div>
+  <div id="nb-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div class="card p-4 loading">加载中…</div>
   </div>
 
 </section>
 
 </main>
 
-<footer class="border-t border-gray-800 text-center py-4 text-xs muted">
-  quant-dojo · 2026 · Phase 7 驾驶舱 · 数据 <span id="footer-ts">加载中</span>
+<footer class="border-t border-gray-800 text-center py-3 text-xs muted">
+  quant-dojo · Phase 7 驾驶舱 · <span id="footer-ts"></span>
 </footer>
 
-<script>
-// ══════════════════════════════════════════════════════════
-// 工具函数
-// ══════════════════════════════════════════════════════════
-const $ = (sel, el=document) => el.querySelector(sel);
-const $$ = (sel, el=document) => [...el.querySelectorAll(sel)];
+<!-- ════════ 弹窗：回测详情 ════════ -->
+<div id="detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+     onclick="if(event.target===this)closeDetail()">
+  <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-5 space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="card-h">运行详情</h3>
+      <button onclick="closeDetail()" class="muted hover:text-gray-200 text-xl">&times;</button>
+    </div>
+    <div id="detail-content" class="space-y-4 text-sm"></div>
+  </div>
+</div>
 
-async function api(path) {
+<!-- ════════ 弹窗：回测对比 ════════ -->
+<div id="compare-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+     onclick="if(event.target===this)closeCompare()">
+  <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-y-auto p-5 space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="card-h">运行对比</h3>
+      <button onclick="closeCompare()" class="muted hover:text-gray-200 text-xl">&times;</button>
+    </div>
+    <div id="compare-content" class="space-y-4 text-sm"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// 工具
+// ══════════════════════════════════════════════
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function safeVal(v, fmt) {
+  if (v == null || (typeof v === 'number' && isNaN(v))) return '—';
+  return fmt ? fmt(v) : v;
+}
+const pct  = v => safeVal(v, x => `${(x * 100).toFixed(2)}%`);
+const fix2 = v => safeVal(v, x => x.toFixed(2));
+
+async function api(path, opts) {
   try {
-    const r = await fetch(path);
+    const r = await fetch(path, opts);
     if (!r.ok) throw new Error(r.status);
     return await r.json();
-  } catch (e) {
-    console.error('API error', path, e);
-    return null;
-  }
+  } catch (e) { console.error('API', path, e); return null; }
 }
 
 function statusChip(status) {
-  const map = {
-    ok:        ['chip-ok',   '✓ 正常'],
-    healthy:   ['chip-ok',   '✓ 健康'],
-    success:   ['chip-ok',   '✓ 成功'],
-    stale:     ['chip-warn', '⏰ 过期'],
-    warning:   ['chip-warn', '⚠ 警告'],
-    attention: ['chip-att',  '⚡ 待处理'],
-    proposed:  ['chip-att',  '⏳ 待批准'],
-    running:   ['chip-att',  '▶ 运行中'],
-    missing:   ['chip-miss', '○ 未生成'],
-    idle:      ['chip-idle', '· 空闲'],
-    failed:    ['chip-err',  '✗ 失败'],
-    dead:      ['chip-err',  '✗ 失效'],
-    degraded:  ['chip-warn', '⚠ 退化'],
-    unknown:   ['chip-idle', '? 未知'],
+  const m = {
+    ok:'chip-ok ✓ 正常',healthy:'chip-ok ✓ 健康',success:'chip-ok ✓ 成功',
+    stale:'chip-warn ⏰ 过期',warning:'chip-warn ⚠ 警告',attention:'chip-att ⚡ 待处理',
+    proposed:'chip-att ⏳ 待批准',running:'chip-att ▶ 运行中',
+    missing:'chip-miss ○ 未生成',idle:'chip-idle · 空闲',
+    failed:'chip-err ✗ 失败',dead:'chip-err ✗ 失效',degraded:'chip-warn ⚠ 退化',unknown:'chip-idle ? 未知',
   };
-  const [cls, label] = map[status] || ['chip-idle', status || '—'];
-  return `<span class="chip ${cls}">${label}</span>`;
+  const v = m[status] || ('chip-idle ' + (status || '—'));
+  const [cls, ...rest] = v.split(' ');
+  return `<span class="chip ${cls}">${rest.join(' ')}</span>`;
 }
 
-function escapeHtml(s) {
-  if (s == null) return '';
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// SSE 工具
+async function fetchSSE(url, body, onEvent, onDone) {
+  let resp;
+  try {
+    resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  } catch(e) { onEvent({stage:'error',content:`网络错误: ${e.message}`}); onDone?.(); return; }
+  if (!resp.ok) { onEvent({stage:'error',content:`服务端错误 HTTP ${resp.status}`}); onDone?.(); return; }
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  while(true) {
+    const {done, value} = await reader.read();
+    if(done) break;
+    buf += dec.decode(value, {stream:true});
+    const chunks = buf.split('\n\n');
+    buf = chunks.pop();
+    for(const chunk of chunks) {
+      const line = chunk.trim();
+      if(!line.startsWith('data: ')) continue;
+      try { onEvent(JSON.parse(line.slice(6))); } catch(_) {}
+    }
+  }
+  onDone?.();
 }
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════
 // Tab 切换
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════
+const loadedTabs = new Set(['home']);
+const tabLoaders = {};
+
 function showTab(name) {
   $$('.tab-pane').forEach(el => el.classList.add('hidden'));
   $('#tab-' + name)?.classList.remove('hidden');
   $$('.tab-btn').forEach(b => b.classList.remove('active'));
   $$('.tab-btn[data-tab="' + name + '"]').forEach(b => b.classList.add('active'));
-  // 首次切换时懒加载该 tab 的数据
   if (!loadedTabs.has(name)) {
     loadedTabs.add(name);
     tabLoaders[name]?.();
   }
 }
 
-const loadedTabs = new Set(['home']);
-
-document.addEventListener('click', (e) => {
+document.addEventListener('click', e => {
   const btn = e.target.closest('[data-tab]');
-  if (btn) {
-    e.preventDefault();
-    showTab(btn.dataset.tab);
-  }
+  if (btn) { e.preventDefault(); showTab(btn.dataset.tab); }
 });
 
-// ══════════════════════════════════════════════════════════
-// 总览 tab
-// ══════════════════════════════════════════════════════════
-async function loadHome() {
-  const flow = await api('/api/flow/status');
-  if (!flow) {
-    $('#flow-cards').innerHTML = '<div class="card p-5 text-red-400">加载失败，请确认 dashboard 正常运行。</div>';
-    return;
-  }
+// ══════════════════════════════════════════════
+// 总览 Tab
+// ══════════════════════════════════════════════
 
-  // 下一步建议
+async function loadHome() {
+  await Promise.allSettled([loadFlow(), loadPortfolioCard(), loadSignalCard(), loadFactorCard(), loadRiskCard()]);
+}
+
+async function loadFlow() {
+  const flow = await api('/api/flow/status');
+  if (!flow) return;
   const na = flow.next_action || {};
   $('#next-title').textContent = na.title || '一切正常';
   $('#next-explain').textContent = na.explain || '';
   const ctaBtn = $('#next-cta');
-  if (na.cta && na.cta.route) {
-    ctaBtn.textContent = na.cta.label;
-    ctaBtn.classList.remove('hidden');
-    ctaBtn.onclick = () => showTab(na.cta.route.replace('#', ''));
-  } else if (na.cta && na.cta.endpoint) {
-    ctaBtn.textContent = na.cta.label;
-    ctaBtn.classList.remove('hidden');
-    ctaBtn.onclick = async () => {
-      ctaBtn.textContent = '执行中…';
-      ctaBtn.disabled = true;
-      const method = na.cta.endpoint.split(' ')[0];
-      const url = na.cta.endpoint.split(' ')[1];
-      try {
-        await fetch(url, { method });
-        setTimeout(() => loadHome(), 1500);
-      } catch (e) {
-        alert('执行失败：' + e);
-      } finally {
-        ctaBtn.disabled = false;
-      }
-    };
-  } else {
-    ctaBtn.classList.add('hidden');
-  }
+  if (na.cta?.route) {
+    ctaBtn.textContent = na.cta.label; ctaBtn.classList.remove('hidden');
+    ctaBtn.onclick = () => showTab(na.cta.route.replace('#',''));
+  } else ctaBtn.classList.add('hidden');
 
-  // 6 张状态卡片
-  const cardsHtml = (flow.cards || []).map(c => `
-    <div class="card p-5">
+  $('#flow-cards').innerHTML = (flow.cards || []).map(c => `
+    <div class="card p-4">
       <div class="flex items-start justify-between mb-2">
-        <div class="card-h">${escapeHtml(c.title)}</div>
-        ${statusChip(c.status)}
+        <div class="card-h text-sm">${escHtml(c.title)}</div>${statusChip(c.status)}
       </div>
-      <div class="text-sm text-gray-200 font-medium mb-2">${escapeHtml(c.headline)}</div>
-      <div class="text-xs muted leading-relaxed">${escapeHtml(c.explain)}</div>
-      ${c.cta ? `<button class="btn btn-ghost mt-3 text-xs" onclick="triggerCta('${c.cta.endpoint}')">${escapeHtml(c.cta.label)}</button>` : ''}
+      <div class="text-sm text-gray-200 font-medium mb-1">${escHtml(c.headline)}</div>
+      <div class="text-xs muted leading-relaxed">${escHtml(c.explain)}</div>
     </div>
   `).join('');
-  $('#flow-cards').innerHTML = cardsHtml;
-
   $('#footer-ts').textContent = flow.generated_at || '';
+}
 
-  // 加载活跃策略快讯
-  const strat = await api('/api/strategies/active');
-  if (strat) {
-    $('#home-strategy-name').textContent = strat.display_name || strat.active;
-    $('#home-strategy-desc').textContent = strat.tagline || '';
-    $('#home-strategy-factors').innerHTML = (strat.factors || []).map(f => `
-      <span class="chip chip-idle">${escapeHtml(f.label)}</span>
-    `).join('');
+async function loadPortfolioCard() {
+  const el = $('#card-portfolio');
+  const d = await api('/api/portfolio/');
+  if (!d) { el.innerHTML = '<div class="muted text-xs">暂无数据</div>'; return; }
+  const retColor = (d.total_return||0) >= 0 ? 'text-emerald-400' : 'text-red-400';
+  el.innerHTML = `<div class="text-xl font-bold">${safeVal(d.nav, x=>x.toFixed(4))}</div>
+    <div class="text-xs ${retColor}">${pct(d.total_return)} 总收益</div>
+    <div class="flex gap-2 mt-1 text-xs muted">
+      <span>夏普 ${fix2(d.sharpe)}</span><span>回撤 ${pct(d.max_drawdown)}</span>
+    </div>`;
+}
+
+async function loadSignalCard() {
+  const el = $('#card-signals');
+  const d = await api('/api/signals/');
+  if (!d) { el.innerHTML = '<div class="muted text-xs">暂无数据</div>'; return; }
+  const picks = (d.picks||[]).slice(0,5);
+  if (!picks.length) { el.innerHTML = '<div class="muted text-xs">暂无信号</div>'; return; }
+  el.innerHTML = picks.map((p,i) => `<div class="text-xs flex justify-between">
+    <span class="text-gray-300">${i+1}. ${p.symbol||p}</span>
+    ${p.score!=null?`<span class="muted">${fix2(p.score)}</span>`:''}
+  </div>`).join('');
+}
+
+async function loadFactorCard() {
+  const el = $('#card-factors');
+  const d = await api('/api/factors/health');
+  if (!d) { el.innerHTML = '<div class="muted text-xs">暂无数据</div>'; return; }
+  const items = Object.entries(d).slice(0,4);
+  if (!items.length) { el.innerHTML = '<div class="muted text-xs">无因子</div>'; return; }
+  el.innerHTML = items.map(([k,v]) => {
+    const ok = v.status === 'healthy';
+    return `<div class="flex items-center gap-1 text-xs">
+      <span class="${ok?'text-emerald-400':'text-yellow-400'}">${ok?'●':'○'}</span>
+      <span class="text-gray-300 truncate">${escHtml(k)}</span>
+    </div>`;
+  }).join('');
+}
+
+async function loadRiskCard() {
+  const el = $('#card-risk');
+  const d = await api('/api/risk/alerts');
+  if (!d) { el.innerHTML = '<div class="muted text-xs">暂无数据</div>'; return; }
+  const alerts = Array.isArray(d) ? d : (d.alerts||[]);
+  if (!alerts.length) {
+    el.innerHTML = '<div class="flex gap-1 items-center"><span class="text-emerald-400">✅</span><span class="text-xs text-gray-400">无预警</span></div>';
+    return;
+  }
+  el.innerHTML = alerts.slice(0,3).map(a => `<div class="flex gap-1 text-xs">
+    <span class="text-yellow-400 mt-0.5">⚠</span>
+    <span class="text-gray-300 leading-tight">${escHtml(a.message||a.msg||JSON.stringify(a))}</span>
+  </div>`).join('');
+}
+
+// Pipeline
+function appendPipelineStep(text, type) {
+  const el = $('#pipeline-progress');
+  const div = document.createElement('div');
+  const color = {error:'text-red-400',done:'text-emerald-400',start:'text-blue-400'}[type]||'text-gray-300';
+  div.className = `flex gap-2 text-xs ${color} ${type==='loading'?'pulse-dot':''}`;
+  div.innerHTML = `<span class="muted">${new Date().toLocaleTimeString()}</span><span>${escHtml(text)}</span>`;
+  el.appendChild(div); el.scrollTop = el.scrollHeight;
+}
+
+async function runPipeline() {
+  const date = $('#pipeline-date').value || new Date().toISOString().split('T')[0];
+  const btn = $('#btn-pipeline');
+  $('#pipeline-progress').innerHTML = '';
+  $('#pipeline-result').classList.add('hidden');
+  $('#pipeline-picks').innerHTML = '';
+  btn.disabled = true;
+  try {
+    await fetchSSE('/api/pipeline/run', {date}, data => {
+      const {stage,content,picks,n_total} = data;
+      if (stage==='done') {
+        appendPipelineStep(content,'done');
+        if (picks?.length) {
+          picks.forEach(s => {
+            const sp = document.createElement('span');
+            sp.className = 'bg-blue-900 text-blue-200 px-2 py-0.5 text-xs rounded';
+            sp.textContent = typeof s==='string'?s:(s.symbol||s);
+            $('#pipeline-picks').appendChild(sp);
+          });
+          if (n_total > picks.length) {
+            const m = document.createElement('span');
+            m.className = 'muted text-xs'; m.textContent = `…共 ${n_total} 只`;
+            $('#pipeline-picks').appendChild(m);
+          }
+          $('#pipeline-result').classList.remove('hidden');
+        }
+      } else if (stage==='error') appendPipelineStep(`错误: ${content}`,'error');
+      else if (stage==='start') appendPipelineStep(content,'start');
+      else appendPipelineStep(content,'loading');
+    });
+  } finally { btn.disabled = false; }
+}
+
+// Quotes
+let _quoteInterval = null;
+const _defaultSymbols = '600000,000001,600519,000858,601318,601398,600036,000002,002415,300750';
+
+async function loadQuotes() {
+  const grid = $('#quotes-grid');
+  try {
+    const data = await api(`/api/live/quote?symbols=${_defaultSymbols}`);
+    if (!data) throw new Error('空响应');
+    grid.innerHTML = Object.entries(data).map(([sym,q]) => {
+      const pnl = q.prev_close>0 ? ((q.price/q.prev_close-1)*100) : 0;
+      const color = pnl>0.05?'text-red-400':pnl<-0.05?'text-emerald-400':'text-gray-400';
+      return `<div class="bg-gray-800 rounded px-2 py-1">
+        <div class="text-xs muted">${escHtml(q.name)} <span class="font-mono">${sym}</span></div>
+        <div class="flex gap-1 mt-0.5">
+          <span class="text-sm font-medium ${color}">${q.price.toFixed(2)}</span>
+          <span class="text-xs ${color}">${pnl>=0?'+':''}${pnl.toFixed(2)}%</span>
+        </div>
+      </div>`;
+    }).join('');
+    $('#quote-time').textContent = new Date().toLocaleTimeString();
+  } catch (e) {
+    grid.innerHTML = `<div class="text-red-400 text-xs">${escHtml(e.message)}</div>`;
   }
 }
 
-window.triggerCta = async (endpoint) => {
-  const [method, url] = endpoint.split(' ');
-  try {
-    await fetch(url, { method });
-    alert('已触发，稍后刷新总览查看结果。');
-    setTimeout(() => loadHome(), 1500);
-  } catch (e) {
-    alert('触发失败：' + e);
+function toggleAutoRefresh() {
+  const btn = $('#auto-refresh-btn');
+  if (_quoteInterval) {
+    clearInterval(_quoteInterval); _quoteInterval = null;
+    btn.textContent = '自动'; btn.classList.remove('border-blue-600');
+  } else {
+    loadQuotes(); _quoteInterval = setInterval(loadQuotes, 5000);
+    btn.textContent = '停止'; btn.classList.add('border-blue-600');
   }
+}
+
+// ══════════════════════════════════════════════
+// 组合 Tab
+// ══════════════════════════════════════════════
+let navChart = null, navAllData = null, currentRange = 'ALL';
+
+tabLoaders.portfolio = async () => {
+  await Promise.allSettled([loadNav(), loadPortfolioDetail()]);
 };
 
-// ══════════════════════════════════════════════════════════
-// 因子库 tab
-// ══════════════════════════════════════════════════════════
-async function loadFactors() {
+function switchRange(r) {
+  currentRange = r;
+  $$('.range-btn').forEach(b => {
+    b.classList.remove('border-blue-600');
+    if (b.dataset.range === r) b.classList.add('border-blue-600');
+  });
+  if (navAllData) renderNavChart(filterByRange(navAllData, r));
+}
+
+function filterByRange(data, r) {
+  if (r==='ALL') return data;
+  const days = {1:30,3:90,6:180}[r[0]] || 30;
+  const cut = new Date(); cut.setDate(cut.getDate() - days);
+  return data.filter(row => new Date(row.date) >= cut);
+}
+
+function renderNavChart(rows) {
+  const ctx = $('#nav-chart').getContext('2d');
+  if (navChart) navChart.destroy();
+  if (!rows?.length) { $('#nav-empty').classList.remove('hidden'); return; }
+  $('#nav-empty').classList.add('hidden');
+  const datasets = [{
+    label:'策略净值', data:rows.map(r=>r.nav), borderColor:'#6366f1',
+    backgroundColor:'rgba(99,102,241,0.1)', borderWidth:2, pointRadius:0, fill:true, tension:0.3
+  }];
+  if (rows.some(r=>r.hs300!=null)) datasets.push({
+    label:'沪深300', data:rows.map(r=>r.hs300), borderColor:'#f59e0b',
+    borderWidth:1.5, pointRadius:0, fill:false, borderDash:[4,4], tension:0.3
+  });
+  navChart = new Chart(ctx, {type:'line', data:{labels:rows.map(r=>r.date), datasets},
+    options:{responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:'#9ca3af',boxWidth:12}},
+        tooltip:{backgroundColor:'#1f2937',borderColor:'#374151',borderWidth:1,titleColor:'#e5e7eb',bodyColor:'#d1d5db'}},
+      scales:{x:{ticks:{color:'#6b7280',maxTicksLimit:8},grid:{color:'#1f2937'}},
+              y:{ticks:{color:'#6b7280'},grid:{color:'#1f2937'}}}}});
+}
+
+async function loadNav() {
+  const data = await api('/api/portfolio/nav');
+  if (!data?.length) { $('#nav-empty').classList.remove('hidden'); return; }
+  navAllData = data;
+  renderNavChart(filterByRange(data, currentRange));
+}
+
+async function loadPortfolioDetail() {
+  const el = $('#portfolio-detail');
+  const d = await api('/api/portfolio/');
+  if (!d) { el.innerHTML = '<div class="muted text-sm">暂无持仓数据</div>'; return; }
+  const positions = d.positions || [];
+  if (!positions.length) { el.innerHTML = '<div class="muted text-sm">暂无持仓</div>'; return; }
+  el.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead><tr class="text-xs muted border-b border-gray-800 text-left">
+      <th class="py-2 pr-3">代码</th><th class="py-2 pr-3 text-right">股数</th>
+      <th class="py-2 pr-3 text-right">成本价</th><th class="py-2 pr-3 text-right">市值</th>
+      <th class="py-2 text-right">盈亏%</th>
+    </tr></thead>
+    <tbody>${positions.slice(0,30).map(p => {
+      const pnl = ((p.unrealized_pnl_pct||0)*100);
+      const c = pnl>=0?'text-emerald-400':'text-red-400';
+      return `<tr class="border-b border-gray-800/30">
+        <td class="py-1 pr-3 font-mono text-xs">${escHtml(p.symbol)}</td>
+        <td class="py-1 pr-3 text-right muted">${p.shares||'—'}</td>
+        <td class="py-1 pr-3 text-right muted">${p.cost_price?.toFixed(2)||'—'}</td>
+        <td class="py-1 pr-3 text-right">${p.market_value?.toFixed(0)||'—'}</td>
+        <td class="py-1 text-right ${c}">${pnl>=0?'+':''}${pnl.toFixed(2)}%</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// ══════════════════════════════════════════════
+// 策略 Tab
+// ══════════════════════════════════════════════
+tabLoaders.strategy = async () => {
+  await Promise.allSettled([loadStrategyView(), loadStrategyRegistry(), loadRuns()]);
+};
+
+async function loadStrategyView() {
+  const d = await api('/api/strategies/active');
+  if (!d) return;
+  $('#strat-name').textContent = d.display_name || d.active;
+  $('#strat-tagline').textContent = d.tagline || '';
+  $('#strat-desc').textContent = d.description || '';
+  $('#strat-id-chip').textContent = d.active;
+  $('#strat-factors').innerHTML = (d.factors||[]).map(f => `
+    <div class="card p-3">
+      <div class="flex items-start justify-between mb-1">
+        <div><div class="card-h text-sm">${escHtml(f.label)}</div>
+          <div class="text-xs muted">${escHtml(f.id)} · 方向${f.direction>0?'正':'负'}</div>
+        </div>${statusChip(f.health_status)}
+      </div>
+      <div class="text-xs text-gray-300 leading-relaxed mt-2">${escHtml(f.explain)}</div>
+      ${f.rolling_ic!=null?`<div class="text-xs muted mt-1">IC: ${Number(f.rolling_ic).toFixed(4)}</div>`:''}
+    </div>
+  `).join('') || '<div class="muted">无因子</div>';
+}
+
+async function loadStrategyRegistry() {
+  const el = $('#strategy-list');
+  const data = await api('/api/backtest/strategies');
+  if (!data?.length) { el.innerHTML = '<div class="muted text-xs">暂无策略</div>'; return; }
+  el.innerHTML = data.map(s => `
+    <div class="bg-gray-800 rounded p-2 space-y-1">
+      <div class="text-xs font-mono text-blue-300">${escHtml(s.id)}</div>
+      <div class="text-sm text-gray-200">${escHtml(s.name)}</div>
+      <div class="text-xs muted">${escHtml(s.description)}</div>
+    </div>
+  `).join('');
+}
+
+async function loadRuns() {
+  const tbody = $('#runs-tbody'), table = $('#runs-table');
+  const empty = $('#runs-empty'), countEl = $('#runs-count');
+  const data = await api('/api/backtest/runs?limit=15');
+  if (!data?.length) { empty?.classList.remove('hidden'); table?.classList.add('hidden'); return; }
+  empty?.classList.add('hidden'); table?.classList.remove('hidden');
+  countEl && (countEl.textContent = `${data.length} 条`);
+  tbody.innerHTML = data.map(r => {
+    const m = r.metrics||{};
+    const annRet = m.annualized_return!=null?`${(m.annualized_return*100).toFixed(1)}%`:'—';
+    const c = (m.annualized_return||0)>=0?'text-emerald-400':'text-red-400';
+    return `<tr class="border-b border-gray-800/30 hover:bg-gray-800/30 cursor-pointer" onclick="openDetail('${escHtml(r.run_id)}')">
+      <td class="py-2 pr-1" onclick="event.stopPropagation()">
+        <input type="checkbox" class="run-checkbox" data-run-id="${escHtml(r.run_id)}" onchange="updateCompareBar()" /></td>
+      <td class="py-2 pr-3"><div class="text-gray-200 text-xs">${escHtml(r.strategy_name||r.strategy_id)}</div>
+        <div class="text-xs muted font-mono">${escHtml((r.run_id||'').slice(0,20))}…</div></td>
+      <td class="py-2 pr-3 muted text-xs">${r.start_date||'—'}</td>
+      <td class="py-2 pr-3 text-right ${c} text-xs">${annRet}</td>
+      <td class="py-2 pr-3 text-right text-gray-300 text-xs">${fix2(m.sharpe)}</td>
+      <td class="py-2 pr-3 text-right text-yellow-400 text-xs">${pct(m.max_drawdown)}</td>
+      <td class="py-2 text-right text-xs">${r.status==='success'?'✅':'❌'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateCompareBar() {
+  const ids = getSelectedRunIds();
+  const bar = $('#compare-bar');
+  $('#compare-count').textContent = ids.length;
+  if (ids.length>=2) bar.classList.remove('hidden'); else bar.classList.add('hidden');
+}
+function toggleSelectAll(el) {
+  $$('.run-checkbox').forEach(cb => cb.checked = el.checked); updateCompareBar();
+}
+function clearCompare() {
+  $$('.run-checkbox').forEach(cb => cb.checked = false);
+  const sa = $('#runs-select-all'); if(sa) sa.checked = false;
+  updateCompareBar();
+}
+function getSelectedRunIds() {
+  return $$('.run-checkbox:checked').map(cb => cb.dataset.runId);
+}
+
+async function openDetail(runId) {
+  const modal = $('#detail-modal'), content = $('#detail-content');
+  content.innerHTML = '<div class="muted">加载中…</div>';
+  modal.classList.remove('hidden');
+  const d = await api(`/api/backtest/runs/${runId}`);
+  if (!d) { content.innerHTML = '<div class="text-red-400">加载失败</div>'; return; }
+  const m = d.metrics||{};
+  content.innerHTML = `
+    <div class="grid grid-cols-2 gap-3 text-sm">
+      <div><div class="text-xs muted">策略</div><div>${escHtml(d.strategy_name||d.strategy_id)}</div></div>
+      <div><div class="text-xs muted">区间</div><div>${escHtml(d.start_date)}~${escHtml(d.end_date)}</div></div>
+      <div><div class="text-xs muted">状态</div><div class="${d.status==='success'?'text-emerald-400':'text-red-400'}">${escHtml(d.status)}</div></div>
+      <div><div class="text-xs muted">时间</div><div class="text-xs muted">${escHtml(d.created_at||'—')}</div></div>
+    </div>
+    ${d.status==='success'?`<div class="grid grid-cols-4 gap-2">${[
+      ['年化收益',pct(m.annualized_return),(m.annualized_return||0)>=0?'text-emerald-400':'text-red-400'],
+      ['夏普',fix2(m.sharpe),'text-gray-200'],['最大回撤',pct(m.max_drawdown),'text-yellow-400'],
+      ['总收益',pct(m.total_return),(m.total_return||0)>=0?'text-emerald-400':'text-red-400'],
+      ['胜率',pct(m.win_rate),'text-gray-300'],['波动率',pct(m.volatility),'text-gray-300'],
+    ].map(([l,v,c])=>`<div class="bg-gray-800 rounded p-2 text-center">
+      <div class="text-xs muted">${l}</div><div class="text-sm font-medium ${c}">${v}</div>
+    </div>`).join('')}</div>`:''}
+    ${d.error?`<div class="bg-red-900/30 border border-red-800 rounded p-3 text-red-300 text-xs">${escHtml(d.error)}</div>`:''}
+  `;
+}
+function closeDetail() { $('#detail-modal').classList.add('hidden'); }
+
+async function openCompare() {
+  const ids = getSelectedRunIds();
+  if (ids.length<2) { alert('至少选 2 条'); return; }
+  const modal = $('#compare-modal'), content = $('#compare-content');
+  content.innerHTML = '<div class="muted">加载中…</div>';
+  modal.classList.remove('hidden');
+  const data = await api('/api/backtest/compare', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run_ids:ids})});
+  if (!data) { content.innerHTML = '<div class="text-red-400">加载失败</div>'; return; }
+  const runs = data.runs||[], names = data.metric_names||[];
+  const labels = {total_return:'总收益',annualized_return:'年化收益',sharpe:'夏普',max_drawdown:'最大回撤',volatility:'波动率',win_rate:'胜率',n_trading_days:'天数'};
+  let html = '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-xs muted border-b border-gray-800"><th class="py-2 pr-3 text-left">指标</th>';
+  runs.forEach(r => { html += `<th class="py-2 pr-3 text-right">${escHtml(r.strategy_name||r.strategy_id)}</th>`; });
+  html += '</tr></thead><tbody>';
+  names.forEach(name => {
+    html += `<tr class="border-b border-gray-800/30"><td class="py-1 pr-3 muted">${labels[name]||name}</td>`;
+    runs.forEach(r => {
+      const v = (r.metrics||{})[name];
+      let display='—';
+      if (v!=null) display = name.includes('return')||name.includes('drawdown')||name==='volatility'||name==='win_rate' ? pct(v) : name==='n_trading_days' ? String(v) : fix2(v);
+      const c = name.includes('return')?(v>=0?'text-emerald-400':'text-red-400'):name==='max_drawdown'?'text-yellow-400':'text-gray-300';
+      html += `<td class="py-1 pr-3 text-right ${c}">${display}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  content.innerHTML = html;
+}
+function closeCompare() { $('#compare-modal').classList.add('hidden'); }
+
+// ══════════════════════════════════════════════
+// 因子库 Tab
+// ══════════════════════════════════════════════
+tabLoaders.factors = async () => {
   const data = await api('/api/factors/catalog');
   if (!data) return;
-  const factors = data.factors || [];
-
-  $('#factor-list').innerHTML = factors.map(f => {
-    const healthKeys = Object.keys(f.health || {});
-    const summaryChips = healthKeys.length
-      ? healthKeys.map(k => statusChip(f.health[k].status)).join(' ')
-      : '<span class="chip chip-idle">未接入</span>';
-    return `
-      <li>
-        <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-800 border border-transparent hover:border-gray-700"
-                data-factor-dir="${escapeHtml(f.dir)}">
-          <div class="text-sm font-medium">${escapeHtml(f.title)}</div>
-          <div class="text-xs muted mt-0.5">${escapeHtml(f.dir)} · ${escapeHtml(f.status_text)}</div>
-          <div class="mt-1">${summaryChips}</div>
-        </button>
-      </li>
-    `;
+  $('#factor-list').innerHTML = (data.factors||[]).map(f => {
+    const chips = Object.values(f.health||{}).map(h => statusChip(h.status)).join(' ') || statusChip('idle');
+    return `<li><button class="w-full text-left px-2 py-2 rounded hover:bg-gray-800"
+              data-factor-dir="${escHtml(f.dir)}">
+      <div class="text-sm font-medium">${escHtml(f.title)}</div>
+      <div class="text-xs muted">${escHtml(f.dir)}</div>
+      <div class="mt-1">${chips}</div>
+    </button></li>`;
   }).join('');
-
   $$('#factor-list [data-factor-dir]').forEach(btn => {
     btn.addEventListener('click', () => loadFactorReadme(btn.dataset.factorDir));
   });
-
-  // 默认选中第一个
-  if (factors.length) loadFactorReadme(factors[0].dir);
-}
+  if (data.factors?.length) loadFactorReadme(data.factors[0].dir);
+};
 
 async function loadFactorReadme(dir) {
   const reader = $('#factor-readme');
   reader.innerHTML = '<p class="loading">加载中…</p>';
-  const data = await api('/api/factors/readme/' + encodeURIComponent(dir));
-  if (!data || !data.content) {
-    reader.innerHTML = '<p class="text-red-400">' + escapeHtml(data?.error || '加载失败') + '</p>';
-    return;
-  }
-  reader.innerHTML = marked.parse(data.content);
+  const d = await api('/api/factors/readme/' + encodeURIComponent(dir));
+  reader.innerHTML = d?.content ? marked.parse(d.content) : `<p class="text-red-400">${escHtml(d?.error||'加载失败')}</p>`;
 }
 
-// ══════════════════════════════════════════════════════════
-// 策略 tab
-// ══════════════════════════════════════════════════════════
-async function loadStrategy() {
-  const data = await api('/api/strategies/active');
-  if (!data) return;
-  $('#strat-name').textContent = data.display_name || data.active;
-  $('#strat-tagline').textContent = data.tagline || '';
-  $('#strat-desc').textContent = data.description || '';
-  $('#strat-id-chip').textContent = data.active;
-
-  const factorsHtml = (data.factors || []).map(f => `
-    <div class="card p-4">
-      <div class="flex items-start justify-between mb-1">
-        <div>
-          <div class="card-h text-sm">${escapeHtml(f.label)}</div>
-          <div class="text-xs muted">${escapeHtml(f.id)} · 方向 ${f.direction > 0 ? '正' : '负'}${f.weight ? ' · 权重 ' + f.weight : ''}</div>
-        </div>
-        ${statusChip(f.health_status)}
-      </div>
-      <div class="text-xs text-gray-300 leading-relaxed mt-2">${escapeHtml(f.explain)}</div>
-      ${f.rolling_ic != null ? `<div class="text-xs muted mt-2">rolling IC: <b>${Number(f.rolling_ic).toFixed(4)}</b>${f.t_stat != null ? ' · t: ' + Number(f.t_stat).toFixed(2) : ''}</div>` : ''}
-    </div>
-  `).join('') || '<div class="muted">（无因子）</div>';
-  $('#strat-factors').innerHTML = factorsHtml;
-
-  // 所有策略
-  const all = await api('/api/strategies/');
-  if (all) {
-    $('#strat-all').innerHTML = all.map(s => `
-      <div class="card p-3 ${s.id === data.active ? 'border-blue-500' : ''}">
-        <div class="text-sm card-h">${escapeHtml(s.display_name)}</div>
-        <div class="text-xs muted mt-1">${escapeHtml(s.tagline)}</div>
-        <div class="text-xs muted mt-2">${s.n_factors} 个因子</div>
-      </div>
-    `).join('');
-  }
-
-  // 历史
-  const hist = data.history || [];
-  if (!hist.length) {
-    $('#strat-history').innerHTML = '<p class="text-xs muted">尚无切换记录。当前策略从 Phase 5 起一直是 v7。</p>';
-  } else {
-    $('#strat-history').innerHTML = '<ul class="space-y-2 text-xs">' + hist.map(h => `
-      <li><code>${escapeHtml(h.from)} → ${escapeHtml(h.to)}</code> · <span class="muted">${escapeHtml(h.date)}</span>${h.reason ? ' · ' + escapeHtml(h.reason) : ''}</li>
-    `).join('') + '</ul>';
-  }
-}
-
-// ══════════════════════════════════════════════════════════
-// 研究 tab
-// ══════════════════════════════════════════════════════════
-async function loadResearch() {
-  const [q, e] = await Promise.all([
-    api('/api/research/questions'),
-    api('/api/research/experiments'),
-  ]);
-
-  if (q && q.questions) {
-    if (!q.questions.length || q.questions[0].type === 'no_action') {
-      $('#research-questions').innerHTML = `
-        <div class="card p-5">
-          <div class="flex items-center gap-2">
-            ${statusChip('ok')}
-            <span class="text-sm">系统健康，暂无提议</span>
-          </div>
-          <p class="text-xs muted mt-2">${escapeHtml(q.questions?.[0]?.rationale || '')}</p>
-        </div>`;
+// ══════════════════════════════════════════════
+// 研究 Tab
+// ══════════════════════════════════════════════
+tabLoaders.research = async () => {
+  const [q, e] = await Promise.all([api('/api/research/questions'), api('/api/research/experiments')]);
+  if (q?.questions) {
+    if (!q.questions.length || q.questions[0].type==='no_action') {
+      $('#research-questions').innerHTML = `<div class="card p-4">${statusChip('ok')} <span class="text-sm ml-1">系统健康，暂无提议</span></div>`;
     } else {
       $('#research-questions').innerHTML = q.questions.map(qq => {
-        const prBadge = qq.priority === 'high' ? 'chip-err' : (qq.priority === 'medium' ? 'chip-warn' : 'chip-idle');
-        return `
-        <div class="card p-4">
-          <div class="flex items-start justify-between gap-2">
-            <div class="card-h text-sm">${escapeHtml(qq.question)}</div>
-            <span class="chip ${prBadge}">${escapeHtml(qq.priority)}</span>
-          </div>
-          <div class="text-xs muted mt-1"><code>${escapeHtml(qq.id)}</code> · ${escapeHtml(qq.type)}</div>
-          <div class="text-xs text-gray-300 mt-2">${escapeHtml(qq.rationale)}</div>
-          ${qq.proposed_experiment ? `
-            <div class="text-xs muted mt-2">建议动作：<code>${escapeHtml(qq.proposed_experiment.command)}</code></div>
-          ` : ''}
+        const prCls = qq.priority==='high'?'chip-err':qq.priority==='medium'?'chip-warn':'chip-idle';
+        return `<div class="card p-3">
+          <div class="flex justify-between gap-2"><div class="card-h text-xs">${escHtml(qq.question)}</div>
+            <span class="chip ${prCls}">${escHtml(qq.priority)}</span></div>
+          <div class="text-xs muted mt-1">${escHtml(qq.rationale)}</div>
         </div>`;
       }).join('');
     }
   }
-
   if (e) {
-    const counts = e.counts_by_status || {};
-    const summary = Object.keys(counts).length
-      ? '<div class="text-xs muted mb-3">' + Object.entries(counts).map(([k,v]) => `${k}: ${v}`).join(' · ') + '</div>'
-      : '';
-    const exps = e.experiments || [];
-    if (!exps.length) {
-      $('#research-experiments').innerHTML = '<div class="card p-4"><p class="muted text-sm">还没有任何实验记录。</p><p class="text-xs muted mt-2">用 <code>python -m pipeline.cli research propose</code> 生成提议，再用 <code>research run --approved</code> 执行。</p></div>';
-    } else {
-      $('#research-experiments').innerHTML = summary + exps.map(ex => `
-        <div class="card p-4">
-          <div class="flex items-start justify-between gap-2">
-            <div class="card-h text-sm">${escapeHtml(ex.question_text || ex.question_id)}</div>
-            ${statusChip(ex.status)}
-          </div>
-          <div class="text-xs muted mt-1">
-            <code>${escapeHtml(ex.experiment_id)}</code>
-            ${ex.run_id ? ' · run: <code>' + escapeHtml(ex.run_id) + '</code>' : ''}
-          </div>
-          ${ex.error ? `<div class="text-xs text-red-400 mt-2">${escapeHtml(ex.error)}</div>` : ''}
-        </div>
-      `).join('');
-    }
+    const exps = e.experiments||[];
+    $('#research-experiments').innerHTML = !exps.length
+      ? '<div class="card p-3 muted text-sm">无实验记录。</div>'
+      : exps.map(ex => `<div class="card p-3">
+          <div class="flex justify-between gap-2 mb-1"><div class="card-h text-xs">${escHtml(ex.question_text||ex.question_id)}</div>${statusChip(ex.status)}</div>
+          <div class="text-xs muted font-mono">${escHtml(ex.experiment_id)}</div>
+          ${ex.error?`<div class="text-xs text-red-400 mt-1">${escHtml(ex.error)}</div>`:''}
+        </div>`).join('');
   }
-}
-
-// ══════════════════════════════════════════════════════════
-// 文档 tab
-// ══════════════════════════════════════════════════════════
-let allDocs = [];
-let docFilter = 'all';
-
-async function loadDocs() {
-  const data = await api('/api/docs/tree');
-  if (!data) return;
-  allDocs = data.docs || [];
-  renderDocList();
-  // 默认打开 ROADMAP.md
-  openDoc('ROADMAP.md');
-}
-
-function renderDocList() {
-  const filtered = docFilter === 'all' ? allDocs : allDocs.filter(d => d.category === docFilter);
-  $('#doc-list').innerHTML = filtered.map(d => `
-    <li>
-      <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-800 text-sm"
-              data-doc-rel="${escapeHtml(d.rel)}">
-        <div class="font-medium truncate">${escapeHtml(d.title)}</div>
-        <div class="text-xs muted truncate">${escapeHtml(d.rel)}</div>
-      </button>
-    </li>
-  `).join('') || '<li class="muted text-xs px-3 py-2">（空）</li>';
-
-  $$('#doc-list [data-doc-rel]').forEach(btn => {
-    btn.addEventListener('click', () => openDoc(btn.dataset.docRel));
-  });
-}
-
-$$('#doc-filter button').forEach(b => {
-  b.addEventListener('click', () => {
-    docFilter = b.dataset.cat;
-    $$('#doc-filter button').forEach(x => x.classList.remove('border-blue-500'));
-    b.classList.add('border-blue-500');
-    renderDocList();
-  });
-});
-
-async function openDoc(rel) {
-  const reader = $('#doc-reader');
-  reader.innerHTML = '<p class="loading">加载中…</p>';
-  const data = await api('/api/docs/read?rel=' + encodeURIComponent(rel));
-  if (!data || !data.content) {
-    reader.innerHTML = '<p class="text-red-400">' + escapeHtml(data?.error || '加载失败') + '</p>';
-    return;
-  }
-  reader.innerHTML = marked.parse(data.content);
-}
-
-// ══════════════════════════════════════════════════════════
-// 课程 tab
-// ══════════════════════════════════════════════════════════
-async function loadNotebooks() {
-  const data = await api('/api/notebooks/');
-  if (!data) return;
-  const nbs = data.notebooks || [];
-  $('#nb-list').innerHTML = nbs.map(nb => `
-    <div class="card p-5">
-      <div class="text-xs muted mb-1">${escapeHtml(nb.filename)}</div>
-      <div class="card-h text-sm mb-2">${escapeHtml(nb.title)}</div>
-      <div class="text-xs muted leading-relaxed line-clamp-3">${escapeHtml(nb.description || '（无描述）')}</div>
-      <div class="text-xs muted mt-3">
-        📝 ${nb.cells?.markdown || 0} · 💻 ${nb.cells?.code || 0} cells · ${(nb.size / 1024).toFixed(0)}KB
-      </div>
-    </div>
-  `).join('') || '<div class="muted">未找到任何 notebook。</div>';
-}
-
-// ══════════════════════════════════════════════════════════
-// Tab loader 注册 + 启动
-// ══════════════════════════════════════════════════════════
-const tabLoaders = {
-  home: loadHome,
-  factors: loadFactors,
-  strategy: loadStrategy,
-  research: loadResearch,
-  docs: loadDocs,
-  notebooks: loadNotebooks,
 };
 
-loadHome();
+// AI 分析
+function setAIBusy(b) { $('#btn-analyze').disabled=b; $('#btn-debate').disabled=b; }
+function clearAIResult() { $('#ai-result').innerHTML=''; }
+function appendAIBlock(cls, title, content) {
+  const el=$('#ai-result'), div=document.createElement('div');
+  div.className=`${cls} bg-gray-800 rounded p-3 pl-4 text-sm`;
+  div.innerHTML=`<div class="text-xs muted mb-1">${title}</div><div class="text-gray-200 leading-relaxed">${content}</div>`;
+  el.appendChild(div); el.scrollTop=el.scrollHeight;
+}
+function handleAIEvent(data) {
+  const {stage,content,rebuttals,confidence,key_factors}=data;
+  if (stage==='bull') {
+    const items=Array.isArray(content)?content.map(s=>`<li>${s}</li>`).join(''):content;
+    appendAIBlock('stage-bull','🟢 看多',`<ul class="list-disc list-inside">${items}</ul>`);
+  } else if (stage==='bear') {
+    const b=Array.isArray(content)?content.map(s=>`<li>${s}</li>`).join(''):content;
+    appendAIBlock('stage-bear','🔴 看空',`<ul class="list-disc list-inside">${b}</ul>`);
+  } else if (stage==='moderator') {
+    const cf=confidence!=null?` (${(confidence*100).toFixed(0)}%)`:'';
+    appendAIBlock('stage-mod',`🏛 结论${cf}`,String(content));
+  } else if (stage==='error') {
+    appendAIBlock('stage-bear','❌ 错误',String(content));
+  } else if (stage==='done') {
+    appendAIBlock('stage-mod','✅ 完成','分析完成');
+  } else if (stage==='result') {
+    const s=content?.price_summary||{},d=content?.debate||{};
+    let html='';
+    if (s.latest_price) html+=`<div>最新价 <b>${s.latest_price}</b> 年化 ${pct(s.annualized_return)} 夏普 ${fix2(s.sharpe)}</div>`;
+    if (d.conclusion) html+=`<div class="text-yellow-300">${d.conclusion}</div>`;
+    appendAIBlock('stage-result','📊 结果',html||String(JSON.stringify(content)));
+  } else if (content) {
+    appendAIBlock('stage-result', stage, String(content));
+  }
+}
+async function runAnalyze() {
+  const sym=$('#ai-symbol').value.trim();
+  if (!sym) { alert('请输入股票代码'); return; }
+  clearAIResult(); setAIBusy(true);
+  try { await fetchSSE('/api/ai/analyze',{symbol:sym},handleAIEvent); } finally { setAIBusy(false); }
+}
+async function runDebate() {
+  const sym=$('#ai-symbol').value.trim(), ctx=$('#ai-context').value.trim();
+  if (!sym) { alert('请输入股票代码'); return; }
+  clearAIResult(); setAIBusy(true);
+  try { await fetchSSE('/api/ai/debate',{symbol:sym,context:ctx},handleAIEvent); } finally { setAIBusy(false); }
+}
 
-// 每 60 秒自动刷新首页
-setInterval(() => {
-  if (!$('#tab-home').classList.contains('hidden')) loadHome();
-}, 60000);
+// ══════════════════════════════════════════════
+// 文档 Tab
+// ══════════════════════════════════════════════
+let allDocs=[], docFilter='all';
+tabLoaders.docs = async () => {
+  const d = await api('/api/docs/tree');
+  allDocs = d?.docs||[];
+  renderDocList();
+  openDoc('ROADMAP.md');
+};
+function renderDocList() {
+  const filtered = docFilter==='all' ? allDocs : allDocs.filter(d=>d.category===docFilter);
+  $('#doc-list').innerHTML = filtered.map(d => `<li>
+    <button class="w-full text-left px-2 py-2 rounded hover:bg-gray-800 text-xs" data-doc-rel="${escHtml(d.rel)}">
+      <div class="font-medium truncate">${escHtml(d.title)}</div>
+      <div class="muted truncate">${escHtml(d.rel)}</div>
+    </button></li>`).join('') || '<li class="muted text-xs px-2">（空）</li>';
+  $$('#doc-list [data-doc-rel]').forEach(b => b.addEventListener('click', ()=>openDoc(b.dataset.docRel)));
+}
+$$('#doc-filter button').forEach(b => b.addEventListener('click', ()=>{
+  docFilter=b.dataset.cat;
+  $$('#doc-filter button').forEach(x=>x.classList.remove('border-blue-600'));
+  b.classList.add('border-blue-600');
+  renderDocList();
+}));
+async function openDoc(rel) {
+  const reader=$('#doc-reader');
+  reader.innerHTML='<p class="loading">加载中…</p>';
+  const d = await api('/api/docs/read?rel='+encodeURIComponent(rel));
+  reader.innerHTML = d?.content ? marked.parse(d.content) : `<p class="text-red-400">${escHtml(d?.error||'加载失败')}</p>`;
+}
+
+// ══════════════════════════════════════════════
+// 课程 Tab
+// ══════════════════════════════════════════════
+tabLoaders.notebooks = async () => {
+  const d = await api('/api/notebooks/');
+  $('#nb-list').innerHTML = (d?.notebooks||[]).map(nb => `
+    <div class="card p-4">
+      <div class="text-xs muted mb-1">${escHtml(nb.filename)}</div>
+      <div class="card-h text-sm mb-2">${escHtml(nb.title)}</div>
+      <div class="text-xs muted leading-relaxed">${escHtml(nb.description||'（无描述）')}</div>
+      <div class="text-xs muted mt-2">📝${nb.cells?.markdown||0} 💻${nb.cells?.code||0} · ${(nb.size/1024).toFixed(0)}KB</div>
+    </div>
+  `).join('') || '<div class="muted">未找到 notebook。</div>';
+};
+
+// ══════════════════════════════════════════════
+// 初始化
+// ══════════════════════════════════════════════
+function initPipelineDate() {
+  $('#pipeline-date').value = new Date().toISOString().split('T')[0];
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initPipelineDate();
+  loadHome();
+  setInterval(() => {
+    if (!$('#tab-home').classList.contains('hidden')) loadHome();
+  }, 5 * 60 * 1000);
+});
 </script>
-
 </body>
 </html>
