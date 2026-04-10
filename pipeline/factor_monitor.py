@@ -190,6 +190,7 @@ MIN_OBS_FOR_VERDICT = 20
 def factor_health_report(
     factors: list[str] | None = None,
     min_obs: int = MIN_OBS_FOR_VERDICT,
+    positions: dict | None = None,
 ) -> dict:
     """
     生成因子健康度报告
@@ -210,6 +211,10 @@ def factor_health_report(
                   可传入 FACTOR_PRESETS["v7"] 或任意因子名列表。
         min_obs  : 判定 healthy/degraded/dead 所需的最小样本天数，
                   低于此值返回 insufficient_data。默认 20。
+        positions: 可选 {symbol: weight/shares} 持仓字典。
+                  若提供，在返回字典中以 "__meta__" 键附加
+                  {"effective_n": float} 供调用方使用。
+                  不影响现有按因子名迭代的逻辑。
 
     返回:
         dict : {
@@ -220,6 +225,9 @@ def factor_health_report(
                 "status":     str       # 见上
             },
             ...
+            "__meta__": {               # 仅当 positions 非空时存在
+                "effective_n": float    # 有效持仓数（Herfindahl 倒数）
+            },
         }
     """
     if factors is None:
@@ -306,6 +314,16 @@ def factor_health_report(
             "t_stat": t_stat,
             "status": status,
         }
+
+    # 附加持仓元信息（不影响按因子名迭代的调用方）
+    if positions:
+        try:
+            from live.risk_monitor import compute_effective_n
+            report["__meta__"] = {
+                "effective_n": compute_effective_n(positions),
+            }
+        except Exception:
+            pass
 
     return report
 

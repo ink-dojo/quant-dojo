@@ -532,11 +532,15 @@ class PaperTrader:
         # 交易笔数
         n_trades = len(self.trades)
 
+        # Calmar 比率：年化收益 / 最大回撤绝对值
+        calmar_ratio = round(annualized_return / abs(max_drawdown), 4) if max_drawdown != 0 else None
+
         return {
             "total_return": round(total_return, 4),
             "annualized_return": round(annualized_return, 4),
             "sharpe": round(sharpe, 4),
             "max_drawdown": round(max_drawdown, 4),
+            "calmar_ratio": calmar_ratio,
             "n_trades": n_trades,
             "running_days": running_days,
         }
@@ -626,11 +630,106 @@ class PaperTrader:
         return result.reset_index(drop=True)
 
 
+    def get_performance_vs_benchmark(self, benchmark_ret: pd.Series = None) -> dict:
+        """
+        计算策略相对基准的超额收益指标。
+
+        参数:
+            benchmark_ret: 基准日收益率 Series（如沪深300），index 为 DatetimeIndex。
+                           None 时尝试从本地数据自动加载 sh000300。
+
+        返回:
+            包含以下键的字典:
+              - excess_total_return: 累计超额收益
+              - information_ratio: IR = 年化超额收益均值 / 跟踪误差
+              - tracking_error: 跟踪误差（年化，基于日收益率）
+              - beta: 策略对基准的 beta
+              - alpha_annualized: Jensen's alpha（年化）
+              - benchmark_total_return: 基准累计收益
+        """
+        if not NAV_FILE.exists():
+            return {}
+
+        nav_df = pd.read_csv(NAV_FILE)
+        if nav_df.empty or len(nav_df) < 2:
+            return {}
+
+        nav_df["date"] = pd.to_datetime(nav_df["date"])
+        nav_df = nav_df.sort_values("date").reset_index(drop=True)
+
+        # 策略日收益率
+        strategy_ret = nav_df.set_index("date")["nav"].pct_change().dropna()
+
+        # 加载基准收益率
+        if benchmark_ret is None:
+            try:
+                from utils.data_loader import get_index_history
+                start = strategy_ret.index[0].strftime("%Y-%m-%d")
+                end = strategy_ret.index[-1].strftime("%Y-%m-%d")
+                bm_df = get_index_history("sh000300", start=start, end=end)
+                benchmark_ret = bm_df["close"].pct_change().dropna()
+                benchmark_ret.index = pd.to_datetime(benchmark_ret.index)
+            except Exception as exc:
+                self._log.warning("自动加载 sh000300 失败，无法计算 benchmark 指标: %s", exc)
+                return {}
+
+        # 对齐日期 index
+        common_idx = strategy_ret.index.intersection(benchmark_ret.index)
+        if len(common_idx) < 2:
+            self._log.warning("策略与基准的重叠日期不足 2 个交易日，无法计算指标")
+            return {}
+
+        s_ret = strategy_ret.loc[common_idx]
+        b_ret = benchmark_ret.loc[common_idx]
+
+        # 累计收益
+        strategy_total = (1 + s_ret).prod() - 1
+        benchmark_total = (1 + b_ret).prod() - 1
+        excess_total = strategy_total - benchmark_total
+
+        # 超额日收益
+        excess = s_ret - b_ret
+
+        # 年化超额收益 / 跟踪误差 / IR
+        tracking_error = float(excess.std() * np.sqrt(252))
+        ann_excess = float(excess.mean() * 252)
+        ir = ann_excess / tracking_error if tracking_error > 0 else 0.0
+
+        # beta = cov(strategy, benchmark) / var(benchmark)
+        cov_matrix = np.cov(s_ret.values, b_ret.values)
+        beta = cov_matrix[0, 1] / cov_matrix[1, 1] if cov_matrix[1, 1] > 0 else 0.0
+
+        # 年化收益（实际天数）
+        n_days = (common_idx[-1] - common_idx[0]).days
+        if n_days > 0:
+            ann_strategy = (1 + strategy_total) ** (365 / n_days) - 1
+            ann_benchmark = (1 + benchmark_total) ** (365 / n_days) - 1
+        else:
+            ann_strategy = 0.0
+            ann_benchmark = 0.0
+
+        # Jensen's alpha（年化）
+        alpha_annualized = ann_strategy - beta * ann_benchmark
+
+        return {
+            "excess_total_return": round(float(excess_total), 4),
+            "information_ratio": round(ir, 4),
+            "tracking_error": round(tracking_error, 4),
+            "beta": round(float(beta), 4),
+            "alpha_annualized": round(float(alpha_annualized), 4),
+            "benchmark_total_return": round(float(benchmark_total), 4),
+        }
+
+
 if __name__ == "__main__":
     # 最小验证：创建模拟盘并打印持仓
     trader = PaperTrader(initial_capital=1_000_000)
     print("当前持仓:")
     print(trader.get_current_positions())
     print(f"\n现金余额: {trader._get_cash():,.2f}")
-    print(f"\n绩效指标: {trader.get_performance()}")
+    perf = trader.get_performance()
+    print(f"\n绩效指标: {perf}")
+    calmar = perf.get("calmar_ratio")
+    if calmar is not None:
+        print(f"  Calmar比率: {calmar:.2f}（年化收益/最大回撤）")
     print("✅ PaperTrader 初始化 ok")
