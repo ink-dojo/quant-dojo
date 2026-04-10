@@ -723,16 +723,157 @@ def relative_turnover(turnover: pd.DataFrame,
 
 
 # ══════════════════════════════════════════════════════════════
+# 基本面质量因子（续）
+# ══════════════════════════════════════════════════════════════
+
+def cfo_accrual_quality(
+    net_income_wide: pd.DataFrame,
+    ocf_wide: pd.DataFrame,
+    total_assets_wide: pd.DataFrame,
+    window_quarters: int = 8,
+) -> pd.DataFrame:
+    """
+    现金流应计利润质量因子（CFO Accrual Quality）。
+
+    应计利润标准差衡量盈利质量，A股存在盈利操纵，波动越低说明质量越高。
+    通过计算单季度应计利润的滚动标准差来度量盈利的稳定性：
+    标准差越低表示每季度报告利润与实际现金流之间的差异越稳定，盈利质量越高。
+
+    计算步骤：
+      1. 单季度应计利润：accruals_q = (净利润 - 经营性现金流) / 总资产
+         （总资产为 0 时替换为 NaN 避免除零）
+      2. 滚动标准差：rolling(window_quarters, min_periods=6).std()
+      3. 方向 -1：标准差越低 = 盈利质量越高 = 预期收益越高；取负作为正向信号
+      4. 截面 Winsorize（1%/99%）：按每个报告期对截面做去极端值处理
+
+    参数:
+        net_income_wide  : 季报净利润宽表（report_date × symbol）
+        ocf_wide         : 季报经营性现金流宽表（report_date × symbol），与 net_income_wide 索引对齐
+        total_assets_wide: 季报总资产宽表（report_date × symbol），与 net_income_wide 索引对齐
+        window_quarters  : 滚动窗口（季度数），默认 8 季（两年）
+
+    返回:
+        同形状 DataFrame（report_date × symbol），值越大表示盈利质量越高（正向因子）
+
+    来源：Dechow & Dichev 2002 / 应计利润质量模型
+    """
+    # 步骤1：单季度应计利润，总资产为0时替换 NaN
+    assets_safe = total_assets_wide.replace(0, np.nan)
+    accruals_q = (net_income_wide - ocf_wide) / assets_safe
+
+    # 步骤2：滚动标准差，要求至少 6 期有效
+    accrual_std = accruals_q.rolling(window_quarters, min_periods=6).std()
+
+    # 步骤3：方向 -1，取负（低标准差 → 高值 → 高盈利质量）
+    factor = -accrual_std
+
+    # 步骤4：截面 Winsorize（1%/99%），按每个报告期行处理
+    def _winsorize_row(row: pd.Series) -> pd.Series:
+        valid = row.dropna()
+        if len(valid) < 5:
+            return row
+        lo = valid.quantile(0.01)
+        hi = valid.quantile(0.99)
+        return row.clip(lower=lo, upper=hi)
+
+    factor = factor.apply(_winsorize_row, axis=1)
+    return factor
+
+
+# ══════════════════════════════════════════════════════════════
+# 微观结构因子（增持代理）
+# ══════════════════════════════════════════════════════════════
+
+def insider_buying_proxy(
+    close: pd.DataFrame,
+    high: pd.DataFrame,
+    low: pd.DataFrame,
+    volume: pd.DataFrame,
+    ch_window: int = 10,
+    vol_window: int = 20,
+) -> pd.DataFrame:
+    """
+    增持代理因子（Insider Buying Proxy）。
+
+    代理大股东增持的量价结构因子，通过收盘价位置和向上成交量占比识别机构积累行为。
+    机构资金在建仓时倾向于将收盘价推至日内高位，同时上涨日成交量占比明显高于普通交易日。
+
+    计算步骤：
+      1. 收盘价在日内价格区间的相对位置：
+         ctr = (close - low) / (high - low + 1e-8)，值域 [0, 1]
+      2. 排除涨停日（收益率 >= 9.85%）和跌停日（收益率 <= -9.85%）：
+         这些日子的价格位置失真，设为 NaN
+      3. 滚动均值：ch_ratio = ctr.rolling(ch_window, min_periods=5).mean()
+      4. 向上成交量占比：
+         - is_up：每日收益率 > 0 的布尔标记
+         - up_vol_frac = rolling_sum(volume * is_up, vol_window) / rolling_sum(volume, vol_window)
+      5. 截面排名合成（0~1 均匀化）：
+         score = 0.5 * rank(ch_ratio) + 0.5 * rank(up_vol_frac)，逐日截面排名
+      6. 方向 +1：分值越高代表积累信号越强
+
+    参数:
+        close      : 收盘价宽表（日期 × 股票）
+        high       : 最高价宽表（日期 × 股票）
+        low        : 最低价宽表（日期 × 股票）
+        volume     : 成交量宽表（日期 × 股票）
+        ch_window  : 收盘价位置滚动均值窗口，默认 10 天
+        vol_window : 成交量统计滚动窗口，默认 20 天
+
+    返回:
+        同形状 DataFrame，值越大表示积累信号越强（正向因子）
+
+    来源：国泰君安2020 / 增持预测因子
+    """
+    # 步骤1：收盘价在日内区间的相对位置（close-to-range ratio）
+    ctr = (close - low) / (high - low + 1e-8)
+
+    # 步骤2：排除涨跌停日（价格位置失真）
+    daily_ret = close.pct_change()
+    is_limit_up = daily_ret >= 0.0985
+    is_limit_down = daily_ret <= -0.0985
+    # 涨停或跌停日设为 NaN
+    ctr = ctr.where(~is_limit_up, np.nan)
+    ctr = ctr.where(~is_limit_down, np.nan)
+
+    # 步骤3：滚动均值，要求至少 5 期有效
+    ch_ratio = ctr.rolling(ch_window, min_periods=5).mean()
+
+    # 步骤4：向上成交量占比
+    is_up = (daily_ret > 0).astype(float)
+    up_vol = (volume * is_up).rolling(vol_window, min_periods=10).sum()
+    total_vol = volume.rolling(vol_window, min_periods=10).sum()
+    up_vol_frac = up_vol / total_vol.replace(0, np.nan)
+
+    # 步骤5：截面排名合成（逐日，axis=1）
+    # pct=True 返回 0~1 分位数，na_option='keep' 保留 NaN
+    ch_rank = ch_ratio.rank(axis=1, pct=True, na_option="keep")
+    uv_rank = up_vol_frac.rank(axis=1, pct=True, na_option="keep")
+    score = 0.5 * ch_rank + 0.5 * uv_rank
+
+    return score
+
+
+# ══════════════════════════════════════════════════════════════
 # 批量构建
 # ══════════════════════════════════════════════════════════════
 
-def build_fast_factors(price: pd.DataFrame, high: pd.DataFrame = None,
-                       low: pd.DataFrame = None, open_price: pd.DataFrame = None,
-                       pe: pd.DataFrame = None, pb: pd.DataFrame = None,
-                       market_ret: pd.Series = None,
-                       volume: pd.DataFrame = None,
-                       net_profit_growth: pd.DataFrame = None,
-                       dps: pd.DataFrame = None) -> dict:
+def build_fast_factors(
+    price: pd.DataFrame,
+    high: pd.DataFrame = None,
+    low: pd.DataFrame = None,
+    open_price: pd.DataFrame = None,
+    pe: pd.DataFrame = None,
+    pb: pd.DataFrame = None,
+    market_ret: pd.Series = None,
+    volume: pd.DataFrame = None,
+    net_profit_growth: pd.DataFrame = None,
+    dps: pd.DataFrame = None,
+    turnover: pd.DataFrame = None,
+    industry_map: dict = None,
+    net_income_q: pd.DataFrame = None,
+    ocf_q: pd.DataFrame = None,
+    total_assets_q: pd.DataFrame = None,
+) -> dict:
     """
     构建所有快速因子（不含需要逐行循环的慢因子）。
 
@@ -749,6 +890,11 @@ def build_fast_factors(price: pd.DataFrame, high: pd.DataFrame = None,
         volume             : 成交量宽表，用于 Amihud 非流动性因子
         net_profit_growth  : 净利润同比增速宽表（季报 ffill 到日频），用于盈利动量因子
         dps                : 每股股息宽表（年报 ffill 到日频），用于股息率因子
+        turnover           : 换手率宽表（日期 × 股票），用于相对换手率因子
+        industry_map       : dict[symbol, industry]，用于行业动量因子
+        net_income_q       : 季报净利润宽表（report_date × symbol），用于现金流应计利润质量
+        ocf_q              : 季报经营性现金流宽表（report_date × symbol），用于现金流应计利润质量
+        total_assets_q     : 季报总资产宽表（report_date × symbol），用于现金流应计利润质量
 
     返回:
         dict，key 为因子名，value 为同形状 DataFrame
@@ -800,6 +946,31 @@ def build_fast_factors(price: pd.DataFrame, high: pd.DataFrame = None,
     if dps is not None:
         factors["dividend_yield"] = dividend_yield(price, dps.reindex_like(price))
 
+    # 新增：特质波动率（始终可计算，仅依赖 price）
+    factors["idiosyncratic_vol"] = idiosyncratic_volatility(price)
+
+    # 新增：行业动量（需要 industry_map）
+    if industry_map is not None:
+        factors["industry_momentum"] = industry_momentum(price, industry_map)
+
+    # 新增：量价乖离（需要 volume）
+    if volume is not None:
+        factors["price_vol_divergence"] = price_volume_divergence(price, volume)
+
+    # 新增：相对换手率（需要 turnover）
+    if turnover is not None:
+        factors["relative_turnover"] = relative_turnover(turnover)
+
+    # 新增：现金流应计利润质量（需要季报三张表）
+    if net_income_q is not None and ocf_q is not None and total_assets_q is not None:
+        factors["cfo_accrual_quality"] = cfo_accrual_quality(
+            net_income_q, ocf_q, total_assets_q
+        )
+
+    # 新增：增持代理（需要 high/low/volume）
+    if high is not None and low is not None and volume is not None:
+        factors["insider_buying_proxy"] = insider_buying_proxy(price, high, low, volume)
+
     return factors
 
 
@@ -846,6 +1017,16 @@ FACTOR_CATALOG = {
         "category": "行为金融",
         "source": "Barber & Odean 2008 / A股散户注意力效应",
         "data": ["turnover"],
+    },
+    "cfo_accrual_quality": {
+        "category": "基本面",
+        "source": "Dechow&Dichev2002-应计利润质量",
+        "data": ["net_income_q", "ocf_q", "total_assets_q"],
+    },
+    "insider_buying_proxy": {
+        "category": "微观结构",
+        "source": "国泰君安2020-增持预测因子",
+        "data": ["close", "high", "low", "volume"],
     },
 }
 
