@@ -41,6 +41,7 @@ class MultiFactorStrategy(BaseStrategy):
         rebalance_freq: str = "monthly",
         neutralize: bool = False,
         industry_map: Optional[dict] = None,  # {symbol: industry_name}
+        ic_weighting: bool = False,           # 是否用 ICIR 加权替代等权合成
     ):
         """
         初始化多因子策略
@@ -55,6 +56,9 @@ class MultiFactorStrategy(BaseStrategy):
             neutralize     : 是否对各因子做行业中性化（需同时提供 industry_map）
             industry_map   : {symbol: industry_name}，行业分类字典；
                              neutralize=True 时必须提供，否则打 warning 并跳过中性化
+            ic_weighting   : 是否启用自适应 ICIR 加权合成；
+                             True 时用近 60 日 ICIR softmax 权重替代等权平均，
+                             数据不足 60 日时自动降级为等权
         """
         super().__init__(config)
         self.factors = factors
@@ -63,6 +67,7 @@ class MultiFactorStrategy(BaseStrategy):
         self.rebalance_freq = rebalance_freq
         self.neutralize = neutralize
         self.industry_map = industry_map
+        self.ic_weighting = ic_weighting
         self.trade_log: list = []  # 调仓记录
 
         # 预先将 industry_map 转为 pd.Series，后续重复使用
@@ -70,6 +75,10 @@ class MultiFactorStrategy(BaseStrategy):
             self._industry_series = pd.Series(self.industry_map)
         else:
             self._industry_series = None
+
+        # IC 权重月度缓存
+        self._ic_weights_cache: dict = {}          # {factor_name: weight}
+        self._ic_weights_last_update: Optional[object] = None  # 上次更新的年月 (year, month)
 
     @staticmethod
     def _winsorize_zscore(series: pd.Series, sigma: float = 3.0) -> pd.Series:
@@ -92,17 +101,67 @@ class MultiFactorStrategy(BaseStrategy):
         clipped = series.clip(lower, upper)
         return (clipped - clipped.mean()) / clipped.std()
 
-    def generate_signals(self, data: pd.DataFrame) -> pd.DataFrame:
+    def _compute_ic_weights(self, price_wide: pd.DataFrame) -> dict:
+        """
+        计算各因子近期 ICIR 加权权重。
+
+        用前 60 日数据计算每个因子的 IC 序列，取 ICIR = mean/std。
+        权重 = softmax 归一化后的 |ICIR_i|，代表每个因子的边际贡献权重。
+
+        如果可用历史数据不足 60 日（bootstrap 期），返回 None，
+        调用方负责降级为等权。
+
+        参数:
+            price_wide : 价格宽表 (date × symbol)，用于构造次日收益率
+
+        返回:
+            dict {factor_name: weight}，sum=1；或 None（数据不足）
+        """
+        from utils.factor_analysis import compute_ic_series
+
+        # 次日收益率（shift(-1) 得到当日对应的次日收益）
+        ret_wide = price_wide.pct_change().shift(-1)
+
+        icirs = {}
+        for name, (factor_df, direction) in self.factors.items():
+            try:
+                ic_s = compute_ic_series(factor_df, ret_wide, min_stocks=20)
+                clean = ic_s.dropna().tail(60)
+                # bootstrap 期：全局可用 IC 不足 20 条，返回 None 触发等权降级
+                if len(clean) < 20:
+                    return None
+                icir = abs(clean.mean() / clean.std()) if clean.std() > 0 else 0.0
+                icirs[name] = icir
+            except Exception:
+                icirs[name] = 0.01  # 单因子失败时给最小权重 fallback
+
+        if not icirs or max(icirs.values()) == 0:
+            # 全部因子 ICIR 为零，等权 fallback
+            n = len(self.factors)
+            return {k: 1.0 / n for k in self.factors}
+
+        # Softmax 归一化（sum 归一）
+        total = sum(icirs.values())
+        return {k: v / total for k, v in icirs.items()}
+
+    def generate_signals(
+        self,
+        data: pd.DataFrame,
+        ic_weights: Optional[dict] = None,
+    ) -> pd.DataFrame:
         """
         生成多因子综合评分信号
 
         流程（neutralize=True 且有 industry_map 时）：
             1. 截面 3σ 缩尾后 z-score 标准化
             2. 行业内 demean（industry_neutralize_fast）去除行业暴露
-            3. 方向调整后等权平均合成
+            3. 方向调整后合成：若 ic_weights 不为 None 则加权平均，否则等权平均
 
         参数:
-            data: 未使用（信号来自 self.factors），保留接口兼容性
+            data       : 未使用（信号来自 self.factors），保留接口兼容性
+            ic_weights : 可选的因子权重 dict {factor_name: weight}，
+                         由 run() 通过 _compute_ic_weights 传入；
+                         None 表示等权合成
 
         返回:
             综合评分宽表 DataFrame（date × symbol）
@@ -120,7 +179,7 @@ class MultiFactorStrategy(BaseStrategy):
             else:
                 from utils.factor_analysis import industry_neutralize_fast
 
-        all_scores = []
+        all_scores = {}  # factor_name -> 调整后 z-score DataFrame
 
         for factor_name, (factor_df, direction) in self.factors.items():
             # 1. 截面 z-score（逐行/逐日计算）
@@ -136,16 +195,27 @@ class MultiFactorStrategy(BaseStrategy):
 
             # 3. 方向调整：direction=-1 时反转
             zscore = zscore * direction
-            all_scores.append(zscore)
+            all_scores[factor_name] = zscore
 
         if not all_scores:
             raise ValueError("factors 字典为空，无法生成信号")
 
-        # 对齐索引后沿 axis=0（factor维度）等权平均
-        # pd.concat(..., keys=...) 产生多层索引，groupby level=1 得到 date×symbol
-        composite = pd.concat(all_scores, keys=list(self.factors.keys())).groupby(level=1).mean()
-        composite = composite.sort_index()
+        factor_names = list(all_scores.keys())
+        score_list = [all_scores[n] for n in factor_names]
 
+        if ic_weights is not None:
+            # IC 加权合成：每个因子 z-score 乘对应权重后相加
+            # 权重之和为 1，直接做加权 sum 等价于加权 mean
+            weighted_list = [
+                score_list[i] * ic_weights.get(factor_names[i], 1.0 / len(factor_names))
+                for i in range(len(factor_names))
+            ]
+            composite = pd.concat(weighted_list, keys=factor_names).groupby(level=1).sum()
+        else:
+            # 等权合成（原逻辑）
+            composite = pd.concat(score_list, keys=factor_names).groupby(level=1).mean()
+
+        composite = composite.sort_index()
         return composite
 
     def _get_rebalance_dates(self, dates: pd.DatetimeIndex) -> list:
@@ -180,8 +250,30 @@ class MultiFactorStrategy(BaseStrategy):
             - 交易成本双边 0.3%（每次换手扣除）
             - 返回 DataFrame 包含: date, portfolio_return, cumulative_return
         """
-        # 1. 计算综合评分
-        composite_score = self.generate_signals(price_wide)
+        # 1. 计算 IC 权重（月度缓存），然后生成综合评分
+        ic_weights: Optional[dict] = None
+        if self.ic_weighting:
+            # 用价格宽表末尾时间点的年月判断是否需要刷新缓存
+            last_date = price_wide.index[-1]
+            current_ym = (last_date.year, last_date.month)
+            if self._ic_weights_last_update != current_ym:
+                weights = self._compute_ic_weights(price_wide)
+                if weights is None:
+                    # bootstrap 期：数据不足，降级等权
+                    _log.info("IC权重bootstrap期，使用等权合成")
+                    self._ic_weights_cache = {}
+                else:
+                    self._ic_weights_cache = weights
+                    self._ic_weights_last_update = current_ym
+                    _log.info(
+                        "IC权重已更新 (%d-%02d): %s",
+                        current_ym[0], current_ym[1],
+                        {k: f"{v:.3f}" for k, v in weights.items()},
+                    )
+            # 缓存非空才启用加权，否则维持等权（None）
+            ic_weights = self._ic_weights_cache if self._ic_weights_cache else None
+
+        composite_score = self.generate_signals(price_wide, ic_weights=ic_weights)
 
         # 2. 排除 ST 股票（评分置零）
         if self.is_st_wide is not None:
