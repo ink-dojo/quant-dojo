@@ -552,6 +552,7 @@ def _build_report(
     backtest_start: str = "",
     backtest_end: str = "",
     ic_validation_end: str = "",
+    fm_memo: str = "",
 ) -> str:
     """
     将各阶段结果拼接为最终 Markdown 报告。
@@ -684,6 +685,11 @@ def _build_report(
     if not gate_failures and not gate_warnings:
         lines.append("\n所有门槛均通过。")
     lines.append("")
+
+    # 4.5 基金经理评审（可选，LLM 生成时才有内容）
+    if fm_memo:
+        lines.append(fm_memo)
+        lines.append("")
 
     # 5. 结论与后续步骤
     lines.append("## 结论与后续步骤")
@@ -959,6 +965,27 @@ def run_idea_pipeline(
         gate_passed = False
         status = "failed_gate"
 
+    # ── stage 5.5: 基金经理评审（可选，不影响主流程） ───────────
+    fm_memo: str = ""
+    try:
+        from agents.fund_manager import FundManager
+        _notify(progress_callback, "fm_review", "基金经理评审中...")
+        fm = FundManager()
+        factor_names = [f["name"] for f in selected_factors]
+        fm_decision = fm.review_strategy(
+            metrics or {},
+            factors=factor_names,
+            strategy_name=strategy_name,
+            extra_context=hypothesis or "",
+        )
+        fm_memo = fm.render_decision_markdown(fm_decision, title="基金经理评审")
+        _notify(
+            progress_callback, "fm_review",
+            f"基金经理评审: {fm_decision.headline}"
+        )
+    except Exception as _fm_err:
+        _log.warning("基金经理评审阶段失败（不影响主流程）: %s", _fm_err)
+
     # ── stage 6: 组装报告 ──────────────────────────────────────
     _notify(progress_callback, "done", "组装最终报告...")
     report = _build_report(
@@ -969,6 +996,7 @@ def run_idea_pipeline(
         backtest_start=backtest_start,
         backtest_end=backtest_end,
         ic_validation_end=ic_validation_end,
+        fm_memo=fm_memo,
     )
     _notify(progress_callback, "done", "流水线执行完毕")
 

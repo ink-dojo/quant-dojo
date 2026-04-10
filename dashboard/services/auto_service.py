@@ -6,7 +6,7 @@ dashboard/services/auto_service.py — 策略自动生成服务层
 解决方案：用 asyncio.Queue 作为同步 progress_callback → 异步 yield 的桥接器。
 
 阶段顺序：
-  start → parsing → parsed → writing_spec → backtesting → risk_gate → done（或 error）
+  start → parsing → parsed → writing_spec → backtesting → risk_gate → fm_review → done（或 error）
 """
 
 import asyncio
@@ -35,7 +35,7 @@ async def run_idea_pipeline_sse(
     Yield：
         SSE 格式字符串，每条形如 data: {"stage":..., "content":...}\\n\\n
         阶段顺序：start → parsing → parsed → writing_spec
-                  → backtesting → risk_gate → done（或 error）
+                  → backtesting → risk_gate → fm_review → done（或 error）
         失败时 yield stage=error，然后 return
 
     实现细节：
