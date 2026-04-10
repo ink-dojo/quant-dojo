@@ -86,21 +86,18 @@ class TushareProvider(BaseDataProvider):
         except Exception as e:
             raise ProviderError(f"Tushare Pro 初始化失败: {e}") from e
 
-        # 验证 token 有效性（用 stock_basic 探测，只需 120 积分）
-        try:
-            df = self._pro.stock_basic(exchange="", list_status="L",
-                                       fields="ts_code", limit=1)
-            if df is None or df.empty:
-                raise ProviderError("Tushare token 无效或积分不足")
-        except Exception as e:
-            raise ProviderError(f"Tushare token 验证失败: {e}") from e
+        # token 验证：pro_api() 成功则认为 token 格式有效，
+        # 首次 API 调用失败时自然暴露错误（避免重复触发限流）
+        logger.info("Tushare Pro 初始化成功（token 已设置）")
 
-        # 检测 daily_basic 权限（需要 2000+ 积分）
+        # 检测 daily_basic 权限（需要 2000+ 积分，失败时静默降级）
         self._has_daily_basic = False
         try:
-            self._pro.daily_basic(ts_code="000001.SZ",
-                                  start_date="20260101", end_date="20260102",
-                                  fields="ts_code,pe_ttm")
+            self._pro.daily_basic(
+                ts_code="000001.SZ",
+                start_date="20260101", end_date="20260101",
+                fields="ts_code,pe_ttm",
+            )
             self._has_daily_basic = True
             logger.info("daily_basic 接口可用（基本面数据）")
         except Exception:

@@ -29,6 +29,32 @@ import datetime
 import sys
 
 
+def _load_dotenv():
+    """加载项目根目录的 .env 文件（若存在），将变量注入 os.environ。"""
+    import os
+    from pathlib import Path
+    env_path = Path(__file__).parent.parent / ".env"
+    if not env_path.exists():
+        return
+    try:
+        import dotenv
+        dotenv.load_dotenv(env_path)
+        return
+    except ImportError:
+        pass
+    # dotenv 未安装时手动解析
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = val
+
+
 # ══════════════════════════════════════════════════════════════
 # 启动警告
 # ══════════════════════════════════════════════════════════════
@@ -453,7 +479,7 @@ def cmd_data_update(args):
     更新本地 A 股日线数据
 
     参数:
-        args: argparse 命名空间，包含 end_date, symbols, dry_run
+        args: argparse 命名空间，包含 end_date, symbols, dry_run, source
     """
     try:
         from pipeline.data_update import run_update
@@ -465,8 +491,28 @@ def cmd_data_update(args):
     end_date = getattr(args, "end_date", None)
     symbols_str = getattr(args, "symbols", None)
     dry_run = getattr(args, "dry_run", False)
+    source = getattr(args, "source", "auto")
 
     symbol_list = symbols_str.split(",") if symbols_str else None
+
+    # ── 构造 provider ─────────────────────────────────────────
+    provider = None
+    if source == "tushare":
+        # 先加载 .env（若存在）
+        _load_dotenv()
+        import os
+        token = os.environ.get("TUSHARE_TOKEN", "")
+        if not token:
+            print("❌ 未找到 TUSHARE_TOKEN，请在 .env 中设置：", file=sys.stderr)
+            print("   TUSHARE_TOKEN=你的token", file=sys.stderr)
+            sys.exit(1)
+        try:
+            from providers.tushare_provider import TushareProvider
+            provider = TushareProvider(token=token)
+            print(f"✅ 使用 Tushare 批量模式（每天 1~3 次 API 调用）")
+        except Exception as e:
+            print(f"❌ Tushare 初始化失败: {e}", file=sys.stderr)
+            sys.exit(1)
 
     if dry_run:
         print("[dry-run] 模拟更新，不写文件")
@@ -477,7 +523,8 @@ def cmd_data_update(args):
         print(f"  股票范围：{len(symbol_list)} 只")
     print()
 
-    result = run_update(symbols=symbol_list, end_date=end_date, dry_run=dry_run)
+    result = run_update(symbols=symbol_list, end_date=end_date,
+                        dry_run=dry_run, provider=provider)
 
     updated = result.get("updated", [])
     skipped = result.get("skipped", [])
@@ -1147,6 +1194,16 @@ def main():
                                help="逗号分隔的股票代码，不填则全量")
     p_data_update.add_argument("--dry-run", dest="dry_run", action="store_true",
                                help="只打印，不写文件")
+    p_data_update.add_argument(
+        "--source",
+        type=str,
+        default="auto",
+        choices=["auto", "tushare", "baostock"],
+        help=(
+            "数据源: tushare = 批量模式（需 TUSHARE_TOKEN, 秒级更新）; "
+            "baostock = 逐只模式（免费但慢）; auto = 优先 baostock"
+        ),
+    )
 
     # ── live ─────────────────────────────────────────────────
     p_live = subparsers.add_parser("live", help="实时数据服务")
