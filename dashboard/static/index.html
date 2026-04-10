@@ -81,6 +81,7 @@
       <button data-tab="strategy"  class="tab-btn px-3 py-2 rounded-t">🎯 策略</button>
       <button data-tab="factors"   class="tab-btn px-3 py-2 rounded-t">📊 因子库</button>
       <button data-tab="research"  class="tab-btn px-3 py-2 rounded-t">🧪 研究</button>
+      <button data-tab="workshop"  class="tab-btn px-3 py-2 rounded-t">🛠 策略工坊</button>
       <button data-tab="docs"      class="tab-btn px-3 py-2 rounded-t">📖 文档</button>
       <button data-tab="notebooks" class="tab-btn px-3 py-2 rounded-t">📓 课程</button>
     </nav>
@@ -340,7 +341,70 @@
 </section>
 
 <!-- ════════════════════════════════════════════
-     Tab 6 · 文档
+     Tab 6 · 策略工坊（idea-to-strategy）
+     ════════════════════════════════════════════ -->
+<section id="tab-workshop" class="tab-pane hidden space-y-4">
+
+  <div class="explain-block">
+    <b>用一句话生成量化策略。</b> 输入自然语言想法，系统自动完成：
+    LLM 因子解析 → IC 验证 → 策略回测 → 风险门检查 → Markdown 报告。
+    结果写入 <code>strategies/generated/auto_gen_latest.json</code>，可直接用于模拟盘。
+  </div>
+
+  <!-- 输入区 -->
+  <div class="card p-5 space-y-4">
+    <h3 class="card-h">💡 输入策略想法</h3>
+    <div class="space-y-3">
+      <textarea id="workshop-idea" rows="3"
+        placeholder="例如：我想做基于ROE和低波动的选股策略，规避高换手的投机股"
+        class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500 resize-y"></textarea>
+      <div class="flex flex-wrap gap-3 items-end">
+        <div>
+          <label class="text-xs muted block mb-1">回测开始</label>
+          <input id="workshop-start" type="date" value="2022-01-01"
+            class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="text-xs muted block mb-1">回测结束</label>
+          <input id="workshop-end" type="date" value="2025-12-31"
+            class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200 focus:outline-none focus:border-blue-500" />
+        </div>
+        <button onclick="runWorkshop()" id="btn-workshop" class="btn btn-green text-xs">开始分析</button>
+        <button onclick="clearWorkshop()" class="btn btn-ghost text-xs">清空</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 进度区 -->
+  <div id="workshop-progress-wrap" class="card p-4 hidden">
+    <h3 class="card-h mb-3">🔄 执行进度</h3>
+    <div id="workshop-progress" class="space-y-1 max-h-56 overflow-y-auto text-xs font-mono text-gray-400"></div>
+  </div>
+
+  <!-- 结果区 -->
+  <div id="workshop-result-wrap" class="hidden space-y-3">
+
+    <!-- 状态徽章 -->
+    <div class="card p-3 flex items-center gap-3">
+      <span id="workshop-status-chip"></span>
+      <span id="workshop-strategy-name" class="text-sm text-gray-300"></span>
+    </div>
+
+    <!-- 关键指标快速卡片（回测通过时显示） -->
+    <div id="workshop-metrics-row" class="hidden grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+
+    <!-- Markdown 报告 -->
+    <div class="card p-5">
+      <h3 class="card-h mb-3">📋 完整报告</h3>
+      <div id="workshop-report" class="markdown overflow-y-auto max-h-[60vh]"></div>
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════
+     Tab 7 · 文档
      ════════════════════════════════════════════ -->
 <section id="tab-docs" class="tab-pane hidden">
 
@@ -991,6 +1055,145 @@ async function runDebate() {
   if (!sym) { alert('请输入股票代码'); return; }
   clearAIResult(); setAIBusy(true);
   try { await fetchSSE('/api/ai/debate',{symbol:sym,context:ctx},handleAIEvent); } finally { setAIBusy(false); }
+}
+
+// ══════════════════════════════════════════════
+// 策略工坊 Tab（idea-to-strategy）
+// ══════════════════════════════════════════════
+
+// 进度阶段标签映射
+const WORKSHOP_STAGE_LABELS = {
+  start:       '开始',
+  parsing:     '解析想法',
+  parsed:      '想法已解析',
+  validating:  '校验规范',
+  computing_ic:'IC 验证',
+  writing_spec:'写入策略定义',
+  backtesting: '运行回测',
+  risk_gate:   '风险门检查',
+  done:        '完成',
+  error:       '错误',
+};
+
+function workshopAppendProgress(stage, content) {
+  const wrap = $('#workshop-progress-wrap');
+  const log  = $('#workshop-progress');
+  wrap.classList.remove('hidden');
+  const ts = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const label = WORKSHOP_STAGE_LABELS[stage] || stage;
+  const isError = stage === 'error';
+  const line = document.createElement('div');
+  line.className = `py-0.5 border-b border-gray-800/40 ${isError ? 'text-red-400' : 'text-gray-400'}`;
+  line.textContent = `[${ts}] [${label}] ${content}`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function workshopShowMetrics(metrics) {
+  if (!metrics) return;
+  const row = $('#workshop-metrics-row');
+  const items = [
+    ['年化收益', pct(metrics.annualized_return), (metrics.annualized_return||0) >= 0 ? 'text-emerald-400' : 'text-red-400'],
+    ['夏普比率', fix2(metrics.sharpe), 'text-gray-200'],
+    ['最大回撤', pct(metrics.max_drawdown), 'text-yellow-400'],
+    ['总收益',   pct(metrics.total_return),   (metrics.total_return||0) >= 0 ? 'text-emerald-400' : 'text-red-400'],
+  ];
+  row.innerHTML = items.map(([label, val, cls]) =>
+    `<div class="stat-card text-center">
+      <div class="text-xs muted mb-1">${label}</div>
+      <div class="text-sm font-semibold ${cls}">${val}</div>
+    </div>`
+  ).join('');
+  row.classList.remove('hidden');
+}
+
+function workshopHandleEvent(data) {
+  const { stage, content } = data;
+
+  // 所有进度事件均写入进度区
+  if (stage !== 'done' && stage !== 'error') {
+    workshopAppendProgress(stage, content || '');
+  }
+
+  if (stage === 'error') {
+    workshopAppendProgress('error', content || '执行失败');
+    // 显示错误报告区
+    const resultWrap = $('#workshop-result-wrap');
+    resultWrap.classList.remove('hidden');
+    $('#workshop-status-chip').innerHTML = statusChip('failed');
+    $('#workshop-strategy-name').textContent = '流水线失败';
+    $('#workshop-report').innerHTML = `<div class="text-red-400 text-sm">${escHtml(String(content))}</div>`;
+  } else if (stage === 'done') {
+    workshopAppendProgress('done', '流水线执行完毕');
+    const resultWrap = $('#workshop-result-wrap');
+    resultWrap.classList.remove('hidden');
+
+    // 状态徽章
+    const gatePass = data.gate_passed;
+    const status   = data.status || (gatePass ? 'passed' : 'failed_gate');
+    const chipStatus = status === 'passed' ? 'success' : 'failed';
+    $('#workshop-status-chip').innerHTML = statusChip(chipStatus);
+    $('#workshop-strategy-name').textContent = data.strategy_name
+      ? `策略：${data.strategy_name}`
+      : '';
+
+    // 关键指标行
+    workshopShowMetrics(data.metrics);
+
+    // Markdown 报告
+    const reportEl = $('#workshop-report');
+    if (data.report && typeof marked !== 'undefined') {
+      reportEl.innerHTML = DOMPurify.sanitize(marked.parse(data.report));
+    } else {
+      reportEl.textContent = data.report || '（无报告内容）';
+    }
+  }
+}
+
+async function runWorkshop() {
+  const idea  = $('#workshop-idea').value.trim();
+  const start = $('#workshop-start').value.trim();
+  const end   = $('#workshop-end').value.trim();
+
+  if (!idea) { alert('请输入策略想法'); return; }
+  if (!start || !end) { alert('请填写回测区间'); return; }
+
+  // 重置 UI
+  $('#workshop-progress-wrap').classList.add('hidden');
+  $('#workshop-progress').innerHTML = '';
+  $('#workshop-result-wrap').classList.add('hidden');
+  $('#workshop-metrics-row').classList.add('hidden');
+  $('#workshop-report').innerHTML = '';
+  $('#workshop-status-chip').innerHTML = '';
+  $('#workshop-strategy-name').textContent = '';
+
+  const btn = $('#btn-workshop');
+  btn.disabled = true;
+  btn.textContent = '分析中…';
+
+  try {
+    await fetchSSE(
+      '/api/auto/idea',
+      { idea, start, end },
+      workshopHandleEvent,
+    );
+  } catch(e) {
+    workshopAppendProgress('error', `前端异常: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '开始分析';
+  }
+}
+
+function clearWorkshop() {
+  $('#workshop-idea').value = '';
+  $('#workshop-progress-wrap').classList.add('hidden');
+  $('#workshop-progress').innerHTML = '';
+  $('#workshop-result-wrap').classList.add('hidden');
+  $('#workshop-metrics-row').classList.add('hidden');
+  $('#workshop-report').innerHTML = '';
+  $('#workshop-status-chip').innerHTML = '';
+  $('#workshop-strategy-name').textContent = '';
 }
 
 // ══════════════════════════════════════════════

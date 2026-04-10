@@ -808,40 +808,99 @@ def run_idea_pipeline(
 # ══════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    # 验证 IdeaResult 可正常构造
-    _dummy = IdeaResult(
-        idea_text="低波动因子选股",
-        hypothesis="低波动股票未来收益更高",
-        strategy_name="low_vol_test",
-        selected_factors=[{
-            "name": "low_vol_20d",
-            "direction": -1,
-            "reason": "低波动异象",
-            "ic_mean": -0.032,
-            "icir": 0.41,
-        }],
-        backtest_run_id=None,
-        metrics=None,
-        gate_passed=False,
-        gate_failures=[],
-        gate_warnings=[],
-        report_markdown="# test",
-        status="failed_parse",
-        error=None,
-        created_at=datetime.datetime.now().isoformat(),
-    )
-    print(f"IdeaResult 构造成功: status={_dummy.status}, factors={len(_dummy.selected_factors)}")
+    import argparse as _argparse
 
-    # 验证 failed_parse 路径（parse_ok=False 时立即返回，不加载数据）
-    _bad_spec = {"parse_ok": False, "error": "unit test error"}
-    _result = run_idea_pipeline(
-        idea_text="低波动因子选股",
-        spec=_bad_spec,
-        backtest_start="2023-01-01",
-        backtest_end="2024-12-31",
+    _ap = _argparse.ArgumentParser(
+        prog="python -m pipeline.idea_to_strategy",
+        description=(
+            "idea-to-strategy 独立脚本入口。\n"
+            "传入策略想法文本，完整走 LLM 解析 → IC 验证 → 回测 → 风险门 流程，\n"
+            "并打印 Markdown 报告。\n\n"
+            "不传参数时进入最小验证模式（不调 LLM，不加载数据）。"
+        ),
+        formatter_class=_argparse.RawDescriptionHelpFormatter,
     )
-    assert _result.status == "failed_parse", f"预期 failed_parse，实际: {_result.status}"
-    assert "unit test error" in (_result.error or ""), f"error 字段未传递: {_result.error}"
-    print(f"failed_parse 路径正常: error='{_result.error}'")
+    _ap.add_argument("idea", nargs="?", default=None,
+                     help="策略想法文本，如 '我想做基于ROE和低波动的选股'")
+    _ap.add_argument("--start", default="2022-01-01", help="回测开始日期（默认 2022-01-01）")
+    _ap.add_argument("--end",   default="2025-12-31", help="回测结束日期（默认 2025-12-31）")
+    _ap.add_argument("--test",  action="store_true",  help="强制进入最小验证模式（不调 LLM）")
+    _cli_args = _ap.parse_args()
 
-    print("✅ idea_to_strategy import ok")
+    if _cli_args.idea and not _cli_args.test:
+        # ── 真实运行模式：调 LLM + 数据 ─────────────────────────
+        import sys as _sys
+        print(f"[idea_to_strategy] 想法: {_cli_args.idea}")
+        print(f"[idea_to_strategy] 区间: {_cli_args.start} ~ {_cli_args.end}")
+        print()
+
+        try:
+            from agents.base import LLMClient
+            from agents.idea_parser import IdeaParser
+        except ImportError as _ie:
+            print(f"❌ agents 模块导入失败: {_ie}", file=_sys.stderr)
+            _sys.exit(1)
+
+        _llm = LLMClient()
+        if _llm._backend == "none":
+            print("❌ LLM 后端不可用，请安装 claude CLI 或启动 Ollama", file=_sys.stderr)
+            _sys.exit(1)
+
+        _spec = IdeaParser(_llm).analyze(idea_text=_cli_args.idea)
+        if not _spec.get("parse_ok", False):
+            print(f"❌ 解析失败: {_spec.get('reason', '未知原因')}", file=_sys.stderr)
+            _sys.exit(1)
+
+        def _cb(stage: str, msg: str):
+            print(f"  [{stage}] {msg}")
+
+        _res = run_idea_pipeline(
+            idea_text=_cli_args.idea,
+            spec=_spec,
+            backtest_start=_cli_args.start,
+            backtest_end=_cli_args.end,
+            progress_callback=_cb,
+        )
+        print()
+        print(_res.report_markdown)
+        if _res.status in ("failed_parse", "failed_ic", "failed_backtest"):
+            _sys.exit(1)
+
+    else:
+        # ── 最小验证模式（不触发 LLM 或数据加载）────────────────
+        _dummy = IdeaResult(
+            idea_text="低波动因子选股",
+            hypothesis="低波动股票未来收益更高",
+            strategy_name="low_vol_test",
+            selected_factors=[{
+                "name": "low_vol_20d",
+                "direction": -1,
+                "reason": "低波动异象",
+                "ic_mean": -0.032,
+                "icir": 0.41,
+            }],
+            backtest_run_id=None,
+            metrics=None,
+            gate_passed=False,
+            gate_failures=[],
+            gate_warnings=[],
+            report_markdown="# test",
+            status="failed_parse",
+            error=None,
+            created_at=datetime.datetime.now().isoformat(),
+        )
+        print(f"IdeaResult 构造成功: status={_dummy.status}, factors={len(_dummy.selected_factors)}")
+
+        # 验证 failed_parse 路径（parse_ok=False 时立即返回，不加载数据）
+        _bad_spec = {"parse_ok": False, "error": "unit test error"}
+        _result = run_idea_pipeline(
+            idea_text="低波动因子选股",
+            spec=_bad_spec,
+            backtest_start="2023-01-01",
+            backtest_end="2024-12-31",
+        )
+        assert _result.status == "failed_parse", f"预期 failed_parse，实际: {_result.status}"
+        assert "unit test error" in (_result.error or ""), f"error 字段未传递: {_result.error}"
+        print(f"failed_parse 路径正常: error='{_result.error}'")
+
+        print("✅ idea_to_strategy import ok")

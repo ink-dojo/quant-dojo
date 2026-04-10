@@ -48,7 +48,9 @@ def load_auto_gen_definition() -> dict:
     if not LATEST_FILE.exists():
         raise FileNotFoundError(
             f"未找到 auto_gen 策略定义: {LATEST_FILE}\n"
-            "请先运行: python -m quant_dojo generate"
+            "请先运行 idea-to-strategy 流水线生成策略定义：\n"
+            "  python -m pipeline.cli idea '你的策略想法'\n"
+            "或通过 Dashboard 的「策略工坊」面板提交。"
         )
 
     try:
