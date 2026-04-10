@@ -79,6 +79,112 @@ def _compute_current_drawdown() -> Optional[float]:
     return float(current_drawdown)
 
 
+def compute_effective_n(positions: dict) -> float:
+    """
+    有效持仓数（Effective N）。
+
+    Effective N = 1 / sum(w_i²)
+    完全等权时 EN = N，高度集中时 EN → 1。
+
+    参数:
+        positions: {symbol: weight} 或 {symbol: shares} 均可，内部会做归一化
+    返回:
+        float，有效持仓数
+    """
+    weights = np.array(list(positions.values()), dtype=float)
+    weights = weights / weights.sum()  # 归一化
+    return float(1.0 / (weights ** 2).sum())
+
+
+def check_factor_exposure(
+    positions: dict,
+    factor_wide: dict,
+    threshold: float = 1.5,
+) -> list:
+    """
+    检查当前持仓的因子暴露是否过度集中。
+
+    对持仓股票在最新截面计算各因子的加权平均 z-score，
+    若绝对值超过 threshold，产生 FACTOR_CONCENTRATION 告警。
+
+    参数:
+        positions:   {symbol: weight} 当前持仓权重
+        factor_wide: {factor_name: pd.DataFrame(日期×股票)} 因子宽表
+        threshold:   z-score 绝对值阈值，默认 1.5
+    返回:
+        list of dict: [{level, code, msg, factor, exposure}, ...]
+    """
+    alerts = []
+    if not positions or not factor_wide:
+        return alerts
+
+    syms = list(positions.keys())
+    raw_weights = np.array(list(positions.values()), dtype=float)
+    if raw_weights.sum() == 0:
+        return alerts
+    weights = raw_weights / raw_weights.sum()  # 归一化，防止传入 shares
+
+    today = date.today().isoformat()
+
+    for factor_name, df in factor_wide.items():
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            continue
+
+        # 取最新日期截面
+        latest_row = df.iloc[-1]
+
+        # 仅保留持仓中有该因子值的股票
+        available_syms = [s for s in syms if s in latest_row.index and pd.notna(latest_row[s])]
+        if not available_syms:
+            continue
+
+        # 截面 z-score（用该截面全体股票的均值和标准差）
+        cross_section = latest_row.dropna()
+        mean = cross_section.mean()
+        std = cross_section.std()
+        if std == 0 or pd.isna(std):
+            continue
+
+        z_scores = (latest_row[available_syms] - mean) / std
+
+        # 对持仓股票取加权平均 z-score（按权重在 available_syms 子集中重新归一化）
+        sym_indices = [syms.index(s) for s in available_syms]
+        sub_weights = weights[sym_indices]
+        if sub_weights.sum() == 0:
+            continue
+        sub_weights = sub_weights / sub_weights.sum()
+
+        weighted_z = float(np.dot(sub_weights, z_scores[available_syms].values))
+
+        if abs(weighted_z) > threshold:
+            # 根据因子名给出可读的风险描述
+            if "illiq" in factor_name or "amihud" in factor_name:
+                hint = "可能集中持有流动性差个股"
+            elif "momentum" in factor_name or "mom" in factor_name:
+                hint = "可能存在追涨行为"
+            elif "size" in factor_name or "mktcap" in factor_name:
+                hint = "可能集中持有某一市值段"
+            elif "value" in factor_name or "pb" in factor_name or "pe" in factor_name:
+                hint = "可能集中于估值极端个股"
+            else:
+                hint = "因子暴露偏高，请检查持仓分散性"
+
+            alerts.append({
+                "level": "warning",
+                "code": "FACTOR_CONCENTRATION",
+                "msg": (
+                    f"持仓对 {factor_name} 因子暴露过高"
+                    f"（z={weighted_z:.2f}），{hint}"
+                ),
+                "factor": factor_name,
+                "exposure": round(weighted_z, 4),
+                "symbol": "",
+                "as_of_date": today,
+            })
+
+    return alerts
+
+
 def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
     """
     检查当前持仓的各类风险指标，返回预警列表。
@@ -178,8 +284,23 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
         from pipeline.active_strategy import get_active_strategy
         _active = get_active_strategy()
         _preset_key = _active if _active in FACTOR_PRESETS else "v7"
-        health = factor_health_report(factors=FACTOR_PRESETS[_preset_key])
+        # 构建用于 effective_n 附加的持仓字典
+        _positions_for_health: dict = {}
+        try:
+            _positions_for_health = {
+                sym: info["shares"]
+                for sym, info in portfolio.positions.items()
+                if sym != "__cash__" and info.get("shares", 0) > 0
+            }
+        except Exception:
+            pass
+        health = factor_health_report(
+            factors=FACTOR_PRESETS[_preset_key],
+            positions=_positions_for_health or None,
+        )
         for factor_name, info in health.items():
+            if factor_name == "__meta__":
+                continue  # 跳过元信息键，不产生告警
             status = info.get("status")
             # insufficient_data / no_data 不是告警，只是 Phase 5 早期常态
             if status in ("degraded", "dead"):
@@ -203,6 +324,30 @@ def check_risk_alerts(portfolio, price_data: Optional[dict] = None) -> list:
         )
     except Exception as e:
         _log_decision(f"因子 IC 检查异常，跳过: {e}")
+
+    # --- 5. Effective N 集中度检查 ---
+    try:
+        stock_positions = {
+            sym: info["shares"]
+            for sym, info in portfolio.positions.items()
+            if sym != "__cash__" and info.get("shares", 0) > 0
+        }
+        if stock_positions:
+            n_positions = len(stock_positions)
+            effective_n = compute_effective_n(stock_positions)
+            if effective_n < n_positions * 0.5:
+                alerts.append({
+                    "level": "warning",
+                    "code": "CONCENTRATION_EXCEEDED",
+                    "msg": (
+                        f"有效持仓数 {effective_n:.1f} 不足名义持仓数 {n_positions} 的一半，"
+                        f"组合集中度过高（Effective N = {effective_n:.2f}）"
+                    ),
+                    "symbol": "",
+                    "as_of_date": date.today().isoformat(),
+                })
+    except Exception as e:
+        _log_decision(f"Effective N 检查失败，跳过: {e}")
 
     return alerts
 

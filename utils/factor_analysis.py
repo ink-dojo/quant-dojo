@@ -514,3 +514,209 @@ def ic_weighted_period_composite(
         result_vals[i] = np.where(weight_sum > 0, weighted / weight_sum, np.nan)
 
     return pd.DataFrame(result_vals, index=base_fac.index, columns=base_fac.columns)
+
+
+# ─────────────────────────────────────────────
+# 因子衰减分析
+# ─────────────────────────────────────────────
+
+def factor_decay_analysis(
+    factor_wide: pd.DataFrame,
+    ret_wide: pd.DataFrame,
+    max_lag: int = 20,
+    smooth: bool = True,
+) -> dict:
+    """
+    因子衰减半衰期分析。
+
+    对每个 lag = 1..max_lag 计算 IC，拟合指数衰减曲线求半衰期。
+
+    参数:
+        factor_wide : 因子宽表（日期 × 股票）
+        ret_wide    : 收益率宽表（日期 × 股票）
+        max_lag     : 最大预测期（天），默认 20
+        smooth      : True 时对 IC 曲线做滑动平均（窗口 3）再拟合，减少噪音
+
+    返回:
+        dict，包含以下字段：
+            ic_by_lag              : {1: 0.03, 2: 0.025, ...}，每个 lag 的平均 IC
+            half_life_days         : 半衰期（天），None 表示无法拟合
+            decay_rate             : 指数衰减率 λ
+            ic_0                   : 拟合的初始 IC 值
+            recommended_rebalance_freq : 根据半衰期推荐的调仓频率
+            fit_quality            : R² 拟合质量
+    """
+    from scipy.optimize import curve_fit
+
+    lags = list(range(1, max_lag + 1))
+
+    # Step 1：对每个 lag 计算平均 IC
+    ic_by_lag = {}
+    for lag in lags:
+        fwd_ret = ret_wide.shift(-lag)
+        ic_s = compute_ic_series(factor_wide, fwd_ret)
+        ic_by_lag[lag] = ic_s.mean()
+
+    ic_values = np.array([ic_by_lag[lag] for lag in lags])
+
+    # Step 2：可选滑动平均平滑 IC 曲线（窗口 3）
+    if smooth and len(ic_values) >= 3:
+        ic_smoothed = (
+            pd.Series(ic_values)
+            .rolling(window=3, center=True, min_periods=1)
+            .mean()
+            .values
+        )
+    else:
+        ic_smoothed = ic_values.copy()
+
+    # Step 3：用绝对值拟合指数衰减 |IC(t)| = ic0 * exp(-λ * t)
+    abs_ic = np.abs(ic_smoothed)
+    lags_arr = np.array(lags, dtype=float)
+
+    def _exp_decay(t, ic0, lam):
+        return ic0 * np.exp(-lam * t)
+
+    half_life_days = None
+    decay_rate = None
+    ic_0 = None
+    fit_quality = None
+    recommended_rebalance_freq = "monthly"  # 默认降级值
+
+    try:
+        # 初始猜测：ic0 为第一个 lag 的 |IC|，λ 为 0.1
+        p0 = [abs_ic[0] if abs_ic[0] > 0 else 0.01, 0.1]
+        popt, _ = curve_fit(
+            _exp_decay,
+            lags_arr,
+            abs_ic,
+            p0=p0,
+            maxfev=5000,
+            bounds=([0, 1e-6], [np.inf, np.inf]),
+        )
+        ic0_fit, lam_fit = popt
+
+        # 计算 R²
+        fitted = _exp_decay(lags_arr, ic0_fit, lam_fit)
+        ss_res = np.sum((abs_ic - fitted) ** 2)
+        ss_tot = np.sum((abs_ic - abs_ic.mean()) ** 2)
+        r2 = 1 - ss_res / ss_tot if ss_tot > 0 else np.nan
+
+        half_life_days = np.log(2) / lam_fit
+        decay_rate = float(lam_fit)
+        ic_0 = float(ic0_fit)
+        fit_quality = float(r2)
+
+        # Step 5：根据半衰期推荐调仓频率
+        if half_life_days < 5:
+            recommended_rebalance_freq = "daily"
+        elif half_life_days < 15:
+            recommended_rebalance_freq = "weekly"
+        elif half_life_days < 40:
+            recommended_rebalance_freq = "monthly"
+        else:
+            recommended_rebalance_freq = "quarterly"
+
+    except Exception:
+        # curve_fit 失败：半衰期无法估计，保持默认降级值
+        pass
+
+    return {
+        "ic_by_lag": ic_by_lag,
+        "half_life_days": half_life_days,
+        "decay_rate": decay_rate,
+        "ic_0": ic_0,
+        "recommended_rebalance_freq": recommended_rebalance_freq,
+        "fit_quality": fit_quality,
+    }
+
+
+def batch_decay_analysis(
+    factors_dict: dict,
+    ret_wide: pd.DataFrame,
+    max_lag: int = 20,
+) -> pd.DataFrame:
+    """
+    批量因子衰减分析汇总表。
+
+    对多个因子同时调用 factor_decay_analysis，返回对比 DataFrame。
+
+    参数:
+        factors_dict : {"因子名": factor_wide, ...}
+        ret_wide     : 收益率宽表（日期 × 股票）
+        max_lag      : 最大预测期（天），传入各子调用
+
+    返回:
+        汇总 DataFrame，每行一个因子，列为：
+            因子、半衰期(天)、衰减率λ、初始IC、推荐调仓频率、拟合R²
+    """
+    rows = []
+    for name, fac in factors_dict.items():
+        result = factor_decay_analysis(fac, ret_wide, max_lag=max_lag, smooth=True)
+        rows.append({
+            "因子": name,
+            "半衰期(天)": (
+                round(result["half_life_days"], 2)
+                if result["half_life_days"] is not None
+                else None
+            ),
+            "衰减率λ": (
+                round(result["decay_rate"], 4)
+                if result["decay_rate"] is not None
+                else None
+            ),
+            "初始IC": (
+                round(result["ic_0"], 4)
+                if result["ic_0"] is not None
+                else None
+            ),
+            "推荐调仓频率": result["recommended_rebalance_freq"],
+            "拟合R²": (
+                round(result["fit_quality"], 4)
+                if result["fit_quality"] is not None
+                else None
+            ),
+        })
+    return pd.DataFrame(rows)
+
+
+# ─────────────────────────────────────────────
+# 入口验证
+# ─────────────────────────────────────────────
+
+if __name__ == "__main__":
+    np.random.seed(42)
+    n_dates, n_stocks = 120, 50
+    dates = pd.date_range("2024-01-01", periods=n_dates, freq="B")
+    stocks = [f"S{i:03d}" for i in range(n_stocks)]
+
+    # 构造一个与收益率有相关性、且存在衰减的因子
+    base_signal = pd.DataFrame(
+        np.random.randn(n_dates, n_stocks), index=dates, columns=stocks
+    )
+    noise = pd.DataFrame(
+        np.random.randn(n_dates, n_stocks) * 2, index=dates, columns=stocks
+    )
+    ret_wide = base_signal.shift(1) * 0.02 + noise * 0.01
+    factor_wide = base_signal + np.random.randn(n_dates, n_stocks) * 0.5
+
+    print("=== 单因子衰减分析 ===")
+    result = factor_decay_analysis(factor_wide, ret_wide, max_lag=10, smooth=True)
+    print(f"IC by lag (lag1~5): { {k: round(v, 4) for k, v in list(result['ic_by_lag'].items())[:5]} }")
+    print(f"半衰期       : {result['half_life_days']}")
+    print(f"衰减率 λ     : {result['decay_rate']}")
+    print(f"初始 IC      : {result['ic_0']}")
+    print(f"推荐调仓频率 : {result['recommended_rebalance_freq']}")
+    print(f"拟合 R²      : {result['fit_quality']}")
+
+    print("\n=== 批量因子衰减分析 ===")
+    factors_dict = {
+        "momentum": base_signal + np.random.randn(n_dates, n_stocks) * 0.3,
+        "reversal": -base_signal + np.random.randn(n_dates, n_stocks) * 0.5,
+        "noise_factor": pd.DataFrame(
+            np.random.randn(n_dates, n_stocks), index=dates, columns=stocks
+        ),
+    }
+    summary = batch_decay_analysis(factors_dict, ret_wide, max_lag=10)
+    print(summary.to_string(index=False))
+    print("\n✅ factor_decay_analysis 验证通过")
