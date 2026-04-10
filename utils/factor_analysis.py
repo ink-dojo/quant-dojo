@@ -350,6 +350,112 @@ def neutralize_factor_by_industry(
 
 
 # ─────────────────────────────────────────────
+# 行业中性化（快速向量化版）
+# ─────────────────────────────────────────────
+
+def industry_neutralize_fast(
+    factor_wide: pd.DataFrame,
+    industry_series: pd.Series,
+) -> pd.DataFrame:
+    """
+    行业中性化（快速版）：截面去均值（行业内 demean）。
+
+    比 OLS 更快，效果接近：每只股票的因子值减去其所属行业的当日均值。
+    单行业内股票数 < 2 时该行业保持原值（无法 demean）。
+
+    参数:
+        factor_wide      : 因子宽表（日期 × 股票），index 为 DatetimeIndex
+        industry_series  : pd.Series，index=symbol，value=行业名
+
+    返回:
+        中性化后的因子宽表，形状与 factor_wide 相同
+    """
+    result = factor_wide.copy()
+    ind_clean = industry_series.dropna()
+    industries = ind_clean.unique()
+
+    for ind in industries:
+        # 取属于该行业、且在因子宽表中存在的列
+        syms_in_ind = ind_clean[ind_clean == ind].index
+        cols = [c for c in syms_in_ind if c in factor_wide.columns]
+        if len(cols) < 2:
+            # 只有 0 或 1 只股票，无法做行业内 demean，保持原值
+            continue
+        ind_data = factor_wide[cols]
+        # axis=1：每个日期（行）计算该行业所有股票的均值，再逐列减去
+        ind_mean = ind_data.mean(axis=1)
+        result[cols] = ind_data.sub(ind_mean, axis=0)
+
+    return result
+
+
+def industry_neutralize(
+    factor_wide: pd.DataFrame,
+    industry_map: dict,
+) -> pd.DataFrame:
+    """
+    行业中性化（OLS 回归残差法）。
+
+    对每个截面日期 t：
+        factor_t = alpha + sum(beta_k * I_k) + residual_t
+        residual_t 即为中性化后的因子值
+
+    注意：此函数逐日循环，数据量大时较慢。
+    日常使用推荐更快的 industry_neutralize_fast。
+
+    参数:
+        factor_wide  : 因子宽表（日期 × 股票）
+        industry_map : {symbol: industry_name}，行业分类字典
+
+    返回:
+        同形状 DataFrame，行业中性化后的因子值
+    """
+    import numpy as np
+    from numpy.linalg import lstsq
+
+    industry_series = pd.Series(industry_map)
+    ind_list = sorted(set(industry_map.values()))
+
+    result = factor_wide.copy() * np.nan
+
+    for date in factor_wide.index:
+        row = factor_wide.loc[date].dropna()
+        if len(row) < 30:
+            continue
+
+        symbols = row.index.tolist()
+
+        # 构建行业虚拟变量矩阵（带截距通过 lstsq fit_intercept=True 等效）
+        X = np.zeros((len(symbols), len(ind_list)))
+        for i, sym in enumerate(symbols):
+            ind = industry_series.get(sym)
+            if ind and ind in ind_list:
+                j = ind_list.index(ind)
+                X[i, j] = 1.0
+
+        # 去掉全零列（该行业当日无股票）
+        valid_cols = X.sum(0) > 0
+        X = X[:, valid_cols]
+
+        if X.shape[1] == 0:
+            result.loc[date, symbols] = row.values
+            continue
+
+        # 加截距列
+        X_with_intercept = np.hstack([np.ones((len(symbols), 1)), X])
+        y = row.values
+
+        try:
+            coef, _, _, _ = lstsq(X_with_intercept, y, rcond=None)
+            residuals = y - X_with_intercept @ coef
+            result.loc[date, symbols] = residuals
+        except Exception:
+            result.loc[date, symbols] = row.values
+
+    return result
+
+
+# ─────────────────────────────────────────────
 # IC 加权合成
 # ─────────────────────────────────────────────
 

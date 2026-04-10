@@ -39,6 +39,14 @@ DEFAULT_RULES: dict = {
     "n_trading_days": {"min": 700, "required": False, "label": "回测天数"},
     # 警告级：不影响 passed，只放进 warnings
     "win_rate": {"min": 0.45, "required": False, "level": "warning", "label": "胜率"},
+    # IR 警告级：required=False，先观察数据再改为强制
+    "information_ratio": {
+        "min": 0.5,
+        "required": False,
+        "level": "warning",
+        "label": "信息比率",
+        "message": "信息比率 {value:.2f} 低于 0.5（策略相对基准超额不稳定）",
+    },
 }
 
 
@@ -153,6 +161,21 @@ def render_gate_markdown(result: GateResult) -> str:
     lines: list[str] = ["## 风险门检查", ""]
     icon = "✅" if result.passed else "❌"
     lines.append(f"- **结论**: {icon} {'通过' if result.passed else '未通过'}")
+
+    # IR 单独展示
+    ir_val = result.metrics.get("information_ratio")
+    if ir_val is not None:
+        try:
+            ir_f = float(ir_val)
+            if ir_f >= 0.5:
+                lines.append(f"- ✅ IR={ir_f:.2f}")
+            else:
+                lines.append(f"- ⚠️ IR={ir_f:.2f}（建议 > 0.5）")
+        except (TypeError, ValueError):
+            lines.append(f"- ⚠️ IR={ir_val}（建议 > 0.5）")
+    else:
+        lines.append("- ⚠️ IR=N/A（建议 > 0.5）")
+
     if result.failures:
         lines.append(f"- **硬失败 ({len(result.failures)})**:")
         for f in result.failures:

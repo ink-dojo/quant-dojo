@@ -4,11 +4,15 @@
 """
 from __future__ import annotations
 
+import logging
+import warnings
 import numpy as np
 import pandas as pd
 from typing import Optional
 
 from strategies.base import BaseStrategy, StrategyConfig
+
+_log = logging.getLogger(__name__)
 
 
 class MultiFactorStrategy(BaseStrategy):
@@ -35,24 +39,37 @@ class MultiFactorStrategy(BaseStrategy):
         is_st_wide: Optional[pd.DataFrame] = None,  # ST标记宽表（日期×股票，1=ST）
         n_stocks: int = 30,
         rebalance_freq: str = "monthly",
+        neutralize: bool = False,
+        industry_map: Optional[dict] = None,  # {symbol: industry_name}
     ):
         """
         初始化多因子策略
 
         参数:
-            config: 策略配置
-            factors: 因子字典，{名称: (宽表DataFrame, 方向)}
-                     宽表格式为 date × symbol，方向1为正向，-1为反向
-            is_st_wide: ST标记宽表，date × symbol，1表示ST股（可选）
-            n_stocks: 每次选股数量
-            rebalance_freq: 调仓频率，目前仅支持 "monthly"
+            config         : 策略配置
+            factors        : 因子字典，{名称: (宽表DataFrame, 方向)}
+                             宽表格式为 date × symbol，方向1为正向，-1为反向
+            is_st_wide     : ST标记宽表，date × symbol，1表示ST股（可选）
+            n_stocks       : 每次选股数量
+            rebalance_freq : 调仓频率，目前仅支持 "monthly"
+            neutralize     : 是否对各因子做行业中性化（需同时提供 industry_map）
+            industry_map   : {symbol: industry_name}，行业分类字典；
+                             neutralize=True 时必须提供，否则打 warning 并跳过中性化
         """
         super().__init__(config)
         self.factors = factors
         self.is_st_wide = is_st_wide
         self.n_stocks = n_stocks
         self.rebalance_freq = rebalance_freq
+        self.neutralize = neutralize
+        self.industry_map = industry_map
         self.trade_log: list = []  # 调仓记录
+
+        # 预先将 industry_map 转为 pd.Series，后续重复使用
+        if self.neutralize and self.industry_map:
+            self._industry_series = pd.Series(self.industry_map)
+        else:
+            self._industry_series = None
 
     @staticmethod
     def _winsorize_zscore(series: pd.Series, sigma: float = 3.0) -> pd.Series:
@@ -79,18 +96,45 @@ class MultiFactorStrategy(BaseStrategy):
         """
         生成多因子综合评分信号
 
+        流程（neutralize=True 且有 industry_map 时）：
+            1. 截面 3σ 缩尾后 z-score 标准化
+            2. 行业内 demean（industry_neutralize_fast）去除行业暴露
+            3. 方向调整后等权平均合成
+
         参数:
             data: 未使用（信号来自 self.factors），保留接口兼容性
 
         返回:
             综合评分宽表 DataFrame（date × symbol）
         """
+        # 确定是否执行中性化，并在需要时做提前校验
+        do_neutralize = self.neutralize
+        if do_neutralize:
+            if self._industry_series is None:
+                warnings.warn(
+                    "MultiFactorStrategy: neutralize=True 但未提供 industry_map，"
+                    "跳过行业中性化。请在构造时传入 industry_map={symbol: industry_name}。",
+                    stacklevel=2,
+                )
+                do_neutralize = False
+            else:
+                from utils.factor_analysis import industry_neutralize_fast
+
         all_scores = []
 
         for factor_name, (factor_df, direction) in self.factors.items():
-            # 截面 z-score（逐行/逐日计算）
+            # 1. 截面 z-score（逐行/逐日计算）
             zscore = factor_df.apply(self._winsorize_zscore, axis=1)
-            # 方向调整：direction=-1 时反转
+
+            # 2. 行业中性化（在 z-score 后、方向调整前）
+            if do_neutralize:
+                try:
+                    zscore = industry_neutralize_fast(zscore, self._industry_series)
+                    _log.debug("因子 %s 行业中性化完成", factor_name)
+                except Exception as exc:
+                    _log.warning("因子 %s 行业中性化失败，使用原始 z-score: %s", factor_name, exc)
+
+            # 3. 方向调整：direction=-1 时反转
             zscore = zscore * direction
             all_scores.append(zscore)
 
@@ -98,7 +142,7 @@ class MultiFactorStrategy(BaseStrategy):
             raise ValueError("factors 字典为空，无法生成信号")
 
         # 对齐索引后沿 axis=0（factor维度）等权平均
-        # pd.concat(..., keys=...) 产生多层索引，mean(level=1) 得到 date×symbol
+        # pd.concat(..., keys=...) 产生多层索引，groupby level=1 得到 date×symbol
         composite = pd.concat(all_scores, keys=list(self.factors.keys())).groupby(level=1).mean()
         composite = composite.sort_index()
 
@@ -268,7 +312,12 @@ if __name__ == "__main__":
     )
     is_st = pd.DataFrame(0, index=dates, columns=symbols)
 
+    # 构造假的行业分类：每10只股票一个行业，共5个行业
+    industry_map = {sym: f"IND_{i // 10}" for i, sym in enumerate(symbols)}
+
     config = StrategyConfig(name="test_multi_factor")
+
+    # 测试 1：不做中性化
     strategy = MultiFactorStrategy(
         config=config,
         factors={"momentum": (factor_df, 1)},
@@ -276,4 +325,30 @@ if __name__ == "__main__":
         n_stocks=10,
     )
     result = strategy.run(price_wide)
-    print(f"✅ 回测完成 | 形状: {result.shape} | 累计收益: {result['cumulative_return'].iloc[-1]:.2%}")
+    print(f"✅ 无中性化回测完成 | 形状: {result.shape} | 累计收益: {result['cumulative_return'].iloc[-1]:.2%}")
+
+    # 测试 2：开启行业中性化
+    strategy2 = MultiFactorStrategy(
+        config=config,
+        factors={"momentum": (factor_df, 1)},
+        is_st_wide=is_st,
+        n_stocks=10,
+        neutralize=True,
+        industry_map=industry_map,
+    )
+    result2 = strategy2.run(price_wide)
+    print(f"✅ 行业中性化回测完成 | 形状: {result2.shape} | 累计收益: {result2['cumulative_return'].iloc[-1]:.2%}")
+
+    # 测试 3：neutralize=True 但不传 industry_map，应打 warning 而非报错
+    import warnings as _w
+    with _w.catch_warnings(record=True) as caught:
+        _w.simplefilter("always")
+        strategy3 = MultiFactorStrategy(
+            config=config,
+            factors={"momentum": (factor_df, 1)},
+            n_stocks=10,
+            neutralize=True,         # 未传 industry_map
+        )
+        result3 = strategy3.run(price_wide)
+    assert any("industry_map" in str(w.message) for w in caught), "应有 warning 提示缺少 industry_map"
+    print(f"✅ 缺少 industry_map warning 正常触发")

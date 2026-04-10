@@ -171,6 +171,33 @@ def run_strategy(
         }
 
 
+def _load_industry_map(symbols: list) -> Optional[dict]:
+    """
+    尝试加载股票行业分类，返回 {symbol: industry_code} 字典。
+
+    失败时打 warning 并返回 None，调用方应降级为不做中性化。
+
+    参数:
+        symbols : 股票代码列表
+
+    返回:
+        dict 或 None
+    """
+    try:
+        from utils.fundamental_loader import get_industry_classification
+        ind_df = get_industry_classification(symbols)
+        if ind_df.empty or "industry_code" not in ind_df.columns:
+            _log.warning("行业分类数据为空，跳过中性化")
+            return None
+        ind_map = ind_df.set_index("symbol")["industry_code"].to_dict()
+        covered = sum(1 for s in symbols if s in ind_map)
+        _log.info("行业分类加载完成：%d / %d 只股票有行业标签", covered, len(symbols))
+        return ind_map if covered > 0 else None
+    except Exception as exc:
+        _log.warning("加载行业分类失败，跳过中性化: %s", exc)
+        return None
+
+
 def _load_data(entry: StrategyEntry, start: str, end: str, params: dict) -> pd.DataFrame:
     """
     根据策略数据类型加载回测数据
@@ -248,6 +275,15 @@ def _compute_metrics(results_df: pd.DataFrame) -> dict:
     total_return = float((1 + returns).prod() - 1)
     n_days = len(returns)
 
+    # IR 计算（需要 benchmark_return 列）
+    ir = None
+    if "benchmark_return" in results_df.columns:
+        try:
+            metrics_mod2 = importlib.import_module("utils.metrics")
+            ir = float(metrics_mod2.information_ratio(returns, results_df["benchmark_return"]))
+        except Exception:
+            pass
+
     return {
         "total_return": round(total_return, 6),
         "annualized_return": round(ann_ret, 6),
@@ -258,6 +294,7 @@ def _compute_metrics(results_df: pd.DataFrame) -> dict:
         "n_trading_days": n_days,
         "start_date": str(returns.index[0].date()) if hasattr(returns.index[0], 'date') else str(returns.index[0]),
         "end_date": str(returns.index[-1].date()) if hasattr(returns.index[-1], 'date') else str(returns.index[-1]),
+        "information_ratio": round(ir, 4) if ir is not None else None,
     }
 
 
@@ -359,7 +396,9 @@ class _MultiFactorAdapter:
 
     def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
         """
-        从价格宽表计算因子并运行多因子策略
+        从价格宽表计算因子并运行多因子策略。
+
+        会尝试加载行业分类做中性化；失败时降级为不中性化并打 warning。
 
         参数:
             price_wide: 价格宽表 (date × symbol)
@@ -375,24 +414,26 @@ class _MultiFactorAdapter:
         factors = {}
 
         # 动量因子：20 日收益率
-        # MultiFactorStrategy.run() 内部已 shift(1)，此处不重复
         momentum = price_wide.pct_change(20)
         factors["momentum_20"] = (momentum, 1)
 
         # 低波动因子：20 日波动率取负
-        # MultiFactorStrategy.run() 内部已 shift(1)，此处不重复
         volatility = price_wide.pct_change().rolling(20).std()
         factors["low_vol"] = (volatility, -1)
 
-        # 换手反转因子（以5日价格反转近似换手因子；如有量数据可替换为 volume.pct_change(5)）
-        # MultiFactorStrategy.run() 内部已 shift(1)，此处不重复
+        # 换手反转因子（以5日价格反转近似；如有量数据可替换为 volume.pct_change(5)）
         reversal_5d = price_wide.pct_change(5)
         factors["reversal_5d"] = (reversal_5d, -1)
+
+        # 尝试加载行业分类，用于中性化
+        industry_map = _load_industry_map(list(price_wide.columns))
 
         strategy = MultiFactorStrategy(
             config=self.config,
             factors=factors,
             n_stocks=self.n_stocks,
+            neutralize=(industry_map is not None),
+            industry_map=industry_map,
         )
         result = strategy.run(price_wide)
         self.results = strategy.results
@@ -421,6 +462,8 @@ class _AutoGenAdapter:
         """
         加载 auto_gen 因子定义并运行多因子策略。
 
+        会尝试加载行业分类做中性化；失败时降级为不中性化并打 warning。
+
         参数:
             price_wide : 价格宽表 (date × symbol)，由 run_strategy 的 _load_data 传入
 
@@ -438,11 +481,16 @@ class _AutoGenAdapter:
 
         factors = compute_auto_gen_factors(strategy_def, price_wide, symbols, start, end)
 
+        # 尝试加载行业分类，用于中性化
+        industry_map = _load_industry_map(symbols)
+
         n_stocks = strategy_def.get("n_stocks", 30)
         strategy = MultiFactorStrategy(
             config=self.config,
             factors=factors,
             n_stocks=n_stocks,
+            neutralize=(industry_map is not None),
+            industry_map=industry_map,
         )
         result = strategy.run(price_wide)
         self.results = strategy.results

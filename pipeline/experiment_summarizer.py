@@ -28,7 +28,7 @@ from pipeline.experiment_store import ExperimentRecord
 
 
 # 只关心这几个指标的 delta
-_DELTA_KEYS = ("sharpe", "max_drawdown", "total_return", "annualized_return")
+_DELTA_KEYS = ("sharpe", "max_drawdown", "total_return", "annualized_return", "information_ratio")
 
 
 def compare_to_baseline(
@@ -215,7 +215,7 @@ def _verdict(delta: dict) -> str:
 
 def _fmt_metrics(metrics: dict) -> str:
     chunks = []
-    for k in ("sharpe", "total_return", "max_drawdown", "annualized_return"):
+    for k in ("sharpe", "total_return", "max_drawdown", "annualized_return", "information_ratio"):
         if k in metrics:
             chunks.append(f"{k}={_fmt_num(metrics[k])}")
     return ", ".join(chunks) if chunks else "—"

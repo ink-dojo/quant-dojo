@@ -77,3 +77,23 @@ def performance_summary(returns: pd.Series, name: str = "Strategy") -> pd.DataFr
         "交易天数": len(returns),
     }
     return pd.DataFrame.from_dict(metrics, orient="index", columns=[name])
+
+
+def information_ratio(strategy_returns: pd.Series,
+                      benchmark_returns: pd.Series) -> float:
+    """
+    信息比率（IR）：策略相对基准的超额收益 / 超额收益波动率。
+
+    IR = mean(超额收益) * sqrt(252) / std(超额收益)
+
+    参数:
+        strategy_returns: 策略日收益率 Series
+        benchmark_returns: 基准日收益率 Series（如沪深300）
+
+    返回:
+        float, IR 值
+    """
+    excess = strategy_returns - benchmark_returns.reindex(strategy_returns.index).fillna(0)
+    if excess.std() == 0:
+        return 0.0
+    return float(excess.mean() * np.sqrt(252) / excess.std())
