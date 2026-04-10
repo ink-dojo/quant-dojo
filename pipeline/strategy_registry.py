@@ -380,6 +380,20 @@ def _register_builtins() -> None:
         factory=_auto_gen_factory,
     ))
 
+    # ── 4. 多因子选股策略 v2（含基本面因子）────────────────────
+    register(StrategyEntry(
+        id="multi_factor_v2",
+        name="多因子选股策略 v2（含基本面）",
+        description="动量/低波/反转/EP/BP/ROE 六因子，IC加权合成，行业中性化。基本面数据不可用时自动降级为纯价格因子。",
+        hypothesis="价格动量 + 价值估值 + 质量三维度联合选股，覆盖更宽的 alpha 来源。",
+        params=[
+            StrategyParam("n_stocks", "选股数量", 30, "int"),
+        ],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV2Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
 
 class _MultiFactorAdapter:
     """
@@ -393,6 +407,8 @@ class _MultiFactorAdapter:
         self.config = config
         self.n_stocks = n_stocks
         self.results = None
+        # 小组合（n_stocks <= 50）对合成质量更敏感，默认开启 IC 加权
+        self.ic_weighting: bool = n_stocks <= 50
 
     def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
         """
@@ -434,6 +450,7 @@ class _MultiFactorAdapter:
             n_stocks=self.n_stocks,
             neutralize=(industry_map is not None),
             industry_map=industry_map,
+            ic_weighting=self.ic_weighting,
         )
         result = strategy.run(price_wide)
         self.results = strategy.results
@@ -494,6 +511,96 @@ class _AutoGenAdapter:
         )
         result = strategy.run(price_wide)
         self.results = strategy.results
+        return result
+
+    def get_returns(self):
+        """获取日收益率"""
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV2Adapter:
+    """
+    多因子策略 v2 适配器 — 含基本面因子。
+
+    在 v1（动量/低波/反转）基础上尝试加入：
+      - EP（盈利收益率，来自 pe_ttm）
+      - BP（账面市值比，来自 pb）
+      - ROE（质量，来自 pb/pe）
+
+    如果财务宽表不可用，自动降级到 v1 因子集。
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        """
+        从价格宽表计算 v1 价格因子，并尝试加载基本面因子（EP/BP/ROE）。
+        基本面数据不可用时静默降级为纯价格因子，不中断回测。
+
+        参数:
+            price_wide: 价格宽表 (date × symbol)
+
+        返回:
+            回测结果 DataFrame
+        """
+        from utils.alpha_factors import (
+            enhanced_momentum, low_vol_20d, reversal_1m,
+            ep_factor, bp_factor, roe_factor,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+
+        # v1 因子（价格）— 始终可用
+        momentum = enhanced_momentum(price_wide, 60)
+        factors["enhanced_mom"] = (momentum, 1)
+        volatility = low_vol_20d(price_wide)
+        factors["low_vol"] = (volatility, 1)   # low_vol_20d 内部已取负号
+        reversal = reversal_1m(price_wide)
+        factors["reversal_1m"] = (reversal, 1)  # reversal_1m 内部已取负号
+
+        # v2 因子（基本面）— 尝试加载，失败时降级
+        try:
+            from utils.fundamental_loader import build_pe_pb_wide
+            symbols = list(price_wide.columns)
+            start = str(price_wide.index[0].date())
+            end = str(price_wide.index[-1].date())
+
+            wide = build_pe_pb_wide(symbols, start, end, fields=["pe_ttm", "pb"])
+            pe_wide = wide.get("pe_ttm")
+            pb_wide = wide.get("pb")
+
+            if pe_wide is not None and not pe_wide.empty:
+                factors["ep"] = (ep_factor(pe_wide).reindex_like(price_wide), 1)
+
+            if pb_wide is not None and not pb_wide.empty:
+                factors["bp"] = (bp_factor(pb_wide).reindex_like(price_wide), 1)
+
+            if pe_wide is not None and pb_wide is not None:
+                factors["roe"] = (roe_factor(pe_wide, pb_wide).reindex_like(price_wide), 1)
+
+        except Exception as e:
+            _log.warning("基本面因子加载失败，使用纯价格因子: %s", e)
+
+        # 加载行业分类（可选）
+        industry_map = _load_industry_map(list(price_wide.columns))
+
+        config = StrategyConfig(name="multi_factor_v2")
+        strategy = MultiFactorStrategy(
+            config=config,
+            factors=factors,
+            n_stocks=self.n_stocks,
+            ic_weighting=True,
+            industry_map=industry_map,
+            neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, 'results', None)
         return result
 
     def get_returns(self):
