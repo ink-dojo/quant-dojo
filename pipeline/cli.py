@@ -317,47 +317,105 @@ def cmd_signal_run(args):
 # rebalance 命令组
 # ══════════════════════════════════════════════════════════════
 
-def cmd_rebalance_run(args):
+def _prev_trading_date(date_str: str) -> str:
     """
-    执行调仓：先生成信号，再调用 paper_trader 执行
+    获取给定日期的前一个交易日（简单版：向前遍历，跳过周末）。
+
+    注意：不处理节假日，仅跳过周六（weekday=5）和周日（weekday=6）。
+    对于 A 股节假日，需在数据中用 load_price_wide 实际验证是否有数据。
 
     参数:
-        args: argparse 命名空间，包含必需的 date 字段
+        date_str: 日期字符串，格式 YYYY-MM-DD
+
+    返回:
+        前一交易日字符串，格式 YYYY-MM-DD
+    """
+    import datetime as _dt
+    d = _dt.date.fromisoformat(date_str)
+    d -= _dt.timedelta(days=1)
+    # 跳过周末（0=Mon ... 6=Sun）
+    while d.weekday() >= 5:
+        d -= _dt.timedelta(days=1)
+    return d.isoformat()
+
+
+def cmd_rebalance_run(args):
+    """
+    执行调仓：读取前一交易日信号，用当日开盘价成交。
+
+    正确的模拟盘时序：
+      T 日收盘后：signal run --date T  →  保存信号到 live/signals/T.json
+      T+1 日开盘后：rebalance run --date T+1  →  读 T 日信号，用 T+1 开盘价成交
+
+    参数:
+        args: argparse 命名空间，包含必需的 date 字段（T+1 交易日）
     """
     import importlib
+    import json
     import pandas as pd
+    from pathlib import Path
 
+    # date = T+1 日（今天的交易日，开盘后执行）
     date = args.date
-    print(f"正在执行 {date} 调仓...")
+    print(f"正在执行 {date} 调仓（T+1 开盘成交模式）...")
 
-    # 1. 生成信号
-    daily_signal = importlib.import_module("pipeline.daily_signal")
-    strategy = getattr(args, "strategy", "v7")
-    result = daily_signal.run_daily_pipeline(date, strategy=strategy)
-    picks = result.get("picks", [])
-    if result.get("error"):
-        raise RuntimeError(result["error"])
+    # 1. 计算前一交易日（信号日 = T 日）
+    signal_date = _prev_trading_date(date)
+    print(f"  信号日期：{signal_date}（前一交易日）")
+    print(f"  成交日期：{date}（当日开盘价）")
 
+    # 2. 读取 T 日信号文件（必须事先由 signal run --date T 生成）
+    signal_dir = Path(__file__).parent.parent / "live" / "signals"
+    signal_path = signal_dir / f"{signal_date}.json"
+    if not signal_path.exists():
+        raise RuntimeError(
+            f"信号文件不存在：{signal_path}\n"
+            f"请先运行：python -m pipeline.cli signal run --date {signal_date}"
+        )
+
+    with open(signal_path, "r", encoding="utf-8") as f:
+        signal_data = json.load(f)
+
+    picks = signal_data.get("picks", [])
+    if not picks:
+        raise RuntimeError(f"信号文件 {signal_path} 中 picks 为空，调仓中止")
+
+    print(f"  读取信号：{len(picks)} 只股票")
+
+    # 3. 加载 T+1 日开盘价（成交价）
     local_loader = importlib.import_module("utils.local_data_loader")
     load_price_wide = local_loader.load_price_wide
-    price_wide = load_price_wide(picks, date, date, field="close")
+
+    # 优先用开盘价；如果开盘价不可用则回退到收盘价 * (1 + 0.002) 近似滑点
+    price_wide = load_price_wide(picks, date, date, field="open")
+    use_open = True
     if price_wide.empty:
-        raise RuntimeError(f"无法加载 {date} 的收盘价，调仓中止")
+        print(f"  ⚠ 开盘价不可用，回退到收盘价 × 1.002（近似开盘滑点）", file=sys.stderr)
+        price_wide = load_price_wide(picks, date, date, field="close")
+        use_open = False
+
+    if price_wide.empty:
+        raise RuntimeError(f"无法加载 {date} 的价格数据，调仓中止")
+
     prices = {
-        symbol: float(price_wide.iloc[-1][symbol])
+        symbol: float(price_wide.iloc[-1][symbol]) * (1.0 if use_open else 1.002)
         for symbol in price_wide.columns
         if pd.notna(price_wide.iloc[-1][symbol])
     }
 
-    # 2. 执行调仓
+    price_type = "open" if use_open else "close×1.002"
+    print(f"  成交价格：{price_type}（共 {len(prices)} 只有效报价）")
+
+    # 4. 执行调仓
     paper_trader_mod = importlib.import_module("live.paper_trader")
     PaperTrader = paper_trader_mod.PaperTrader
     trader = PaperTrader()
     summary = trader.rebalance(picks, prices, date)
 
     print(f"\n{'='*50}")
-    print(f"调仓完成 | {date}")
+    print(f"调仓完成 | 成交日：{date} | 信号日：{signal_date}")
     print(f"{'='*50}")
+    print(f"  成交价类型：{price_type}")
     print(f"  买入数量：{summary.get('n_buys', 0)} 笔")
     print(f"  卖出数量：{summary.get('n_sells', 0)} 笔")
     print(f"  换手率：{summary.get('turnover', 0)*100:.2f}%")
