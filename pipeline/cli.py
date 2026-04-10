@@ -65,8 +65,17 @@ def cmd_backtest_run(args):
     from pipeline.control_surface import execute
 
     strategy_id = args.strategy
-    start = args.start
-    end = args.end
+    # 若未指定 start/end，使用默认值：start = 三年前，end = 昨天
+    today = datetime.date.today()
+    if args.start:
+        start = args.start
+    else:
+        # 安全处理闰年 2 月 29 日：回退到 2 月 28 日
+        try:
+            start = today.replace(year=today.year - 3).strftime("%Y-%m-%d")
+        except ValueError:
+            start = today.replace(year=today.year - 3, day=28).strftime("%Y-%m-%d")
+    end = args.end or (today - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
     # 解析 --param key=val
     params = {}
@@ -267,6 +276,15 @@ def cmd_signal_run(args):
 
     signal_path = f"live/signals/{date}.json"
     print(f"\n✅ 信号已保存到 {signal_path}")
+
+    # 记录当日 NAV 快照（即使未调仓也要追踪净值变化）
+    try:
+        paper_trader_mod = importlib.import_module("live.paper_trader")
+        trader = paper_trader_mod.PaperTrader()
+        nav_result = trader.record_nav(trade_date=date)
+        print(f"  NAV 已记录: {nav_result['date']} -> ¥{nav_result['nav']:,.2f}")
+    except Exception as e:
+        print(f"⚠️  NAV 记录失败（不影响信号生成）: {e}", file=sys.stderr)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1064,8 +1082,10 @@ def main():
     # backtest run
     p_bt_run = bt_sub.add_parser("run", help="运行策略回测")
     p_bt_run.add_argument("strategy", type=str, help="策略 ID（用 'strategies' 命令查看可用策略）")
-    p_bt_run.add_argument("--start", type=str, required=True, help="开始日期 YYYY-MM-DD")
-    p_bt_run.add_argument("--end", type=str, required=True, help="结束日期 YYYY-MM-DD")
+    p_bt_run.add_argument("--start", type=str, default=None,
+                          help="开始日期 YYYY-MM-DD（默认三年前）")
+    p_bt_run.add_argument("--end", type=str, default=None,
+                          help="结束日期 YYYY-MM-DD（默认昨天）")
     p_bt_run.add_argument("--param", type=str, nargs="*", help="策略参数 key=value（可多个）")
 
     # backtest list

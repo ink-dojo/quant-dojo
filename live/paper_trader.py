@@ -482,6 +482,33 @@ class PaperTrader:
 
         return skipped_symbols
 
+    def record_nav(self, trade_date: str = None, prices: dict = None):
+        """
+        计算当前组合 NAV 并追加到 nav.csv。
+
+        用于非调仓场景（如 signal run），记录当日净值快照。
+        若该日期已有记录则覆盖（与 _append_nav 行为一致）。
+
+        参数:
+            trade_date: 日期字符串 YYYY-MM-DD，默认今天
+            prices: 可选的最新价格字典 {symbol: price}，用于 mark-to-market
+        """
+        if trade_date is None:
+            trade_date = date.today().isoformat()
+
+        # 用最新价格更新持仓市值（如果提供了 prices）
+        if prices:
+            for sym in list(self.positions.keys()):
+                if sym == "__cash__":
+                    continue
+                if sym in prices and prices[sym]:
+                    self.positions[sym]["current_price"] = prices[sym]
+
+        nav = self._portfolio_value(prices or {})
+        self._append_nav(trade_date, nav)
+        self._save_positions()
+        return {"date": trade_date, "nav": round(nav, 2)}
+
     def get_performance(self) -> dict:
         """
         计算模拟盘绩效指标。
