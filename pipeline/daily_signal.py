@@ -117,7 +117,11 @@ def run_daily_pipeline(
                 f"指定日期 {date} 在数据中不存在，最新可用日期为 {actual_date}"
             )
 
-    ret_wide = price_wide.pct_change()
+    # 注意时间方向：IC 权重应用 T 日因子预测 T+1 日收益（forward return）。
+    # pct_change() 是当日收益（T 日因子 ↔ T 日收益），存在前视偏差。
+    # shift(-1) 将每行移为"次日收益"，即 ret_wide.loc[t] = close[t+1]/close[t] - 1，
+    # 与 factor_wide.loc[t] 配对 → 正确的 1 日 forward IC。
+    ret_wide = price_wide.pct_change().shift(-1)
 
     # ── 计算因子 ──────────────────────────────────────────────
     factor_dict = {}
