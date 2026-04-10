@@ -394,6 +394,29 @@ def _register_builtins() -> None:
         factory=lambda params: _MultiFactorV2Adapter(n_stocks=params.get("n_stocks", 30)),
     ))
 
+    # ── 5. 多因子选股策略 v9（新因子集，增强正交性）────────────
+    register(StrategyEntry(
+        id="multi_factor_v9",
+        name="多因子选股策略 v9（正交增强）",
+        description=(
+            "v7 三核心因子（low_vol_20d/team_coin/bp）+ 三新因子（idiosyncratic_vol/"
+            "industry_momentum/insider_buying_proxy），IC加权合成，行业中性化。"
+            "覆盖技术/行为金融/基本面/风险/行业轮动/微观结构六个维度。"
+            "high/low/volume/行业分类不可用时各对应因子自动降级跳过。"
+        ),
+        hypothesis=(
+            "在 v7 proven 因子基础上，加入与已有因子正交的新维度："
+            "特质波动率异象（Ang et al.）、行业动量轮动（Moskowitz）、机构积累代理信号，"
+            "通过增加 alpha 来源的多样性提升整体 IC 稳定性。"
+        ),
+        params=[
+            StrategyParam("n_stocks", "选股数量", 30, "int"),
+        ],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV9Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
 
 class _MultiFactorAdapter:
     """
@@ -601,6 +624,124 @@ class _MultiFactorV2Adapter:
         )
         result = strategy.run(price_wide)
         self.results = getattr(strategy, 'results', None)
+        return result
+
+    def get_returns(self):
+        """获取日收益率"""
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV9Adapter:
+    """
+    多因子策略 v9 适配器 — 新因子集，提升因子正交性。
+
+    核心逻辑：
+      - 保留 v7 三个 proven 因子：low_vol_20d / team_coin / bp
+      - 新增三个正交维度：
+          idiosyncratic_vol (特质波动率异象，方向=-1，函数内部已取负)
+          industry_momentum (行业动量轮动，需要行业分类)
+          insider_buying_proxy (机构积累代理，需要 high/low/volume)
+      - 全部启用 IC 加权合成 + 行业中性化
+      - 任一依赖数据不可用时，对应因子跳过，不中断回测
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        """
+        计算 v9 因子集并运行多因子策略。
+
+        参数:
+            price_wide: 收盘价宽表 (date × symbol)
+
+        返回:
+            回测结果 DataFrame
+        """
+        from utils.alpha_factors import (
+            low_vol_20d,
+            team_coin,
+            bp_factor,
+            idiosyncratic_volatility,
+            industry_momentum,
+            insider_buying_proxy,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end = str(price_wide.index[-1].date())
+
+        # ── 核心因子（v7 proven，始终可用）─────────────────────
+        try:
+            factors["low_vol_20d"] = (low_vol_20d(price_wide), 1)  # 内部已处理方向
+        except Exception as e:
+            _log.warning("low_vol_20d 计算失败，跳过: %s", e)
+
+        try:
+            factors["team_coin"] = (team_coin(price_wide), 1)
+        except Exception as e:
+            _log.warning("team_coin 计算失败，跳过: %s", e)
+
+        # bp 因子需要 PB 财务数据
+        try:
+            from utils.fundamental_loader import build_pe_pb_wide
+            wide = build_pe_pb_wide(symbols, start, end, fields=["pb"])
+            pb_wide = wide.get("pb")
+            if pb_wide is not None and not pb_wide.empty:
+                factors["bp"] = (bp_factor(pb_wide).reindex_like(price_wide), 1)
+        except Exception as e:
+            _log.warning("bp 因子（PB数据）不可用，跳过: %s", e)
+
+        # ── 新增因子 ─────────────────────────────────────────────
+
+        # idiosyncratic_vol：特质波动率，函数内部已取负（方向=-1 → 正向信号）
+        try:
+            factors["idiosyncratic_vol"] = (idiosyncratic_volatility(price_wide), 1)
+        except Exception as e:
+            _log.warning("idiosyncratic_vol 计算失败，跳过: %s", e)
+
+        # industry_momentum：需要行业分类字典
+        industry_map = _load_industry_map(symbols)
+        if industry_map is not None:
+            try:
+                ind_mom = industry_momentum(price_wide, industry_map)
+                factors["industry_momentum"] = (ind_mom, 1)
+            except Exception as e:
+                _log.warning("industry_momentum 计算失败，跳过: %s", e)
+        else:
+            _log.warning("行业分类不可用，industry_momentum 跳过")
+
+        # insider_buying_proxy：需要 high / low / volume 宽表
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            high_wide = _lpw(symbols, start, end, field="high")
+            low_wide = _lpw(symbols, start, end, field="low")
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if not high_wide.empty and not low_wide.empty and not vol_wide.empty:
+                ibp = insider_buying_proxy(price_wide, high_wide, low_wide, vol_wide)
+                factors["insider_buying_proxy"] = (ibp, 1)
+        except Exception as e:
+            _log.warning("insider_buying_proxy 计算失败（high/low/volume 不可用），跳过: %s", e)
+
+        # ── 行业分类（用于中性化）────────────────────────────────
+        # industry_map 已在上方加载，直接复用
+        config = StrategyConfig(name="multi_factor_v9")
+        strategy = MultiFactorStrategy(
+            config=config,
+            factors=factors,
+            n_stocks=self.n_stocks,
+            ic_weighting=True,
+            industry_map=industry_map,
+            neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
         return result
 
     def get_returns(self):

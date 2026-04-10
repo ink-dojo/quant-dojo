@@ -18,6 +18,9 @@ from utils.alpha_factors import (
     enhanced_momentum,
     bp_factor,
     shadow_lower,
+    idiosyncratic_volatility,
+    industry_momentum,
+    insider_buying_proxy,
 )
 from utils.factor_analysis import neutralize_factor_by_industry, compute_ic_series
 from utils.fundamental_loader import get_industry_classification
@@ -339,6 +342,129 @@ def run_daily_pipeline(
         # 快照用中性化后的因子（factor_monitor 需要这些做 IC 计算）
         snapshot_dict = {name: fac_wide.iloc[-1] for name, fac_wide in neutralized_factors.items()}
 
+    elif strategy == "v9":
+        # ── v9 策略：v7 三核心 + 特质波动率 + 行业动量 + 增持代理 ──
+        # 覆盖六类 alpha：技术 / 行为金融 / 基本面 / 风险 / 行业轮动 / 微观结构
+
+        # cgo_simple 不再使用；用更强的正交因子替代
+        raw_factors = {}
+
+        try:
+            raw_factors["low_vol_20d"] = low_vol_20d(price_wide)
+        except Exception:
+            warnings.warn("low_vol_20d 计算失败，跳过")
+
+        try:
+            raw_factors["team_coin"] = team_coin(price_wide)
+        except Exception:
+            warnings.warn("team_coin 计算失败，跳过")
+
+        # bp 因子（PB 财务数据）
+        bp_wide = pd.DataFrame(np.nan, index=price_wide.index, columns=price_wide.columns)
+        try:
+            pb_wide = load_factor_wide(symbols, "pb", start, end)
+            if not pb_wide.empty:
+                bp_wide = bp_factor(pb_wide)
+        except Exception:
+            warnings.warn("PB 数据不可用，跳过 bp 因子")
+        raw_factors["bp"] = bp_wide
+
+        # 特质波动率：函数内部已取负（方向=-1 → 正向信号）
+        try:
+            raw_factors["idiosyncratic_vol"] = idiosyncratic_volatility(price_wide)
+        except Exception:
+            warnings.warn("idiosyncratic_vol 计算失败，跳过")
+
+        # 行业动量：需要行业分类
+        try:
+            industry_df = get_industry_classification(symbols=symbols)
+        except Exception as _ie:
+            warnings.warn(f"行业分类加载失败: {_ie}")
+            industry_df = pd.DataFrame(columns=["symbol", "industry_code"])
+
+        if not industry_df.empty and "industry_code" in industry_df.columns:
+            _ind_map = industry_df.set_index("symbol")["industry_code"].to_dict()
+            try:
+                raw_factors["industry_momentum"] = industry_momentum(price_wide, _ind_map)
+            except Exception:
+                warnings.warn("industry_momentum 计算失败，跳过")
+        else:
+            _ind_map = {}
+
+        # 增持代理：需要 high / low / volume 宽表
+        try:
+            high_wide_v9 = load_price_wide(symbols, start, end, field="high")
+            low_wide_v9 = load_price_wide(symbols, start, end, field="low")
+            vol_wide_v9 = load_factor_wide(symbols, "volume", start, end)
+            if not high_wide_v9.empty and not low_wide_v9.empty and not vol_wide_v9.empty:
+                raw_factors["insider_buying_proxy"] = insider_buying_proxy(
+                    price_wide, high_wide_v9, low_wide_v9, vol_wide_v9
+                )
+        except Exception:
+            warnings.warn("insider_buying_proxy 计算失败（high/low/volume 不可用），跳过")
+
+        # 行业中性化 + IC 加权合成（与 v7/v8 相同逻辑）
+        neutralized_factors = {}
+        ic_series_dict = {}
+        for name, fac_wide in raw_factors.items():
+            if fac_wide.empty or fac_wide.dropna(how="all").shape[0] < 30:
+                continue
+            try:
+                neutral = neutralize_factor_by_industry(fac_wide, industry_df)
+            except Exception as e:
+                warnings.warn(f"中性化失败 {name}: {e}")
+                neutral = fac_wide
+            neutralized_factors[name] = neutral
+            try:
+                ic_s = compute_ic_series(neutral, ret_wide, method="spearman")
+                ic_series_dict[name] = ic_s
+            except Exception as e:
+                warnings.warn(f"IC 序列计算失败 {name}: {e}，该因子不参与加权")
+
+        # IC 加权合成
+        if neutralized_factors and ic_series_dict:
+            ic_df = pd.DataFrame(ic_series_dict)
+            rolling_ic = ic_df.rolling(60, min_periods=20).mean()
+            last_ic = rolling_ic.iloc[-1].abs()
+            total_ic = last_ic.sum()
+            if total_ic > 0:
+                weights = last_ic / total_ic
+            else:
+                weights = pd.Series(1.0 / len(neutralized_factors), index=last_ic.index)
+        else:
+            n = len(neutralized_factors) or 1
+            weights = pd.Series(1.0 / n, index=neutralized_factors.keys())
+
+        last_day_vals = {}
+        for name, fac_wide in neutralized_factors.items():
+            last_day_vals[name] = fac_wide.iloc[-1]
+        factor_df = pd.DataFrame(last_day_vals)
+        weight_series = pd.Series({n: weights.get(n, 0) for n in factor_df.columns})
+        valid_mask = factor_df.notna()
+        effective_weights = valid_mask.multiply(weight_series, axis=1)
+        weight_sums = effective_weights.sum(axis=1)
+        effective_weights = effective_weights.div(weight_sums, axis=0)
+        composite_series = (factor_df * effective_weights).sum(axis=1)
+        composite_series[weight_sums == 0] = np.nan
+
+        if composite_series is None or composite_series.dropna().empty:
+            return {
+                "date": actual_date,
+                "picks": [],
+                "scores": {},
+                "factor_values": {},
+                "excluded": [],
+                "metadata": {
+                    "strategy": strategy,
+                    "n_input_symbols": n_input_symbols,
+                    "error": "v9 所有因子数据不足，无法生成合成评分",
+                },
+            }
+
+        composite = composite_series.dropna().sort_values(ascending=False)
+        factor_dict = {name: raw_factors[name].iloc[-1] for name in raw_factors}
+        snapshot_dict = {name: fac_wide.iloc[-1] for name, fac_wide in neutralized_factors.items()}
+
     else:
         # ── ad_hoc 策略（默认） ──────────────────────────────
         # 1. 动量因子（20日）：过去20日收益率
@@ -488,8 +614,8 @@ if __name__ == "__main__":
         "--strategy",
         type=str,
         default="ad_hoc",
-        choices=["ad_hoc", "v7", "v8", "auto_gen"],
-        help="因子策略：ad_hoc/v7/v8/auto_gen（auto_gen 由 quant_dojo generate 生成）",
+        choices=["ad_hoc", "v7", "v8", "v9", "auto_gen"],
+        help="因子策略：ad_hoc/v7/v8/v9/auto_gen（auto_gen 由 quant_dojo generate 生成）",
     )
     args = parser.parse_args()
 
