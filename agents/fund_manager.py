@@ -636,6 +636,192 @@ class FundManager:
         return "\n".join(lines)
 
 
+    def build_fund_playbook(
+        self,
+        team_size: int = 2,
+        current_phase: str = "paper_trading",
+        target_aum_cny: float = 5e7,
+        timeline_years: int = 3,
+    ) -> str:
+        """
+        生成从模拟盘到量化私募的完整运营手册（Markdown）。
+
+        参数:
+            team_size      : 当前团队人数
+            current_phase  : 当前阶段标识（"paper_trading" / "personal_account" / "raising"）
+            target_aum_cny : 目标 AUM（人民币），默认 5000 万
+            timeline_years : 计划几年内完成首次募资
+
+        返回:
+            Markdown 格式的运营手册
+        """
+        # 从 quant_mentor 借用知识常量（避免重复定义）
+        try:
+            from agents.quant_mentor import CHINA_FUND_SETUP, COMMON_MISTAKES, SYSTEM_ARCHITECTURE
+        except ImportError:
+            return "错误：无法导入 quant_mentor 知识常量，请确认 agents/quant_mentor.py 存在"
+
+        aum_wan = int(target_aum_cny / 10000)
+        lines = [
+            "# 量化私募从模拟盘到首只基金产品 — 运营手册",
+            "",
+            f"> 适用场景：{team_size} 人团队，当前阶段：{current_phase}，"
+            f"目标 AUM：{aum_wan} 万，计划 {timeline_years} 年内完成首次募资",
+            "",
+        ]
+
+        # ── 阶段路线图 ────────────────────────────────────────────────
+        phase_map = {
+            "paper_trading":      "phase_1_prove_alpha",
+            "personal_account":   "phase_2_personal_account",
+            "company_setup":      "phase_3_incorporation",
+            "amac":               "phase_4_amac_registration",
+            "raising":            "phase_5_product_filing",
+            "operating":          "phase_6_operations",
+        }
+        current_key = phase_map.get(current_phase, "phase_1_prove_alpha")
+        phase_keys = list(phase_map.values())
+        current_idx = phase_keys.index(current_key) if current_key in phase_keys else 0
+
+        for i, key in enumerate(phase_keys):
+            if key not in CHINA_FUND_SETUP:
+                continue
+            info = CHINA_FUND_SETUP[key]
+            status = "▶ 当前" if i == current_idx else ("✅ 完成" if i < current_idx else "○ 待做")
+            lines += [
+                f"## {status}  {info.get('name', key)}",
+                "",
+            ]
+            if "gate" in info:
+                lines += [f"> **准入门槛**：{info['gate']}", ""]
+            if "why" in info:
+                lines += [f"**为什么重要**：{info['why']}", ""]
+            if "actions" in info:
+                lines += ["**行动清单**：", ""]
+                acts_val = info["actions"]
+                if isinstance(acts_val, dict):
+                    for owner, acts in acts_val.items():
+                        lines.append(f"*{owner}*:")
+                        for a in acts:
+                            lines.append(f"  - [ ] {a}")
+                else:
+                    for a in acts_val:
+                        lines.append(f"  - [ ] {a}")
+                lines.append("")
+            if "requirements" in info and isinstance(info["requirements"], list):
+                lines += ["**核心要求**：", ""]
+                for r in info["requirements"]:
+                    lines.append(f"- {r}")
+                lines.append("")
+            if "deliverables" in info:
+                lines += ["**交付物**：", ""]
+                for d in info["deliverables"]:
+                    lines.append(f"- {d}")
+                lines.append("")
+            if "cost" in info:
+                lines += [f"**费用估算**：{info['cost']}", ""]
+            if "timeline" in info:
+                lines += [f"**耗时**：{info['timeline']}", ""]
+            if "blocker" in info:
+                lines += [f"⚠️ **注意**：{info['blocker']}", ""]
+            lines.append("")
+
+        # ── AUM 目标和容量约束 ────────────────────────────────────────
+        lines += [
+            "---",
+            "",
+            "## 容量约束与 AUM 规划",
+            "",
+            f"目标 AUM：**{aum_wan} 万**",
+            "",
+            "| AUM 规模 | 典型策略类型 | 换手频率 | 容量注意事项 |",
+            "|----------|-------------|----------|--------------|",
+            "| < 3000 万 | 小盘量化选股 | 月度/双周 | 单笔 < 日均成交量 2% |",
+            "| 3000-1亿 | 中盘 + 小盘混合 | 双周/周 | 需控制冲击，测试容量上限 |",
+            "| 1-5亿 | 中大盘为主 | 周度 | Barra 因子中性化，多因子分散 |",
+            "| > 5亿 | 大盘 + 指增 | 日度/周度 | 需 QP 优化器，因子暴露精细控制 |",
+            "",
+            "> **容量估算方法**：找出策略最小流动性股票，"
+            "计算「单日最大可建仓金额 = 该股日均成交量 × 5%」，"
+            "汇总得到策略容量上限",
+            "",
+        ]
+
+        # ── 服务商选择 ────────────────────────────────────────────────
+        if "phase_5_product_filing" in CHINA_FUND_SETUP:
+            sp = CHINA_FUND_SETUP["phase_5_product_filing"].get("service_providers", {})
+            if sp:
+                lines += [
+                    "## 关键服务商",
+                    "",
+                    "| 角色 | 功能 | 费率参考 |",
+                    "|------|------|----------|",
+                ]
+                for role, desc in sp.items():
+                    parts = desc.split("；")
+                    fee = parts[-1].strip() if len(parts) > 1 else "—"
+                    func = parts[0].strip()[:40]
+                    lines.append(f"| {role} | {func} | {fee} |")
+                lines.append("")
+
+        # ── 运营成本估算 ──────────────────────────────────────────────
+        lines += [
+            "## 年度运营成本估算（首只产品，~1 亿 AUM）",
+            "",
+            "| 项目 | 年费估算 | 备注 |",
+            "|------|----------|------|",
+            "| 律所（合规顾问）| 5-15 万 | 中基协登记、合同起草、监管事务 |",
+            "| 托管银行 | 10-30 万 | 费率 0.1-0.3%/年，按 AUM |",
+            "| 外包服务机构（TA）| 10-20 万 | 估值核算、投资者服务 |",
+            "| 年度审计 | 3-8 万 | 会计师事务所 |",
+            "| 数据（Wind）| 10-30 万 | 实时行情 + 财务数据 |",
+            "| 服务器/云计算 | 2-5 万 | 信号生成、风控、监控 |",
+            "| **合计** | **40-110 万/年** | 不含人员和管理费收入 |",
+            "",
+            f"> 盈亏平衡点：管理费 1.5%/年 × AUM。"
+            f"若固定成本 60 万/年，AUM 需达到 **{int(60/0.015/10000)} 万** 才能覆盖运营成本。",
+            "",
+        ]
+
+        # ── 常见坑（仅 high/critical）────────────────────────────────
+        lines += [
+            "## 高危风险清单",
+            "",
+        ]
+        for m in COMMON_MISTAKES:
+            if m["severity"] in ("critical", "high"):
+                icon = "🔴" if m["severity"] == "critical" else "🟠"
+                lines.append(f"- {icon} **{m['name']}**")
+                lines.append(f"  - {m['description']}")
+                if m.get("advice"):
+                    lines.append(f"  - 建议：{m['advice']}")
+        lines.append("")
+
+        # ── LLM 个性化点评 ────────────────────────────────────────────
+        llm = self._get_llm()
+        if llm:
+            try:
+                prompt = (
+                    f"你是一个量化私募基金创始人兼 CIO，经历过从零到十亿 AUM 的全程。\n\n"
+                    f"团队情况：{team_size} 人，当前阶段：{current_phase}，"
+                    f"目标 AUM：{aum_wan} 万，计划 {timeline_years} 年完成首次募资。\n\n"
+                    "请用 200 字给这个团队写一段个性化的战略建议："
+                    "在这个阶段，最重要的 1 件事是什么？最大的风险是什么？"
+                    "直接讲，不要废话。中文。"
+                )
+                commentary = llm.complete(prompt, max_tokens=350)
+                lines += ["## CIO 战略建议（AI 生成）", "", commentary, ""]
+            except Exception as e:
+                _log.warning("build_fund_playbook LLM 失败: %s", e)
+
+        lines += [
+            "---",
+            f"*生成时间：{datetime.now().strftime('%Y-%m-%d')} | "
+            "来源：FundManager.build_fund_playbook() + QuantMentor 知识库*",
+        ]
+        return "\n".join(lines)
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # 便捷接口（单条调用）
 # ══════════════════════════════════════════════════════════════════════════
