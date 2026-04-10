@@ -124,8 +124,13 @@ async def run_idea_pipeline_sse(
         result = await future
 
         # ── 最终结果事件 ──────────────────────────────────────────
-        if result.status == "error":
-            yield _sse({"stage": "error", "content": result.error})
+        # IdeaResult.status 枚举：
+        #   passed / failed_gate / failed_parse / failed_backtest / failed_ic
+        # 只有 parsed / failed_gate 才是"流水线正常走完"，其余均视为 error 通知前端。
+        _HARD_FAIL_STATUSES = {"failed_parse", "failed_ic", "failed_backtest"}
+        if result.status in _HARD_FAIL_STATUSES:
+            err_msg = result.error or f"流水线以 {result.status} 状态结束"
+            yield _sse({"stage": "error", "content": err_msg})
             return
 
         yield _sse({

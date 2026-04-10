@@ -63,6 +63,7 @@ live/strategy_state.json
 
 # 自动生成的策略定义（由 quant_dojo generate 产出）
 strategies/generated/
+!strategies/generated/__init__.py
 
 # Binary documents
 *.pdf

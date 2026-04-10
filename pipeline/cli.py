@@ -931,6 +931,106 @@ def cmd_research_summarize(args):
 
 
 # ══════════════════════════════════════════════════════════════
+# idea 命令（自然语言策略想法 → 自动回测）
+# ══════════════════════════════════════════════════════════════
+
+def cmd_idea(args):
+    """
+    自然语言策略想法 → 自动回测流水线（idea-to-strategy）。
+
+    流程：
+        1. 调用 IdeaParser 将用户输入的自然语言想法解析为因子规范
+        2. 对选中因子做 IC 快速验证
+        3. 将策略定义写入 strategies/generated/auto_gen_latest.json
+        4. 通过 control_surface 运行 auto_gen 回测
+        5. 调用 risk_gate 检查是否达标
+        6. 打印 Markdown 格式的最终报告
+
+    参数:
+        args: argparse 命名空间，包含
+              - text  : 策略想法字符串
+              - start : 回测开始日期 YYYY-MM-DD
+              - end   : 回测结束日期 YYYY-MM-DD
+    """
+    idea_text = args.text
+    start = args.start
+    end = args.end
+
+    print(f"{'='*60}")
+    print(f"  idea-to-strategy 流水线")
+    print(f"{'='*60}")
+    print(f"  想法  : {idea_text}")
+    print(f"  区间  : {start} ~ {end}")
+    print()
+
+    # ── 步骤1：调用 IdeaParser ──────────────────────────────
+    print("[1/3] 解析策略想法（LLM 解析中）...")
+    try:
+        from agents.base import LLMClient
+        from agents.idea_parser import IdeaParser
+
+        llm = LLMClient()
+        if llm._backend == "none":
+            print("❌ LLM 后端不可用，请安装 claude CLI 或启动 Ollama", file=sys.stderr)
+            sys.exit(1)
+
+        parser_agent = IdeaParser(llm)
+        spec = parser_agent.analyze(idea_text=idea_text)
+    except Exception as e:
+        print(f"❌ IdeaParser 调用失败：{e}", file=sys.stderr)
+        sys.exit(1)
+
+    if not spec.get("parse_ok", False):
+        print(f"❌ 想法解析失败：{spec.get('reason', '未知原因')}", file=sys.stderr)
+        sys.exit(1)
+
+    factor_names = [f["name"] for f in spec.get("selected_factors", [])]
+    print(f"  已识别 {len(factor_names)} 个因子：{factor_names}")
+    print(f"  策略假设：{spec.get('hypothesis', '')}")
+    print()
+
+    # ── 步骤2~6：运行主流水线 ────────────────────────────────
+    print("[2/3] 运行 IC 验证、回测、风险门...")
+
+    def _print_progress(stage: str, message: str):
+        """进度回调：在终端打印各阶段进度"""
+        stage_icons = {
+            "validating": "   验证",
+            "computing_ic": "   IC  ",
+            "writing_spec": "   写入",
+            "backtesting": "   回测",
+            "risk_gate": "   风控",
+            "done": "   完成",
+        }
+        icon = stage_icons.get(stage, f"  [{stage}]")
+        print(f"{icon}: {message}")
+
+    try:
+        from pipeline.idea_to_strategy import run_idea_pipeline
+        result = run_idea_pipeline(
+            idea_text=idea_text,
+            spec=spec,
+            backtest_start=start,
+            backtest_end=end,
+            progress_callback=_print_progress,
+        )
+    except Exception as e:
+        print(f"❌ 流水线执行异常：{e}", file=sys.stderr)
+        sys.exit(1)
+
+    # ── 步骤3：打印最终报告 ──────────────────────────────────
+    print()
+    print("[3/3] 最终报告")
+    print("=" * 60)
+    print(result.report_markdown)
+    print("=" * 60)
+
+    # 非零退出码：仅在解析或回测本身失败时退出1，风险门未通过仍视为"正常完成"
+    if result.status in ("failed_parse", "failed_ic", "failed_backtest"):
+        sys.exit(1)
+
+
+# ══════════════════════════════════════════════════════════════
 # CLI 主入口
 # ══════════════════════════════════════════════════════════════
 
@@ -1085,6 +1185,27 @@ def main():
     p_rs_sum.add_argument("--baseline-run", type=str, default=None,
                           help="对比的 baseline run_id")
 
+    # ── idea ─────────────────────────────────────────────────
+    p_idea = subparsers.add_parser(
+        "idea",
+        help="自然语言策略想法 → 自动回测（idea-to-strategy）",
+        description=(
+            "输入自然语言策略想法，自动完成：\n"
+            "  1. LLM 解析 → 因子选择\n"
+            "  2. IC 快速验证\n"
+            "  3. 写入 strategies/generated/auto_gen_latest.json\n"
+            "  4. 运行 auto_gen 回测\n"
+            "  5. 风险门检查\n"
+            "  6. 输出 Markdown 报告"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_idea.add_argument("text", help="策略想法，如 '我想做基于ROE和低波动的选股策略'")
+    p_idea.add_argument("--start", type=str, default="2022-01-01",
+                        help="回测开始日期 YYYY-MM-DD（默认 2022-01-01）")
+    p_idea.add_argument("--end", type=str, default="2025-12-31",
+                        help="回测结束日期 YYYY-MM-DD（默认 2025-12-31）")
+
     subparsers.add_parser("positions", help="查看当前模拟盘持仓")
     subparsers.add_parser("performance", help="查看模拟盘绩效指标")
     p_fh = subparsers.add_parser("factor-health", help="因子健康度检查")
@@ -1123,6 +1244,8 @@ def main():
         "factor-health": cmd_factor_health,
         "strategies": cmd_strategies,
         "doctor": cmd_doctor,
+        # idea-to-strategy 流水线
+        "idea": cmd_idea,
         # 兼容旧命令
         "weekly-report": cmd_report_weekly,
         "risk-check": cmd_risk_check,
