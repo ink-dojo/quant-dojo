@@ -19,10 +19,13 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 import pandas as pd
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -228,7 +231,8 @@ def _compute_metrics(results_df: pd.DataFrame) -> dict:
         sharpe = float(metrics_mod.sharpe_ratio(returns))
         max_dd = float(metrics_mod.max_drawdown(returns))
         win = float(metrics_mod.win_rate(returns))
-    except Exception:
+    except Exception as _e:
+        _log.warning("utils.metrics 计算异常，降级到内置 fallback: %s", _e)
         # fallback: 手动计算
         total_return = float((1 + returns).prod() - 1)
         n_days = len(returns)
@@ -317,6 +321,28 @@ def _register_builtins() -> None:
         factory=_multi_factor_factory,
     ))
 
+    # ── 3. auto_gen 自动生成策略 ─────────────────────────────
+    def _auto_gen_factory(params: dict):
+        """
+        auto_gen 工厂函数，返回 _AutoGenAdapter 实例。
+
+        参数:
+            params : 策略参数 dict（auto_gen 当前无可调参数，预留扩展）
+        """
+        from strategies.base import StrategyConfig
+        return _AutoGenAdapter(StrategyConfig(name="auto_gen"))
+
+    register(StrategyEntry(
+        id="auto_gen",
+        name="AI自动生成策略",
+        description="由 idea_to_strategy 流水线根据自然语言想法自动生成的因子组合策略。",
+        hypothesis="由 IdeaParser 解析用户想法后自动选因子，每次运行前需先执行 idea pipeline。",
+        params=[],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=_auto_gen_factory,
+    ))
+
 
 class _MultiFactorAdapter:
     """
@@ -349,14 +375,17 @@ class _MultiFactorAdapter:
         factors = {}
 
         # 动量因子：20 日收益率
+        # MultiFactorStrategy.run() 内部已 shift(1)，此处不重复
         momentum = price_wide.pct_change(20)
         factors["momentum_20"] = (momentum, 1)
 
         # 低波动因子：20 日波动率取负
+        # MultiFactorStrategy.run() 内部已 shift(1)，此处不重复
         volatility = price_wide.pct_change().rolling(20).std()
         factors["low_vol"] = (volatility, -1)
 
-        # 换手反转因子（用价格近似，实际应使用量数据）
+        # 换手反转因子（以5日价格反转近似换手因子；如有量数据可替换为 volume.pct_change(5)）
+        # MultiFactorStrategy.run() 内部已 shift(1)，此处不重复
         reversal_5d = price_wide.pct_change(5)
         factors["reversal_5d"] = (reversal_5d, -1)
 
@@ -364,6 +393,56 @@ class _MultiFactorAdapter:
             config=self.config,
             factors=factors,
             n_stocks=self.n_stocks,
+        )
+        result = strategy.run(price_wide)
+        self.results = strategy.results
+        return result
+
+    def get_returns(self):
+        """获取日收益率"""
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _AutoGenAdapter:
+    """
+    auto_gen 策略适配器 — 在 run() 时从 auto_gen_latest.json 加载因子定义，
+    计算因子后交给 MultiFactorStrategy 运行。
+
+    每次 run() 都会重新读取 JSON，确保因子定义始终使用最新版本。
+    """
+
+    def __init__(self, config):
+        self.config = config
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        """
+        加载 auto_gen 因子定义并运行多因子策略。
+
+        参数:
+            price_wide : 价格宽表 (date × symbol)，由 run_strategy 的 _load_data 传入
+
+        返回:
+            回测结果 DataFrame
+        """
+        from strategies.multi_factor import MultiFactorStrategy
+        from pipeline.auto_gen_loader import load_auto_gen_definition, compute_auto_gen_factors
+        from utils.local_data_loader import get_all_symbols
+
+        strategy_def = load_auto_gen_definition()
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end = str(price_wide.index[-1].date())
+
+        factors = compute_auto_gen_factors(strategy_def, price_wide, symbols, start, end)
+
+        n_stocks = strategy_def.get("n_stocks", 30)
+        strategy = MultiFactorStrategy(
+            config=self.config,
+            factors=factors,
+            n_stocks=n_stocks,
         )
         result = strategy.run(price_wide)
         self.results = strategy.results
