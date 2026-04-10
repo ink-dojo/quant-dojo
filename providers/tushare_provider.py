@@ -194,8 +194,8 @@ class TushareProvider(BaseDataProvider):
                 )
                 if basic is not None and not basic.empty:
                     daily = daily.merge(basic, on="ts_code", how="left")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("daily_basic 合并失败 %s: %s，跳过基本面字段", td, e)
 
         # 3. 转换列名
         daily["symbol"] = daily["ts_code"].apply(_from_ts_code)
@@ -222,8 +222,8 @@ class TushareProvider(BaseDataProvider):
                     st_df[st_df["name"].str.contains("ST", na=False)]["ts_code"]
                 )
                 daily.loc[daily["ts_code"].isin(st_codes), "is_st"] = 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("ST 标记失败 %s: %s，is_st 默认为 0", td, e)
 
         # 5. 选择输出列
         out_cols = [

@@ -58,8 +58,9 @@ class TestEndToEnd:
         mock_result.equity_curve = None
         mock_result.run_id = "test_e2e_001"
 
-        with patch("backtest.standardized.run_backtest", return_value=mock_result):
-            result = run_backtest_cmd(strategy="v7", start="2024-01-01", end="2025-12-31", report=False)
+        with patch("utils.local_data_loader.get_all_symbols", return_value=["sh.600000"]):
+            with patch("backtest.standardized.run_backtest", return_value=mock_result):
+                result = run_backtest_cmd(strategy="v7", start="2024-01-01", end="2025-12-31", report=False)
 
         assert result.status == "success"
 

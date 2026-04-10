@@ -527,8 +527,8 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
                         "icir": round(float(ic_s.mean() / ic_s.std()), 4) if ic_s.std() > 0 else 0,
                         "direction": direction,
                     }
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("IC 统计计算失败 %s: %s", name, e)
 
         # 因子间相关性（基于 IC 序列）
         if len(ic_dict) >= 2:
@@ -677,8 +677,8 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
         try:
             run_id = _persist_result(result)
             result.run_id = run_id
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("回测结果持久化失败: %s", e)
 
     return result
 
@@ -785,8 +785,8 @@ def run_walk_forward(config: BacktestConfig, train_years: int = 3, test_months: 
         is_st_wide = load_factor_wide(symbols, "is_st", lookback_start, config.end)
         if is_st_wide.empty:
             is_st_wide = None
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("ST 数据加载失败（walk-forward），跳过 ST 过滤: %s", e)
 
     # 构造 strategy_fn 给 walk_forward_test 使用
     def strategy_fn(full_price, factor_data, train_start, train_end, test_start, test_end):
