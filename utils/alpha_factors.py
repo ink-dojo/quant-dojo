@@ -503,6 +503,226 @@ def chip_vrc(price: pd.DataFrame, turnover: pd.DataFrame,
 
 
 # ══════════════════════════════════════════════════════════════
+# 风险因子
+# ══════════════════════════════════════════════════════════════
+
+def idiosyncratic_volatility(price: pd.DataFrame,
+                             market_ret: pd.Series = None,
+                             window: int = 60) -> pd.DataFrame:
+    """
+    特质波动率因子（IVOL）：个股相对市场的残差波动率。
+
+    假设：特质波动率高的股票难以套利，趋向被高估，未来收益偏低。
+    方向：-1（高 IVOL → 低收益，取负后高值 = 看多信号）
+
+    计算步骤：
+      1. 计算日收益率；若无市场收益率则用截面等权均值
+      2. 滚动估计 beta = cov(ret, mkt) / var(mkt)
+      3. 残差 = ret - beta * mkt
+      4. IVOL = rolling std(残差, window)
+      5. 取负（方向修正）
+
+    实现采用向量化方式，避免逐股票循环：
+      - rolling cov/var 用 pandas rolling().cov()
+
+    参数:
+        price      : 收盘价宽表（日期 × 股票）
+        market_ret : 市场日收益率序列（可选）；为 None 时用截面等权均值
+        window     : 滚动窗口天数，默认 60
+
+    返回:
+        同形状 DataFrame，值越大表示特质风险越低（看多方向）
+
+    来源：Ang et al. 2006 JF / A股特质波动率异象
+    """
+    ret = price.pct_change()
+
+    # 市场收益：传入或用截面均值
+    if market_ret is None:
+        mkt = ret.mean(axis=1)
+    else:
+        mkt = market_ret.reindex(ret.index)
+
+    # 向量化滚动 OLS：beta = rolling_cov(ret, mkt) / rolling_var(mkt)
+    # rolling().cov() 返回 DataFrame（stock × date）
+    roll_cov = ret.rolling(window).cov(mkt)       # shape: (date × stock)
+    roll_var = mkt.rolling(window).var()           # shape: (date,)
+
+    # 避免除零
+    roll_var_safe = roll_var.replace(0, np.nan)
+    beta = roll_cov.div(roll_var_safe, axis=0)     # shape: (date × stock)
+
+    # 残差 = ret - beta * mkt
+    residual = ret.sub(beta.mul(mkt, axis=0), axis=0)
+
+    # IVOL = rolling std of residuals（min_periods = window//2 保留边缘数据）
+    ivol = residual.rolling(window, min_periods=window // 2).std()
+
+    # 方向 -1：高 IVOL 预期低收益
+    return -ivol
+
+
+# ══════════════════════════════════════════════════════════════
+# 行业因子
+# ══════════════════════════════════════════════════════════════
+
+def industry_momentum(price: pd.DataFrame,
+                      industry_map: dict,
+                      formation: int = 60,
+                      skip: int = 5) -> pd.DataFrame:
+    """
+    行业动量因子：过去 formation 天（跳过最近 skip 天）的行业平均收益。
+
+    假设：A 股板块轮动明显，行业动量效应显著，强势行业持续跑赢。
+    方向：+1（高行业动量 → 正向信号）
+
+    计算步骤：
+      1. 计算股票日收益率
+      2. 按 industry_map 分组，等权平均得到行业日收益率
+      3. 每只股票的因子值 = 其所属行业的 formation 期累计收益
+         （窗口为 [t-formation-skip, t-skip]，跳过最近 skip 天）
+      4. 将行业因子值映射回个股
+
+    参数:
+        price        : 收盘价宽表（日期 × 股票）
+        industry_map : dict，股票代码 → 行业代码（SW 一级行业）
+        formation    : 动量形成期天数，默认 60
+        skip         : 跳过最近 N 天（避免短期反转污染），默认 5
+
+    返回:
+        同形状 DataFrame，值越大表示行业动量越强
+
+    来源：Moskowitz & Grinblatt 1999 JF / A股行业动量研究
+    """
+    ret = price.pct_change()
+
+    # 将 industry_map 对齐到当前股票列（忽略 map 中不存在的股票）
+    stocks = price.columns.tolist()
+    ind_series = pd.Series({s: industry_map.get(s) for s in stocks})
+
+    # 计算行业等权日收益率：行业 × 日期
+    ind_codes = ind_series.dropna().unique()
+    ind_ret = {}
+    for ind in ind_codes:
+        members = ind_series[ind_series == ind].index.tolist()
+        # 只取当前 price 中有的股票
+        members = [m for m in members if m in ret.columns]
+        if members:
+            ind_ret[ind] = ret[members].mean(axis=1)
+    ind_ret_df = pd.DataFrame(ind_ret)  # shape: (date × industry)
+
+    # 行业动量：窗口 [t-formation-skip, t-skip] 的累计收益
+    # = rolling sum over formation days, shifted by skip days
+    ind_mom = ind_ret_df.rolling(formation).sum().shift(skip)
+
+    # 将行业动量映射回个股
+    result = pd.DataFrame(np.nan, index=price.index, columns=price.columns)
+    for stock in stocks:
+        ind = industry_map.get(stock)
+        if ind is not None and ind in ind_mom.columns:
+            result[stock] = ind_mom[ind]
+
+    return result
+
+
+# ══════════════════════════════════════════════════════════════
+# 微观结构因子（续）
+# ══════════════════════════════════════════════════════════════
+
+def price_volume_divergence(price: pd.DataFrame,
+                            volume: pd.DataFrame,
+                            window: int = 20) -> pd.DataFrame:
+    """
+    价量背离因子：价格变化与成交量变化的滚动 Spearman 相关系数。
+
+    假设：价涨量缩（或价跌量增）是行情不可持续的信号，价量背离者未来收益偏低。
+    方向：-1（价量相关性低 = 背离信号 = 看空；取负后高值 = 价量一致 = 看多）
+
+    计算步骤（rank-then-pearson 近似 Spearman，避免逐列循环）：
+      1. price_chg = price.pct_change()
+      2. vol_chg   = volume.pct_change()
+      3. 分别对 price_chg、vol_chg 计算滚动截面排名（归一化到 [0,1]）
+      4. 两组排名的滚动 Pearson 相关（列维度）≈ Spearman 相关
+      5. 取负（方向修正）
+
+    注意：此处 Spearman 是对每只股票时序上的相关，而非截面相关。
+    逐列 rolling corr 是 pandas 原生操作，性能可接受。
+
+    参数:
+        price  : 收盘价宽表（日期 × 股票）
+        volume : 成交量宽表（日期 × 股票），与 price 形状对齐
+        window : 滚动窗口天数，默认 20
+
+    返回:
+        同形状 DataFrame，值越大表示价量越一致（看多）
+
+    来源：价量关系研究 / A股微观结构
+    """
+    price_chg = price.pct_change()
+    vol_chg = volume.pct_change()
+
+    # 滚动排名（rank-then-pearson 近似 Spearman）
+    # pandas rolling().rank() 返回窗口内的排名（1 到 window）
+    price_rank = price_chg.rolling(window).rank()
+    vol_rank = vol_chg.rolling(window).rank()
+
+    # 逐列计算滚动 Pearson（近似 Spearman）
+    # rolling().corr() 对两个 DataFrame 逐列配对
+    spearman_approx = price_rank.rolling(window).corr(vol_rank)
+
+    # 方向 -1：价量背离（负相关）= 看空，取负后高值 = 价量一致
+    return -spearman_approx
+
+
+# ══════════════════════════════════════════════════════════════
+# 行为金融因子（续）
+# ══════════════════════════════════════════════════════════════
+
+def relative_turnover(turnover: pd.DataFrame,
+                      short_window: int = 10,
+                      long_window: int = 60) -> pd.DataFrame:
+    """
+    相对换手率因子：短期换手率相对长期均值的倍数。
+
+    假设：换手率异常飙升反映散户追涨行为，短期热度股票往往后续反转（A股注意力效应）。
+    方向：-1（高相对换手率 → 反转 → 取负后高值 = 低换手 = 看多）
+
+    计算步骤：
+      1. short_avg = turnover.rolling(short_window).mean()
+      2. long_avg  = turnover.rolling(long_window).mean()
+      3. rel_turn  = short_avg / long_avg
+      4. 截断（1%, 99% Winsorize）去极端值
+      5. 取负（方向修正）
+
+    参数:
+        turnover     : 换手率宽表（日期 × 股票），值域通常 0~1 或 0%~100%
+        short_window : 短期均值窗口，默认 10 天
+        long_window  : 长期均值窗口，默认 60 天
+
+    返回:
+        同形状 DataFrame，值越大表示相对换手越低（反转概率越小，看多）
+
+    来源：Barber & Odean 2008 / A股散户注意力效应
+    """
+    short_avg = turnover.rolling(short_window).mean()
+    long_avg = turnover.rolling(long_window).mean()
+
+    # 避免除零
+    long_avg_safe = long_avg.replace(0, np.nan)
+    rel_turn = short_avg / long_avg_safe
+
+    # Winsorize 1% / 99%（按全表分位数）
+    stacked = rel_turn.stack()
+    if len(stacked) > 0:
+        lo = stacked.quantile(0.01)
+        hi = stacked.quantile(0.99)
+        rel_turn = rel_turn.clip(lower=lo, upper=hi)
+
+    # 方向 -1：高换手倍数 → 反转风险高
+    return -rel_turn
+
+
+# ══════════════════════════════════════════════════════════════
 # 批量构建
 # ══════════════════════════════════════════════════════════════
 
@@ -603,6 +823,30 @@ FACTOR_CATALOG = {
     "str_salience": {"category": "行为金融", "source": "Cosemans2021+方正证券", "data": "close,market"},
     "team_coin": {"category": "行为金融", "source": "Moskowitz2021JF", "data": "close"},
     "apm_overnight": {"category": "网络/关系", "source": "QuantsPlaybook-APM", "data": "open,close"},
+    "idiosyncratic_vol": {
+        "func": idiosyncratic_volatility,
+        "category": "风险",
+        "source": "Ang et al. 2006 JF / A股特质波动率异象",
+        "data": ["close"],
+    },
+    "industry_momentum": {
+        "func": industry_momentum,
+        "category": "行业",
+        "source": "Moskowitz & Grinblatt 1999 JF / A股行业动量研究",
+        "data": ["close", "industry_map"],
+    },
+    "price_vol_divergence": {
+        "func": price_volume_divergence,
+        "category": "微观结构",
+        "source": "价量关系研究 / A股微观结构",
+        "data": ["close", "volume"],
+    },
+    "relative_turnover": {
+        "func": relative_turnover,
+        "category": "行为金融",
+        "source": "Barber & Odean 2008 / A股散户注意力效应",
+        "data": ["turnover"],
+    },
 }
 
 
