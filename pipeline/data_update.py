@@ -303,9 +303,17 @@ def run_update(
 
     if provider is None:
         # BaoStock 优先（免费、稳定、含基本面）；Tushare 需 2000+ 积分才划算
-        from providers.baostock_provider import BaoStockProvider
-        provider = BaoStockProvider()
-        logger.info("使用 BaoStockProvider（14 字段含基本面）")
+        try:
+            from providers.baostock_provider import BaoStockProvider
+            provider = BaoStockProvider()
+            logger.info("使用 BaoStockProvider（14 字段含基本面）")
+        except ModuleNotFoundError:
+            if dry_run:
+                logger.warning("baostock 未安装，dry_run 模式下跳过 provider 初始化")
+            else:
+                raise ImportError(
+                    "baostock 模块未安装，请运行: pip install baostock"
+                )
 
     # 统一截止日期格式
     if end_date is None:

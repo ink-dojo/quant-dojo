@@ -45,14 +45,17 @@ def _show_data_status():
         from pipeline.data_checker import check_data_freshness
         info = check_data_freshness()
         latest = info.get("latest_date", "?")
-        stale = info.get("days_stale", -1)
-        if stale <= 1:
+        stale = info.get("days_stale")
+        if stale is None:
+            icon = "?"
+        elif stale <= 1:
             icon = "OK"
         elif stale <= 3:
             icon = "注意"
         else:
             icon = "过期"
-        print(f"  [{icon}] 最新数据: {latest} (延迟 {stale} 天)")
+        stale_str = f"{stale} 天" if stale is not None else "未知"
+        print(f"  [{icon}] 最新数据: {latest} (延迟 {stale_str})")
     except Exception as e:
         print(f"  [?] 无法检查数据状态: {e}")
 

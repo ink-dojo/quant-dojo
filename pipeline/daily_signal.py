@@ -180,8 +180,8 @@ def run_daily_pipeline(
             try:
                 ic_s = compute_ic_series(neutral, ret_wide, method="spearman")
                 ic_series_dict[name] = ic_s
-            except Exception:
-                pass
+            except Exception as e:
+                warnings.warn(f"IC 序列计算失败 {name}: {e}，该因子不参与加权")
 
         # IC 加权合成（同 v7/v8）
         if neutralized_factors and ic_series_dict:
@@ -287,8 +287,8 @@ def run_daily_pipeline(
             try:
                 ic_s = compute_ic_series(neutral, ret_wide, method="spearman")
                 ic_series_dict[name] = ic_s
-            except Exception:
-                pass
+            except Exception as e:
+                warnings.warn(f"IC 序列计算失败 {name}: {e}，该因子不参与加权")
 
         # IC 加权合成：取最近 60 日 IC 均值绝对值作为权重
         if neutralized_factors and ic_series_dict:
