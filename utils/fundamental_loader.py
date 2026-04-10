@@ -5,11 +5,13 @@
 """
 import time
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "fundamentals"
+WIDE_DIR = RAW_DIR / "wide"
 LEGACY_INDUSTRY_CSV = Path(__file__).parent.parent / "data" / "raw" / "industry_baostock.csv"
 
 
@@ -211,6 +213,262 @@ def get_industry_classification(
     return df
 
 
+# ─────────────────────────────────────────────
+# 估值宽表（日期 × 股票）
+# ─────────────────────────────────────────────
+
+def build_pe_pb_wide(
+    symbols: list,
+    start: str,
+    end: str,
+    fields: list = None,
+    cache_dir: str = None,
+    force_refresh: bool = False,
+    max_workers: int = 8,
+) -> dict:
+    """
+    批量构建估值宽表（日期行 × 股票列）。
+
+    参数:
+        symbols      : 股票代码列表，如 ["000001", "600519"]
+        start        : 开始日期，格式 YYYY-MM-DD
+        end          : 结束日期，格式 YYYY-MM-DD
+        fields       : 需要的列，默认 ["pe_ttm", "pb"]；可选值来自 get_pe_pb() 返回列
+        cache_dir    : parquet 缓存目录；默认 data/raw/fundamentals/wide/
+        force_refresh: True 时忽略缓存，强制重新拉取所有股票
+        max_workers  : 并行线程数（受 akshare 限速约束，建议不超过 8）
+
+    返回:
+        dict，键为 field 名称，值为 pd.DataFrame(index=DatetimeIndex, columns=股票代码)
+        缺失数据处理：
+          - ffill(limit=10)：补充节假日 / 季报更新延迟（最多 10 个交易日）
+          - pe_ttm <= 0 的值置为 NaN（亏损股票剔除）
+          - 各字段做 0.1% 双端截断（Winsorize），避免极端值破坏因子
+
+    示例:
+        wide = build_pe_pb_wide(["000001", "600519"], "2024-01-01", "2024-12-31")
+        pe_df = wide["pe_ttm"]   # shape: (交易日数, 2)
+    """
+    if fields is None:
+        fields = ["pe_ttm", "pb"]
+
+    _cache_dir = Path(cache_dir) if cache_dir else WIDE_DIR
+    _cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = _cache_dir / f"pe_pb_{start}_{end}.parquet"
+
+    # ── 缓存命中：直接读 parquet，按 fields 筛列 ──────────────────────────
+    if not force_refresh and cache_path.exists():
+        cached = pd.read_parquet(cache_path)
+        # 列格式：MultiIndex (field, symbol) —— 见下方写缓存逻辑
+        available = set(cached.columns.get_level_values(0))
+        missing_fields = [f for f in fields if f not in available]
+        if not missing_fields:
+            return {f: cached[f] for f in fields}
+        # 缓存里缺字段时不复用，直接重拉
+        warnings.warn(
+            f"缓存 {cache_path} 缺少字段 {missing_fields}，忽略缓存重新拉取"
+        )
+
+    # ── 并行拉取每只股票 ──────────────────────────────────────────────────
+    per_symbol: dict[str, pd.DataFrame] = {}
+    failed: list[str] = []
+
+    def _fetch_one(sym: str) -> tuple[str, pd.DataFrame | None]:
+        """拉取单只股票的 pe_pb 数据，失败返回 None。"""
+        try:
+            df = get_pe_pb(sym, start=start, end=end, use_cache=True)
+            time.sleep(0.05)  # akshare 轻量频控
+            return sym, df
+        except Exception as exc:
+            warnings.warn(f"build_pe_pb_wide: {sym} 拉取失败，跳过。原因: {exc}")
+            return sym, None
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_fetch_one, s): s for s in symbols}
+        for fut in as_completed(futures):
+            sym, df = fut.result()
+            if df is not None and not df.empty:
+                per_symbol[sym] = df
+            else:
+                failed.append(sym)
+
+    if failed:
+        warnings.warn(f"build_pe_pb_wide: 以下股票无数据，已跳过: {failed}")
+
+    if not per_symbol:
+        raise ValueError("build_pe_pb_wide: 所有股票拉取失败，无法构建宽表。")
+
+    # ── 按 field 拼接宽表 ─────────────────────────────────────────────────
+    result: dict[str, pd.DataFrame] = {}
+    for field in fields:
+        cols = {}
+        for sym, df in per_symbol.items():
+            if field in df.columns:
+                cols[sym] = df[field]
+
+        if not cols:
+            warnings.warn(f"build_pe_pb_wide: 字段 {field} 在所有股票中均不存在，跳过。")
+            continue
+
+        wide = pd.DataFrame(cols).sort_index()
+
+        # 补充节假日 / 数据延迟（季报最多约 10 个交易日才更新）
+        wide = wide.ffill(limit=10)
+
+        # pe_ttm <= 0（亏损股票）置为 NaN，不参与因子计算
+        if field == "pe_ttm":
+            wide = wide.where(wide > 0)
+
+        # 0.1% 双端 Winsorize，防止极端值
+        lower = wide.stack().quantile(0.001)
+        upper = wide.stack().quantile(0.999)
+        wide = wide.clip(lower=lower, upper=upper)
+
+        result[field] = wide
+
+    if not result:
+        raise ValueError("build_pe_pb_wide: 所有 fields 均无法构建，请检查数据源。")
+
+    # ── 写缓存（MultiIndex columns: (field, symbol)）───────────────────────
+    try:
+        combined = pd.concat(result.values(), axis=1, keys=result.keys())
+        combined.to_parquet(cache_path)
+    except Exception as exc:
+        warnings.warn(f"build_pe_pb_wide: 缓存写入失败（不影响返回值）: {exc}")
+
+    return result
+
+
+# ─────────────────────────────────────────────
+# 财务宽表（日期 × 股票）
+# ─────────────────────────────────────────────
+
+def build_financials_wide(
+    symbols: list,
+    start: str,
+    end: str,
+    fields: list = None,
+    cache_dir: str = None,
+    force_refresh: bool = False,
+    max_workers: int = 8,
+) -> dict:
+    """
+    批量构建财务指标宽表（报告期行 × 股票列）。
+
+    参数:
+        symbols      : 股票代码列表，如 ["000001", "600519"]
+        start        : 开始报告期（含），格式 YYYY-MM-DD
+        end          : 结束报告期（含），格式 YYYY-MM-DD
+        fields       : 需要的列，默认 ["roe", "roa", "debt_ratio"]；
+                       可选值来自 get_financials() 返回列
+        cache_dir    : parquet 缓存目录；默认 data/raw/fundamentals/wide/
+        force_refresh: True 时忽略缓存，强制重新拉取
+        max_workers  : 并行线程数
+
+    返回:
+        dict，键为 field 名称，值为 pd.DataFrame(index=DatetimeIndex, columns=股票代码)
+        缺失数据处理：
+          - ffill(limit=10)：相邻报告期之间的值沿用
+          - 各字段做 0.1% 双端截断（Winsorize）
+
+    注意:
+        财务数据为季报频率（每年 4 次），宽表 index 不连续，调用方按需 reindex 对齐日历。
+
+    示例:
+        wide = build_financials_wide(["000001", "600519"], "2022-01-01", "2024-12-31")
+        roe_df = wide["roe"]  # shape: (报告期数, 2)
+    """
+    if fields is None:
+        fields = ["roe", "roa", "debt_ratio"]
+
+    _cache_dir = Path(cache_dir) if cache_dir else WIDE_DIR
+    _cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = _cache_dir / f"financials_{start}_{end}.parquet"
+
+    # ── 缓存命中 ──────────────────────────────────────────────────────────
+    if not force_refresh and cache_path.exists():
+        cached = pd.read_parquet(cache_path)
+        available = set(cached.columns.get_level_values(0))
+        missing_fields = [f for f in fields if f not in available]
+        if not missing_fields:
+            return {f: cached[f] for f in fields}
+        warnings.warn(
+            f"缓存 {cache_path} 缺少字段 {missing_fields}，忽略缓存重新拉取"
+        )
+
+    # ── 估算需要拉取的 periods（季报，每年 4 期）────────────────────────────
+    start_dt = pd.Timestamp(start)
+    end_dt = pd.Timestamp(end)
+    # 多拉 2 个季度作为缓冲，确保日期范围内数据完整
+    periods = max(4, int((end_dt - start_dt).days / 90) + 2)
+
+    # ── 并行拉取 ──────────────────────────────────────────────────────────
+    per_symbol: dict[str, pd.DataFrame] = {}
+    failed: list[str] = []
+
+    def _fetch_one(sym: str) -> tuple[str, pd.DataFrame | None]:
+        """拉取单只股票的财务摘要数据，失败返回 None。"""
+        try:
+            df = get_financials(sym, periods=periods, use_cache=True)
+            time.sleep(0.05)  # akshare 轻量频控
+            return sym, df
+        except Exception as exc:
+            warnings.warn(f"build_financials_wide: {sym} 拉取失败，跳过。原因: {exc}")
+            return sym, None
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_fetch_one, s): s for s in symbols}
+        for fut in as_completed(futures):
+            sym, df = fut.result()
+            if df is not None and not df.empty:
+                # 按报告期日期范围截取
+                per_symbol[sym] = df.loc[start:end]
+            else:
+                failed.append(sym)
+
+    if failed:
+        warnings.warn(f"build_financials_wide: 以下股票无数据，已跳过: {failed}")
+
+    if not per_symbol:
+        raise ValueError("build_financials_wide: 所有股票拉取失败，无法构建宽表。")
+
+    # ── 按 field 拼接宽表 ─────────────────────────────────────────────────
+    result: dict[str, pd.DataFrame] = {}
+    for field in fields:
+        cols = {}
+        for sym, df in per_symbol.items():
+            if field in df.columns:
+                cols[sym] = df[field]
+
+        if not cols:
+            warnings.warn(f"build_financials_wide: 字段 {field} 在所有股票中均不存在，跳过。")
+            continue
+
+        wide = pd.DataFrame(cols).sort_index()
+        wide = wide.ffill(limit=10)
+
+        # 0.1% 双端 Winsorize
+        stacked = wide.stack()
+        if len(stacked) > 0:
+            lower = stacked.quantile(0.001)
+            upper = stacked.quantile(0.999)
+            wide = wide.clip(lower=lower, upper=upper)
+
+        result[field] = wide
+
+    if not result:
+        raise ValueError("build_financials_wide: 所有 fields 均无法构建，请检查数据源。")
+
+    # ── 写缓存 ────────────────────────────────────────────────────────────
+    try:
+        combined = pd.concat(result.values(), axis=1, keys=result.keys())
+        combined.to_parquet(cache_path)
+    except Exception as exc:
+        warnings.warn(f"build_financials_wide: 缓存写入失败（不影响返回值）: {exc}")
+
+    return result
+
+
 if __name__ == "__main__":
     # 最小验证：用平安银行（000001）测试
     print("=" * 40)
@@ -237,5 +495,54 @@ if __name__ == "__main__":
     assert len(ind) == 2, f"应返回2行，实际{len(ind)}"
     assert "industry_code" in ind.columns
     print()
+
+    # ── 宽表函数测试（3只股票：平安银行、贵州茅台、宁德时代）─────────────────
+    TEST_SYMBOLS = ["000001", "600519", "300750"]
+    TEST_START = "2024-01-01"
+    TEST_END   = "2024-06-30"
+
+    print("=" * 40)
+    print("测试 build_pe_pb_wide")
+    print("=" * 40)
+    pe_pb_wide = build_pe_pb_wide(
+        TEST_SYMBOLS,
+        start=TEST_START,
+        end=TEST_END,
+        fields=["pe_ttm", "pb"],
+        force_refresh=True,   # 测试时强制重拉，不用脏缓存
+        max_workers=4,
+    )
+    assert set(pe_pb_wide.keys()) == {"pe_ttm", "pb"}, \
+        f"返回 keys 错误: {set(pe_pb_wide.keys())}"
+    for field, df in pe_pb_wide.items():
+        assert isinstance(df, pd.DataFrame), f"{field} 应为 DataFrame"
+        assert df.shape[1] <= len(TEST_SYMBOLS), f"{field} 列数超过股票数"
+        assert df.shape[0] > 0, f"{field} 行数为 0"
+        # pe_ttm 不应含 <= 0 的值（亏损股票已剔除）
+        if field == "pe_ttm":
+            assert (df.stack() > 0).all(), "pe_ttm 中仍含 <= 0 的值"
+        print(f"  {field}: shape={df.shape}, NaN率={df.isnull().mean().mean():.1%}")
+        print(df.head(3).to_string())
+        print()
+
+    print("=" * 40)
+    print("测试 build_financials_wide")
+    print("=" * 40)
+    fin_wide = build_financials_wide(
+        TEST_SYMBOLS,
+        start="2022-01-01",
+        end="2024-06-30",
+        fields=["roe", "roa", "debt_ratio"],
+        force_refresh=True,
+        max_workers=4,
+    )
+    assert set(fin_wide.keys()) == {"roe", "roa", "debt_ratio"}, \
+        f"返回 keys 错误: {set(fin_wide.keys())}"
+    for field, df in fin_wide.items():
+        assert isinstance(df, pd.DataFrame), f"{field} 应为 DataFrame"
+        assert df.shape[0] > 0, f"{field} 行数为 0（日期范围内无季报数据？）"
+        print(f"  {field}: shape={df.shape}, NaN率={df.isnull().mean().mean():.1%}")
+        print(df.to_string())
+        print()
 
     print("✅ 全部测试通过")

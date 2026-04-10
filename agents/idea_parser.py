@@ -44,7 +44,9 @@ _FACTOR_DIRECTION_HINTS: dict[str, tuple[int, str]] = {
     "cgo_simple":     (+1, "处置效应CGO，浮亏越大（因子值越高）未来反弹概率高，正向"),
     "str_salience":   (+1, "凸显理论STR，关注度低被低估，正向"),
     "team_coin":      (+1, "球队硬币，低波动时动量延续、高波动时反转，正向"),
-    "apm_overnight":  (+1, "APM隔夜因子，隔夜收益>日间收益说明知情交易者看好，正向"),
+    "apm_overnight":      (+1, "APM隔夜因子，隔夜收益>日间收益说明知情交易者看好，正向"),
+    "earnings_momentum":  (+1, "盈利动量（加速度），净利润增速加速说明基本面改善，正向（Novy-Marx2013）"),
+    "dividend_yield":     (+1, "股息率，高股息率意味着价值洼地或低估，正向（价值投资经典）"),
 }
 
 # LLM prompt 模板

@@ -10,8 +10,8 @@ Alpha 因子库 — quant-dojo 完整因子集
   reversal_1m, low_vol_20d, turnover_rev,
   enhanced_momentum, quality_momentum, ma_ratio_momentum
 
-基本面（2 + 1）：
-  ep, bp
+基本面（4 + 1）：
+  ep, bp, earnings_momentum, dividend_yield
   accruals_quality（应计异象，需财务宽表）
 
 流动性（1）：
@@ -43,6 +43,8 @@ Alpha 因子库 — quant-dojo 完整因子集
   [11] QuantsPlaybook-高质量动量因子（风险调整动量）
   [12] Amihud 2002 / A股流动性溢价（非流动性因子）
   [13] Sloan 1996 / 应计异象（盈利质量）
+  [14] Novy-Marx 2013 / 盈利动量（盈利加速度）
+  [15] 价值投资经典 / 股息率因子
 """
 import numpy as np
 import pandas as pd
@@ -192,6 +194,48 @@ def accruals_quality(net_income_wide: pd.DataFrame,
         delta_ni = net_income_wide.diff()
         accruals = delta_ni / assets
     return accruals.clip(-1, 1)
+
+
+def earnings_momentum(net_profit_growth_wide: pd.DataFrame,
+                      window: int = 4) -> pd.DataFrame:
+    """
+    盈利动量因子（Earnings Acceleration）。
+
+    计算净利润同比增速的环比变化（加速度），正向因子。
+    季报频率输入，ffill后适用于日频策略。
+
+    EPS_ACC = net_profit_growth_t - net_profit_growth_{t-window}
+
+    参数:
+        net_profit_growth_wide: 净利润同比增速宽表（季报×股票，已ffill到日频）
+        window: 差分窗口，默认4季（即同比加速度）
+
+    返回:
+        同形状 DataFrame，盈利加速度；截断至 [-2, 2]（增速变化超过200%视为异常）
+
+    来源：Novy-Marx 2013 / 盈利动量研究
+    """
+    acc = net_profit_growth_wide.diff(window)
+    # 截断极端值（增速变化超过200%视为异常）
+    return acc.clip(-2, 2)
+
+
+def dividend_yield(close_wide: pd.DataFrame,
+                   dps_wide: pd.DataFrame) -> pd.DataFrame:
+    """
+    股息率因子：DPS / 收盘价，正向（高股息=价值洼地）。
+
+    参数:
+        close_wide: 收盘价宽表（日期 × 股票）
+        dps_wide: 每股股息宽表（年频数据，ffill到日频）
+
+    返回:
+        股息率宽表，截断到 [0, 0.2]（防止极端值）
+
+    来源：价值投资经典 / 高股息溢价
+    """
+    dy = dps_wide / close_wide.replace(0, np.nan)
+    return dy.clip(0, 0.2)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -466,21 +510,25 @@ def build_fast_factors(price: pd.DataFrame, high: pd.DataFrame = None,
                        low: pd.DataFrame = None, open_price: pd.DataFrame = None,
                        pe: pd.DataFrame = None, pb: pd.DataFrame = None,
                        market_ret: pd.Series = None,
-                       volume: pd.DataFrame = None) -> dict:
+                       volume: pd.DataFrame = None,
+                       net_profit_growth: pd.DataFrame = None,
+                       dps: pd.DataFrame = None) -> dict:
     """
     构建所有快速因子（不含需要逐行循环的慢因子）。
 
     快速因子用 rolling/向量化计算，适合全量回测。
 
     参数:
-        price      : 收盘价宽表（日期 × 股票），必填
-        high       : 最高价宽表，用于微观结构因子
-        low        : 最低价宽表，用于微观结构因子
-        open_price : 开盘价宽表，用于 APM 因子
-        pe         : 市盈率宽表，用于 EP 因子
-        pb         : 市净率宽表，用于 BP 因子
-        market_ret : 市场日收益率序列，用于 STR/凸显理论因子
-        volume     : 成交量宽表，用于 Amihud 非流动性因子
+        price              : 收盘价宽表（日期 × 股票），必填
+        high               : 最高价宽表，用于微观结构因子
+        low                : 最低价宽表，用于微观结构因子
+        open_price         : 开盘价宽表，用于 APM 因子
+        pe                 : 市盈率宽表，用于 EP 因子
+        pb                 : 市净率宽表，用于 BP 因子
+        market_ret         : 市场日收益率序列，用于 STR/凸显理论因子
+        volume             : 成交量宽表，用于 Amihud 非流动性因子
+        net_profit_growth  : 净利润同比增速宽表（季报 ffill 到日频），用于盈利动量因子
+        dps                : 每股股息宽表（年报 ffill 到日频），用于股息率因子
 
     返回:
         dict，key 为因子名，value 为同形状 DataFrame
@@ -522,6 +570,16 @@ def build_fast_factors(price: pd.DataFrame, high: pd.DataFrame = None,
     if volume is not None:
         factors["amihud_illiq"] = amihud_illiquidity(price, volume)
 
+    # 基本面：盈利动量（需要净利润同比增速，季报 ffill 到日频）
+    if net_profit_growth is not None:
+        factors["earnings_momentum"] = earnings_momentum(
+            net_profit_growth.reindex_like(price)
+        )
+
+    # 基本面：股息率（需要每股股息，年报 ffill 到日频）
+    if dps is not None:
+        factors["dividend_yield"] = dividend_yield(price, dps.reindex_like(price))
+
     return factors
 
 
@@ -536,6 +594,8 @@ FACTOR_CATALOG = {
     "bp": {"category": "基本面", "source": "Fama-French", "data": "pb"},
     "roe": {"category": "基本面", "source": "DuPont/质量因子", "data": "pe_ttm,pb"},
     "accruals": {"category": "基本面", "source": "Sloan1996", "data": "net_income,total_assets,ocf(可选)"},
+    "earnings_momentum": {"category": "基本面", "source": "Novy-Marx2013", "data": "net_profit_growth(季报)"},
+    "dividend_yield": {"category": "基本面", "source": "价值投资经典", "data": "close,dps(年报)"},
     "amihud_illiq": {"category": "流动性", "source": "Amihud2002", "data": "close,volume"},
     "shadow_upper": {"category": "微观结构", "source": "东吴证券", "data": "high,close"},
     "shadow_lower": {"category": "微观结构", "source": "东吴证券", "data": "close,low"},
@@ -556,4 +616,51 @@ if __name__ == "__main__":
     print("  network_scc        [网络] QuantsPlaybook-网络中心度")
     print("  chip_arc/vrc       [筹码] QuantsPlaybook-筹码因子")
     print("  cgo (full)         [行为金融] 国信证券-完整CGO")
-    print("✅ alpha_factors import ok")
+
+    # ── 验证 earnings_momentum ──────────────────────────────────
+    print("\n[验证] earnings_momentum")
+    np.random.seed(42)
+    idx = pd.date_range("2022-01-01", periods=20, freq="QS")
+    stocks = ["000001.SZ", "000002.SZ", "600000.SH"]
+    # 净利润同比增速：随机，含正负，模拟真实季报
+    npg = pd.DataFrame(
+        np.random.uniform(-0.5, 1.5, size=(20, 3)),
+        index=idx, columns=stocks
+    )
+    em = earnings_momentum(npg, window=4)
+    assert em.shape == npg.shape, "shape 不匹配"
+    assert em.iloc[:4].isna().all().all(), "前 window 行应为 NaN"
+    assert (em.dropna() >= -2).all().all(), "下限截断失败"
+    assert (em.dropna() <= 2).all().all(), "上限截断失败"
+    # 手动验证第5行第0列
+    expected_val = npg.iloc[4, 0] - npg.iloc[0, 0]
+    expected_clip = float(np.clip(expected_val, -2, 2))
+    assert abs(em.iloc[4, 0] - expected_clip) < 1e-10, "diff(4) 计算错误"
+    print("  shape OK, NaN前缀 OK, clip[-2,2] OK, 数值验证 OK")
+
+    # ── 验证 dividend_yield ─────────────────────────────────────
+    print("[验证] dividend_yield")
+    idx_d = pd.date_range("2023-01-01", periods=50, freq="B")
+    close = pd.DataFrame(
+        np.random.uniform(5, 50, size=(50, 3)),
+        index=idx_d, columns=stocks
+    )
+    # 每股股息：年频，少量 NaN
+    dps_data = pd.DataFrame(
+        np.random.uniform(0, 2, size=(50, 3)),
+        index=idx_d, columns=stocks
+    )
+    # 注入一个极端值（应被 clip 截断）
+    dps_data.iloc[10, 0] = 1000.0
+    dy = dividend_yield(close, dps_data)
+    assert dy.shape == close.shape, "shape 不匹配"
+    assert (dy.dropna() >= 0).all().all(), "股息率不应为负"
+    assert (dy.dropna() <= 0.2).all().all(), "上限 0.2 截断失败"
+    # close=0 时应为 NaN（replace(0, nan) 保证）
+    close_with_zero = close.copy()
+    close_with_zero.iloc[5, 1] = 0
+    dy_z = dividend_yield(close_with_zero, dps_data)
+    assert pd.isna(dy_z.iloc[5, 1]), "close=0 时应为 NaN"
+    print("  shape OK, clip[0,0.2] OK, close=0->NaN OK")
+
+    print("\nalpha_factors import ok")
