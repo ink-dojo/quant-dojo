@@ -43,28 +43,30 @@ class IdeaResult:
     idea-to-strategy 流水线的完整输出。
 
     字段:
-        idea_text        : 原始用户想法文本
-        hypothesis       : IdeaParser 提炼的假设
-        strategy_name    : 生成的策略名（用于文件名后缀）
-        selected_factors : 选中因子列表，每项含
-                           {name, direction, reason, ic_mean, icir}
-        backtest_run_id  : control_surface backtest.run 返回的 run_id
-        metrics          : 回测指标 dict
-        gate_passed      : 风险门是否通过
-        gate_failures    : 风险门硬失败条目列表
-        gate_warnings    : 风险门及 IC 方向的警告条目列表
-        report_markdown  : 最终 Markdown 报告字符串
-        status           : "passed" | "failed_gate" | "failed_parse"
-                           | "failed_backtest" | "failed_ic"
-        error            : 最后一次异常的描述（若有）
-        created_at       : ISO 8601 时间戳
+        idea_text           : 原始用户想法文本
+        hypothesis          : IdeaParser 提炼的假设
+        strategy_name       : 生成的策略名（用于文件名后缀）
+        selected_factors    : 选中因子列表，每项含
+                              {name, direction, reason, ic_mean, icir}
+        backtest_run_id     : control_surface backtest.run 返回的 run_id
+        metrics             : 回测指标 dict（可含 oos_sharpe 键）
+        gate_passed         : 风险门是否通过
+        gate_failures       : 风险门硬失败条目列表
+        gate_warnings       : 风险门及 IC 方向的警告条目列表
+        report_markdown     : 最终 Markdown 报告字符串
+        status              : "passed" | "failed_gate" | "failed_parse"
+                              | "failed_backtest" | "failed_ic"
+        error               : 最后一次异常的描述（若有）
+        created_at          : ISO 8601 时间戳
+        ic_validation_end   : IC 验证截止日期（回测区间前60%的末尾日期），
+                              格式 YYYY-MM-DD；IC 阶段未执行时为空字符串
     """
     idea_text: str
     hypothesis: str
     strategy_name: str
     selected_factors: list          # [{"name", "direction", "reason", "ic_mean", "icir"}]
     backtest_run_id: Optional[str]
-    metrics: Optional[dict]
+    metrics: Optional[dict]         # 可含 oos_sharpe（walk-forward 样本外 Sharpe 均值）
     gate_passed: bool
     gate_failures: list
     gate_warnings: list
@@ -72,6 +74,7 @@ class IdeaResult:
     status: str                     # "passed"|"failed_gate"|"failed_parse"|"failed_backtest"|"failed_ic"
     error: Optional[str]
     created_at: str
+    ic_validation_end: str = ""     # IC 验证截止日期，默认空字符串保持向后兼容
 
 
 # ══════════════════════════════════════════════════════════════
@@ -129,48 +132,67 @@ def _stage_validate(spec: dict) -> tuple[bool, str]:
     if not spec.get("parse_ok", False):
         reason = spec.get("error") or spec.get("parse_error") or "parse_ok=False"
         return False, f"IdeaParser 解析失败: {reason}"
-    if not spec.get("factors"):
-        return False, "spec 中没有 factors 字段"
+    # IdeaParser.analyze() 返回的字段名是 selected_factors，不是 factors
+    if not spec.get("selected_factors"):
+        return False, "spec 中没有 selected_factors 字段（或列表为空）"
     return True, ""
 
 
 def _stage_compute_ic(
     spec: dict,
+    backtest_start: str,
     backtest_end: str,
     callback: Optional[Callable],
-) -> tuple[list, list, list]:
+) -> tuple[list, list, list, str]:
     """
-    对 spec['factors'] 中每个因子做快速 IC 验证，写回 ic_mean/icir。
+    对 spec['selected_factors'] 中每个因子做快速 IC 验证，写回 ic_mean/icir。
 
-    IC 验证窗口 = [backtest_end - 252 天, backtest_end]（约 1 年）。
+    为避免 in-sample 偏差，IC 验证只使用回测区间的前 60% 数据：
+        ic_start  = backtest_start
+        ic_end    = backtest_start + 0.6 * (backtest_end - backtest_start)
+    后 40% 数据留给真正的样本外评估。
+
     若 IC_mean 符号与 direction 不一致，记录 warning 但不强制修改方向。
 
     参数:
-        spec         : IdeaParser 的输出
-        backtest_end : 回测结束日期，IC 验证数据窗口上限
-        callback     : 进度回调（可为 None）
+        spec           : IdeaParser 的输出
+        backtest_start : 回测开始日期 YYYY-MM-DD
+        backtest_end   : 回测结束日期 YYYY-MM-DD
+        callback       : 进度回调（可为 None）
 
     返回:
-        (selected_factors, ic_warnings, failed_factor_names)
+        (selected_factors, ic_warnings, failed_factor_names, ic_validation_end)
         - selected_factors    : 全部因子条目（含 ic_mean/icir，失败项设 None）
         - ic_warnings         : 方向不一致的警告字符串列表
         - failed_factor_names : 无法计算 IC 的因子名列表
+        - ic_validation_end   : IC 验证截止日期字符串 YYYY-MM-DD
     """
     from utils.local_data_loader import get_all_symbols, load_price_wide
     from utils.alpha_factors import build_fast_factors
     from utils.factor_analysis import compute_ic_series, ic_summary
 
-    ic_start = _date_minus_days(backtest_end, 252)
-    _notify(callback, "computing_ic", f"加载 IC 验证数据 [{ic_start} ~ {backtest_end}]")
+    # 计算 IC 验证截止日（前 60% 时间段）
+    d_start = datetime.date.fromisoformat(backtest_start)
+    d_end = datetime.date.fromisoformat(backtest_end)
+    total_days = (d_end - d_start).days
+    ic_cutoff_days = int(total_days * 0.6)
+    ic_validation_end = str(d_start + datetime.timedelta(days=ic_cutoff_days))
+
+    ic_start = backtest_start
+    _notify(
+        callback, "computing_ic",
+        f"加载 IC 验证数据 [{ic_start} ~ {ic_validation_end}]（回测全区间前60%）"
+    )
 
     symbols = get_all_symbols()
-    price = load_price_wide(symbols, ic_start, backtest_end, field="close")
+    # 只加载 IC 验证窗口（前60%），不加载回测全段，防止 in-sample 偏差
+    price = load_price_wide(symbols, ic_start, ic_validation_end, field="close")
 
     # 尝试加载高低开价格，失败时静默跳过
     factor_kwargs: dict = {}
     for csv_field, kwarg_name in [("high", "high"), ("low", "low"), ("open", "open_price")]:
         try:
-            df = load_price_wide(symbols, ic_start, backtest_end, field=csv_field)
+            df = load_price_wide(symbols, ic_start, ic_validation_end, field=csv_field)
             if not df.empty:
                 factor_kwargs[kwarg_name] = df
         except Exception:
@@ -179,7 +201,7 @@ def _stage_compute_ic(
     # 尝试加载基本面宽表（pe、pb）
     try:
         from utils.local_data_loader import load_factor_wide
-        pe_df = load_factor_wide(symbols, "pe_ttm", ic_start, backtest_end)
+        pe_df = load_factor_wide(symbols, "pe_ttm", ic_start, ic_validation_end)
         if not pe_df.empty:
             factor_kwargs["pe"] = pe_df
     except Exception:
@@ -187,7 +209,7 @@ def _stage_compute_ic(
 
     try:
         from utils.local_data_loader import load_factor_wide
-        pb_df = load_factor_wide(symbols, "pb", ic_start, backtest_end)
+        pb_df = load_factor_wide(symbols, "pb", ic_start, ic_validation_end)
         if not pb_df.empty:
             factor_kwargs["pb"] = pb_df
     except Exception:
@@ -204,7 +226,8 @@ def _stage_compute_ic(
     if "enhanced_mom" in all_factors:
         all_factors.setdefault("enhanced_mom_60", all_factors["enhanced_mom"])
 
-    raw_factors: list[dict] = spec.get("factors", [])
+    # IdeaParser.analyze() 返回字段名是 selected_factors
+    raw_factors: list[dict] = spec.get("selected_factors", [])
     selected_factors: list[dict] = []
     ic_warnings: list[str] = []
     failed_factor_names: list[str] = []
@@ -274,7 +297,7 @@ def _stage_compute_ic(
                 "icir": None,
             })
 
-    return selected_factors, ic_warnings, failed_factor_names
+    return selected_factors, ic_warnings, failed_factor_names, ic_validation_end
 
 
 def _stage_write_spec(
@@ -388,6 +411,112 @@ def _stage_backtest(
     return run_id, metrics, None
 
 
+def _stage_walkforward(
+    backtest_start: str,
+    backtest_end: str,
+    callback: Optional[Callable],
+) -> Optional[float]:
+    """
+    对 auto_gen 策略运行 walk-forward 3折验证，返回样本外 Sharpe 均值。
+
+    折叠安排（基于传入区间，不硬编码年份）：
+        - train_years=3, test_months=6，步进半年
+    如果数据不足或执行失败，只打 warning，返回 None，不影响主流程。
+
+    参数:
+        backtest_start : 回测开始日期 YYYY-MM-DD
+        backtest_end   : 回测结束日期 YYYY-MM-DD
+        callback       : 进度回调（可为 None）
+
+    返回:
+        oos_sharpe（样本外 Sharpe 均值），失败时返回 None
+    """
+    try:
+        from utils.walk_forward import walk_forward_test
+        from utils.local_data_loader import get_all_symbols, load_price_wide
+
+        _notify(callback, "walk_forward", "开始 walk-forward 3折验证...")
+
+        symbols = get_all_symbols()
+        price_wide = load_price_wide(symbols, backtest_start, backtest_end, field="close")
+
+        if price_wide.empty:
+            _log.warning("walk_forward: 价格宽表为空，跳过")
+            return None
+
+        # 导入 auto_gen 策略的执行逻辑
+        from pipeline.control_surface import execute as _cs_execute
+
+        def _auto_gen_strategy_fn(
+            price_slice: "pd.DataFrame",
+            factor_slice,
+            train_start,
+            train_end,
+            test_start=None,
+            test_end=None,
+        ) -> "pd.Series":
+            """
+            walk_forward 的策略包装函数。
+            调用 control_surface 在 [train_start, test_end or train_end] 上运行 auto_gen，
+            截取测试段日收益率返回。
+            """
+            import pandas as _pd
+            _end = test_end if test_end is not None else train_end
+            result = _cs_execute(
+                "backtest.run",
+                approved=True,
+                strategy_id="auto_gen",
+                start=str(train_start.date()) if hasattr(train_start, "date") else str(train_start),
+                end=str(_end.date()) if hasattr(_end, "date") else str(_end),
+            )
+            if result.get("status") == "error":
+                return _pd.Series(dtype=float)
+
+            data = result.get("data") or {}
+            daily_returns = data.get("daily_returns")
+            if daily_returns is None:
+                return _pd.Series(dtype=float)
+
+            # 只截取测试期的收益
+            ret_series = _pd.Series(daily_returns)
+            if not isinstance(ret_series.index, _pd.DatetimeIndex):
+                try:
+                    ret_series.index = _pd.to_datetime(ret_series.index)
+                except Exception:
+                    return ret_series
+
+            if test_start is not None and test_end is not None:
+                ret_series = ret_series.loc[
+                    _pd.Timestamp(test_start): _pd.Timestamp(_end)
+                ]
+            return ret_series
+
+        wf_df = walk_forward_test(
+            strategy_fn=_auto_gen_strategy_fn,
+            price_wide=price_wide,
+            factor_data={},   # auto_gen 从 JSON 读取，factor_data 仅占位
+            train_years=3,
+            test_months=6,
+        )
+
+        valid = wf_df["sharpe"].dropna()
+        if valid.empty:
+            _log.warning("walk_forward: 所有折叠 sharpe 均为 NaN，跳过")
+            return None
+
+        oos_sharpe = float(valid.mean())
+        _notify(
+            callback, "walk_forward",
+            f"walk-forward 完成，有效折叠 {len(valid)} 个，OOS Sharpe 均值={oos_sharpe:.3f}"
+        )
+        return oos_sharpe
+
+    except Exception as exc:
+        _log.warning("walk_forward 阶段异常（主流程不受影响）: %s", exc)
+        _notify(callback, "walk_forward", f"walk-forward 失败（已跳过）: {exc}")
+        return None
+
+
 def _stage_risk_gate(metrics: dict) -> tuple[bool, list, list]:
     """
     调用 risk_gate.evaluate 检查回测指标是否过关。
@@ -420,22 +549,28 @@ def _build_report(
     ic_warnings: list,
     status: str,
     error: Optional[str],
+    backtest_start: str = "",
+    backtest_end: str = "",
+    ic_validation_end: str = "",
 ) -> str:
     """
     将各阶段结果拼接为最终 Markdown 报告。
 
     参数:
-        idea_text        : 原始想法文本
-        hypothesis       : 策略假设
-        selected_factors : 含 IC 统计的因子列表
-        backtest_run_id  : 回测 run_id
-        metrics          : 回测指标 dict
-        gate_passed      : 是否通过风险门
-        gate_failures    : 硬失败条目
-        gate_warnings    : 软警告条目（来自风险门）
-        ic_warnings      : IC 方向警告（来自 IC 验证阶段）
-        status           : 流水线状态码
-        error            : 错误描述（若有）
+        idea_text          : 原始想法文本
+        hypothesis         : 策略假设
+        selected_factors   : 含 IC 统计的因子列表
+        backtest_run_id    : 回测 run_id
+        metrics            : 回测指标 dict（可含 oos_sharpe 键）
+        gate_passed        : 是否通过风险门
+        gate_failures      : 硬失败条目
+        gate_warnings      : 软警告条目（来自风险门）
+        ic_warnings        : IC 方向警告（来自 IC 验证阶段）
+        status             : 流水线状态码
+        error              : 错误描述（若有）
+        backtest_start     : 回测开始日期（用于显示时间轴注释）
+        backtest_end       : 回测结束日期（用于显示时间轴注释）
+        ic_validation_end  : IC 验证截止日期（回测前60%末尾）
 
     返回:
         Markdown 字符串
@@ -471,6 +606,18 @@ def _build_report(
         lines.append(f"| {f['name']} | {dir_label} | {ic_str} | {icir_str} | {reason} |")
     lines.append("")
 
+    # IC 验证与样本外区间注释
+    if ic_validation_end and backtest_start and backtest_end:
+        lines.append("### 时间轴拆分")
+        lines.append("")
+        lines.append(
+            f"- **IC验证区间**：{backtest_start} ~ {ic_validation_end}（回测全区间前60%，in-sample）"
+        )
+        lines.append(
+            f"- **样本外回测区间**：{ic_validation_end} ~ {backtest_end}（后40%，out-of-sample）"
+        )
+        lines.append("")
+
     # IC 方向警告
     if ic_warnings:
         lines.append("### IC 方向警告")
@@ -488,6 +635,13 @@ def _build_report(
     if metrics:
         lines.append("| 指标 | 值 |")
         lines.append("|------|----|")
+        # oos_sharpe 优先展示，标注"样本外"
+        if "oos_sharpe" in metrics:
+            oos_val = metrics["oos_sharpe"]
+            try:
+                lines.append(f"| **OOS Sharpe（样本外）** | **{float(oos_val):.4f}** |")
+            except (TypeError, ValueError):
+                lines.append(f"| **OOS Sharpe（样本外）** | **{oos_val}** |")
         display_keys = [
             ("annualized_return", "年化收益"),
             ("total_return", "累计收益"),
@@ -616,6 +770,7 @@ def run_idea_pipeline(
     gate_failures: list = []
     gate_warnings: list = []
     ic_warnings: list = []
+    ic_validation_end: str = ""
     status = "failed_parse"
     error: Optional[str] = None
 
@@ -638,18 +793,23 @@ def run_idea_pipeline(
             report_markdown=_build_report(
                 idea_text, hypothesis, [], None, None,
                 False, [], [], [], "failed_parse", error,
+                backtest_start=backtest_start,
+                backtest_end=backtest_end,
+                ic_validation_end="",
             ),
             status="failed_parse",
             error=error,
             created_at=now_str,
+            ic_validation_end="",
         )
     _notify(progress_callback, "validating", "校验通过")
 
     # ── stage 2: IC 验证 ───────────────────────────────────────
-    _notify(progress_callback, "computing_ic", "开始计算各候选因子的 IC...")
+    # IC 验证只用回测区间的前 60%，避免选因和评估用同一段数据（in-sample 偏差）
+    _notify(progress_callback, "computing_ic", "开始计算各候选因子的 IC（使用前60%样本外区间）...")
     try:
-        selected_factors, ic_warnings, failed_names = _stage_compute_ic(
-            spec, backtest_end, progress_callback
+        selected_factors, ic_warnings, failed_names, ic_validation_end = _stage_compute_ic(
+            spec, backtest_start, backtest_end, progress_callback
         )
         if failed_names:
             _notify(
@@ -658,7 +818,7 @@ def run_idea_pipeline(
             )
         _notify(
             progress_callback, "computing_ic",
-            f"IC 验证完成，共 {len(selected_factors)} 个因子"
+            f"IC 验证完成（截止 {ic_validation_end}），共 {len(selected_factors)} 个因子"
         )
     except Exception as e:
         error = f"IC 计算失败: {e}"
@@ -676,10 +836,14 @@ def run_idea_pipeline(
             report_markdown=_build_report(
                 idea_text, hypothesis, selected_factors, None, None,
                 False, [], ic_warnings, ic_warnings, "failed_ic", error,
+                backtest_start=backtest_start,
+                backtest_end=backtest_end,
+                ic_validation_end=ic_validation_end,
             ),
             status="failed_ic",
             error=error,
             created_at=now_str,
+            ic_validation_end=ic_validation_end,
         )
 
     # ── stage 3: 写入 JSON spec ────────────────────────────────
@@ -703,13 +867,17 @@ def run_idea_pipeline(
             report_markdown=_build_report(
                 idea_text, hypothesis, selected_factors, None, None,
                 False, [], [], ic_warnings, "failed_backtest", error,
+                backtest_start=backtest_start,
+                backtest_end=backtest_end,
+                ic_validation_end=ic_validation_end,
             ),
             status="failed_backtest",
             error=error,
             created_at=now_str,
+            ic_validation_end=ic_validation_end,
         )
 
-    # ── stage 4: 回测 ──────────────────────────────────────────
+    # ── stage 4: 回测（全区间，不受 IC 截止日限制）─────────────
     _notify(progress_callback, "backtesting", "调用 control_surface 运行 auto_gen 回测...")
     try:
         backtest_run_id, metrics, bt_error = _stage_backtest(
@@ -731,10 +899,14 @@ def run_idea_pipeline(
                 report_markdown=_build_report(
                     idea_text, hypothesis, selected_factors, None, None,
                     False, [], [], ic_warnings, "failed_backtest", error,
+                    backtest_start=backtest_start,
+                    backtest_end=backtest_end,
+                    ic_validation_end=ic_validation_end,
                 ),
                 status="failed_backtest",
                 error=error,
                 created_at=now_str,
+                ic_validation_end=ic_validation_end,
             )
         _notify(progress_callback, "backtesting", f"回测完成，run_id={backtest_run_id}")
     except Exception as e:
@@ -753,11 +925,23 @@ def run_idea_pipeline(
             report_markdown=_build_report(
                 idea_text, hypothesis, selected_factors, None, None,
                 False, [], [], ic_warnings, "failed_backtest", error,
+                backtest_start=backtest_start,
+                backtest_end=backtest_end,
+                ic_validation_end=ic_validation_end,
             ),
             status="failed_backtest",
             error=error,
             created_at=now_str,
+            ic_validation_end=ic_validation_end,
         )
+
+    # ── stage 4.5: walk-forward 样本外验证（可选，失败不影响主流程）──
+    oos_sharpe = _stage_walkforward(backtest_start, backtest_end, progress_callback)
+    if oos_sharpe is not None:
+        # 写入 metrics，供报告和下游消费
+        if metrics is None:
+            metrics = {}
+        metrics["oos_sharpe"] = oos_sharpe
 
     # ── stage 5: 风险门 ────────────────────────────────────────
     _notify(progress_callback, "risk_gate", "运行风险门检查...")
@@ -782,6 +966,9 @@ def run_idea_pipeline(
         backtest_run_id, metrics,
         gate_passed, gate_failures, gate_warnings, ic_warnings,
         status, error,
+        backtest_start=backtest_start,
+        backtest_end=backtest_end,
+        ic_validation_end=ic_validation_end,
     )
     _notify(progress_callback, "done", "流水线执行完毕")
 
@@ -800,6 +987,7 @@ def run_idea_pipeline(
         status=status,
         error=error,
         created_at=now_str,
+        ic_validation_end=ic_validation_end,
     )
 
 
