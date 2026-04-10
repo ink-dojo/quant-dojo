@@ -152,7 +152,8 @@ class PaperTrader:
             nav: 当日净值
         """
         if NAV_FILE.exists():
-            nav_df = pd.read_csv(NAV_FILE)
+            # dtype 强制 float，防止全整数列被推断为 int64 导致后续赋值报错
+            nav_df = pd.read_csv(NAV_FILE, dtype={"nav": float})
         else:
             nav_df = pd.DataFrame(columns=["date", "nav"])
 
