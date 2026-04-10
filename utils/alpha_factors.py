@@ -10,8 +10,12 @@ Alpha 因子库 — quant-dojo 完整因子集
   reversal_1m, low_vol_20d, turnover_rev,
   enhanced_momentum, quality_momentum, ma_ratio_momentum
 
-基本面（2）：
+基本面（2 + 1）：
   ep, bp
+  accruals_quality（应计异象，需财务宽表）
+
+流动性（1）：
+  amihud_illiquidity（Amihud 非流动性，需 volume）
 
 微观结构（4）：
   shadow_upper, shadow_lower, amplitude_hidden, w_reversal
@@ -37,6 +41,8 @@ Alpha 因子库 — quant-dojo 完整因子集
   [9] QuantsPlaybook-筹码因子（ARC/VRC/SRC/KRC）
   [10] QuantsPlaybook-再论动量因子（MA 比率）
   [11] QuantsPlaybook-高质量动量因子（风险调整动量）
+  [12] Amihud 2002 / A股流动性溢价（非流动性因子）
+  [13] Sloan 1996 / 应计异象（盈利质量）
 """
 import numpy as np
 import pandas as pd
@@ -99,6 +105,37 @@ def ma_ratio_momentum(price: pd.DataFrame, window: int = 120) -> pd.DataFrame:
 
 
 # ══════════════════════════════════════════════════════════════
+# 流动性因子
+# ══════════════════════════════════════════════════════════════
+
+def amihud_illiquidity(price: pd.DataFrame, volume: pd.DataFrame,
+                       window: int = 20) -> pd.DataFrame:
+    """
+    Amihud 非流动性因子：单位成交量的价格冲击。
+
+    ILLIQ = mean(|ret| / volume, window)
+    高值 = 流动性差 = 未来有流动性溢价（正向因子）
+
+    参数:
+        price  : 收盘价宽表（日期 × 股票）
+        volume : 成交量宽表（日期 × 股票），单位任意（分子分母相消）
+        window : 滚动窗口，默认 20 日
+
+    返回:
+        同形状 DataFrame；值越大流动性越差（未来溢价越高）
+
+    来源：Amihud 2002 / A股已验证有效
+    """
+    ret = price.pct_change().abs()
+    # 成交量为 0 时设 NaN，避免除零
+    vol = volume.replace(0, np.nan)
+    illiq = (ret / vol).rolling(window).mean()
+    # 按全表 99 分位截断极端值，防止极低成交量时数值爆炸
+    upper = illiq.stack().quantile(0.99) if illiq.stack().shape[0] > 0 else np.inf
+    return illiq.clip(upper=upper)
+
+
+# ══════════════════════════════════════════════════════════════
 # 基本面因子
 # ══════════════════════════════════════════════════════════════
 
@@ -121,6 +158,40 @@ def roe_factor(pe_wide: pd.DataFrame, pb_wide: pd.DataFrame) -> pd.DataFrame:
     """
     roe = pb_wide / pe_wide.where(pe_wide > 0)
     return roe.clip(-1, 5)  # 截断极端值
+
+
+def accruals_quality(net_income_wide: pd.DataFrame,
+                     total_assets_wide: pd.DataFrame,
+                     ocf_wide: pd.DataFrame = None) -> pd.DataFrame:
+    """
+    应计异象因子（盈利质量）。
+
+    accruals = (净利润 - 经营性现金流) / 总资产
+    若无现金流数据，用净利润变化量近似：delta_NI / total_assets
+
+    高应计 = 非现金盈利占比高 = 盈利质量差 = 未来超额收益低（反向因子，direction=-1）
+    使用时需取反，或在组合权重中设 direction=-1。
+
+    参数:
+        net_income_wide  : 净利润宽表（日期 × 股票），季报频率，可 ffill 到日频
+        total_assets_wide: 总资产宽表（日期 × 股票）
+        ocf_wide         : 经营性现金流宽表（可选）；为 None 时用净利润变化量近似
+
+    返回:
+        同形状 DataFrame，值域截断至 [-1, 1]
+
+    来源：Sloan 1996 / 应计异象
+    注意：输入为季报频率时建议先 ffill 对齐到日频再传入
+    """
+    assets = total_assets_wide.replace(0, np.nan)
+    if ocf_wide is not None:
+        # 标准定义：(净利润 - 经营性现金流) / 总资产
+        accruals = (net_income_wide - ocf_wide) / assets
+    else:
+        # 简化近似：净利润季度变化 / 总资产（适用于只有利润表的场景）
+        delta_ni = net_income_wide.diff()
+        accruals = delta_ni / assets
+    return accruals.clip(-1, 1)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -394,11 +465,25 @@ def chip_vrc(price: pd.DataFrame, turnover: pd.DataFrame,
 def build_fast_factors(price: pd.DataFrame, high: pd.DataFrame = None,
                        low: pd.DataFrame = None, open_price: pd.DataFrame = None,
                        pe: pd.DataFrame = None, pb: pd.DataFrame = None,
-                       market_ret: pd.Series = None) -> dict:
+                       market_ret: pd.Series = None,
+                       volume: pd.DataFrame = None) -> dict:
     """
     构建所有快速因子（不含需要逐行循环的慢因子）。
 
     快速因子用 rolling/向量化计算，适合全量回测。
+
+    参数:
+        price      : 收盘价宽表（日期 × 股票），必填
+        high       : 最高价宽表，用于微观结构因子
+        low        : 最低价宽表，用于微观结构因子
+        open_price : 开盘价宽表，用于 APM 因子
+        pe         : 市盈率宽表，用于 EP 因子
+        pb         : 市净率宽表，用于 BP 因子
+        market_ret : 市场日收益率序列，用于 STR/凸显理论因子
+        volume     : 成交量宽表，用于 Amihud 非流动性因子
+
+    返回:
+        dict，key 为因子名，value 为同形状 DataFrame
     """
     dr = price.pct_change()
     factors = {}
@@ -433,6 +518,10 @@ def build_fast_factors(price: pd.DataFrame, high: pd.DataFrame = None,
     if open_price is not None:
         factors["apm_overnight"] = apm_overnight(open_price, price)
 
+    # 流动性：Amihud 非流动性（需要 volume）
+    if volume is not None:
+        factors["amihud_illiq"] = amihud_illiquidity(price, volume)
+
     return factors
 
 
@@ -446,6 +535,8 @@ FACTOR_CATALOG = {
     "ep": {"category": "基本面", "source": "Fama-French", "data": "pe_ttm"},
     "bp": {"category": "基本面", "source": "Fama-French", "data": "pb"},
     "roe": {"category": "基本面", "source": "DuPont/质量因子", "data": "pe_ttm,pb"},
+    "accruals": {"category": "基本面", "source": "Sloan1996", "data": "net_income,total_assets,ocf(可选)"},
+    "amihud_illiq": {"category": "流动性", "source": "Amihud2002", "data": "close,volume"},
     "shadow_upper": {"category": "微观结构", "source": "东吴证券", "data": "high,close"},
     "shadow_lower": {"category": "微观结构", "source": "东吴证券", "data": "close,low"},
     "cgo_simple": {"category": "行为金融", "source": "国信证券-处置效应", "data": "close"},
