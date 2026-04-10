@@ -18,7 +18,10 @@ pipeline/experiment_runner.py — Phase 7 ResearchQuestion → 回测执行器
 from __future__ import annotations
 
 import datetime
+import logging
 from typing import Any, Callable, Optional
+
+logger = logging.getLogger(__name__)
 
 from pipeline.experiment_store import (
     ExperimentRecord,
@@ -145,11 +148,15 @@ def run_experiment(
         call_params["experiment_id"] = record.experiment_id
         result = executor("backtest.run", approved=True, **call_params)
     except Exception as e:
-        return update_experiment(
-            record.experiment_id,
-            status="failed",
-            error=f"executor 异常: {e}",
-        )
+        try:
+            return update_experiment(
+                record.experiment_id,
+                status="failed",
+                error=f"executor 异常: {e}",
+            )
+        except Exception as inner_e:
+            logger.error("Could not mark experiment %s as failed: %s", record.experiment_id, inner_e)
+            raise
 
     if not isinstance(result, dict):
         return update_experiment(

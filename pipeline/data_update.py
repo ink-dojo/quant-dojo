@@ -247,10 +247,15 @@ def _run_batch_update(
             logger.warning("写入 %s 失败: %s", symbol, e)
             failed.append(symbol)
 
+    # API 响应中未出现的输入 symbol（既未更新也未报错）
+    responded = set(updated) | set(failed)
+    for symbol in symbols:
+        if symbol in symbol_set and symbol not in responded:
+            logger.warning("symbol %s 在 API 响应中缺失，视为跳过", symbol)
+            skipped.append(symbol)
+
     # 清除 parquet 缓存（数据已更新）
-    cache_dir = data_dir.parent / "quant-dojo" / "data" / "cache" / "local"
-    if not cache_dir.exists():
-        cache_dir = Path(__file__).parent.parent / "data" / "cache" / "local"
+    cache_dir = Path(__file__).parent.parent / "data" / "cache" / "local"
     if cache_dir.exists():
         for pf in cache_dir.glob("*.parquet"):
             sym = pf.stem

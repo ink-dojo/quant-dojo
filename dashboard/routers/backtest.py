@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -24,8 +25,8 @@ router = APIRouter(tags=["backtest"])
 class BacktestRunRequest(BaseModel):
     """回测运行请求"""
     strategy_id: str
-    start: str
-    end: str
+    start: date
+    end: date
     params: Optional[dict] = None
 
 
@@ -42,8 +43,8 @@ def api_strategies():
     try:
         from dashboard.services.backtest_service import get_strategies
         return get_strategies()
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/runs")

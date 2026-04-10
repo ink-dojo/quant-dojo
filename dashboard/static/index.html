@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>quant-dojo 驾驶舱</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- TODO: add SRI integrity= hashes to the three script tags below -->
+  <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
   <style>
     html, body { background: #0b0f17; color: #e5e7eb; }
     ::-webkit-scrollbar { width: 8px; }
@@ -910,7 +912,7 @@ async function loadFactorReadme(dir) {
   const reader = $('#factor-readme');
   reader.innerHTML = '<p class="loading">加载中…</p>';
   const d = await api('/api/factors/readme/' + encodeURIComponent(dir));
-  reader.innerHTML = d?.content ? marked.parse(d.content) : `<p class="text-red-400">${escHtml(d?.error||'加载失败')}</p>`;
+  reader.innerHTML = d?.content ? DOMPurify.sanitize(marked.parse(d.content)) : `<p class="text-red-400">${escHtml(d?.error||'加载失败')}</p>`;
 }
 
 // ══════════════════════════════════════════════
@@ -956,26 +958,26 @@ function appendAIBlock(cls, title, content) {
 function handleAIEvent(data) {
   const {stage,content,rebuttals,confidence,key_factors}=data;
   if (stage==='bull') {
-    const items=Array.isArray(content)?content.map(s=>`<li>${s}</li>`).join(''):content;
+    const items=Array.isArray(content)?content.map(s=>`<li>${escHtml(s)}</li>`).join(''):escHtml(content);
     appendAIBlock('stage-bull','🟢 看多',`<ul class="list-disc list-inside">${items}</ul>`);
   } else if (stage==='bear') {
-    const b=Array.isArray(content)?content.map(s=>`<li>${s}</li>`).join(''):content;
+    const b=Array.isArray(content)?content.map(s=>`<li>${escHtml(s)}</li>`).join(''):escHtml(content);
     appendAIBlock('stage-bear','🔴 看空',`<ul class="list-disc list-inside">${b}</ul>`);
   } else if (stage==='moderator') {
     const cf=confidence!=null?` (${(confidence*100).toFixed(0)}%)`:'';
-    appendAIBlock('stage-mod',`🏛 结论${cf}`,String(content));
+    appendAIBlock('stage-mod',`🏛 结论${cf}`,escHtml(String(content)));
   } else if (stage==='error') {
-    appendAIBlock('stage-bear','❌ 错误',String(content));
+    appendAIBlock('stage-bear','❌ 错误',escHtml(String(content)));
   } else if (stage==='done') {
     appendAIBlock('stage-mod','✅ 完成','分析完成');
   } else if (stage==='result') {
     const s=content?.price_summary||{},d=content?.debate||{};
     let html='';
-    if (s.latest_price) html+=`<div>最新价 <b>${s.latest_price}</b> 年化 ${pct(s.annualized_return)} 夏普 ${fix2(s.sharpe)}</div>`;
-    if (d.conclusion) html+=`<div class="text-yellow-300">${d.conclusion}</div>`;
-    appendAIBlock('stage-result','📊 结果',html||String(JSON.stringify(content)));
+    if (s.latest_price) html+=`<div>最新价 <b>${escHtml(String(s.latest_price))}</b> 年化 ${pct(s.annualized_return)} 夏普 ${fix2(s.sharpe)}</div>`;
+    if (d.conclusion) html+=`<div class="text-yellow-300">${escHtml(d.conclusion)}</div>`;
+    appendAIBlock('stage-result','📊 结果',html||escHtml(JSON.stringify(content)));
   } else if (content) {
-    appendAIBlock('stage-result', stage, String(content));
+    appendAIBlock('stage-result', stage, escHtml(String(content)));
   }
 }
 async function runAnalyze() {
@@ -1020,7 +1022,7 @@ async function openDoc(rel) {
   const reader=$('#doc-reader');
   reader.innerHTML='<p class="loading">加载中…</p>';
   const d = await api('/api/docs/read?rel='+encodeURIComponent(rel));
-  reader.innerHTML = d?.content ? marked.parse(d.content) : `<p class="text-red-400">${escHtml(d?.error||'加载失败')}</p>`;
+  reader.innerHTML = d?.content ? DOMPurify.sanitize(marked.parse(d.content)) : `<p class="text-red-400">${escHtml(d?.error||'加载失败')}</p>`;
 }
 
 // ══════════════════════════════════════════════
