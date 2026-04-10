@@ -11,7 +11,6 @@ import os
 import pandas as pd
 from datetime import datetime
 import re
-import random
 
 from utils.runtime_config import get_local_data_dir
 
@@ -70,7 +69,7 @@ def check_data_freshness(data_dir: str = None) -> dict:
 
     # 性能优化：采样 100 个文件而不是全部读取
     sample_size = min(100, len(csv_files))
-    sampled_files = random.sample(csv_files, sample_size)
+    sampled_files = sorted(csv_files)[:sample_size]
 
     latest_date = None
 
@@ -111,8 +110,6 @@ def check_data_freshness(data_dir: str = None) -> dict:
 
     # 判断状态
     if days_stale is None:
-        status = 'missing'
-    elif missing_count > 100:
         status = 'missing'
     elif days_stale > 3:
         status = 'stale'

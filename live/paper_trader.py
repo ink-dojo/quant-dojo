@@ -6,8 +6,10 @@ paper_trader.py — 模拟盘持仓追踪
 """
 
 import json
+import logging
 import math
 import os
+import threading
 from datetime import datetime, date
 from pathlib import Path
 
@@ -15,6 +17,8 @@ import numpy as np
 import pandas as pd
 
 from utils.runtime_config import get_transaction_cost_rate
+
+_REBALANCE_LOCK = threading.Lock()
 
 # 投资组合数据存储目录
 PORTFOLIO_DIR = Path(__file__).parent / "portfolio"
@@ -33,6 +37,7 @@ class PaperTrader:
             initial_capital: 初始资金，默认 100 万
         """
         self.initial_capital = initial_capital
+        self._log = logging.getLogger(__name__)
 
         # 确保数据目录存在
         PORTFOLIO_DIR.mkdir(parents=True, exist_ok=True)
@@ -56,7 +61,7 @@ class PaperTrader:
         if has_positions and not has_nav:
             # 持仓在但净值丢失 — 从持仓重建 nav.csv
             nav_df = self._reconstruct_nav_from_positions()
-            print("[PaperTrader] nav.csv 缺失，已从 positions.json 重建")
+            self._log.info("nav.csv 缺失，已从 positions.json 重建")
         elif not has_positions and has_nav:
             # 净值在但持仓丢失 — 从净值重建空持仓（只恢复现金 = 最后 NAV）
             nav_df = pd.read_csv(NAV_FILE)
@@ -64,7 +69,7 @@ class PaperTrader:
                 last_nav = float(nav_df["nav"].iloc[-1])
                 self.positions = {"__cash__": last_nav}
                 self._save_positions()
-                print(f"[PaperTrader] positions.json 缺失，已从 nav.csv 末行重建（现金={last_nav:,.2f}）")
+                self._log.info("positions.json 缺失，已从 nav.csv 末行重建（现金=%,.2f）", last_nav)
             else:
                 nav_df = pd.DataFrame(columns=["date", "nav"])
         elif has_nav:
@@ -81,7 +86,7 @@ class PaperTrader:
         # 加载后做状态校验，打印任何警告
         warnings = self._validate_state()
         for w in warnings:
-            print(f"[PaperTrader WARNING] {w}")
+            self._log.info("[PaperTrader WARNING] %s", w)
 
         # 自一致性校验：用 current_price 推算 NAV，与 nav.csv 最后一行对比
         if not nav_df.empty:
@@ -94,9 +99,9 @@ class PaperTrader:
             if last_nav > 0:
                 diff_pct = abs(expected_nav - last_nav) / last_nav
                 if diff_pct > 0.01:
-                    print(
-                        f"[PaperTrader WARNING] 状态不一致：持仓推算 NAV={expected_nav:,.2f}，"
-                        f"csv 记录 NAV={last_nav:,.2f}，偏差={diff_pct:.2%}（可能来自上次运行的过时数据）"
+                    self._log.info(
+                        "状态不一致：持仓推算 NAV=%,.2f，csv 记录 NAV=%,.2f，偏差=%.2f%%（可能来自上次运行的过时数据）",
+                        expected_nav, last_nav, diff_pct * 100,
                     )
 
     # ------------------------------------------------------------------
@@ -240,6 +245,11 @@ class PaperTrader:
         返回:
             dict: 调仓摘要，含 date/n_buys/n_sells/turnover/cash_after/nav_after
         """
+        with _REBALANCE_LOCK:
+            return self._rebalance_locked(new_picks, prices, date)
+
+    def _rebalance_locked(self, new_picks: list, prices: dict, date: str) -> dict:
+        """rebalance() 的实际实现，调用方必须持有 _REBALANCE_LOCK。"""
         # --- 同日防重 ---
         existing_today = [t for t in self.trades if t.get("date") == date]
         if existing_today:

@@ -179,8 +179,3 @@ async def run_backtest_async(
         "metrics": data["metrics"],
     })
 
-
-def _sse(data: dict) -> str:
-    """格式化 SSE 数据行（仅保留向后兼容，新代码请用 sse_utils.sse_line）"""
-    from dashboard.services.sse_utils import sse_line
-    return sse_line(data)

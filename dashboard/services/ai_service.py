@@ -16,6 +16,12 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
+def _safe_format(template: str, **kwargs) -> str:
+    """安全格式化：将 kwargs 中值里的花括号转义，防止 KeyError 或意外展开。"""
+    safe = {k: str(v).replace('{', '{{').replace('}', '}}') for k, v in kwargs.items()}
+    return template.format(**safe)
+
+
 async def run_debate(symbol: str, context: str) -> AsyncGenerator[str, None]:
     """
     执行牛熊辩论，分阶段 yield SSE 字符串。
@@ -41,19 +47,19 @@ async def run_debate(symbol: str, context: str) -> AsyncGenerator[str, None]:
             return
 
         debate = BullBearDebate(llm)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         topic = symbol
 
         # ── 第一轮：多方分析 ────────────────────────────────────────
-        bull_prompt = debate.BULL_PROMPT.format(topic=topic, context=context)
+        bull_prompt = _safe_format(debate.BULL_PROMPT, topic=topic, context=context)
         bull_result = await loop.run_in_executor(None, llm.complete_json, bull_prompt)
         bull_args = bull_result.get("bull_arguments", ["（多方未给出有效理由）"])
         yield _sse({"stage": "bull", "content": bull_args})
 
         # ── 第二轮：空方反驳 ────────────────────────────────────────
         bull_args_text = "\n".join(f"  {i+1}. {a}" for i, a in enumerate(bull_args))
-        bear_prompt = debate.BEAR_PROMPT.format(
-            topic=topic, context=context, bull_args=bull_args_text
+        bear_prompt = _safe_format(
+            debate.BEAR_PROMPT, topic=topic, context=context, bull_args=bull_args_text
         )
         bear_result = await loop.run_in_executor(None, llm.complete_json, bear_prompt)
         rebuttals = bear_result.get("rebuttals", ["（空方未给出有效反驳）"])
@@ -63,7 +69,8 @@ async def run_debate(symbol: str, context: str) -> AsyncGenerator[str, None]:
         # ── 第三轮：主持人综合 ──────────────────────────────────────
         bear_rebuttals_text = "\n".join(f"  {i+1}. {r}" for i, r in enumerate(rebuttals))
         bear_args_text = "\n".join(f"  {i+1}. {a}" for i, a in enumerate(bear_args))
-        mod_prompt = debate.MODERATOR_PROMPT.format(
+        mod_prompt = _safe_format(
+            debate.MODERATOR_PROMPT,
             topic=topic,
             context=context,
             bull_args=bull_args_text,
@@ -112,7 +119,7 @@ async def run_analyze(symbol: str) -> AsyncGenerator[str, None]:
         end_date = str(date.today())
         start_date = str(date.today() - timedelta(days=365))
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         analyst = StockAnalyst(llm)
 
         # StockAnalyst.analyze 是阻塞调用，放到线程池中执行
