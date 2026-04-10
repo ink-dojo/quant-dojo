@@ -317,12 +317,86 @@ def cmd_signal_run(args):
 # rebalance 命令组
 # ══════════════════════════════════════════════════════════════
 
+def _get_trade_calendar(year: int) -> set:
+    """
+    获取指定年份的 A 股交易日集合。
+
+    策略（按优先级）：
+    1. 从本地任意一只股票 CSV 中读取当年出现过的日期（最权威，无需网络）
+    2. Tushare trade_cal（需高积分，通常不可用）
+    3. 返回空集合，由调用方降级为纯周末过滤
+
+    参数:
+        year: 4 位年份整数
+
+    返回:
+        set[str]：该年所有交易日 YYYY-MM-DD 字符串，空集表示不可用
+    """
+    import logging as _log
+    import pandas as _pd
+    from pathlib import Path as _Path
+
+    _logger = _log.getLogger(__name__)
+
+    # ── 方案 1：本地 CSV 数据（最可靠）──────────────────────────
+    # 支持中文列名（baostock: 交易所行情日期）和英文列名（tushare: date）
+    try:
+        from utils.runtime_config import get_local_data_dir
+        data_dir = get_local_data_dir()
+        for probe in ("sz.000001.csv", "sh.600000.csv", "sz.000002.csv"):
+            csv_path = data_dir / probe
+            if not csv_path.exists():
+                continue
+            raw = _pd.read_csv(csv_path, encoding="utf-8-sig", nrows=0)
+            # 找日期列（兼容中英文）
+            date_col = next(
+                (c for c in raw.columns if c in ("date", "交易所行情日期")), None
+            )
+            if date_col is None:
+                continue
+            df = _pd.read_csv(csv_path, usecols=[date_col], encoding="utf-8-sig")
+            df[date_col] = _pd.to_datetime(df[date_col], errors="coerce")
+            year_dates = df[df[date_col].dt.year == year][date_col].dropna()
+            if len(year_dates) >= 30:  # 至少 30 个交易日（约 1.5 个月）即可信
+                return set(year_dates.dt.strftime("%Y-%m-%d").tolist())
+    except Exception as e:
+        _logger.debug("本地 CSV 交易日历读取失败: %s", e)
+
+    # ── 方案 2：Tushare trade_cal（需高积分，通常降级）──────────
+    try:
+        _load_dotenv()
+        import os
+        import tushare as _ts
+        token = os.environ.get("TUSHARE_TOKEN", "")
+        if token:
+            _ts.set_token(token)
+            pro = _ts.pro_api()
+            cal = pro.trade_cal(
+                exchange="SSE",
+                start_date=f"{year}0101",
+                end_date=f"{year}1231",
+                is_open="1",
+            )
+            if cal is not None and not cal.empty:
+                dates = set()
+                for raw in cal["cal_date"]:
+                    dates.add(f"{raw[:4]}-{raw[4:6]}-{raw[6:]}")
+                return dates
+    except Exception as e:
+        _logger.debug("Tushare trade_cal 不可用: %s", e)
+
+    # ── 方案 3：无法获取，返回空集，由调用方降级 ─────────────────
+    _logger.warning("无法获取 %d 年交易日历，节假日将被误判为交易日", year)
+    return set()
+
+
 def _prev_trading_date(date_str: str) -> str:
     """
-    获取给定日期的前一个交易日（简单版：向前遍历，跳过周末）。
+    获取给定日期的前一个 A 股交易日。
 
-    注意：不处理节假日，仅跳过周六（weekday=5）和周日（weekday=6）。
-    对于 A 股节假日，需在数据中用 load_price_wide 实际验证是否有数据。
+    逻辑：
+    1. 先尝试从交易日历中找到真正的前一交易日（处理节假日）
+    2. 交易日历不可用时，退化为跳过周末
 
     参数:
         date_str: 日期字符串，格式 YYYY-MM-DD
@@ -331,11 +405,27 @@ def _prev_trading_date(date_str: str) -> str:
         前一交易日字符串，格式 YYYY-MM-DD
     """
     import datetime as _dt
+
     d = _dt.date.fromisoformat(date_str)
-    d -= _dt.timedelta(days=1)
-    # 跳过周末（0=Mon ... 6=Sun）
-    while d.weekday() >= 5:
+
+    # 往前最多查 14 天（覆盖 7 天节假日 + 2 个周末）
+    for _ in range(14):
         d -= _dt.timedelta(days=1)
+        d_str = d.isoformat()
+
+        # 先跳过周末（最快路径）
+        if d.weekday() >= 5:
+            continue
+
+        # 检查交易日历
+        cal = _get_trade_calendar(d.year)
+        if not cal:
+            # fallback：周末已跳过，直接返回
+            return d_str
+        if d_str in cal:
+            return d_str
+
+    # 安全兜底（极端情况）
     return d.isoformat()
 
 
