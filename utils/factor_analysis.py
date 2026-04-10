@@ -681,6 +681,101 @@ def batch_decay_analysis(
 
 
 # ─────────────────────────────────────────────
+# 因子相关性分析
+# ─────────────────────────────────────────────
+
+def factor_correlation_matrix(
+    factor_df: pd.DataFrame,
+) -> tuple[pd.DataFrame, list[tuple]]:
+    """
+    计算因子间相关性矩阵，并标记高相关因子对。
+
+    参数:
+        factor_df : 宽表 DataFrame，列为因子名，行为 (date, symbol) 或纯 symbol
+                    每列代表一个因子的值
+
+    返回:
+        (corr_matrix_df, high_corr_pairs)
+        - corr_matrix_df : 因子 × 因子 的 Pearson 相关系数矩阵
+        - high_corr_pairs : 高相关因子对列表，每个元素为
+          (factor_a, factor_b, corr_value)，筛选条件 |corr| > 0.7
+          只包含上三角（避免重复），不含对角线
+    """
+    corr_matrix = factor_df.corr()
+
+    # 提取上三角中 |corr| > 0.7 的因子对
+    high_corr_pairs = []
+    factors = corr_matrix.columns.tolist()
+    n = len(factors)
+    for i in range(n):
+        for j in range(i + 1, n):
+            corr_val = corr_matrix.iloc[i, j]
+            if abs(corr_val) > 0.7:
+                high_corr_pairs.append((factors[i], factors[j], round(corr_val, 4)))
+
+    return corr_matrix, high_corr_pairs
+
+
+def plot_factor_correlation(
+    corr_df: pd.DataFrame,
+    output_path: str = None,
+) -> None:
+    """
+    绘制因子相关性热力图。
+
+    参数:
+        corr_df     : 因子 × 因子 的相关系数矩阵（来自 factor_correlation_matrix）
+        output_path : 保存路径（如 'corr_heatmap.png'）；为 None 则直接 plt.show()
+    """
+    import matplotlib.pyplot as plt
+
+    try:
+        import seaborn as sns
+        has_seaborn = True
+    except ImportError:
+        has_seaborn = False
+
+    fig, ax = plt.subplots(figsize=(max(8, len(corr_df.columns)), max(6, len(corr_df.columns) * 0.8)))
+
+    if has_seaborn:
+        sns.heatmap(
+            corr_df,
+            annot=True,
+            fmt=".2f",
+            cmap="RdBu_r",
+            center=0,
+            vmin=-1,
+            vmax=1,
+            square=True,
+            linewidths=0.5,
+            ax=ax,
+        )
+    else:
+        # 无 seaborn 时用 matplotlib 的 imshow 降级
+        im = ax.imshow(corr_df.values, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
+        ax.set_xticks(range(len(corr_df.columns)))
+        ax.set_yticks(range(len(corr_df.index)))
+        ax.set_xticklabels(corr_df.columns, rotation=45, ha="right")
+        ax.set_yticklabels(corr_df.index)
+        # 标注数值
+        for i in range(len(corr_df.index)):
+            for j in range(len(corr_df.columns)):
+                ax.text(j, i, f"{corr_df.iloc[i, j]:.2f}",
+                        ha="center", va="center", fontsize=8)
+        fig.colorbar(im, ax=ax, shrink=0.8)
+
+    ax.set_title("因子相关性矩阵")
+    plt.tight_layout()
+
+    if output_path:
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"热力图已保存至 {output_path}")
+        plt.close(fig)
+    else:
+        plt.show()
+
+
+# ─────────────────────────────────────────────
 # 入口验证
 # ─────────────────────────────────────────────
 
@@ -720,3 +815,23 @@ if __name__ == "__main__":
     summary = batch_decay_analysis(factors_dict, ret_wide, max_lag=10)
     print(summary.to_string(index=False))
     print("\n✅ factor_decay_analysis 验证通过")
+
+    # === 因子相关性矩阵 ===
+    print("\n=== 因子相关性矩阵 ===")
+    # 构造多因子宽表（列=因子名，行=样本）
+    multi_factor_df = pd.DataFrame({
+        "momentum": np.random.randn(200),
+        "reversal": np.random.randn(200),
+        "vol": np.random.randn(200),
+        "correlated_mom": np.random.randn(200) * 0.3,
+    })
+    # 让 correlated_mom 与 momentum 高度相关
+    multi_factor_df["correlated_mom"] += multi_factor_df["momentum"] * 0.9
+
+    corr_mat, high_pairs = factor_correlation_matrix(multi_factor_df)
+    print("相关系数矩阵:")
+    print(corr_mat.round(3))
+    print(f"高相关因子对 (|corr| > 0.7): {high_pairs}")
+    assert isinstance(corr_mat, pd.DataFrame), "corr_matrix 应为 DataFrame"
+    assert len(high_pairs) > 0, "应检测到至少一对高相关因子"
+    print("✅ factor_correlation_matrix 验证通过")
