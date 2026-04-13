@@ -30,9 +30,12 @@ def run_update(dry_run: bool = False, full: bool = False):
         from utils.runtime_config import get_local_data_dir
         data_dir = get_local_data_dir()
         if not data_dir.exists():
-            print(f"  [错误] 数据目录不存在: {data_dir}")
-            print("         运行: python -m quant_dojo init --download")
-            sys.exit(1)
+            if dry_run:
+                print(f"  [提示] 数据目录不存在: {data_dir}（dry-run 模式，继续）")
+            else:
+                print(f"  [错误] 数据目录不存在: {data_dir}")
+                print("         运行: python -m quant_dojo init --download")
+                sys.exit(1)
 
         csv_count = len(list(data_dir.glob("*.csv")))
         print(f"  数据目录: {data_dir}")
