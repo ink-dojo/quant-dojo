@@ -328,6 +328,9 @@ def run_update(
         from utils.local_data_loader import get_all_symbols
         symbols = get_all_symbols()
         if not symbols:
+            if provider is None:
+                logger.warning("baostock 未安装且无本地数据，dry_run 模式下跳过")
+                return {"updated": [], "skipped": [], "failed": [], "end_date": end_date}
             logger.info("本地无数据，从 provider 获取全量股票列表...")
             try:
                 symbols = provider.get_stock_list()
