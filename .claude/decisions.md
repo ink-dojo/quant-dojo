@@ -152,3 +152,11 @@
 - [2026-04-06 16:44] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
 
 - [2026-04-06 17:09] 集中度检查失败，跳过: 'DataFrame' object has no attribute '_portfolio_value'
+
+- [2026-04-12 20:24] 集中度检查失败，跳过: 'dict' object has no attribute '_portfolio_value'
+
+- [2026-04-12 20:24] Effective N 检查失败，跳过: 'dict' object has no attribute 'positions'
+
+- [2026-04-12 23:44] 集中度检查失败，跳过: 'dict' object has no attribute '_portfolio_value'
+
+- [2026-04-12 23:44] Effective N 检查失败，跳过: 'dict' object has no attribute 'positions'
