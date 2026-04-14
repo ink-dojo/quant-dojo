@@ -12,6 +12,7 @@ from fastapi import FastAPI
 _log = logging.getLogger(__name__)
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
@@ -147,9 +148,11 @@ _register_routers()
 
 
 @app.get("/", response_class=FileResponse)
-def index() -> FileResponse:
+def index() -> Response:
     """根路径：返回前端主页面 index.html。"""
-    return FileResponse(str(_STATIC_DIR / "index.html"))
+    resp = FileResponse(str(_STATIC_DIR / "index.html"))
+    resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return resp
 
 
 if __name__ == "__main__":
