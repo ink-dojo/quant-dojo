@@ -248,3 +248,40 @@ python scripts/v7_industry_neutral_eval.py
 | P2 | Admission Gate 逻辑修正 | OOS/WF 权重应高于 IS | 防止未来错误决策 |
 | P3 | 市场状态分层验证 | 理解 WF 中位数踩线的根因 | 研究价值，不影响当前决策 |
 | P3 | 多重检验校正接入 AI 批量实验 | Phase 7 扩展时需要 | 当前 5 因子不急 |
+
+---
+
+## 六、新因子研究结果：ROGT（2026-04-14 更新）
+
+本次 Session 从 0 到 1 创建并验证了 **ROGT（Retail Open Gap Trap，零售散户开盘追涨陷阱）** 因子。
+
+### 6.1 因子逻辑
+
+捕捉 A 股"高开低走"机构分配行为：机构借散户 FOMO 开盘追涨时高价减仓。
+公式：`ROGT = -rolling_mean(gap_excess × intraday_fall × turnover_weight, 20)`
+
+### 6.2 验证结论（6/6 通过）
+
+| 指标 | IS（2015-2023） | OOS（2024） | 状态 |
+|------|----------------|-------------|------|
+| IC 均值 | +0.0257 | +0.0257 | ✅ ≥ 0.015 |
+| ICIR | 0.3464 | 0.3861 | ✅ ≥ 0.20 |
+| t 统计量 | 16.21 | 5.99 | ✅ ≥ 1.5 |
+| IC>0 胜率 | 65.6% | 68.9% | ✅ ≥ 50% |
+| 最高因子相关系数 | — | 0.207（vs turnover_rev）| ✅ < 0.70 |
+| 加入 v7 后夏普 | 0.4050（vs 基准 0.3646）| — | ✅ +11.1% |
+
+**裁定：KEEP，建议作为第 6 个因子加入 v7（升级为 v8 时需重跑完整 IS/OOS/WF）。**
+
+### 6.3 关键发现
+
+1. OOS ICIR（0.386）**高于** IS ICIR（0.346），无过拟合迹象
+2. 因子在 2018 贸易战熊市（ICIR=0.460）和 2022 熊市（ICIR=0.409）均强劲有效
+3. 仅在 2015 股灾极端流动性危机下短暂失效（ICIR=0.084），符合理论预期
+4. 发现并修复了零值污染（illiquid 股票 factor=0 的系统性偏差），覆盖率 46%→19%，分层单调性恢复正常
+
+### 6.4 相关文档
+
+- 因子实现：`utils/alpha_factors.py` → `retail_open_trap()`
+- 研究脚本：`research/factors/retail_open_trap/factor_research.py`
+- 入库决议：`journal/factor_admission_rogt_20260414.md`
