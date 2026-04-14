@@ -106,6 +106,57 @@ def get_run_detail(run_id: str) -> dict:
     }
 
 
+def get_run_equity(run_id: str, max_points: int = 800) -> dict:
+    """
+    读取单次回测的净值曲线（equity_csv）。
+
+    返回:
+        {"run_id": ..., "points": [{"date", "cum_return", "daily_return"}, ...],
+         "n_total": N, "downsampled": bool}
+
+    超过 max_points 时均匀降采样以保证前端渲染流畅。
+    文件不存在或格式错误时 points 为空。
+    """
+    import csv
+    from pathlib import Path
+
+    from pipeline.run_store import get_run
+
+    run = get_run(run_id)
+    csv_path = (run.artifacts or {}).get("equity_csv")
+    if not csv_path or not Path(csv_path).exists():
+        return {"run_id": run_id, "points": [], "n_total": 0, "downsampled": False}
+
+    rows: list[dict] = []
+    try:
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for r in reader:
+                try:
+                    rows.append({
+                        "date": r.get("date", ""),
+                        "daily_return": float(r.get("portfolio_return", 0) or 0),
+                        "cum_return": float(r.get("cumulative_return", 0) or 0),
+                    })
+                except (ValueError, TypeError):
+                    continue
+    except Exception:
+        return {"run_id": run_id, "points": [], "n_total": 0, "downsampled": False}
+
+    n_total = len(rows)
+    step = max(1, n_total // max_points)
+    downsampled = step > 1
+    if downsampled:
+        rows = rows[::step]
+
+    return {
+        "run_id": run_id,
+        "points": rows,
+        "n_total": n_total,
+        "downsampled": downsampled,
+    }
+
+
 def compare_runs(run_ids: list[str]) -> dict:
     """
     对比多个运行记录（同步）

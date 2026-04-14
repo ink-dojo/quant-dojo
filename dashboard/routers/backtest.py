@@ -72,6 +72,22 @@ def api_run_detail(run_id: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/runs/{run_id}/equity")
+def api_run_equity(run_id: str):
+    """
+    读取单次回测的净值曲线，前端画线用。
+
+    超过 800 个点时在服务端做均匀降采样。
+    """
+    try:
+        from dashboard.services.backtest_service import get_run_equity
+        return get_run_equity(run_id)
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(status_code=404, detail="Run not found")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post("/compare")
 def api_compare(req: CompareRequest):
     """对比多个运行记录"""
