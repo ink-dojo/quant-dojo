@@ -13,6 +13,7 @@ from dashboard.services.factors_service import (
     get_factor_health,
     get_factor_snapshot,
     list_factor_catalog,
+    list_factor_library,
     read_factor_readme,
 )
 
@@ -33,8 +34,14 @@ def factor_snapshot() -> dict:
 
 @router.get("/catalog")
 def factor_catalog() -> dict:
-    """扫描 research/factors/ 目录返回因子库目录页所需的完整数据。"""
+    """扫描 research/factors/ 目录返回因子研究档案（带 README 的）。"""
     return list_factor_catalog()
+
+
+@router.get("/library")
+def factor_library() -> dict:
+    """AST 解析 utils/alpha_factors.py，返回全部实作因子清单（目前 60+）。"""
+    return list_factor_library()
 
 
 @router.get("/readme/{factor_dir}")
