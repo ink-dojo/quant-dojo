@@ -394,6 +394,100 @@ def list_factor_library() -> dict:
     }
 
 
+_VALID_FACTOR_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]{0,64}$")
+
+
+def get_factor_detail(name: str) -> dict:
+    """
+    获取单个因子的详情：完整 docstring + 源码 + 签名 + 今日截面统计 + 健康状态。
+
+    参数:
+        name: 因子函数名（位于 utils/alpha_factors.py 顶层）
+
+    返回:
+        {
+          "name": ..., "category": ..., "direction": ...,
+          "docstring": "完整 docstring",
+          "signature": "函数签名字符串",
+          "source": "函数完整源码",
+          "lineno": 123, "end_lineno": 145,
+          "required_data": [...],
+          "snapshot": {"mean": ..., "median": ..., "q25": ..., "q75": ...}  # 可能为 None
+          "health": {"rolling_ic": 0.03, "status": "healthy"}  # 可能为 None
+        }
+        找不到时返回 {"error": "..."}
+    """
+    if not _VALID_FACTOR_NAME.match(name):
+        return {"error": "非法因子名"}
+    if not _ALPHA_FACTORS_FILE.exists():
+        return {"error": "alpha_factors.py 不存在"}
+
+    try:
+        source_text = _ALPHA_FACTORS_FILE.read_text(encoding="utf-8")
+        tree = ast.parse(source_text)
+    except Exception as exc:
+        return {"error": f"解析失败: {exc}"}
+
+    target = None
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            target = node
+            break
+    if target is None:
+        return {"error": f"未找到因子 {name}"}
+
+    # 完整签名
+    try:
+        sig = ast.unparse(target.args)
+    except Exception:
+        sig = ""
+
+    # 源码切片（ast 的 lineno 从 1 开始）
+    try:
+        lines = source_text.splitlines()
+        start = target.lineno - 1
+        end = (getattr(target, "end_lineno", None) or target.lineno) - 1
+        source_snippet = "\n".join(lines[start : end + 1])
+    except Exception:
+        source_snippet = ""
+
+    # 今日截面统计 + 健康状态（失败不影响返回）
+    snapshot_stats = None
+    try:
+        snap = get_factor_snapshot()
+        stats = (snap or {}).get("stats") or {}
+        if name in stats:
+            snapshot_stats = stats[name]
+    except Exception:
+        pass
+
+    health_info = None
+    try:
+        health = get_factor_health()
+        if isinstance(health, dict) and name in health:
+            health_info = health[name]
+    except Exception:
+        pass
+
+    posonly = [a.arg for a in target.args.args]
+    defaults_n = len(target.args.defaults)
+    required = posonly[: len(posonly) - defaults_n] if defaults_n else posonly
+
+    return {
+        "name": name,
+        "category": _FACTOR_CATEGORY.get(name, "其他"),
+        "direction": _factor_direction(name),
+        "docstring": ast.get_docstring(target) or "",
+        "signature": f"{name}({sig})",
+        "source": source_snippet,
+        "lineno": target.lineno,
+        "end_lineno": getattr(target, "end_lineno", target.lineno),
+        "required_data": required,
+        "snapshot": snapshot_stats,
+        "health": health_info,
+    }
+
+
 if __name__ == "__main__":
     print("=== factor health ===")
     health = get_factor_health()

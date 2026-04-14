@@ -10,6 +10,7 @@ GET /api/factors/readme/{factor_dir}  → 某个因子目录的 README 原文
 from fastapi import APIRouter
 
 from dashboard.services.factors_service import (
+    get_factor_detail,
     get_factor_health,
     get_factor_snapshot,
     list_factor_catalog,
@@ -48,3 +49,9 @@ def factor_library() -> dict:
 def factor_readme(factor_dir: str) -> dict:
     """返回某个因子目录下 README.md 的原始 markdown 内容。"""
     return read_factor_readme(factor_dir)
+
+
+@router.get("/detail/{name}")
+def factor_detail(name: str) -> dict:
+    """返回单个因子的完整详情：docstring + 源码 + 今日截面 + 健康。"""
+    return get_factor_detail(name)
