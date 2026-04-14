@@ -1,6 +1,6 @@
 {
-  "run_date": "2026-04-13T23:10:41",
-  "n_factors_computed": 20,
+  "run_date": "2026-04-13T23:35:53",
+  "n_factors_computed": 27,
   "n_factors_skipped": 1,
   "skipped_factors": {
     "cfo_accrual_quality": "需要季报财务数据（net_income / ocf / total_assets），本地 CSV 不含"
@@ -142,6 +142,62 @@
       "pct_positive": 0.5312,
       "n_months": 32
     },
+    "high_52w_ratio": {
+      "ic_mean": -0.0124,
+      "ic_std": 0.171044,
+      "icir": -0.072497,
+      "t_stat": -0.3836,
+      "pct_positive": 0.5357,
+      "n_months": 28
+    },
+    "return_skewness_20d": {
+      "ic_mean": 0.030724,
+      "ic_std": 0.075945,
+      "icir": 0.404558,
+      "t_stat": 2.2885,
+      "pct_positive": 0.6562,
+      "n_months": 32
+    },
+    "beta_factor": {
+      "ic_mean": 0.032905,
+      "ic_std": 0.178756,
+      "icir": 0.18408,
+      "t_stat": 1.0413,
+      "pct_positive": 0.5312,
+      "n_months": 32
+    },
+    "max_ret_1m": {
+      "ic_mean": 0.098512,
+      "ic_std": 0.133057,
+      "icir": 0.740375,
+      "t_stat": 4.1882,
+      "pct_positive": 0.8438,
+      "n_months": 32
+    },
+    "bollinger_pct": {
+      "ic_mean": 0.041358,
+      "ic_std": 0.140515,
+      "icir": 0.294336,
+      "t_stat": 1.665,
+      "pct_positive": 0.5312,
+      "n_months": 32
+    },
+    "volume_surge": {
+      "ic_mean": -0.046205,
+      "ic_std": 0.119322,
+      "icir": -0.387229,
+      "t_stat": -2.1905,
+      "pct_positive": 0.4062,
+      "n_months": 32
+    },
+    "bid_ask_spread_proxy": {
+      "ic_mean": 0.09752,
+      "ic_std": 0.165541,
+      "icir": 0.589102,
+      "t_stat": 3.3325,
+      "pct_positive": 0.7812,
+      "n_months": 32
+    },
     "roe": {
       "ic_mean": -0.02044,
       "ic_std": 0.142495,
@@ -194,6 +250,16 @@
       "corr": 0.7561
     },
     {
+      "factor_a": "low_vol_20d",
+      "factor_b": "max_ret_1m",
+      "corr": 0.8579
+    },
+    {
+      "factor_a": "low_vol_20d",
+      "factor_b": "bid_ask_spread_proxy",
+      "corr": 0.8986
+    },
+    {
       "factor_a": "turnover_rev",
       "factor_b": "enhanced_mom",
       "corr": 0.8009
@@ -209,6 +275,16 @@
       "corr": 0.7691
     },
     {
+      "factor_a": "turnover_rev",
+      "factor_b": "max_ret_1m",
+      "corr": 0.8028
+    },
+    {
+      "factor_a": "turnover_rev",
+      "factor_b": "bid_ask_spread_proxy",
+      "corr": 0.9212
+    },
+    {
       "factor_a": "enhanced_mom",
       "factor_b": "quality_mom",
       "corr": 0.9205
@@ -219,22 +295,50 @@
       "corr": 0.9144
     },
     {
+      "factor_a": "enhanced_mom",
+      "factor_b": "bid_ask_spread_proxy",
+      "corr": 0.7959
+    },
+    {
       "factor_a": "quality_mom",
       "factor_b": "idiosyncratic_vol",
       "corr": 0.8477
     },
     {
+      "factor_a": "quality_mom",
+      "factor_b": "bid_ask_spread_proxy",
+      "corr": 0.7692
+    },
+    {
       "factor_a": "ma_ratio_120",
       "factor_b": "cgo_simple",
       "corr": -0.8244
+    },
+    {
+      "factor_a": "idiosyncratic_vol",
+      "factor_b": "bid_ask_spread_proxy",
+      "corr": 0.7828
+    },
+    {
+      "factor_a": "max_ret_1m",
+      "factor_b": "bid_ask_spread_proxy",
+      "corr": 0.7594
+    },
+    {
+      "factor_a": "bollinger_pct",
+      "factor_b": "volume_surge",
+      "corr": -0.7002
     }
   ],
   "recommended_factors": [
-    "low_vol_20d",
+    "max_ret_1m",
     "team_coin",
+    "quality_mom",
     "shadow_lower",
+    "return_skewness_20d",
+    "volume_surge",
     "amihud_illiq",
     "price_vol_divergence"
   ],
-  "recommended_reason": "筛选条件：|IC_mean|>0.01（1 个因子 IC 不足被剔除），|t_stat|>2.0（10 个因子 t-stat 不足被剔除），|corr|>0.6 贪心去重（4 个因子被去重）。最终推荐 5 个因子：['low_vol_20d', 'team_coin', 'shadow_lower', 'amihud_illiq', 'price_vol_divergence']。"
+  "recommended_reason": "筛选条件：|IC_mean|>0.01（1 个因子 IC 不足被剔除），|t_stat|>2.0（13 个因子 t-stat 不足被剔除），|corr|>0.6 贪心去重（5 个因子被去重）。最终推荐 8 个因子：['max_ret_1m', 'team_coin', 'quality_mom', 'shadow_lower', 'return_skewness_20d', 'volume_surge', 'amihud_illiq', 'price_vol_divergence']。"
 }
