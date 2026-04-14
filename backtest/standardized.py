@@ -52,6 +52,12 @@ STRATEGY_FACTORS = {
     "v8": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp", "shadow_lower"],
     "v9": ["low_vol_20d", "team_coin", "bp", "idiosyncratic_vol", "industry_momentum", "insider_buying_proxy"],
     "v10": ["low_vol_20d", "team_coin", "shadow_lower", "amihud_illiq", "price_vol_divergence"],
+    "v11": ["low_vol_20d", "team_coin", "shadow_lower", "amihud_illiq", "price_vol_divergence",
+            "high_52w", "turnover_accel"],
+    "v13": ["low_vol_20d", "team_coin", "shadow_lower", "amihud_illiq", "price_vol_divergence",
+            "high_52w", "turnover_accel", "mom_6m_skip1m"],
+    "v16": ["low_vol_20d", "team_coin", "shadow_lower", "amihud_illiq", "price_vol_divergence",
+            "high_52w", "turnover_accel", "mom_6m_skip1m", "win_rate_60d"],
     "ad_hoc": ["momentum_20", "ep", "low_vol", "turnover_rev"],
     # auto_gen 因子列表是动态的，从 strategies/generated/auto_gen_latest.json 加载
     "auto_gen": [],

@@ -440,6 +440,229 @@ def _register_builtins() -> None:
         factory=lambda params: _MultiFactorV10Adapter(n_stocks=params.get("n_stocks", 30)),
     ))
 
+    # ── 7. 多因子选股策略 v11（v10 + 2 正交新因子，2026-04-14）─────
+    register(StrategyEntry(
+        id="multi_factor_v11",
+        name="多因子选股策略 v11（8 因子，正交扩展）",
+        description=(
+            "v10 五因子基础上，加入因子挖掘会话筛选的 3 个正交因子："
+            "turnover_accel（ICIR=0.605）/ high_52w（A 股 52 周反转，ICIR=0.324）/ "
+            "skewness_20d（彩票效应，ICIR=0.348）。共 8 因子，IC 加权 + 行业中性化。"
+        ),
+        hypothesis=(
+            "在 v10 基础上增加换手率加速（资金轮动信号）、52 周锚定反转（A 股行为偏差）"
+            "和收益偏度（彩票需求溢价）三个维度，提升因子多样性，降低单因子集中风险。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV11Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 8. 多因子选股策略 v12（v11 + 主力净买入代理，2026-04-14）──
+    register(StrategyEntry(
+        id="multi_factor_v12",
+        name="多因子选股策略 v12（8 因子，含主力净买代理）",
+        description=(
+            "v11 七因子基础上增加 close_minus_open_volume（主力净买入代理）："
+            "(close-open)/close * vol_ratio 的 rolling mean，ICIR=-0.565，"
+            "简化回测增量贡献 +2.8% 年化。共 8 因子，IC 加权 + 行业中性化。"
+        ),
+        hypothesis=(
+            "A 股日内 (close-open)*volume 是资金方向信号，持续放量阳线代表主力吸筹，"
+            "持续放量阴线代表主力出货；rolling 20d 均值降低单日涨跌停干扰。"
+            "与 turnover_accel 机制不同：后者看换手速度，前者看量能方向性。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV12Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 10. 多因子选股策略 v14（v13 + RSI-14 超买超卖，2026-04-14）──
+    register(StrategyEntry(
+        id="multi_factor_v14",
+        name="多因子选股策略 v14（9 因子，含 RSI 超卖信号）",
+        description=(
+            "v13 八因子基础上增加 rsi_factor（RSI-14 相对强弱指数）："
+            "RSI-14 ICIR=-0.309，t=-2.273；与 v13 最大相关 0.572（shadow_lower）。"
+            "方向=-1（高 RSI = 超买 = 看空；选超卖股票）。共 9 因子，IC 加权 + 行业中性化。"
+        ),
+        hypothesis=(
+            "RSI 超卖信号（低 RSI）在 A 股散户主导市场中代表过度悲观，"
+            "均值回归动能显著；14 日窗口捕捉中短期的超买超卖节奏，"
+            "与 shadow_lower（单日形态）和 turnover_accel（资金速度）互补。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV14Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 17. 多因子选股策略 v21（v16 中用 w_reversal 替换 high_52w，2026-04-14）
+    register(StrategyEntry(
+        id="multi_factor_v21",
+        name="多因子选股策略 v21（9 因子，W反转替换52w）",
+        description=(
+            "基于 v16，用 w_reversal（ICIR=+0.546）替换 high_52w（ICIR=-0.245）："
+            "two为 v16 中最弱信号，w_reversal 信号更强且与其他 8 因子最大相关 0.569。"
+            "共 9 因子，IC 加权 + 行业中性化。"
+        ),
+        hypothesis=(
+            "high_52w 在 v16 中 ICIR 仅 -0.245，是最弱因子；"
+            "w_reversal ICIR=0.546（高于 high_52w 一倍），且与 high_52w 相关仅 -0.336。"
+            "用更强信号替换弱信号，保持 9 因子规模，预期提升 IC 加权组合的整体信噪比。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV21Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 16. 多因子选股策略 v20（v16 + w_reversal，2026-04-14）──────────
+    register(StrategyEntry(
+        id="multi_factor_v20",
+        name="多因子选股策略 v20（10 因子，含 W 型反转）",
+        description=(
+            "v16 九因子基础上增加 w_reversal（W 型价格反转因子）："
+            "ICIR=+0.546，t=+4.013；与 v16 最大相关 0.569（pv_div），正交性良好。"
+            "方向=+1（高值=真实 W 型结构=双底确认=看多）。共 10 因子。"
+        ),
+        hypothesis=(
+            "w_reversal 检测 W 型双底反转结构：价格形成第一个低点后反弹，再次回落，"
+            "若第二次低点高于第一次（不创新低）则为强 W 型，后续反弹概率高。"
+            "A 股散户在第二个低点止跌后追涨，形成量价共振；用换手率加权。"
+            "与 pv_div 最大相关 0.569，与其余 8 因子相关均 < 0.45。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV20Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 15. 多因子选股策略 v19（v16 + vol_concentration，2026-04-14）──
+    register(StrategyEntry(
+        id="multi_factor_v19",
+        name="多因子选股策略 v19（10 因子，含量能集中度）",
+        description=(
+            "v16 九因子基础上增加 volume_concentration（量能集中度）："
+            "ICIR=-0.388，t=-2.854；与 v16 最大相关 0.365，正交性优异。"
+            "方向=-1（成交量集中在单日=事件驱动散户拥入=均值回归看空）。共 10 因子。"
+        ),
+        hypothesis=(
+            "volume_concentration = max(vol_20d) / sum(vol_20d)，高值代表近 20 日成交量集中在某一天，"
+            "说明是消息刺激的一次性散户拥入，而非持续性机构积累；"
+            "这类股票通常在事件后量能萎缩，价格均值回归。"
+            "与所有 v16 因子最大相关 0.365（vs low_vol），与胜率/换手等相关近乎为零。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV19Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 14. 多因子选股策略 v18（v16 + network_scc 关联度，2026-04-14）──
+    register(StrategyEntry(
+        id="multi_factor_v18",
+        name="多因子选股策略 v18（10 因子，含网络关联度）",
+        description=(
+            "v16 九因子基础上增加 network_scc（股票相关性网络强连通分量）："
+            "ICIR=-0.394，t=-2.554；与 v16 最大相关 0.218，正交性极佳。"
+            "方向=-1（高网络中心度=强相关群体中心=看空；选孤立股票）。共 10 因子。"
+        ),
+        hypothesis=(
+            "network_scc 衡量每只股票在滚动 20 日相关性网络中的强连通度；"
+            "高中心度股票在机构集中持有的热门板块中，容易遭遇同步踩踏；"
+            "低中心度（孤立股票）可能是被市场忽略的低估机会，与 alpha 来源更纯净。"
+            "与所有 v16 因子的最大相关 0.218，捕捉完全独立的网络拓扑信息。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV18Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 13. 多因子选股策略 v17（v16 + vol_asymmetry，2026-04-14）─────────
+    register(StrategyEntry(
+        id="multi_factor_v17",
+        name="多因子选股策略 v17（10 因子，含波动率非对称）",
+        description=(
+            "v16 九因子基础上增加 vol_asymmetry（上涨/下跌波动率比）："
+            "ICIR=+0.565，t=+4.149；与 v16 最大相关 0.402（low_vol_20d），正交性优异。"
+            "方向=+1（高 vol_down/vol_up = 股票下跌时反应更激烈 = 超卖信号 = 看多）。共 10 因子。"
+        ),
+        hypothesis=(
+            "vol_asymmetry = std(负收益日) / std(正收益日)，高比值代表股票在下跌时反应过度，"
+            "在上涨时克制——典型的 A 股散户抛售导致的超卖格局。"
+            "与所有 v16 因子独立（最大相关 0.402），捕捉纯粹的波动率不对称维度。"
+            "ICIR=0.565 为本会话最强单因子信号（强于 turnover_accel 的 0.605）。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV17Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 12. 多因子选股策略 v16（v13 + win_rate_60d 胜率因子，2026-04-14）──
+    register(StrategyEntry(
+        id="multi_factor_v16",
+        name="多因子选股策略 v16（9 因子，含 60 日胜率反转）",
+        description=(
+            "v13 八因子基础上增加 win_rate_60d（60 日正收益天数占比）："
+            "ICIR=-0.402，t=-2.953；与 v13 最大相关 0.376（high_52w），正交性优异。"
+            "方向=-1（高胜率=持续上涨=超买=均值回归看空）。共 9 因子。"
+        ),
+        hypothesis=(
+            "60 日胜率代表价格趋势的连贯性：高胜率意味着每日都在上涨，"
+            "A 股散户集体追涨形成过热格局，后续均值回归压力显著。"
+            "与 high_52w（年度级别）和 mom_6m_skip1m（月度级别）互补，"
+            "捕捉日频层面的超买信号。最大共线性 0.376，高度正交。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV16Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 11. 多因子选股策略 v15（用 MA60 替换 high_52w，2026-04-14）──
+    register(StrategyEntry(
+        id="multi_factor_v15",
+        name="多因子选股策略 v15（8 因子，MA60 替换 high_52w）",
+        description=(
+            "基于 v13，用 price_dist_ma60（ICIR=-0.510，t=-3.750）替换 high_52w（ICIR=-0.245）："
+            "(price-MA60)/MA60 捕捉中期均值回归；与 v13 其他因子最大相关 0.454，正交充分。"
+            "共 8 因子，IC 加权 + 行业中性化。"
+        ),
+        hypothesis=(
+            "price_dist_ma60 比 high_52w 信号更强（ICIR 0.510 vs 0.245），且两者高度相关（r=0.683），"
+            "用强信号替换弱信号可提升因子组合的信息比率。60 日 MA 均线偏离代表中期趋势过度，"
+            "A 股散户在均线上方追高后面临更强的均值回归压力。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV15Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 9. 多因子选股策略 v13（v11 + 中期反转，2026-04-14）──────────
+    register(StrategyEntry(
+        id="multi_factor_v13",
+        name="多因子选股策略 v13（8 因子，含中期反转）",
+        description=(
+            "v11 七因子基础上增加 momentum_6m_skip1m（6 个月跳过最近 1 月中期反转）："
+            "price.shift(21)/price.shift(126)-1，ICIR=-0.326，t=-2.349。"
+            "与 v11 各因子最大相关 0.441，正交性充分。共 8 因子，IC 加权 + 行业中性化。"
+        ),
+        hypothesis=(
+            "A 股中期动量（6M skip 1M）呈现反转效应（非美股动量延续），因为散户在过去 6 月"
+            "强势股上追高，产生均值回归压力；与 high_52w 相关仅 0.311，捕捉不同时间维度的超买。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV13Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
 
 class _MultiFactorAdapter:
     """
@@ -882,6 +1105,1035 @@ class _MultiFactorV10Adapter:
 
     def get_returns(self):
         """获取日收益率"""
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV11Adapter:
+    """
+    多因子策略 v11 适配器 — v10 + 2 个正交新因子（2026-04-14 因子挖掘）。
+
+    v10 基础（5 因子）：
+      low_vol_20d / team_coin / shadow_lower / amihud_illiq / price_vol_divergence
+
+    新增 2 个正交因子（回测验证 > IC 测试）：
+      high_52w_ratio  ICIR=-0.324，vs_low_vol=0.139（A 股 52 周反转；独立回测 18.7%/0.61 Sharpe）
+      turnover_accel  ICIR=-0.605，vs_low_vol=0.078（换手率加速反转；与 high_52w 协同效应确认）
+
+    注：skewness_20d 在 IC 测试通过（0.348）但回测中拖累表现（20日窗口估计噪声大），已剔除。
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        """
+        计算 v11 因子集并运行多因子策略。
+
+        参数:
+            price_wide: 收盘价宽表 (date × symbol)
+        返回:
+            回测结果 DataFrame
+        """
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v10 核心因子 ──────────────────────────────────────
+        for name, fn, direction in [
+            ("low_vol_20d", lambda: low_vol_20d(price_wide), 1),
+            ("team_coin",   lambda: team_coin(price_wide),   1),
+        ]:
+            try:
+                factors[name] = (fn(), direction)
+            except Exception as e:
+                _log.warning("%s 计算失败，跳过: %s", name, e)
+
+        # shadow_lower 需要 low 宽表（方向=-1）
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e:
+            _log.warning("shadow_lower 跳过: %s", e)
+
+        # amihud_illiq + price_vol_divergence 需要 volume
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty:
+                vol_wide = None
+        except Exception as e:
+            _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va = vol_wide.reindex_like(price_wide)
+            try:
+                factors["amihud_illiq"] = (amihud_illiquidity(price_wide, va), 1)
+            except Exception as e:
+                _log.warning("amihud_illiq 跳过: %s", e)
+            try:
+                factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va), 1)
+            except Exception as e:
+                _log.warning("price_vol_divergence 跳过: %s", e)
+
+        # ── v11 新增因子 ──────────────────────────────────────
+
+        # turnover_accel: 需要换手率宽表（方向=-1）
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (
+                    turnover_acceleration(tv.reindex_like(price_wide)), -1
+                )
+        except Exception as e:
+            _log.warning("turnover_accel 跳过: %s", e)
+
+        # high_52w_ratio: 纯价格（方向=-1，A 股 52 周反转）
+        try:
+            factors["high_52w"] = (high_52w_ratio(price_wide), -1)
+        except Exception as e:
+            _log.warning("high_52w 跳过: %s", e)
+
+        # ── 行业中性化 + 运行 ────────────────────────────────
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v11")
+        strategy = MultiFactorStrategy(
+            config=config,
+            factors=factors,
+            n_stocks=self.n_stocks,
+            ic_weighting=True,
+            industry_map=industry_map,
+            neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV12Adapter:
+    """
+    多因子策略 v12 适配器 — v11 + close_minus_open_volume（主力净买入代理）。
+
+    新增因子：
+      close_minus_open_volume  ICIR=-0.565，vs_low_vol=-0.417
+        = (close-open)/close * vol_ratio，rolling 20d mean
+        方向=-1（持续负值=出货压力=看空，取反后：低值=出货=避开）
+
+    与 turnover_accel 区别：
+      - turnover_accel：换手率加速（速度）
+      - close_minus_open_volume：量能方向性（方向）
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+            close_minus_open_volume,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v11 因子（全部保留）───────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d", lambda: low_vol_20d(price_wide), 1),
+            ("team_coin",   lambda: team_coin(price_wide),   1),
+            ("high_52w",    lambda: high_52w_ratio(price_wide), -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]       = (amihud_illiquidity(price_wide, va), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        # ── v12 新增因子 ──────────────────────────────────────
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            open_wide = _lpw(symbols, start, end, field="open")
+            if not open_wide.empty and vol_wide is not None:
+                factors["close_minus_open_vol"] = (
+                    close_minus_open_volume(
+                        price_wide, open_wide.reindex_like(price_wide),
+                        vol_wide.reindex_like(price_wide)
+                    ), -1
+                )
+        except Exception as e: _log.warning("close_minus_open_vol 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v12")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV21Adapter:
+    """
+    多因子策略 v21 — v16 中用 w_reversal 替换 high_52w（2026-04-14）。
+
+    9 因子（替换后）：
+      low_vol_20d / team_coin / shadow_lower / amihud_illiq /
+      price_vol_divergence / w_reversal / turnover_accel /
+      mom_6m_skip1m / win_rate_60d
+
+    替换理由：
+      high_52w: ICIR=-0.245（v16 中最弱）
+      w_reversal: ICIR=+0.546（强信号），与 high_52w 相关 -0.336
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, momentum_6m_skip1m,
+            win_rate_60d, w_reversal,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── 纯价格因子 ────────────────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d",   lambda: low_vol_20d(price_wide),        1),
+            ("team_coin",     lambda: team_coin(price_wide),           1),
+            ("mom_6m_skip1m", lambda: momentum_6m_skip1m(price_wide), -1),
+            ("win_rate_60d",  lambda: win_rate_60d(price_wide),       -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va_vol = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]        = (amihud_illiquidity(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        tv_wide = None
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv_data = _lfw(symbols, "turnover", start, end)
+            if not tv_data.empty:
+                tv_wide = tv_data.reindex_like(price_wide)
+                factors["turnover_accel"] = (turnover_acceleration(tv_wide), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        # w_reversal: 替换 high_52w
+        try:
+            factors["w_reversal"] = (w_reversal(price_wide, tv_wide), 1)
+        except Exception as e: _log.warning("w_reversal 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v21")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV20Adapter:
+    """
+    多因子策略 v20 适配器 — v16 + w_reversal（W 型反转，2026-04-14）。
+
+    v16 基础（9 因子）+ 新增：
+      w_reversal  ICIR=+0.546，t=+4.013
+        = W 型双底反转结构分数（换手率加权）
+        方向=+1（高值=W 型形态=均值回归看多）
+        与 v16 各因子最大相关 0.569（vs pv_div）— 正交合格
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+            momentum_6m_skip1m, win_rate_60d, w_reversal,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v16 因子（全部保留）───────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d",   lambda: low_vol_20d(price_wide),        1),
+            ("team_coin",     lambda: team_coin(price_wide),           1),
+            ("high_52w",      lambda: high_52w_ratio(price_wide),     -1),
+            ("mom_6m_skip1m", lambda: momentum_6m_skip1m(price_wide), -1),
+            ("win_rate_60d",  lambda: win_rate_60d(price_wide),       -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va_vol = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]        = (amihud_illiquidity(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        # turnover_accel + w_reversal 需要换手率宽表
+        tv_wide = None
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv_data = _lfw(symbols, "turnover", start, end)
+            if not tv_data.empty:
+                tv_wide = tv_data.reindex_like(price_wide)
+                factors["turnover_accel"] = (turnover_acceleration(tv_wide), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        # ── v20 新增因子 ──────────────────────────────────────
+        try:
+            tv_for_wr = tv_wide  # 复用上面加载的换手率（如可用）
+            factors["w_reversal"] = (w_reversal(price_wide, tv_for_wr), 1)
+        except Exception as e: _log.warning("w_reversal 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v20")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV19Adapter:
+    """
+    多因子策略 v19 适配器 — v16 + volume_concentration（量能集中度，2026-04-14）。
+
+    v16 基础（9 因子）+ 新增：
+      volume_concentration  ICIR=-0.388，t=-2.854
+        = max_vol_20d / sum_vol_20d，方向=-1（高集中=散户一次性拥入=看空）
+        与 v16 各因子最大相关 0.365 — 优异正交性
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+            momentum_6m_skip1m, win_rate_60d, volume_concentration,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v16 因子（全部保留）───────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d",   lambda: low_vol_20d(price_wide),        1),
+            ("team_coin",     lambda: team_coin(price_wide),           1),
+            ("high_52w",      lambda: high_52w_ratio(price_wide),     -1),
+            ("mom_6m_skip1m", lambda: momentum_6m_skip1m(price_wide), -1),
+            ("win_rate_60d",  lambda: win_rate_60d(price_wide),       -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va_vol = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]        = (amihud_illiquidity(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+            try: factors["vol_concentration"]   = (volume_concentration(va_vol), -1)
+            except Exception as e: _log.warning("vol_concentration 跳过: %s", e)
+
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v19")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV18Adapter:
+    """
+    多因子策略 v18 适配器 — v16 + network_scc（网络关联度，2026-04-14）。
+
+    v16 基础（9 因子）+ 新增：
+      network_scc  ICIR=-0.394，t=-2.554
+        = 20 日相关性网络中的强连通分量集群系数
+        方向=-1（高中心度=系统性风险敞口大=看空；选孤立/低关联股票）
+        与 v16 各因子最大相关 0.218 — 极佳正交性（信息全新）
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+            momentum_6m_skip1m, win_rate_60d, network_scc,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v16 因子（全部保留）───────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d",   lambda: low_vol_20d(price_wide),        1),
+            ("team_coin",     lambda: team_coin(price_wide),           1),
+            ("high_52w",      lambda: high_52w_ratio(price_wide),     -1),
+            ("mom_6m_skip1m", lambda: momentum_6m_skip1m(price_wide), -1),
+            ("win_rate_60d",  lambda: win_rate_60d(price_wide),       -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va_vol = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]        = (amihud_illiquidity(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        # ── v18 新增因子 ──────────────────────────────────────
+        try:
+            factors["network_scc"] = (network_scc(price_wide, window=20), -1)
+        except Exception as e: _log.warning("network_scc 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v18")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV17Adapter:
+    """
+    多因子策略 v17 适配器 — v16 + vol_asymmetry（波动率非对称，2026-04-14）。
+
+    v16 基础（9 因子）+ 新增：
+      vol_asymmetry  ICIR=+0.565，t=+4.149
+        = std(负收益日) / std(正收益日)，rolling 60d
+        方向=+1（高比值=超卖状态=看多）
+        与 v16 各因子最大相关 0.402 — 极佳正交性
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+            momentum_6m_skip1m, win_rate_60d, vol_asymmetry,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v16 因子（全部保留）───────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d",   lambda: low_vol_20d(price_wide),        1),
+            ("team_coin",     lambda: team_coin(price_wide),           1),
+            ("high_52w",      lambda: high_52w_ratio(price_wide),     -1),
+            ("mom_6m_skip1m", lambda: momentum_6m_skip1m(price_wide), -1),
+            ("win_rate_60d",  lambda: win_rate_60d(price_wide),       -1),
+            ("vol_asymmetry", lambda: vol_asymmetry(price_wide),      +1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va_vol = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]        = (amihud_illiquidity(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v17")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV16Adapter:
+    """
+    多因子策略 v16 适配器 — v13 + win_rate_60d（60 日胜率反转，2026-04-14）。
+
+    v13 基础（8 因子）+ 新增：
+      win_rate_60d  ICIR=-0.402，t=-2.953
+        = rolling_60d_mean(daily_ret > 0)，方向=-1（高胜率=超买=看空）
+        与 v13 各因子最大相关 0.376（high_52w）— 优异正交性
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+            momentum_6m_skip1m, win_rate_60d,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v13 因子（全部保留）───────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d",   lambda: low_vol_20d(price_wide),      1),
+            ("team_coin",     lambda: team_coin(price_wide),         1),
+            ("high_52w",      lambda: high_52w_ratio(price_wide),   -1),
+            ("mom_6m_skip1m", lambda: momentum_6m_skip1m(price_wide), -1),
+            ("win_rate_60d",  lambda: win_rate_60d(price_wide),     -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]        = (amihud_illiquidity(price_wide, va), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v16")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV15Adapter:
+    """
+    多因子策略 v15 适配器 — v13 但用 price_dist_ma60 替换 high_52w（2026-04-14）。
+
+    因子集（8 个）：
+      low_vol_20d / team_coin / shadow_lower / amihud_illiq /
+      price_vol_divergence / price_dist_ma60 / turnover_accel / mom_6m_skip1m
+
+    替换理由：
+      high_52w:    ICIR=-0.245（弱），IC 方向=-1（A 股反转）
+      price_dist_ma60: ICIR=-0.510（强），t=-3.750，与 high_52w r=0.683 高度相关
+      → 用更强的因子替代弱因子，保持因子组合多样性
+      → price_dist_ma60 与其余 7 因子最大相关 0.454，正交性良好
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, momentum_6m_skip1m,
+            price_distance_from_ma,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── 纯价格因子 ────────────────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d",      lambda: low_vol_20d(price_wide),            1),
+            ("team_coin",        lambda: team_coin(price_wide),               1),
+            ("mom_6m_skip1m",    lambda: momentum_6m_skip1m(price_wide),     -1),
+            ("price_dist_ma60",  lambda: price_distance_from_ma(price_wide, 60), -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        # shadow_lower 需要 low 宽表
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        # amihud + price_vol_div 需要 volume
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]        = (amihud_illiquidity(price_wide, va), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        # turnover_accel 需要换手率宽表
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v15")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV13Adapter:
+    """
+    多因子策略 v13 适配器 — v11 + momentum_6m_skip1m（中期反转，2026-04-14）。
+
+    v11 基础（7 因子）：
+      low_vol_20d / team_coin / shadow_lower / amihud_illiq /
+      price_vol_divergence / high_52w_ratio / turnover_accel
+
+    新增因子：
+      momentum_6m_skip1m  ICIR=-0.326，t=-2.349
+        = price.shift(21)/price.shift(126)-1
+        方向=-1（高 6 月收益 → 均值回归 → 看空；A 股反转效应）
+        最大共线性：vs low_vol r=-0.441，vs high_52w r=0.311（均独立）
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+            momentum_6m_skip1m,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v11 因子（全部保留）───────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d", lambda: low_vol_20d(price_wide), 1),
+            ("team_coin",   lambda: team_coin(price_wide),   1),
+            ("high_52w",    lambda: high_52w_ratio(price_wide), -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]       = (amihud_illiquidity(price_wide, va), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        # ── v13 新增因子 ──────────────────────────────────────
+        # momentum_6m_skip1m: 中期反转（方向=-1，A 股过去 6 月强势股均值回归）
+        try:
+            factors["mom_6m_skip1m"] = (momentum_6m_skip1m(price_wide), -1)
+        except Exception as e: _log.warning("mom_6m_skip1m 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v13")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV14Adapter:
+    """
+    多因子策略 v14 适配器 — v13 + rsi_factor（RSI-14 超买超卖，2026-04-14）。
+
+    v13 基础（8 因子）：
+      low_vol_20d / team_coin / shadow_lower / amihud_illiq /
+      price_vol_divergence / high_52w_ratio / turnover_accel / mom_6m_skip1m
+
+    新增因子：
+      rsi_factor(window=14)  ICIR=-0.309，t=-2.273
+        = RSI-14 超买超卖指标，方向=-1（高 RSI=超买=看空）
+        最大共线性：vs shadow_lower r=0.572（低于 0.6 阈值，正交合格）
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            amihud_illiquidity, price_volume_divergence,
+            turnover_acceleration, high_52w_ratio,
+            momentum_6m_skip1m, rsi_factor,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── v13 因子（全部保留）───────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d",   lambda: low_vol_20d(price_wide),      1),
+            ("team_coin",     lambda: team_coin(price_wide),         1),
+            ("high_52w",      lambda: high_52w_ratio(price_wide),   -1),
+            ("mom_6m_skip1m", lambda: momentum_6m_skip1m(price_wide), -1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va = vol_wide.reindex_like(price_wide)
+            try: factors["amihud_illiq"]        = (amihud_illiquidity(price_wide, va), 1)
+            except Exception as e: _log.warning("amihud_illiq 跳过: %s", e)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        # ── v14 新增因子 ──────────────────────────────────────
+        try:
+            factors["rsi_14"] = (rsi_factor(price_wide, window=14), -1)
+        except Exception as e: _log.warning("rsi_14 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v14")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
         if self.results is None:
             raise RuntimeError("请先调用 run()")
         return self.results["returns"]
