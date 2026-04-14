@@ -3,416 +3,610 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>quant-dojo 驾驶舱</title>
-  <!-- TODO: add SRI integrity= hashes to the three script tags below -->
-  <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
+  <title>Quant Dojo — 量化驾驶舱</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
-  <!-- 字体：Inter（UI文字）+ JetBrains Mono（金融数字） -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
-    /* ── 颜色 token ───────────────────────────────── */
+    /* ═══ Design System: Obsidian Finance ═══════════════════ */
     :root {
-      --bg-base:    #070b14;
-      --bg-surface: #0d1117;
-      --bg-raised:  #161b22;
-      --border:     #21262d;
-      --border-muted: #30363d;
+      --bg-base:     #06080e;
+      --bg-surface:  #0c101a;
+      --bg-raised:   #141926;
+      --bg-hover:    #1a2035;
+      --bg-overlay:  rgba(6,8,14,0.85);
 
-      --text-primary:   #e6edf3;
-      --text-secondary: #8b949e;
-      --text-muted:     #656d76;
+      --border:       rgba(255,255,255,0.06);
+      --border-bright:rgba(255,255,255,0.10);
+      --border-accent:rgba(99,102,241,0.25);
 
-      --accent:     #2f81f7;
-      --accent-dim: #1f4b8e;
+      --text-primary:   #eef0f6;
+      --text-secondary: #8892a8;
+      --text-muted:     #505870;
 
-      --green:      #3fb950;
-      --green-dim:  #0d3320;
-      --red:        #f85149;
-      --red-dim:    #3d1a1a;
-      --yellow:     #d29922;
-      --yellow-dim: #3d2e00;
-      --purple:     #bc8cff;
-      --purple-dim: #2d1f5e;
+      --accent:       #6366f1;
+      --accent-light: #818cf8;
+      --accent-dim:   rgba(99,102,241,0.10);
+      --accent-glow:  rgba(99,102,241,0.20);
+
+      --cyan:     #22d3ee;
+      --cyan-dim: rgba(34,211,238,0.10);
+      --green:    #34d399;
+      --green-dim:rgba(52,211,153,0.10);
+      --red:      #f87171;
+      --red-dim:  rgba(248,113,113,0.10);
+      --yellow:   #fbbf24;
+      --yellow-dim:rgba(251,191,36,0.10);
+      --purple:   #a78bfa;
+      --purple-dim:rgba(167,139,250,0.10);
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 0 0 1px var(--border);
+      --shadow-elevated: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px var(--border-bright);
+      --shadow-glow: 0 0 24px rgba(99,102,241,0.08);
     }
 
-    /* ── 基础重置 ──────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body {
+    /* ═══ Reset ════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body {
       background: var(--bg-base);
       color: var(--text-primary);
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       font-size: 14px;
       line-height: 1.5;
+      min-height: 100vh;
     }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border-muted); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+    a { color: var(--accent-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
 
-    /* ── 等宽字体 ──────────────────────────────────── */
+    /* ═══ Typography ══════════════════════════════════════ */
     .mono { font-family: 'JetBrains Mono', monospace; }
     .val-pos { color: var(--green); }
     .val-neg { color: var(--red); }
     .val-neu { color: var(--text-primary); }
+    .muted { color: var(--text-muted); }
+    .loading { color: var(--text-muted); font-style: italic; font-size: 13px; }
 
-    /* ── 导航 Tab ──────────────────────────────────── */
+    /* ═══ Navigation ══════════════════════════════════════ */
+    .nav-header {
+      position: sticky; top: 0; z-index: 40;
+      background: rgba(6,8,14,0.82);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1360px; margin: 0 auto;
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center; gap: 20px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0; text-decoration: none;
+    }
+    .nav-logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; color: #fff;
+      letter-spacing: -0.5px;
+      box-shadow: 0 0 16px rgba(99,102,241,0.25);
+    }
+    .nav-title {
+      font-size: 14px; font-weight: 600; color: var(--text-primary);
+      line-height: 1.2;
+    }
+    .nav-subtitle {
+      font-size: 10px; color: var(--text-muted);
+      letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .nav-divider {
+      width: 1px; height: 28px;
+      background: var(--border-bright);
+      flex-shrink: 0;
+    }
+    .nav-tabs {
+      display: flex; gap: 2px;
+      overflow-x: auto; scrollbar-width: none;
+      padding: 4px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; }
     .tab-btn {
-      padding: 6px 12px;
-      border-radius: 4px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-secondary);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500;
+      color: var(--text-muted);
       background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
-      cursor: pointer;
-      transition: color .12s, border-color .12s;
+      border: none; cursor: pointer;
+      transition: all 0.2s ease;
       white-space: nowrap;
+      position: relative;
     }
-    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn:hover {
+      color: var(--text-secondary);
+      background: var(--bg-hover);
+    }
     .tab-btn.active {
-      color: var(--text-primary);
-      border-bottom-color: var(--accent);
+      color: #fff;
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(99,102,241,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    .nav-status {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    .status-dot {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--text-muted);
+    }
+    .status-dot::before {
+      content: ''; display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(52,211,153,0.4);
     }
 
-    /* ── 卡片系统 ──────────────────────────────────── */
+    /* ═══ Card System ═════════════════════════════════════ */
     .card {
       background: var(--bg-surface);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius-md);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    .card-h { font-weight: 600; color: var(--text-primary); font-size: 13px; }
+    .card:hover {
+      border-color: var(--border-bright);
+    }
+    .card-h {
+      font-weight: 600; color: var(--text-primary);
+      font-size: 13px; letter-spacing: -0.01em;
+    }
 
-    /* KPI 卡片：左侧彩色竖线 */
+    /* KPI Cards */
     .kpi-card {
       background: var(--bg-surface);
       border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: 6px;
-      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
     }
-    .kpi-card.green  { border-left-color: var(--green); }
-    .kpi-card.red    { border-left-color: var(--red); }
-    .kpi-card.yellow { border-left-color: var(--yellow); }
-    .kpi-card.purple { border-left-color: var(--purple); }
+    .kpi-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      opacity: 0.6;
+    }
+    .kpi-card:hover {
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-glow);
+      transform: translateY(-1px);
+    }
+    .kpi-card.green::before { background: linear-gradient(90deg, var(--green), #6ee7b7); }
+    .kpi-card.red::before { background: linear-gradient(90deg, var(--red), #fca5a5); }
+    .kpi-card.yellow::before { background: linear-gradient(90deg, var(--yellow), #fde68a); }
+    .kpi-card.purple::before { background: linear-gradient(90deg, var(--purple), #c4b5fd); }
+    .kpi-label {
+      font-size: 11px; color: var(--text-muted);
+      font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 8px;
+    }
 
-    /* stat-card 向后兼容（指向 kpi-card 默认样式） */
+    /* stat-card backward compat */
     .stat-card {
       background: var(--bg-surface);
       border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: 6px;
-      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
     }
 
-    /* ── 辅助色 ────────────────────────────────────── */
-    .muted { color: var(--text-muted); }
-
-    /* ── 徽章 chip ─────────────────────────────────── */
+    /* ═══ Chips & Badges ═════════════════════════════════ */
     .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: .3px;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.2px;
     }
-    .chip-ok    { background: var(--green-dim);  color: var(--green); }
-    .chip-warn  { background: var(--yellow-dim); color: var(--yellow); }
-    .chip-err   { background: var(--red-dim);    color: var(--red); }
-    .chip-idle  { background: var(--bg-raised);  color: var(--text-secondary); }
-    .chip-att   { background: #1f3a5f;           color: var(--accent); }
-    .chip-miss  { background: var(--bg-raised);  color: var(--text-muted); }
+    .chip-ok   { background: var(--green-dim); color: var(--green); }
+    .chip-warn { background: var(--yellow-dim); color: var(--yellow); }
+    .chip-err  { background: var(--red-dim); color: var(--red); }
+    .chip-idle { background: var(--bg-raised); color: var(--text-muted); }
+    .chip-att  { background: var(--accent-dim); color: var(--accent-light); }
+    .chip-miss { background: var(--bg-raised); color: var(--text-muted); }
 
-    /* badge 别名（新命名风格） */
-    .badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
-             border-radius:4px; font-size:11px; font-weight:500; letter-spacing:.3px; }
-    .badge-green  { background:var(--green-dim);  color:var(--green); }
-    .badge-red    { background:var(--red-dim);    color:var(--red); }
-    .badge-yellow { background:var(--yellow-dim); color:var(--yellow); }
-    .badge-blue   { background:#1f3a5f; color:var(--accent); }
-    .badge-muted  { background:var(--bg-raised);  color:var(--text-secondary); }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+    .badge-green  { background: var(--green-dim); color: var(--green); }
+    .badge-red    { background: var(--red-dim); color: var(--red); }
+    .badge-yellow { background: var(--yellow-dim); color: var(--yellow); }
+    .badge-blue   { background: var(--accent-dim); color: var(--accent-light); }
+    .badge-muted  { background: var(--bg-raised); color: var(--text-secondary); }
 
-    /* ── 按钮 ──────────────────────────────────────── */
+    /* ═══ Buttons ═════════════════════════════════════════ */
     .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 6px 14px;
-      border-radius: 5px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      border: none;
-      transition: background .15s, color .15s, border-color .15s;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 7px 16px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none;
+      transition: all 0.2s ease;
       white-space: nowrap;
+      font-family: 'Inter', sans-serif;
     }
-    .btn:disabled { opacity: .4; cursor: default; }
+    .btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+    .btn:active:not(:disabled) { transform: scale(0.97); }
 
-    /* 主按钮 */
     .btn-primary, .btn:not(.btn-ghost):not(.btn-green):not(.btn-purple):not(.btn-success) {
       background: var(--accent);
       color: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
     }
     .btn-primary:hover,
     .btn:not(.btn-ghost):not(.btn-green):not(.btn-purple):not(.btn-success):hover {
-      background: var(--accent-dim);
+      background: var(--accent-light);
+      box-shadow: 0 2px 8px rgba(99,102,241,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
     }
 
-    /* ghost 按钮 */
     .btn-ghost {
       background: transparent;
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-bright);
       color: var(--text-secondary);
     }
-    .btn-ghost:hover { border-color: var(--border-muted); color: var(--text-primary); }
+    .btn-ghost:hover {
+      border-color: var(--text-muted);
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
 
-    /* 绿色（运行/确认） */
     .btn-green {
-      background: var(--green-dim);
-      color: var(--green);
-      border: 1px solid #1a4d2a;
+      background: var(--green-dim); color: var(--green);
+      border: 1px solid rgba(52,211,153,0.2);
     }
-    .btn-green:hover { background: #154428; }
+    .btn-green:hover { background: rgba(52,211,153,0.15); }
 
-    /* 紫色（辩论） */
     .btn-purple {
-      background: var(--purple-dim);
-      color: var(--purple);
-      border: 1px solid #3d2a70;
+      background: var(--purple-dim); color: var(--purple);
+      border: 1px solid rgba(167,139,250,0.2);
     }
-    .btn-purple:hover { background: #3a2460; }
+    .btn-purple:hover { background: rgba(167,139,250,0.15); }
 
-    /* 成功态 */
     .btn-success {
-      background: var(--green-dim);
-      color: var(--green);
-      border: 1px solid #1a4d2a;
+      background: var(--green-dim); color: var(--green);
+      border: 1px solid rgba(52,211,153,0.2);
     }
 
-    /* ── 输入框 ────────────────────────────────────── */
+    /* ═══ Inputs ══════════════════════════════════════════ */
     .input {
       background: var(--bg-raised);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-bright);
       color: var(--text-primary);
-      padding: 7px 12px;
-      border-radius: 5px;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
       font-size: 13px;
       outline: none;
-      transition: border-color .15s;
+      transition: border-color 0.2s, box-shadow 0.2s;
       font-family: 'Inter', sans-serif;
     }
     .input::placeholder { color: var(--text-muted); }
-    .input:focus { border-color: var(--accent); }
+    .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
 
-    /* ── 数据表格 ──────────────────────────────────── */
+    /* ═══ Tables ══════════════════════════════════════════ */
     .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .data-table th {
-      padding: 8px 12px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: .5px;
-      text-transform: uppercase;
+      padding: 10px 14px; text-align: left;
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.5px; text-transform: uppercase;
       color: var(--text-muted);
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border-bright);
+      background: var(--bg-raised);
     }
+    .data-table th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+    .data-table th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
     .data-table td {
-      padding: 10px 12px;
+      padding: 12px 14px;
       border-bottom: 1px solid var(--border);
       color: var(--text-primary);
+      transition: background 0.15s;
     }
-    .data-table tr:hover td { background: var(--bg-raised); }
+    .data-table tr:hover td { background: var(--bg-hover); }
     .data-table td.num { font-family: 'JetBrains Mono', monospace; text-align: right; }
 
-    /* ── Markdown 内容渲染 ─────────────────────────── */
-    .markdown h1 { font-size:1.4rem; font-weight:700; margin:1rem 0 .5rem; color:var(--text-primary); }
-    .markdown h2 { font-size:1.15rem; font-weight:600; margin:1rem 0 .4rem; color:var(--text-primary);
-                    border-bottom:1px solid var(--border); padding-bottom:3px; }
-    .markdown h3 { font-size:1rem; font-weight:600; margin:.8rem 0 .3rem; color:var(--text-primary); }
-    .markdown p, .markdown li { line-height:1.65; color:var(--text-secondary); margin:.3rem 0; }
-    .markdown code { background:var(--bg-raised); padding:1px 5px; border-radius:3px;
-                      font-size:.88em; color:var(--yellow); font-family:'JetBrains Mono',monospace; }
-    .markdown pre { background:#010409; padding:12px; border-radius:6px; overflow-x:auto;
-                    font-size:12px; margin:.5rem 0; border:1px solid var(--border); }
-    .markdown pre code { background:transparent; padding:0; color:var(--text-primary); }
-    .markdown ul { list-style:disc; padding-left:1.4rem; }
-    .markdown ol { list-style:decimal; padding-left:1.4rem; }
-    .markdown table { border-collapse:collapse; margin:.5rem 0; font-size:13px; }
-    .markdown th, .markdown td { border:1px solid var(--border); padding:6px 10px; }
+    /* ═══ Markdown Content ════════════════════════════════ */
+    .markdown h1 { font-size:1.5rem; font-weight:700; margin:1.2rem 0 .6rem; color:var(--text-primary); letter-spacing:-0.02em; }
+    .markdown h2 { font-size:1.2rem; font-weight:600; margin:1rem 0 .5rem; color:var(--text-primary);
+                    border-bottom:1px solid var(--border); padding-bottom:6px; }
+    .markdown h3 { font-size:1.05rem; font-weight:600; margin:.8rem 0 .4rem; color:var(--text-primary); }
+    .markdown p, .markdown li { line-height:1.7; color:var(--text-secondary); margin:.4rem 0; }
+    .markdown code { background:var(--bg-raised); padding:2px 6px; border-radius:4px;
+                      font-size:.88em; color:var(--yellow); font-family:'JetBrains Mono',monospace;
+                      border:1px solid var(--border); }
+    .markdown pre { background:var(--bg-base); padding:14px 18px; border-radius:var(--radius-md); overflow-x:auto;
+                    font-size:12px; margin:.6rem 0; border:1px solid var(--border); }
+    .markdown pre code { background:transparent; padding:0; color:var(--text-primary); border:none; }
+    .markdown ul { list-style:disc; padding-left:1.5rem; }
+    .markdown ol { list-style:decimal; padding-left:1.5rem; }
+    .markdown table { border-collapse:collapse; margin:.6rem 0; font-size:13px; width:100%; }
+    .markdown th, .markdown td { border:1px solid var(--border); padding:8px 12px; }
     .markdown th { background:var(--bg-raised); color:var(--text-secondary); font-weight:500; }
-    .markdown blockquote { border-left:3px solid var(--accent); padding-left:10px;
-                            color:var(--text-secondary); margin:.5rem 0; }
-    .markdown a { color:var(--accent); text-decoration:underline; }
+    .markdown blockquote { border-left:3px solid var(--accent); padding-left:14px;
+                            color:var(--text-secondary); margin:.6rem 0; background:var(--accent-dim);
+                            padding:10px 14px; border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+    .markdown a { color:var(--accent-light); text-decoration:underline; }
 
-    /* ── 说明文字（替代 explain-block）──────────────── */
+    /* ═══ Tab Description ════════════════════════════════ */
     .tab-desc {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 12px;
-      padding-left: 2px;
+      font-size: 13px; color: var(--text-muted);
+      margin-bottom: 16px; line-height: 1.6;
     }
 
-    /* ── 进度点动画 ────────────────────────────────── */
+    /* ═══ Animations ═════════════════════════════════════ */
     .pulse-dot::after {
-      content: '';
-      display: inline-block;
-      width: 5px; height: 5px;
+      content: ''; display: inline-block;
+      width: 6px; height: 6px;
       background: var(--green);
       border-radius: 50%;
-      margin-left: 5px;
-      animation: pulse 1.2s infinite;
+      margin-left: 6px;
+      box-shadow: 0 0 6px rgba(52,211,153,0.5);
+      animation: pulse 1.4s ease-in-out infinite;
     }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.8)} }
 
-    /* ── AI 辩论阶段色块 ───────────────────────────── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .tab-pane:not(.hidden) {
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    /* ═══ AI Debate Stages ═══════════════════════════════ */
     .stage-bull   { border-left: 3px solid var(--green); }
     .stage-bear   { border-left: 3px solid var(--red); }
     .stage-mod    { border-left: 3px solid var(--yellow); }
     .stage-result { border-left: 3px solid var(--purple); }
 
-    /* ── 加载占位 ──────────────────────────────────── */
-    .loading { color: var(--text-muted); font-style: italic; font-size: 13px; }
-
-    /* ── 布局工具（纯 CSS，不依赖 Tailwind 断点）────── */
-    /* 通用隐藏（Tailwind hidden 备用） */
+    /* ═══ Layout Utilities ═══════════════════════════════ */
     .hidden { display: none !important; }
-    /* Flex 工具 */
     .flex { display: flex; }
+    .inline-flex { display: inline-flex; }
     .items-center { align-items: center; }
     .items-start { align-items: flex-start; }
+    .items-end { align-items: flex-end; }
     .justify-between { justify-content: space-between; }
+    .justify-center { justify-content: center; }
     .flex-1 { flex: 1 1 0%; }
     .flex-wrap { flex-wrap: wrap; }
     .shrink-0 { flex-shrink: 0; }
     .ml-auto { margin-left: auto; }
-    .gap-0\.5{ gap: 2px; }
-    .gap-1  { gap: 4px; }
-    .gap-2  { gap: 8px; }
-    .gap-3  { gap: 12px; }
-    .gap-4  { gap: 16px; }
-    .justify-center { justify-content: center; }
-    .rounded { border-radius: 4px; }
-    .px-3 { padding-left: 12px; padding-right: 12px; }
-    .py-2 { padding-top: 8px;  padding-bottom: 8px; }
-    .space-y-1 > * + * { margin-top: 4px; }
-    .space-y-2 > * + * { margin-top: 8px; }
-    .space-y-3 > * + * { margin-top: 12px; }
-    .space-y-4 > * + * { margin-top: 16px; }
-    /* Page layout */
-    .min-h-screen { min-height: 100vh; }
+    .gap-0\.5 { gap: 2px; }
+    .gap-1 { gap: 4px; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .gap-4 { gap: 16px; }
+    .rounded { border-radius: var(--radius-sm); }
+    .block { display: block; }
+    .text-center { text-align: center; }
+    .text-left { text-align: left; }
     .w-full { width: 100%; }
+    .cursor-pointer { cursor: pointer; }
     .overflow-x-auto { overflow-x: auto; }
     .overflow-y-auto { overflow-y: auto; }
     .resize-none { resize: none; }
     .resize-y { resize: vertical; }
-    .text-center { text-align: center; }
-    .cursor-pointer { cursor: pointer; }
-    /* Padding / margin helpers used in HTML */
+    .min-h-screen { min-height: 100vh; }
+
+    /* Spacing */
     .p-3  { padding: 12px; }
-    .p-4  { padding: 16px; }
-    .p-5  { padding: 20px; }
-    .px-2 { padding-left: 8px;  padding-right: 8px; }
-    .py-1 { padding-top: 4px;   padding-bottom: 4px; }
-    .py-3 { padding-top: 12px;  padding-bottom: 12px; }
-    .py-8 { padding-top: 32px;  padding-bottom: 32px; }
+    .p-4  { padding: 18px; }
+    .p-5  { padding: 24px; }
+    .px-2 { padding-left: 8px; padding-right: 8px; }
+    .px-3 { padding-left: 12px; padding-right: 12px; }
+    .py-1 { padding-top: 4px; padding-bottom: 4px; }
+    .py-2 { padding-top: 8px; padding-bottom: 8px; }
+    .py-3 { padding-top: 12px; padding-bottom: 12px; }
+    .py-8 { padding-top: 32px; padding-bottom: 32px; }
     .mb-2 { margin-bottom: 8px; }
     .mb-3 { margin-bottom: 12px; }
     .mb-4 { margin-bottom: 16px; }
     .mt-2 { margin-top: 8px; }
     .mt-4 { margin-top: 16px; }
     .mx-auto { margin-left: auto; margin-right: auto; }
-    /* z-index + position for sticky header */
+    .space-y-1 > * + * { margin-top: 4px; }
+    .space-y-2 > * + * { margin-top: 8px; }
+    .space-y-3 > * + * { margin-top: 12px; }
+    .space-y-4 > * + * { margin-top: 16px; }
+
+    /* Position */
     .sticky { position: sticky; }
-    .top-0  { top: 0; }
-    .z-20   { z-index: 20; }
-    .z-50   { z-index: 50; }
-    /* Fixed overlay for modals */
-    .fixed  { position: fixed; }
+    .top-0 { top: 0; }
+    .z-20 { z-index: 20; }
+    .z-50 { z-index: 50; }
+    .fixed { position: fixed; }
     .inset-0 { inset: 0; }
-    /* max-width wrapper */
-    .max-w-7xl { max-width: 1280px; }
+
+    /* Max-width */
+    .max-w-7xl { max-width: 1360px; }
     .max-w-2xl { max-width: 672px; }
     .max-w-4xl { max-width: 896px; }
-    /* display: block helper */
-    .block { display: block; }
 
-    /* ── CSS Grid 布局（替代 Tailwind 响应式网格）──── */
-    /* 总览 KPI: 2 列 → 4 列 */
-    .g-kpi    { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    /* 3 列卡片（flow / factors / notebooks）: 1→2→3 */
-    .g-flow   { display: grid; grid-template-columns: 1fr; gap: 12px; }
-    /* 左右各半（Pipeline+行情 / 研究）: 1→2 */
-    .g-half   { display: grid; grid-template-columns: 1fr; gap: 16px; }
-    /* 1+2 分列（策略/因子/文档）: 1→1fr 2fr */
-    .g-thirds { display: grid; grid-template-columns: 1fr; gap: 16px; }
-    /* 固定 2 列（行情小卡片）*/
-    .g-2      { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-    /* Workshop 指标 4 格: 2→4 */
-    .g-metrics{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    /* 弹窗详情 2 列（固定）*/
-    .g-d2     { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    /* 弹窗详情 3 列（固定）*/
-    .g-d3     { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    /* Responsive visibility */
+    .show-lg { display: none; }
+    @media (min-width: 1024px) { .show-lg { display: block; } }
+
+    /* ═══ Grid Layouts ═══════════════════════════════════ */
+    .g-kpi     { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .g-flow    { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .g-half    { display: grid; grid-template-columns: 1fr; gap: 18px; }
+    .g-thirds  { display: grid; grid-template-columns: 1fr; gap: 18px; }
+    .g-2       { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .g-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .g-d2      { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .g-d3      { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
     @media (min-width: 768px) {
       .g-flow    { grid-template-columns: repeat(2, 1fr); }
       .g-metrics { grid-template-columns: repeat(4, 1fr); }
     }
     @media (min-width: 1024px) {
-      .g-kpi     { grid-template-columns: repeat(4, 1fr); }
-      .g-flow    { grid-template-columns: repeat(3, 1fr); }
-      .g-half    { grid-template-columns: repeat(2, 1fr); }
-      .g-thirds  { grid-template-columns: 1fr 2fr; }
+      .g-kpi    { grid-template-columns: repeat(4, 1fr); }
+      .g-flow   { grid-template-columns: repeat(3, 1fr); }
+      .g-half   { grid-template-columns: repeat(2, 1fr); }
+      .g-thirds { grid-template-columns: 280px 1fr; }
     }
-    /* 大屏才显示 */
-    .show-lg { display: none; }
-    @media (min-width: 1024px) { .show-lg { display: block; } }
 
-    /* ── 行情小卡片 ────────────────────────────────── */
+    /* ═══ Quote Cards ═══════════════════════════════════ */
     .quote-card {
       background: var(--bg-raised);
       border: 1px solid var(--border);
-      border-radius: 5px;
-      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      transition: border-color 0.2s;
     }
+    .quote-card:hover { border-color: var(--border-bright); }
 
-    /* ── 弹窗 ──────────────────────────────────────── */
+    /* ═══ Modals ═════════════════════════════════════════ */
     .modal-box {
       background: var(--bg-surface);
-      border: 1px solid var(--border-muted);
-      border-radius: 8px;
-      box-shadow: 0 24px 64px rgba(0,0,0,.6);
+      border: 1px solid var(--border-bright);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-elevated);
     }
+    .modal-close {
+      color: var(--text-muted); background: none;
+      border: none; cursor: pointer; font-size: 20px;
+      line-height: 1; padding: 4px;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s;
+    }
+    .modal-close:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+    /* ═══ Section Headers ════════════════════════════════ */
+    .section-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600;
+      color: var(--text-primary);
+    }
+    .section-icon {
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent-light);
+    }
+
+    /* ═══ Next Action Card ═══════════════════════════════ */
+    .next-action-card {
+      background: linear-gradient(135deg, var(--accent-dim), rgba(34,211,238,0.05));
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .next-action-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; bottom: 0; width: 3px;
+      background: linear-gradient(180deg, var(--accent), var(--cyan));
+    }
+    .next-action-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 16px rgba(99,102,241,0.2);
+    }
+
+    /* ═══ Flow Status Cards ══════════════════════════════ */
+    .flow-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      transition: all 0.25s ease;
+    }
+    .flow-card:hover {
+      border-color: var(--border-bright);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+
+    /* ═══ Factor/Doc List Items ══════════════════════════ */
+    .list-item {
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      transition: background 0.15s;
+      cursor: pointer;
+      border: none; background: none;
+      width: 100%; text-align: left;
+      font-family: inherit;
+    }
+    .list-item:hover { background: var(--bg-hover); }
+    .list-item.active { background: var(--accent-dim); border-left: 2px solid var(--accent); }
+
+    /* ═══ Footer ═════════════════════════════════════════ */
+    .app-footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 16px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+    }
+
+    /* ═══ Background Pattern ═════════════════════════════ */
+    body::before {
+      content: ''; position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 50%, rgba(34,211,238,0.03), transparent);
+      pointer-events: none; z-index: 0;
+    }
+    .nav-header, main, .app-footer { position: relative; z-index: 1; }
+
+    /* ═══ Max-height utilities ═══════════════════════════ */
+    .max-h-48 { max-height: 12rem; }
+    .max-h-56 { max-height: 14rem; }
+    .max-h-72 { max-height: 18rem; }
   </style>
 </head>
-<body class="min-h-screen">
+<body>
 
-<!-- ════════ 顶部导航 ════════ -->
-<header style="background:var(--bg-surface);border-bottom:1px solid var(--border);" class="sticky top-0 z-20">
-  <div style="max-width:1280px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:16px;height:48px;">
-
-    <!-- Logo -->
-    <div class="flex items-center gap-2 py-3 shrink-0">
-      <div style="width:28px;height:28px;background:var(--accent);border-radius:5px;
-                  display:flex;align-items:center;justify-content:center;
-                  font-weight:700;font-size:12px;color:#fff;letter-spacing:-.5px;font-family:'Inter',sans-serif;">
-        QD
-      </div>
+<!-- ════════ Header ════════ -->
+<header class="nav-header">
+  <div class="nav-inner">
+    <a class="nav-brand" href="#">
+      <div class="nav-logo">QD</div>
       <div>
-        <div style="font-size:13px;font-weight:600;color:var(--text-primary);line-height:1.2;">quant-dojo</div>
-        <div style="font-size:10px;color:var(--text-muted);line-height:1;">A-Share Quant</div>
+        <div class="nav-title">Quant Dojo</div>
+        <div class="nav-subtitle">A-Share Quantitative</div>
       </div>
-    </div>
+    </a>
 
-    <!-- 分隔线 -->
-    <div style="width:1px;height:28px;background:var(--border);"></div>
+    <div class="nav-divider"></div>
 
-    <!-- 导航 Tab -->
-    <nav class="flex gap-0.5 overflow-x-auto py-1" style="scrollbar-width:none;">
+    <nav class="nav-tabs">
       <button data-tab="home"      class="tab-btn active">总览</button>
       <button data-tab="portfolio" class="tab-btn">组合</button>
       <button data-tab="strategy"  class="tab-btn">策略</button>
@@ -423,117 +617,105 @@
       <button data-tab="notebooks" class="tab-btn">课程</button>
     </nav>
 
-    <!-- 右侧状态区 -->
-    <div class="ml-auto flex items-center gap-3 shrink-0">
-      <!-- 数据状态指示点 -->
-      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);">
-        <span style="width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block;"></span>
-        <span>数据正常</span>
-      </div>
-      <!-- 刷新时间 -->
+    <div class="nav-status">
+      <div class="status-dot">系统正常</div>
       <div style="font-size:11px;color:var(--text-muted);" class="show-lg">
         <span id="last-refresh"></span>
       </div>
     </div>
-
   </div>
 </header>
 
-<main style="max-width:1280px;margin:0 auto;padding:20px 16px;">
+<main style="max-width:1360px;margin:0 auto;padding:24px;">
 
-<!-- ════════════════════════════════════════════
-     Tab 1 · 总览
-     ════════════════════════════════════════════ -->
+<!-- ════════ Tab 1 · 总览 ════════ -->
 <section id="tab-home" class="tab-pane space-y-4">
 
-  <p class="tab-desc">系统状态中心：下一步建议、持仓/信号/因子/风险快照、选股 Pipeline 控制。</p>
+  <p class="tab-desc">系统状态总览 — 查看下一步建议、关键指标、运行选股 Pipeline、监控实时行情。</p>
 
-  <!-- 下一步建议 -->
-  <div id="next-action" class="card p-4" style="border-left:3px solid var(--accent);">
-    <div class="flex items-center gap-3">
-      <div style="width:32px;height:32px;background:var(--accent-dim);border-radius:5px;
-                  display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <!-- 箭头图标 -->
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--accent);">
-          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Next Action -->
+  <div id="next-action" class="next-action-card">
+    <div class="flex items-center gap-4">
+      <div class="next-action-icon">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
       <div class="flex-1">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:3px;">下一步建议</div>
-        <div id="next-title" class="card-h" style="font-size:14px;">加载中…</div>
-        <div id="next-explain" style="font-size:12px;color:var(--text-muted);margin-top:2px;"></div>
+        <div class="kpi-label">下一步建议</div>
+        <div id="next-title" style="font-size:15px;font-weight:600;color:var(--text-primary);">加载中…</div>
+        <div id="next-explain" style="font-size:12px;color:var(--text-secondary);margin-top:3px;"></div>
       </div>
-      <button id="next-cta" class="btn btn-primary hidden" style="font-size:12px;padding:5px 12px;">执行</button>
+      <button id="next-cta" class="btn btn-primary hidden" style="font-size:12px;">执行</button>
     </div>
   </div>
 
-  <!-- 4 张 KPI 快照卡片 -->
+  <!-- KPI Cards -->
   <div class="g-kpi">
     <div class="kpi-card">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;">模拟盘净值</div>
+      <div class="kpi-label">模拟盘净值</div>
       <div id="card-portfolio"><span class="loading">…</span></div>
     </div>
     <div class="kpi-card green">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;">今日选股</div>
+      <div class="kpi-label">今日选股</div>
       <div id="card-signals"><span class="loading">…</span></div>
     </div>
-    <div class="kpi-card" style="border-left-color:var(--yellow);">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;">因子健康</div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">因子健康</div>
       <div id="card-factors"><span class="loading">…</span></div>
     </div>
     <div class="kpi-card red">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;">风险预警</div>
+      <div class="kpi-label">风险预警</div>
       <div id="card-risk"><span class="loading">…</span></div>
     </div>
   </div>
 
-  <!-- 工作流状态卡片 -->
+  <!-- Flow Cards -->
   <div id="flow-cards" class="g-flow">
     <div class="card p-4 loading">加载工作流状态…</div>
   </div>
 
-  <!-- Pipeline 控制 + 实时行情 并排 -->
+  <!-- Pipeline + Live Quotes -->
   <div class="g-half">
 
-    <!-- Pipeline 触发 -->
-    <div class="card p-4 space-y-3">
-      <h3 class="card-h" style="display:flex;align-items:center;gap:6px;">
-        <!-- 播放图标 -->
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style="color:var(--accent);">
-          <path d="M2 1.5l8 4.5-8 4.5V1.5z"/>
-        </svg>
+    <!-- Pipeline -->
+    <div class="card p-5 space-y-3">
+      <h3 class="section-header">
+        <div class="section-icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M2.5 1.5l9 5.5-9 5.5V1.5z"/></svg>
+        </div>
         Pipeline 控制
       </h3>
       <div class="flex gap-2">
-        <input id="pipeline-date" type="date"
-          class="input flex-1" />
-        <button onclick="runPipeline()" id="btn-pipeline" class="btn btn-green" style="font-size:12px;white-space:nowrap;">运行选股</button>
+        <input id="pipeline-date" type="date" class="input flex-1" />
+        <button onclick="runPipeline()" id="btn-pipeline" class="btn btn-green" style="font-size:12px;">运行选股</button>
       </div>
       <div id="pipeline-progress" class="space-y-1 max-h-48 overflow-y-auto"></div>
       <div id="pipeline-result" class="hidden">
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">选股结果（前10）</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">选股结果（前10）</div>
         <div id="pipeline-picks" class="flex flex-wrap gap-1"></div>
       </div>
     </div>
 
-    <!-- 实时行情 -->
-    <div class="card p-4 space-y-3">
+    <!-- Live Quotes -->
+    <div class="card p-5 space-y-3">
       <div class="flex items-center justify-between">
-        <h3 class="card-h" style="display:flex;align-items:center;gap:6px;">
-          <!-- 信号塔图标 -->
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="color:var(--accent);">
-            <circle cx="8" cy="8" r="2" fill="currentColor"/>
-            <path d="M5.5 10.5A4 4 0 0 1 5.5 5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-            <path d="M10.5 5.5A4 4 0 0 1 10.5 10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-            <path d="M3.1 12.9A7 7 0 0 1 3.1 3.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-            <path d="M12.9 3.1A7 7 0 0 1 12.9 12.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
+        <h3 class="section-header">
+          <div class="section-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="2" fill="currentColor"/>
+              <path d="M5.5 10.5A4 4 0 0 1 5.5 5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M10.5 5.5A4 4 0 0 1 10.5 10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M3.1 12.9A7 7 0 0 1 3.1 3.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M12.9 3.1A7 7 0 0 1 12.9 12.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </div>
           实时行情
         </h3>
-        <div class="flex gap-1 items-center">
+        <div class="flex gap-2 items-center">
           <span id="quote-time" class="mono" style="font-size:11px;color:var(--text-muted);"></span>
-          <button onclick="loadQuotes()" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">刷新</button>
-          <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">自动</button>
+          <button onclick="loadQuotes()" class="btn btn-ghost" style="font-size:11px;padding:5px 12px;">刷新</button>
+          <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" class="btn btn-ghost" style="font-size:11px;padding:5px 12px;">自动</button>
         </div>
       </div>
       <div id="quotes-grid" class="g-2">
@@ -545,60 +727,56 @@
 
 </section>
 
-<!-- ════════════════════════════════════════════
-     Tab 2 · 组合
-     ════════════════════════════════════════════ -->
+<!-- ════════ Tab 2 · 组合 ════════ -->
 <section id="tab-portfolio" class="tab-pane hidden space-y-4">
 
-  <p class="tab-desc">策略按选股信号虚拟调仓，每日计算净值，与沪深300对比超额收益。</p>
+  <p class="tab-desc">持仓净值走势与沪深300对比，跟踪超额收益和个股盈亏。</p>
 
-  <!-- 净值图 -->
+  <!-- NAV Chart -->
   <div class="card p-5">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="card-h" style="font-size:14px;">净值走势</h2>
+      <h2 class="card-h" style="font-size:15px;">净值走势</h2>
       <div class="flex gap-1">
-        <button onclick="switchRange('1M')" data-range="1M" class="range-btn btn btn-ghost" style="font-size:11px;padding:4px 10px;">1M</button>
-        <button onclick="switchRange('3M')" data-range="3M" class="range-btn btn btn-ghost" style="font-size:11px;padding:4px 10px;">3M</button>
-        <button onclick="switchRange('6M')" data-range="6M" class="range-btn btn btn-ghost" style="font-size:11px;padding:4px 10px;">6M</button>
-        <button onclick="switchRange('ALL')" data-range="ALL" class="range-btn btn btn-ghost" style="font-size:11px;padding:4px 10px;border-color:var(--accent);">全部</button>
+        <button onclick="switchRange('1M')" data-range="1M" class="range-btn btn btn-ghost" style="font-size:11px;padding:5px 12px;">1M</button>
+        <button onclick="switchRange('3M')" data-range="3M" class="range-btn btn btn-ghost" style="font-size:11px;padding:5px 12px;">3M</button>
+        <button onclick="switchRange('6M')" data-range="6M" class="range-btn btn btn-ghost" style="font-size:11px;padding:5px 12px;">6M</button>
+        <button onclick="switchRange('ALL')" data-range="ALL" class="range-btn btn btn-ghost" style="font-size:11px;padding:5px 12px;border-color:var(--accent);">全部</button>
       </div>
     </div>
     <div id="nav-empty" class="hidden text-center py-8" style="color:var(--text-muted);">暂无历史数据 — 先在总览页运行 Pipeline 生成信号</div>
-    <div style="height:260px;position:relative;"><canvas id="nav-chart"></canvas></div>
+    <div style="height:280px;position:relative;"><canvas id="nav-chart"></canvas></div>
   </div>
 
-  <!-- 持仓详情卡片 -->
+  <!-- Holdings -->
   <div class="card p-5">
-    <h2 class="card-h mb-3" style="font-size:14px;">当前持仓</h2>
+    <h2 class="card-h mb-3" style="font-size:15px;">当前持仓</h2>
     <div id="portfolio-detail"><span class="loading">加载中…</span></div>
   </div>
 
 </section>
 
-<!-- ════════════════════════════════════════════
-     Tab 3 · 策略
-     ════════════════════════════════════════════ -->
+<!-- ════════ Tab 3 · 策略 ════════ -->
 <section id="tab-strategy" class="tab-pane hidden space-y-4">
 
-  <p class="tab-desc">活跃策略的因子组成，以及所有已注册策略和历史回测记录（可勾选多条对比）。</p>
+  <p class="tab-desc">查看当前激活策略的因子组成，浏览策略注册表，对比历史回测。</p>
 
-  <!-- 当前策略 -->
+  <!-- Active Strategy -->
   <div class="card p-5">
-    <div class="flex items-start justify-between flex-wrap gap-3 mb-3">
+    <div class="flex items-start justify-between flex-wrap gap-3 mb-4">
       <div>
-        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">当前激活</div>
-        <h2 id="strat-name" style="font-size:18px;font-weight:600;color:var(--text-primary);margin-top:4px;">加载中…</h2>
-        <p id="strat-tagline" style="font-size:12px;color:var(--text-secondary);margin-top:3px;"></p>
+        <div class="kpi-label">当前激活</div>
+        <h2 id="strat-name" style="font-size:22px;font-weight:700;color:var(--text-primary);margin-top:4px;letter-spacing:-0.02em;">加载中…</h2>
+        <p id="strat-tagline" style="font-size:13px;color:var(--text-secondary);margin-top:4px;"></p>
       </div>
-      <span id="strat-id-chip" class="chip chip-ok" style="margin-top:4px;font-family:'JetBrains Mono',monospace;"></span>
+      <span id="strat-id-chip" class="chip chip-ok" style="font-family:'JetBrains Mono',monospace;"></span>
     </div>
-    <p id="strat-desc" style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;"></p>
+    <p id="strat-desc" style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin-bottom:18px;"></p>
     <div id="strat-factors" class="g-flow">
       <div class="loading">加载中…</div>
     </div>
   </div>
 
-  <!-- 策略注册表 + 最近回测 -->
+  <!-- Strategy Registry + Backtest Runs -->
   <div class="g-thirds">
 
     <div class="card p-4 space-y-2">
@@ -612,17 +790,17 @@
         <span id="runs-count" style="font-size:11px;color:var(--text-muted);"></span>
       </div>
       <div id="runs-empty" class="hidden" style="font-size:13px;color:var(--text-muted);padding:12px 0;">
-        暂无回测。CLI: <code style="background:var(--bg-raised);padding:1px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--yellow);">python -m pipeline.cli backtest run multi_factor --start 2023-01-01 --end 2024-12-31</code>
+        暂无回测。CLI: <code class="mono" style="font-size:11px;background:var(--bg-raised);padding:2px 8px;border-radius:4px;color:var(--yellow);border:1px solid var(--border);">python -m pipeline.cli backtest run multi_factor --start 2023-01-01 --end 2024-12-31</code>
       </div>
-      <div id="compare-bar" class="hidden flex items-center gap-2 rounded px-3 py-2" style="background:var(--bg-raised);font-size:13px;">
+      <div id="compare-bar" class="hidden flex items-center gap-2 rounded px-3 py-2" style="background:var(--bg-raised);font-size:13px;border:1px solid var(--border);">
         <span style="color:var(--text-muted);">已选 <span id="compare-count">0</span> 条</span>
-        <button onclick="openCompare()" class="btn btn-primary" style="font-size:12px;padding:4px 10px;">对比</button>
+        <button onclick="openCompare()" class="btn btn-primary" style="font-size:12px;padding:5px 12px;">对比</button>
         <button onclick="clearCompare()" style="font-size:12px;color:var(--text-muted);cursor:pointer;background:none;border:none;padding:0;">清除</button>
       </div>
       <div class="overflow-x-auto">
         <table id="runs-table" class="hidden data-table">
           <thead><tr>
-            <th style="width:32px;padding:8px 4px;"><input type="checkbox" id="runs-select-all" onchange="toggleSelectAll(this)" /></th>
+            <th style="width:32px;padding:10px 6px;"><input type="checkbox" id="runs-select-all" onchange="toggleSelectAll(this)" /></th>
             <th>策略</th>
             <th>区间</th>
             <th style="text-align:right;">年化</th>
@@ -639,17 +817,15 @@
 
 </section>
 
-<!-- ════════════════════════════════════════════
-     Tab 4 · 因子库
-     ════════════════════════════════════════════ -->
+<!-- ════════ Tab 4 · 因子库 ════════ -->
 <section id="tab-factors" class="tab-pane hidden">
 
-  <p class="tab-desc" style="margin-bottom:14px;">因子是把股票特征转成打分的规则。点击左侧任意因子查看完整研究文档。</p>
+  <p class="tab-desc" style="margin-bottom:16px;">因子是将股票特征量化为打分规则的核心组件。点击左侧任意因子查看完整研究文档。</p>
 
   <div class="g-thirds">
-    <div class="card p-3">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;padding:0 4px;text-transform:uppercase;letter-spacing:.4px;">因子目录</div>
-      <ul id="factor-list" class="space-y-1"><li class="loading px-2">加载中…</li></ul>
+    <div class="card p-4">
+      <div class="kpi-label" style="margin-bottom:10px;">因子目录</div>
+      <ul id="factor-list" class="space-y-1"><li class="loading" style="padding:8px;">加载中…</li></ul>
     </div>
     <div class="card p-5" style="min-height:24rem;">
       <div id="factor-readme" class="markdown">
@@ -660,28 +836,34 @@
 
 </section>
 
-<!-- ════════════════════════════════════════════
-     Tab 5 · 研究
-     ════════════════════════════════════════════ -->
+<!-- ════════ Tab 5 · 研究 ════════ -->
 <section id="tab-research" class="tab-pane hidden space-y-4">
 
-  <p class="tab-desc">Phase 7 AI 助理提议的回测实验（需人工批准），以及 AI 多空辩论分析。</p>
+  <p class="tab-desc">AI 研究助理提议的回测实验与多空辩论分析。</p>
 
-  <!-- Phase 7 研究助理 -->
+  <!-- Research Proposals + Experiments -->
   <div class="g-half">
     <div>
-      <h3 class="card-h mb-2" style="font-size:13px;color:var(--text-secondary);">当前提议</h3>
+      <h3 class="card-h mb-3" style="font-size:13px;color:var(--text-secondary);">当前提议</h3>
       <div id="research-questions" class="space-y-2"><div class="card p-3 loading">加载中…</div></div>
     </div>
     <div>
-      <h3 class="card-h mb-2" style="font-size:13px;color:var(--text-secondary);">历史实验</h3>
+      <h3 class="card-h mb-3" style="font-size:13px;color:var(--text-secondary);">历史实验</h3>
       <div id="research-experiments" class="space-y-2"><div class="card p-3 loading">加载中…</div></div>
     </div>
   </div>
 
-  <!-- AI 股票分析 -->
+  <!-- AI Analysis -->
   <div class="card p-5 space-y-3">
-    <h3 class="card-h">AI 个股分析</h3>
+    <h3 class="section-header">
+      <div class="section-icon">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3"/>
+        </svg>
+      </div>
+      AI 个股分析
+    </h3>
     <div class="flex gap-2 flex-wrap">
       <input id="ai-symbol" type="text" placeholder="股票代码，如 000001"
         class="input flex-1" style="min-width:144px;" />
@@ -695,27 +877,32 @@
 
 </section>
 
-<!-- ════════════════════════════════════════════
-     Tab 6 · 策略工坊（idea-to-strategy）
-     ════════════════════════════════════════════ -->
+<!-- ════════ Tab 6 · 策略工坊 ════════ -->
 <section id="tab-workshop" class="tab-pane hidden space-y-4">
 
-  <p class="tab-desc">输入自然语言想法，系统自动完成：LLM 解析 → IC 验证 → 回测 → 风险门 → Markdown 报告。</p>
+  <p class="tab-desc">输入自然语言策略想法，系统自动执行 LLM 解析 → IC 验证 → 回测 → 风险门检查 → 生成报告。</p>
 
-  <!-- 输入区 -->
+  <!-- Input -->
   <div class="card p-5 space-y-4">
-    <h3 class="card-h">输入策略想法</h3>
+    <h3 class="section-header">
+      <div class="section-icon">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M12 2L4 14M4 2l8 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      输入策略想法
+    </h3>
     <div class="space-y-3">
       <textarea id="workshop-idea" rows="3"
-        placeholder="例如：我想做基于ROE和低波动的选股策略，规避高换手的投机股"
+        placeholder="例如：基于 ROE 和低波动的选股策略，规避高换手的投机股"
         class="input w-full resize-y"></textarea>
       <div class="flex flex-wrap gap-3 items-end">
         <div>
-          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">回测开始</label>
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:5px;">回测开始</label>
           <input id="workshop-start" type="date" value="2022-01-01" class="input" />
         </div>
         <div>
-          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">回测结束</label>
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:5px;">回测结束</label>
           <input id="workshop-end" type="date" value="2025-12-31" class="input" />
         </div>
         <button onclick="runWorkshop()" id="btn-workshop" class="btn btn-green" style="font-size:12px;">开始分析</button>
@@ -724,52 +911,45 @@
     </div>
   </div>
 
-  <!-- 进度区 -->
+  <!-- Progress -->
   <div id="workshop-progress-wrap" class="card p-4 hidden">
     <h3 class="card-h mb-3" style="font-size:13px;">执行进度</h3>
     <div id="workshop-progress" class="space-y-1 max-h-56 overflow-y-auto mono" style="font-size:11px;color:var(--text-secondary);"></div>
   </div>
 
-  <!-- 结果区 -->
+  <!-- Result -->
   <div id="workshop-result-wrap" class="hidden space-y-3">
-
-    <!-- 状态徽章 -->
-    <div class="card p-3 flex items-center gap-3">
+    <div class="card p-4 flex items-center gap-3">
       <span id="workshop-status-chip"></span>
       <span id="workshop-strategy-name" style="font-size:13px;color:var(--text-secondary);"></span>
     </div>
 
-    <!-- 关键指标快速卡片（回测通过时显示） -->
     <div id="workshop-metrics-row" class="hidden g-metrics"></div>
 
-    <!-- Markdown 报告 -->
     <div class="card p-5">
       <h3 class="card-h mb-3" style="font-size:13px;">完整报告</h3>
       <div id="workshop-report" class="markdown overflow-y-auto" style="max-height:60vh;"></div>
     </div>
-
   </div>
 
 </section>
 
-<!-- ════════════════════════════════════════════
-     Tab 7 · 文档
-     ════════════════════════════════════════════ -->
+<!-- ════════ Tab 7 · 文档 ════════ -->
 <section id="tab-docs" class="tab-pane hidden">
 
-  <p class="tab-desc" style="margin-bottom:14px;">仓库所有 Markdown 文档，按更新时间倒序。建议阅读顺序：ROADMAP → CLAUDE.md → 最近 weekly。</p>
+  <p class="tab-desc" style="margin-bottom:16px;">项目所有 Markdown 文档。建议阅读顺序：ROADMAP → CLAUDE.md → 最近 weekly。</p>
 
   <div class="g-thirds">
-    <div class="card p-3">
-      <div class="flex gap-1 mb-2 flex-wrap" id="doc-filter">
-        <button data-cat="all"    class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-color:var(--accent);">全部</button>
-        <button data-cat="root"   class="btn btn-ghost" style="font-size:11px;padding:3px 8px;">根目录</button>
-        <button data-cat="journal" class="btn btn-ghost" style="font-size:11px;padding:3px 8px;">日志</button>
-        <button data-cat="weekly"  class="btn btn-ghost" style="font-size:11px;padding:3px 8px;">周报</button>
-        <button data-cat="factor"  class="btn btn-ghost" style="font-size:11px;padding:3px 8px;">因子</button>
-        <button data-cat="notes"   class="btn btn-ghost" style="font-size:11px;padding:3px 8px;">笔记</button>
+    <div class="card p-4">
+      <div class="flex gap-1 mb-3 flex-wrap" id="doc-filter">
+        <button data-cat="all"     class="btn btn-ghost" style="font-size:11px;padding:4px 10px;border-color:var(--accent);">全部</button>
+        <button data-cat="root"    class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">根目录</button>
+        <button data-cat="journal" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">日志</button>
+        <button data-cat="weekly"  class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">周报</button>
+        <button data-cat="factor"  class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">因子</button>
+        <button data-cat="notes"   class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">笔记</button>
       </div>
-      <ul id="doc-list" class="space-y-1 overflow-y-auto" style="max-height:70vh;"><li class="loading px-2">加载中…</li></ul>
+      <ul id="doc-list" class="space-y-1 overflow-y-auto" style="max-height:70vh;"><li class="loading" style="padding:8px;">加载中…</li></ul>
     </div>
     <div class="card p-5" style="min-height:24rem;">
       <div id="doc-reader" class="markdown">
@@ -780,12 +960,10 @@
 
 </section>
 
-<!-- ════════════════════════════════════════════
-     Tab 8 · 课程
-     ════════════════════════════════════════════ -->
+<!-- ════════ Tab 8 · 课程 ════════ -->
 <section id="tab-notebooks" class="tab-pane hidden">
 
-  <p class="tab-desc" style="margin-bottom:14px;">从零到一的系列教程，顺序学完可理解 quant-dojo 全流程。运行：<code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--bg-raised);padding:1px 5px;border-radius:3px;color:var(--yellow);">jupyter lab research/notebooks/</code></p>
+  <p class="tab-desc" style="margin-bottom:16px;">从零到一的系列教程，顺序学完可理解全流程。运行 <code class="mono" style="font-size:11px;background:var(--bg-raised);padding:2px 8px;border-radius:4px;color:var(--yellow);border:1px solid var(--border);">jupyter lab research/notebooks/</code></p>
 
   <div id="nb-list" class="g-flow">
     <div class="card p-4 loading">加载中…</div>
@@ -795,37 +973,37 @@
 
 </main>
 
-<footer style="border-top:1px solid var(--border);text-align:center;padding:12px;font-size:11px;color:var(--text-muted);">
-  quant-dojo · Phase 7 驾驶舱 · <span id="footer-ts"></span>
+<footer class="app-footer">
+  Quant Dojo · 量化驾驶舱 · <span id="footer-ts"></span>
 </footer>
 
-<!-- ════════ 弹窗：回测详情 ════════ -->
-<div id="detail-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);"
+<!-- ════════ Modal: Backtest Detail ════════ -->
+<div id="detail-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--bg-overlay);"
      onclick="if(event.target===this)closeDetail()">
-  <div class="modal-box" style="width:100%;max-width:672px;max-height:80vh;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;">
+  <div class="modal-box" style="width:100%;max-width:672px;max-height:80vh;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:18px;">
     <div style="display:flex;align-items:center;justify-content:space-between;">
-      <h3 class="card-h">运行详情</h3>
-      <button onclick="closeDetail()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;" aria-label="关闭">&times;</button>
+      <h3 class="card-h" style="font-size:15px;">运行详情</h3>
+      <button onclick="closeDetail()" class="modal-close" aria-label="关闭">&times;</button>
     </div>
-    <div id="detail-content" style="font-size:13px;display:flex;flex-direction:column;gap:12px;"></div>
+    <div id="detail-content" style="font-size:13px;display:flex;flex-direction:column;gap:14px;"></div>
   </div>
 </div>
 
-<!-- ════════ 弹窗：回测对比 ════════ -->
-<div id="compare-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);"
+<!-- ════════ Modal: Backtest Compare ════════ -->
+<div id="compare-modal" class="hidden" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--bg-overlay);"
      onclick="if(event.target===this)closeCompare()">
-  <div class="modal-box" style="width:100%;max-width:896px;max-height:80vh;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;">
+  <div class="modal-box" style="width:100%;max-width:896px;max-height:80vh;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:18px;">
     <div style="display:flex;align-items:center;justify-content:space-between;">
-      <h3 class="card-h">运行对比</h3>
-      <button onclick="closeCompare()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:18px;line-height:1;" aria-label="关闭">&times;</button>
+      <h3 class="card-h" style="font-size:15px;">运行对比</h3>
+      <button onclick="closeCompare()" class="modal-close" aria-label="关闭">&times;</button>
     </div>
-    <div id="compare-content" style="font-size:13px;display:flex;flex-direction:column;gap:12px;"></div>
+    <div id="compare-content" style="font-size:13px;display:flex;flex-direction:column;gap:14px;"></div>
   </div>
 </div>
 
 <script>
 // ══════════════════════════════════════════════
-// 工具
+// Utilities
 // ══════════════════════════════════════════════
 const $ = (s, el=document) => el.querySelector(s);
 const $$ = (s, el=document) => [...el.querySelectorAll(s)];
@@ -849,7 +1027,6 @@ async function api(path, opts) {
   } catch (e) { console.error('API', path, e); return null; }
 }
 
-// 状态 chip 渲染（移除 emoji，改用文字符号）
 function statusChip(status) {
   const m = {
     ok:'chip-ok 正常',healthy:'chip-ok 健康',success:'chip-ok 成功',
@@ -863,7 +1040,6 @@ function statusChip(status) {
   return `<span class="chip ${cls}">${rest.join(' ')}</span>`;
 }
 
-// SSE 工具
 async function fetchSSE(url, body, onEvent, onDone) {
   let resp;
   try {
@@ -889,7 +1065,7 @@ async function fetchSSE(url, body, onEvent, onDone) {
 }
 
 // ══════════════════════════════════════════════
-// Tab 切换
+// Tab Switching
 // ══════════════════════════════════════════════
 const loadedTabs = new Set(['home']);
 const tabLoaders = {};
@@ -911,7 +1087,7 @@ document.addEventListener('click', e => {
 });
 
 // ══════════════════════════════════════════════
-// 总览 Tab
+// Home Tab
 // ══════════════════════════════════════════════
 
 async function loadHome() {
@@ -931,12 +1107,12 @@ async function loadFlow() {
   } else ctaBtn.classList.add('hidden');
 
   $('#flow-cards').innerHTML = (flow.cards || []).map(c => `
-    <div class="card p-4">
+    <div class="flow-card">
       <div class="flex items-start justify-between mb-2">
         <div class="card-h">${escHtml(c.title)}</div>${statusChip(c.status)}
       </div>
-      <div style="font-size:13px;color:var(--text-primary);font-weight:500;margin-bottom:4px;">${escHtml(c.headline)}</div>
-      <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">${escHtml(c.explain)}</div>
+      <div style="font-size:14px;color:var(--text-primary);font-weight:500;margin-bottom:5px;">${escHtml(c.headline)}</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">${escHtml(c.explain)}</div>
     </div>
   `).join('');
   $('#footer-ts').textContent = flow.generated_at || '';
@@ -949,9 +1125,9 @@ async function loadPortfolioCard() {
   const s = d.summary;
   const isPos = (s.return_pct||0) >= 0;
   const retCls = isPos ? 'val-pos' : 'val-neg';
-  el.innerHTML = `<div class="mono" style="font-size:20px;font-weight:500;color:var(--text-primary);">${safeVal(s.nav, x=>x.toFixed(2))}</div>
-    <div class="mono ${retCls}" style="font-size:12px;">${pct(s.return_pct)} 总收益</div>
-    <div style="display:flex;gap:10px;margin-top:4px;font-size:11px;color:var(--text-muted);">
+  el.innerHTML = `<div class="mono" style="font-size:24px;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em;">${safeVal(s.nav, x=>x.toFixed(2))}</div>
+    <div class="mono ${retCls}" style="font-size:13px;margin-top:2px;">${pct(s.return_pct)} 总收益</div>
+    <div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--text-muted);">
       <span>夏普 <span class="mono">${fix2(s.sharpe)}</span></span>
       <span>回撤 <span class="mono">${pct(s.max_drawdown)}</span></span>
     </div>`;
@@ -964,8 +1140,8 @@ async function loadSignalCard() {
   const picks = (d.picks||[]).slice(0,5);
   if (!picks.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">暂无信号</div>'; return; }
   const scores = d.scores || {};
-  el.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">${d.as_of_date || ''} · ${(d.picks||[]).length} 只</div>` +
-    picks.map((sym,i) => `<div style="font-size:12px;display:flex;justify-content:space-between;">
+  el.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">${d.as_of_date || ''} · ${(d.picks||[]).length} 只</div>` +
+    picks.map((sym,i) => `<div style="font-size:12px;display:flex;justify-content:space-between;padding:2px 0;">
       <span style="color:var(--text-secondary);">${i+1}. ${sym}</span>
       ${scores[sym]!=null?`<span class="mono" style="color:var(--text-muted);">${fix2(scores[sym])}</span>`:''}
     </div>`).join('');
@@ -979,8 +1155,8 @@ async function loadFactorCard() {
   if (!items.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">无因子</div>'; return; }
   el.innerHTML = items.map(([k,v]) => {
     const ok = v.status === 'healthy';
-    return `<div style="display:flex;align-items:center;gap:5px;font-size:12px;">
-      <span style="color:${ok?'var(--green)':'var(--yellow)'};">&#9679;</span>
+    return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 0;">
+      <span style="width:6px;height:6px;border-radius:50%;background:${ok?'var(--green)':'var(--yellow)'};box-shadow:0 0 6px ${ok?'rgba(52,211,153,0.4)':'rgba(251,191,36,0.4)'};display:inline-block;"></span>
       <span style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(k)}</span>
     </div>`;
   }).join('');
@@ -992,12 +1168,12 @@ async function loadRiskCard() {
   if (!d) { el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">暂无数据</div>'; return; }
   const alerts = Array.isArray(d) ? d : (d.alerts||[]);
   if (!alerts.length) {
-    el.innerHTML = '<div style="display:flex;gap:5px;align-items:center;font-size:12px;"><span style="color:var(--green);">&#10003;</span><span style="color:var(--text-secondary);">无预警</span></div>';
+    el.innerHTML = '<div style="display:flex;gap:6px;align-items:center;font-size:12px;"><span style="color:var(--green);">&#10003;</span><span style="color:var(--text-secondary);">无预警</span></div>';
     return;
   }
-  el.innerHTML = alerts.slice(0,3).map(a => `<div style="display:flex;gap:5px;font-size:12px;">
+  el.innerHTML = alerts.slice(0,3).map(a => `<div style="display:flex;gap:6px;font-size:12px;padding:2px 0;">
     <span style="color:var(--yellow);margin-top:1px;">&#9651;</span>
-    <span style="color:var(--text-secondary);line-height:1.4;">${escHtml(a.message||a.msg||JSON.stringify(a))}</span>
+    <span style="color:var(--text-secondary);line-height:1.5;">${escHtml(a.message||a.msg||JSON.stringify(a))}</span>
   </div>`).join('');
 }
 
@@ -1005,7 +1181,7 @@ async function loadRiskCard() {
 function appendPipelineStep(text, type) {
   const el = $('#pipeline-progress');
   const div = document.createElement('div');
-  const colorMap = {error:'var(--red)',done:'var(--green)',start:'var(--accent)'};
+  const colorMap = {error:'var(--red)',done:'var(--green)',start:'var(--accent-light)'};
   const color = colorMap[type] || 'var(--text-secondary)';
   div.className = `flex gap-2 ${type==='loading'?'pulse-dot':''}`;
   div.style.cssText = `font-size:11px;color:${color};font-family:'JetBrains Mono',monospace;`;
@@ -1058,12 +1234,11 @@ async function loadQuotes() {
     if (!data) throw new Error('空响应');
     grid.innerHTML = Object.entries(data).map(([sym,q]) => {
       const pnl = q.prev_close>0 ? ((q.price/q.prev_close-1)*100) : 0;
-      // A股涨红跌绿
       const color = pnl>0.05?'var(--red)':pnl<-0.05?'var(--green)':'var(--text-muted)';
       return `<div class="quote-card">
         <div style="font-size:11px;color:var(--text-muted);">${escHtml(q.name)} <span class="mono">${sym}</span></div>
-        <div style="display:flex;gap:5px;align-items:baseline;margin-top:3px;">
-          <span class="mono" style="font-size:14px;font-weight:500;color:${color};">${q.price.toFixed(2)}</span>
+        <div style="display:flex;gap:6px;align-items:baseline;margin-top:4px;">
+          <span class="mono" style="font-size:15px;font-weight:500;color:${color};">${q.price.toFixed(2)}</span>
           <span class="mono" style="font-size:11px;color:${color};">${pnl>=0?'+':''}${pnl.toFixed(2)}%</span>
         </div>
       </div>`;
@@ -1086,7 +1261,7 @@ function toggleAutoRefresh() {
 }
 
 // ══════════════════════════════════════════════
-// 组合 Tab
+// Portfolio Tab
 // ══════════════════════════════════════════════
 let navChart = null, navAllData = null, currentRange = 'ALL';
 
@@ -1110,32 +1285,31 @@ function filterByRange(data, r) {
   return data.filter(row => new Date(row.date) >= cut);
 }
 
-// Chart.js 颜色同步新设计系统
 function renderNavChart(rows) {
   const ctx = $('#nav-chart').getContext('2d');
   if (navChart) navChart.destroy();
   if (!rows?.length) { $('#nav-empty').classList.remove('hidden'); return; }
   $('#nav-empty').classList.add('hidden');
   const datasets = [{
-    label:'策略净值', data:rows.map(r=>r.nav), borderColor:'#2f81f7',
-    backgroundColor:'rgba(47,129,247,0.08)', borderWidth:2, pointRadius:0, fill:true, tension:0.3
+    label:'策略净值', data:rows.map(r=>r.nav), borderColor:'#6366f1',
+    backgroundColor:'rgba(99,102,241,0.06)', borderWidth:2, pointRadius:0, fill:true, tension:0.3
   }];
   if (rows.some(r=>r.hs300!=null)) datasets.push({
-    label:'沪深300', data:rows.map(r=>r.hs300), borderColor:'#d29922',
+    label:'沪深300', data:rows.map(r=>r.hs300), borderColor:'#fbbf24',
     borderWidth:1.5, pointRadius:0, fill:false, borderDash:[4,4], tension:0.3
   });
   navChart = new Chart(ctx, {type:'line', data:{labels:rows.map(r=>r.date), datasets},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
-      plugins:{legend:{labels:{color:'#8b949e',boxWidth:12,font:{family:'Inter',size:12}}},
-        tooltip:{backgroundColor:'#161b22',borderColor:'#21262d',borderWidth:1,
-                 titleColor:'#e6edf3',bodyColor:'#8b949e',padding:10,
+      plugins:{legend:{labels:{color:'#8892a8',boxWidth:12,font:{family:'Inter',size:12}}},
+        tooltip:{backgroundColor:'#141926',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
+                 titleColor:'#eef0f6',bodyColor:'#8892a8',padding:12,cornerRadius:8,
                  titleFont:{family:'Inter'},bodyFont:{family:'JetBrains Mono'}}},
       scales:{
-        x:{ticks:{color:'#656d76',maxTicksLimit:8,font:{family:'Inter',size:11}},
-           grid:{color:'#21262d'},border:{color:'#21262d'}},
-        y:{ticks:{color:'#656d76',font:{family:'JetBrains Mono',size:11}},
-           grid:{color:'#21262d'},border:{color:'#21262d'}}
+        x:{ticks:{color:'#505870',maxTicksLimit:8,font:{family:'Inter',size:11}},
+           grid:{color:'rgba(255,255,255,0.04)'},border:{color:'rgba(255,255,255,0.06)'}},
+        y:{ticks:{color:'#505870',font:{family:'JetBrains Mono',size:11}},
+           grid:{color:'rgba(255,255,255,0.04)'},border:{color:'rgba(255,255,255,0.06)'}}
       }}});
 }
 
@@ -1173,7 +1347,7 @@ async function loadPortfolioDetail() {
 }
 
 // ══════════════════════════════════════════════
-// 策略 Tab
+// Strategy Tab
 // ══════════════════════════════════════════════
 tabLoaders.strategy = async () => {
   await Promise.allSettled([loadStrategyView(), loadStrategyRegistry(), loadRuns()]);
@@ -1187,15 +1361,15 @@ async function loadStrategyView() {
   $('#strat-desc').textContent = d.description || '';
   $('#strat-id-chip').textContent = d.active;
   $('#strat-factors').innerHTML = (d.factors||[]).map(f => `
-    <div class="card p-3">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
+    <div class="card p-4">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
         <div>
           <div class="card-h">${escHtml(f.label)}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-family:'JetBrains Mono',monospace;">${escHtml(f.id)} · 方向${f.direction>0?'正':'负'}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:'JetBrains Mono',monospace;">${escHtml(f.id)} · 方向${f.direction>0?'正':'负'}</div>
         </div>${statusChip(f.health_status)}
       </div>
-      <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-top:6px;">${escHtml(f.explain)}</div>
-      ${f.rolling_ic!=null?`<div class="mono" style="font-size:11px;color:var(--text-muted);margin-top:4px;">IC: ${Number(f.rolling_ic).toFixed(4)}</div>`:''}
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-top:6px;">${escHtml(f.explain)}</div>
+      ${f.rolling_ic!=null?`<div class="mono" style="font-size:11px;color:var(--text-muted);margin-top:6px;">IC: ${Number(f.rolling_ic).toFixed(4)}</div>`:''}
     </div>
   `).join('') || '<div style="color:var(--text-muted);">无因子</div>';
 }
@@ -1205,10 +1379,10 @@ async function loadStrategyRegistry() {
   const data = await api('/api/backtest/strategies');
   if (!data?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">暂无策略</div>'; return; }
   el.innerHTML = data.map(s => `
-    <div style="background:var(--bg-raised);border:1px solid var(--border);border-radius:5px;padding:8px 10px;margin-bottom:4px;">
-      <div class="mono" style="font-size:11px;color:var(--accent);">${escHtml(s.id)}</div>
-      <div style="font-size:13px;color:var(--text-primary);margin-top:2px;">${escHtml(s.name)}</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${escHtml(s.description)}</div>
+    <div style="background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px;transition:border-color 0.15s;">
+      <div class="mono" style="font-size:11px;color:var(--accent-light);">${escHtml(s.id)}</div>
+      <div style="font-size:13px;color:var(--text-primary);margin-top:3px;font-weight:500;">${escHtml(s.name)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:3px;line-height:1.5;">${escHtml(s.description)}</div>
     </div>
   `).join('');
 }
@@ -1228,10 +1402,10 @@ async function loadRuns() {
       ? '<span style="color:var(--green);font-size:10px;">&#9679; 成功</span>'
       : '<span style="color:var(--red);font-size:10px;">&#9679; 失败</span>';
     return `<tr class="cursor-pointer" onclick="openDetail('${escHtml(r.run_id)}')">
-      <td style="padding:10px 4px;" onclick="event.stopPropagation()">
+      <td style="padding:12px 6px;" onclick="event.stopPropagation()">
         <input type="checkbox" class="run-checkbox" data-run-id="${escHtml(r.run_id)}" onchange="updateCompareBar()" /></td>
       <td>
-        <div style="font-size:12px;color:var(--text-primary);">${escHtml(r.strategy_name||r.strategy_id)}</div>
+        <div style="font-size:12px;color:var(--text-primary);font-weight:500;">${escHtml(r.strategy_name||r.strategy_id)}</div>
         <div class="mono" style="font-size:10px;color:var(--text-muted);">${escHtml((r.run_id||'').slice(0,20))}…</div>
       </td>
       <td class="mono" style="font-size:12px;color:var(--text-muted);">${r.start_date||'—'}</td>
@@ -1270,11 +1444,11 @@ async function openDetail(runId) {
   const m = d.metrics||{};
   content.innerHTML = `
     <div class="g-d2" style="font-size:13px;">
-      <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">策略</div><div>${escHtml(d.strategy_name||d.strategy_id)}</div></div>
-      <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">区间</div><div class="mono" style="font-size:12px;">${escHtml(d.start_date)} ~ ${escHtml(d.end_date)}</div></div>
-      <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">状态</div>
+      <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">策略</div><div style="font-weight:500;">${escHtml(d.strategy_name||d.strategy_id)}</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">区间</div><div class="mono" style="font-size:12px;">${escHtml(d.start_date)} ~ ${escHtml(d.end_date)}</div></div>
+      <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">状态</div>
            <div style="color:${d.status==='success'?'var(--green)':'var(--red)'};">${escHtml(d.status)}</div></div>
-      <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">时间</div>
+      <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">时间</div>
            <div class="mono" style="font-size:11px;color:var(--text-muted);">${escHtml(d.created_at||'—')}</div></div>
     </div>
     ${d.status==='success'?`<div class="g-d3" style="margin-top:8px;">${[
@@ -1284,11 +1458,11 @@ async function openDetail(runId) {
       ['总收益',pct(m.total_return),(m.total_return||0)>=0?'val-pos':'val-neg'],
       ['胜率',pct(m.win_rate),''],
       ['波动率',pct(m.volatility),''],
-    ].map(([l,v,c])=>`<div style="background:var(--bg-raised);border:1px solid var(--border);border-radius:5px;padding:10px;text-align:center;">
-      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">${l}</div>
-      <div class="mono ${c}" style="font-size:14px;font-weight:500;">${v}</div>
+    ].map(([l,v,c])=>`<div style="background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center;">
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;">${l}</div>
+      <div class="mono ${c}" style="font-size:15px;font-weight:500;">${v}</div>
     </div>`).join('')}</div>`:''}
-    ${d.error?`<div style="background:var(--red-dim);border:1px solid #5a2020;border-radius:5px;padding:12px;color:var(--red);font-size:12px;margin-top:8px;">${escHtml(d.error)}</div>`:''}
+    ${d.error?`<div style="background:var(--red-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:14px;color:var(--red);font-size:12px;margin-top:8px;">${escHtml(d.error)}</div>`:''}
   `;
 }
 function closeDetail() { $('#detail-modal').classList.add('hidden'); }
@@ -1323,19 +1497,18 @@ async function openCompare() {
 function closeCompare() { $('#compare-modal').classList.add('hidden'); }
 
 // ══════════════════════════════════════════════
-// 因子库 Tab
+// Factors Tab
 // ══════════════════════════════════════════════
 tabLoaders.factors = async () => {
   const data = await api('/api/factors/catalog');
   if (!data) return;
   $('#factor-list').innerHTML = (data.factors||[]).map(f => {
     const chips = Object.values(f.health||{}).map(h => statusChip(h.status)).join(' ') || statusChip('idle');
-    return `<li><button class="w-full text-left rounded" style="padding:8px;transition:background .1s;"
-              onmouseover="this.style.background='var(--bg-raised)'" onmouseout="this.style.background=''"
+    return `<li><button class="list-item"
               data-factor-dir="${escHtml(f.dir)}">
       <div style="font-size:13px;font-weight:500;color:var(--text-primary);">${escHtml(f.title)}</div>
-      <div class="mono" style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escHtml(f.dir)}</div>
-      <div style="margin-top:4px;">${chips}</div>
+      <div class="mono" style="font-size:10px;color:var(--text-muted);margin-top:3px;">${escHtml(f.dir)}</div>
+      <div style="margin-top:5px;">${chips}</div>
     </button></li>`;
   }).join('');
   $$('#factor-list [data-factor-dir]').forEach(btn => {
@@ -1352,7 +1525,7 @@ async function loadFactorReadme(dir) {
 }
 
 // ══════════════════════════════════════════════
-// 研究 Tab
+// Research Tab
 // ══════════════════════════════════════════════
 tabLoaders.research = async () => {
   const [q, e] = await Promise.all([api('/api/research/questions'), api('/api/research/experiments')]);
@@ -1362,12 +1535,12 @@ tabLoaders.research = async () => {
     } else {
       $('#research-questions').innerHTML = q.questions.map(qq => {
         const prCls = qq.priority==='high'?'chip-err':qq.priority==='medium'?'chip-warn':'chip-idle';
-        return `<div class="card p-3">
+        return `<div class="card p-4">
           <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
             <div class="card-h">${escHtml(qq.question)}</div>
             <span class="chip ${prCls}">${escHtml(qq.priority)}</span>
           </div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:5px;">${escHtml(qq.rationale)}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.6;">${escHtml(qq.rationale)}</div>
         </div>`;
       }).join('');
     }
@@ -1375,26 +1548,26 @@ tabLoaders.research = async () => {
   if (e) {
     const exps = e.experiments||[];
     $('#research-experiments').innerHTML = !exps.length
-      ? '<div class="card p-3" style="font-size:13px;color:var(--text-muted);">无实验记录。</div>'
-      : exps.map(ex => `<div class="card p-3">
-          <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;">
+      ? '<div class="card p-4" style="font-size:13px;color:var(--text-muted);">无实验记录。</div>'
+      : exps.map(ex => `<div class="card p-4">
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;">
             <div class="card-h">${escHtml(ex.question_text||ex.question_id)}</div>${statusChip(ex.status)}
           </div>
           <div class="mono" style="font-size:10px;color:var(--text-muted);">${escHtml(ex.experiment_id)}</div>
-          ${ex.error?`<div style="font-size:12px;color:var(--red);margin-top:4px;">${escHtml(ex.error)}</div>`:''}
+          ${ex.error?`<div style="font-size:12px;color:var(--red);margin-top:5px;">${escHtml(ex.error)}</div>`:''}
         </div>`).join('');
   }
 };
 
-// AI 分析
+// AI Analysis
 function setAIBusy(b) { $('#btn-analyze').disabled=b; $('#btn-debate').disabled=b; }
 function clearAIResult() { $('#ai-result').innerHTML=''; }
 function appendAIBlock(cls, title, content) {
   const el=$('#ai-result'), div=document.createElement('div');
   div.className=`${cls}`;
-  div.style.cssText=`background:var(--bg-raised);border-radius:5px;padding:12px 14px;font-size:13px;`;
-  div.innerHTML=`<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;">${title}</div>
-                 <div style="color:var(--text-secondary);line-height:1.6;">${content}</div>`;
+  div.style.cssText=`background:var(--bg-raised);border-radius:var(--radius-sm);padding:14px 16px;font-size:13px;`;
+  div.innerHTML=`<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;font-weight:500;">${title}</div>
+                 <div style="color:var(--text-secondary);line-height:1.7;">${content}</div>`;
   el.appendChild(div); el.scrollTop=el.scrollHeight;
 }
 function handleAIEvent(data) {
@@ -1416,7 +1589,7 @@ function handleAIEvent(data) {
     const s=content?.price_summary||{},d=content?.debate||{};
     let html='';
     if (s.latest_price) html+=`<div>最新价 <b class="mono">${escHtml(String(s.latest_price))}</b> 年化 <span class="mono">${pct(s.annualized_return)}</span> 夏普 <span class="mono">${fix2(s.sharpe)}</span></div>`;
-    if (d.conclusion) html+=`<div style="color:var(--yellow);margin-top:4px;">${escHtml(d.conclusion)}</div>`;
+    if (d.conclusion) html+=`<div style="color:var(--yellow);margin-top:5px;">${escHtml(d.conclusion)}</div>`;
     appendAIBlock('stage-result','结果',html||escHtml(JSON.stringify(content)));
   } else if (content) {
     appendAIBlock('stage-result', stage, escHtml(String(content)));
@@ -1436,10 +1609,8 @@ async function runDebate() {
 }
 
 // ══════════════════════════════════════════════
-// 策略工坊 Tab（idea-to-strategy）
+// Workshop Tab
 // ══════════════════════════════════════════════
-
-// 进度阶段标签映射
 const WORKSHOP_STAGE_LABELS = {
   start:       '开始',
   parsing:     '解析想法',
@@ -1461,7 +1632,7 @@ function workshopAppendProgress(stage, content) {
   const label = WORKSHOP_STAGE_LABELS[stage] || stage;
   const isError = stage === 'error';
   const line = document.createElement('div');
-  line.style.cssText = `padding:2px 0;border-bottom:1px solid var(--border);color:${isError?'var(--red)':'var(--text-secondary)'};`;
+  line.style.cssText = `padding:3px 0;border-bottom:1px solid var(--border);color:${isError?'var(--red)':'var(--text-secondary)'};`;
   line.textContent = `[${ts}] [${label}] ${content}`;
   log.appendChild(line);
   log.scrollTop = log.scrollHeight;
@@ -1478,8 +1649,8 @@ function workshopShowMetrics(metrics) {
   ];
   row.innerHTML = items.map(([label, val, cls]) =>
     `<div class="kpi-card" style="text-align:center;">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px;">${label}</div>
-      <div class="mono ${cls}" style="font-size:16px;font-weight:500;">${val}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px;">${label}</div>
+      <div class="mono ${cls}" style="font-size:18px;font-weight:600;">${val}</div>
     </div>`
   ).join('');
   row.classList.remove('hidden');
@@ -1487,15 +1658,11 @@ function workshopShowMetrics(metrics) {
 
 function workshopHandleEvent(data) {
   const { stage, content } = data;
-
-  // 所有进度事件均写入进度区
   if (stage !== 'done' && stage !== 'error') {
     workshopAppendProgress(stage, content || '');
   }
-
   if (stage === 'error') {
     workshopAppendProgress('error', content || '执行失败');
-    // 显示错误报告区
     const resultWrap = $('#workshop-result-wrap');
     resultWrap.classList.remove('hidden');
     $('#workshop-status-chip').innerHTML = statusChip('failed');
@@ -1505,20 +1672,13 @@ function workshopHandleEvent(data) {
     workshopAppendProgress('done', '流水线执行完毕');
     const resultWrap = $('#workshop-result-wrap');
     resultWrap.classList.remove('hidden');
-
-    // 状态徽章
     const gatePass = data.gate_passed;
     const status   = data.status || (gatePass ? 'passed' : 'failed_gate');
     const chipStatus = status === 'passed' ? 'success' : 'failed';
     $('#workshop-status-chip').innerHTML = statusChip(chipStatus);
     $('#workshop-strategy-name').textContent = data.strategy_name
-      ? `策略：${data.strategy_name}`
-      : '';
-
-    // 关键指标行
+      ? `策略：${data.strategy_name}` : '';
     workshopShowMetrics(data.metrics);
-
-    // Markdown 报告
     const reportEl = $('#workshop-report');
     if (data.report && typeof marked !== 'undefined') {
       reportEl.innerHTML = DOMPurify.sanitize(marked.parse(data.report));
@@ -1532,11 +1692,8 @@ async function runWorkshop() {
   const idea  = $('#workshop-idea').value.trim();
   const start = $('#workshop-start').value.trim();
   const end   = $('#workshop-end').value.trim();
-
   if (!idea) { alert('请输入策略想法'); return; }
   if (!start || !end) { alert('请填写回测区间'); return; }
-
-  // 重置 UI
   $('#workshop-progress-wrap').classList.add('hidden');
   $('#workshop-progress').innerHTML = '';
   $('#workshop-result-wrap').classList.add('hidden');
@@ -1544,22 +1701,14 @@ async function runWorkshop() {
   $('#workshop-report').innerHTML = '';
   $('#workshop-status-chip').innerHTML = '';
   $('#workshop-strategy-name').textContent = '';
-
   const btn = $('#btn-workshop');
-  btn.disabled = true;
-  btn.textContent = '分析中…';
-
+  btn.disabled = true; btn.textContent = '分析中…';
   try {
-    await fetchSSE(
-      '/api/auto/idea',
-      { idea, start, end },
-      workshopHandleEvent,
-    );
+    await fetchSSE('/api/auto/idea', { idea, start, end }, workshopHandleEvent);
   } catch(e) {
     workshopAppendProgress('error', `前端异常: ${e.message}`);
   } finally {
-    btn.disabled = false;
-    btn.textContent = '开始分析';
+    btn.disabled = false; btn.textContent = '开始分析';
   }
 }
 
@@ -1575,7 +1724,7 @@ function clearWorkshop() {
 }
 
 // ══════════════════════════════════════════════
-// 文档 Tab
+// Docs Tab
 // ══════════════════════════════════════════════
 let allDocs=[], docFilter='all';
 tabLoaders.docs = async () => {
@@ -1587,12 +1736,11 @@ tabLoaders.docs = async () => {
 function renderDocList() {
   const filtered = docFilter==='all' ? allDocs : allDocs.filter(d=>d.category===docFilter);
   $('#doc-list').innerHTML = filtered.map(d => `<li>
-    <button class="w-full text-left rounded" style="padding:8px;transition:background .1s;font-size:12px;"
-      onmouseover="this.style.background='var(--bg-raised)'" onmouseout="this.style.background=''"
+    <button class="list-item"
       data-doc-rel="${escHtml(d.rel)}">
-      <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);">${escHtml(d.title)}</div>
-      <div class="mono" style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;margin-top:1px;">${escHtml(d.rel)}</div>
-    </button></li>`).join('') || '<li style="font-size:12px;color:var(--text-muted);padding:6px 8px;">（空）</li>';
+      <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);font-size:13px;">${escHtml(d.title)}</div>
+      <div class="mono" style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;margin-top:2px;">${escHtml(d.rel)}</div>
+    </button></li>`).join('') || '<li style="font-size:12px;color:var(--text-muted);padding:8px 12px;">（空）</li>';
   $$('#doc-list [data-doc-rel]').forEach(b => b.addEventListener('click', ()=>openDoc(b.dataset.docRel)));
 }
 $$('#doc-filter button').forEach(b => b.addEventListener('click', ()=>{
@@ -1609,16 +1757,16 @@ async function openDoc(rel) {
 }
 
 // ══════════════════════════════════════════════
-// 课程 Tab
+// Notebooks Tab
 // ══════════════════════════════════════════════
 tabLoaders.notebooks = async () => {
   const d = await api('/api/notebooks/');
   $('#nb-list').innerHTML = (d?.notebooks||[]).map(nb => `
-    <div class="card p-4">
-      <div class="mono" style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">${escHtml(nb.filename)}</div>
-      <div class="card-h" style="font-size:13px;margin-bottom:6px;">${escHtml(nb.title)}</div>
-      <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">${escHtml(nb.description||'（无描述）')}</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;font-family:'JetBrains Mono',monospace;">
+    <div class="card p-5" style="transition:all 0.25s ease;">
+      <div class="mono" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">${escHtml(nb.filename)}</div>
+      <div class="card-h" style="font-size:14px;margin-bottom:8px;">${escHtml(nb.title)}</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">${escHtml(nb.description||'（无描述）')}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:10px;font-family:'JetBrains Mono',monospace;padding-top:8px;border-top:1px solid var(--border);">
         ${nb.cells?.markdown||0} md · ${nb.cells?.code||0} code · ${(nb.size/1024).toFixed(0)} KB
       </div>
     </div>
@@ -1626,7 +1774,7 @@ tabLoaders.notebooks = async () => {
 };
 
 // ══════════════════════════════════════════════
-// 初始化
+// Init
 // ══════════════════════════════════════════════
 function initPipelineDate() {
   $('#pipeline-date').value = new Date().toISOString().split('T')[0];
