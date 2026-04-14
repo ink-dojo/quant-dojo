@@ -4,6 +4,7 @@ factors_service.py — 因子健康度与截面快照服务层
 封装因子监控相关查询，所有函数捕获异常并返回结构化 dict。
 """
 
+import ast
 import re
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,9 @@ _SNAPSHOT_DIR = _ROOT / "live" / "factor_snapshot"
 
 # 因子研究目录（每个子目录一个 README.md + *.py）
 _FACTOR_RESEARCH_DIR = _ROOT / "research" / "factors"
+
+# 全量因子实现文件（AST 解析，供 /api/factors/library 使用）
+_ALPHA_FACTORS_FILE = _ROOT / "utils" / "alpha_factors.py"
 
 # 目录名 → 在 factor_health / signal metadata 里对应的因子 id 列表
 # 用于把"因子目录"和"运行时的因子健康状态"对齐
@@ -251,6 +255,143 @@ def read_factor_readme(factor_dir: str) -> dict:
         return {"dir": factor_dir, "content": target.read_text(encoding="utf-8")}
     except Exception as exc:
         return {"dir": factor_dir, "content": None, "error": str(exc)}
+
+
+# ══════════════════════════════════════════════════════════════
+# 全量因子清单 — AST 解析 utils/alpha_factors.py
+# ══════════════════════════════════════════════════════════════
+
+# 因子分类（与 alpha_factors.py 头部 docstring 对齐，手工维护）
+# 不在映射里的因子归入"其他"
+_FACTOR_CATEGORY: dict[str, str] = {
+    # 反转 / 动量
+    "reversal_1m": "反转", "reversal_5d": "反转", "reversal_12m_skip3m": "动量",
+    "vol_scaled_reversal": "反转", "w_reversal": "反转",
+    "enhanced_momentum": "动量", "quality_momentum": "动量",
+    "ma_ratio_momentum": "动量", "momentum_6m_skip1m": "动量",
+    "momentum_3m_skip1m": "动量", "industry_momentum": "动量",
+    "earnings_momentum": "动量", "price_momentum_quality": "动量",
+    # 波动 / 风险
+    "low_vol_20d": "波动", "idiosyncratic_volatility": "波动",
+    "vol_regime": "波动", "vol_asymmetry": "波动",
+    "beta_factor": "波动", "return_skewness_20d": "波动",
+    "max_ret_1m": "波动", "stock_max_drawdown_60d": "波动",
+    "sharpe_20d": "波动",
+    # 基本面
+    "ep_factor": "基本面", "bp_factor": "基本面", "roe_factor": "基本面",
+    "accruals_quality": "基本面", "cfo_accrual_quality": "基本面",
+    "dividend_yield": "基本面",
+    # 换手 / 流动性
+    "turnover_rev": "流动性", "turnover_acceleration": "流动性",
+    "turnover_trend": "流动性", "relative_turnover": "流动性",
+    "amihud_illiquidity": "流动性", "volume_concentration": "流动性",
+    "volume_surge": "流动性", "bid_ask_spread_proxy": "流动性",
+    # 微观结构
+    "shadow_upper": "微观结构", "shadow_lower": "微观结构",
+    "amplitude_hidden": "微观结构", "close_minus_open_volume": "微观结构",
+    "avg_intraday_range": "微观结构", "intraday_direction_efficiency": "微观结构",
+    "vwap_deviation": "微观结构", "overnight_return": "微观结构",
+    # 行为金融
+    "cgo": "行为金融", "str_salience": "行为金融",
+    "team_coin": "行为金融", "retail_open_trap": "行为金融",
+    "insider_buying_proxy": "行为金融",
+    # 网络 / 关系
+    "network_scc": "网络", "apm_overnight": "网络",
+    # 筹码
+    "chip_arc": "筹码", "chip_vrc": "筹码",
+    # 价量分歧
+    "price_volume_divergence": "价量", "price_volume_divergence": "价量",
+    "up_down_volume_ratio": "价量", "chaikin_money_flow": "价量",
+    # 价格锚
+    "price_anchor_dist": "技术", "high_52w_ratio": "技术",
+    "price_distance_from_ma": "技术", "bollinger_pct": "技术",
+    "rsi_factor": "技术", "return_zscore_20d": "技术",
+    "win_rate_trend": "技术", "win_rate_60d": "技术",
+    "ret_autocorr_1d": "技术", "earnings_window_proxy": "技术",
+}
+
+# 正方向因子（大值好）/ 负方向（小值好，IC 取负）
+# 解析不了方向时返回 "?"
+_FACTOR_DIRECTION_HINT = {"reversal", "vol", "volatility", "beta", "drawdown",
+                          "skewness", "illiquidity"}
+
+
+def _factor_direction(name: str) -> str:
+    """通过名字启发式推测方向：带反转/波动类词根 → 负向；其他 → 正向。"""
+    lower = name.lower()
+    for hint in _FACTOR_DIRECTION_HINT:
+        if hint in lower:
+            return "-"
+    return "+"
+
+
+def _clean_doc(raw: str) -> str:
+    """取 docstring 首个非空段落，过滤纯符号行，截 120 字符。"""
+    if not raw:
+        return ""
+    for line in raw.splitlines():
+        s = line.strip().strip("—-=").strip()
+        if s and not s.startswith("==="):
+            return s[:120]
+    return ""
+
+
+def list_factor_library() -> dict:
+    """
+    AST 解析 utils/alpha_factors.py，返回所有公开因子函数列表。
+
+    每个因子含：name / category / direction / summary / args。
+    args 是函数签名里除 window/默认参数外的位置参数名，用来暗示所需数据。
+
+    不解析 `_` 开头的私有函数和 `build_fast_factors` 这种聚合器。
+
+    返回:
+        {"factors": [ {...}, ... ], "count": N, "categories": {...}}
+    """
+    if not _ALPHA_FACTORS_FILE.exists():
+        return {"factors": [], "count": 0, "categories": {}, "error": "alpha_factors.py 不存在"}
+
+    try:
+        tree = ast.parse(_ALPHA_FACTORS_FILE.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"factors": [], "count": 0, "categories": {}, "error": f"解析失败: {exc}"}
+
+    factors: list[dict] = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        name = node.name
+        if name.startswith("_") or name == "build_fast_factors":
+            continue
+
+        # 提取签名里需要外部传入的数据字段（位置参数，去掉有默认值的）
+        posonly = [a.arg for a in node.args.args]
+        defaults_n = len(node.args.defaults)
+        required = posonly[: len(posonly) - defaults_n] if defaults_n else posonly
+
+        doc = _clean_doc(ast.get_docstring(node) or "")
+        category = _FACTOR_CATEGORY.get(name, "其他")
+        direction = _factor_direction(name)
+
+        factors.append({
+            "name": name,
+            "category": category,
+            "direction": direction,
+            "summary": doc,
+            "required_data": required,
+            "line": node.lineno,
+        })
+
+    # 分类统计
+    cat_count: dict[str, int] = {}
+    for f in factors:
+        cat_count[f["category"]] = cat_count.get(f["category"], 0) + 1
+
+    return {
+        "factors": factors,
+        "count": len(factors),
+        "categories": cat_count,
+    }
 
 
 if __name__ == "__main__":
