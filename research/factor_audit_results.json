@@ -1,0 +1,240 @@
+{
+  "run_date": "2026-04-13T23:10:41",
+  "n_factors_computed": 20,
+  "n_factors_skipped": 1,
+  "skipped_factors": {
+    "cfo_accrual_quality": "需要季报财务数据（net_income / ocf / total_assets），本地 CSV 不含"
+  },
+  "factor_stats": {
+    "reversal_1m": {
+      "ic_mean": 0.034105,
+      "ic_std": 0.172273,
+      "icir": 0.197968,
+      "t_stat": 1.1199,
+      "pct_positive": 0.5938,
+      "n_months": 32
+    },
+    "low_vol_20d": {
+      "ic_mean": 0.103478,
+      "ic_std": 0.14431,
+      "icir": 0.71705,
+      "t_stat": 4.0562,
+      "pct_positive": 0.7812,
+      "n_months": 32
+    },
+    "turnover_rev": {
+      "ic_mean": 0.100981,
+      "ic_std": 0.151801,
+      "icir": 0.66522,
+      "t_stat": 3.7631,
+      "pct_positive": 0.75,
+      "n_months": 32
+    },
+    "enhanced_mom": {
+      "ic_mean": 0.091127,
+      "ic_std": 0.173106,
+      "icir": 0.526425,
+      "t_stat": 2.8833,
+      "pct_positive": 0.7,
+      "n_months": 30
+    },
+    "quality_mom": {
+      "ic_mean": 0.096685,
+      "ic_std": 0.173675,
+      "icir": 0.556702,
+      "t_stat": 3.0492,
+      "pct_positive": 0.7,
+      "n_months": 30
+    },
+    "ma_ratio_120": {
+      "ic_mean": -0.034246,
+      "ic_std": 0.183738,
+      "icir": -0.186386,
+      "t_stat": -0.9863,
+      "pct_positive": 0.4286,
+      "n_months": 28
+    },
+    "ep": {
+      "ic_mean": 0.024115,
+      "ic_std": 0.188188,
+      "icir": 0.128145,
+      "t_stat": 0.7249,
+      "pct_positive": 0.5625,
+      "n_months": 32
+    },
+    "bp": {
+      "ic_mean": 0.041851,
+      "ic_std": 0.152566,
+      "icir": 0.274315,
+      "t_stat": 1.5518,
+      "pct_positive": 0.5938,
+      "n_months": 32
+    },
+    "shadow_upper": {
+      "ic_mean": 0.025079,
+      "ic_std": 0.117064,
+      "icir": 0.214237,
+      "t_stat": 1.2119,
+      "pct_positive": 0.6875,
+      "n_months": 32
+    },
+    "shadow_lower": {
+      "ic_mean": -0.055635,
+      "ic_std": 0.112553,
+      "icir": -0.4943,
+      "t_stat": -2.7962,
+      "pct_positive": 0.3125,
+      "n_months": 32
+    },
+    "cgo_simple": {
+      "ic_mean": 0.052618,
+      "ic_std": 0.180589,
+      "icir": 0.291371,
+      "t_stat": 1.5959,
+      "pct_positive": 0.6667,
+      "n_months": 30
+    },
+    "team_coin": {
+      "ic_mean": 0.051912,
+      "ic_std": 0.081942,
+      "icir": 0.633525,
+      "t_stat": 3.5838,
+      "pct_positive": 0.75,
+      "n_months": 32
+    },
+    "apm_overnight": {
+      "ic_mean": 0.022342,
+      "ic_std": 0.134159,
+      "icir": 0.166534,
+      "t_stat": 0.9421,
+      "pct_positive": 0.5625,
+      "n_months": 32
+    },
+    "amihud_illiq": {
+      "ic_mean": 0.054508,
+      "ic_std": 0.144504,
+      "icir": 0.377206,
+      "t_stat": 2.1338,
+      "pct_positive": 0.625,
+      "n_months": 32
+    },
+    "idiosyncratic_vol": {
+      "ic_mean": 0.099687,
+      "ic_std": 0.144974,
+      "icir": 0.687618,
+      "t_stat": 3.7662,
+      "pct_positive": 0.7,
+      "n_months": 30
+    },
+    "price_vol_divergence": {
+      "ic_mean": 0.04187,
+      "ic_std": 0.111578,
+      "icir": 0.375251,
+      "t_stat": 2.0893,
+      "pct_positive": 0.7097,
+      "n_months": 31
+    },
+    "insider_buying_proxy": {
+      "ic_mean": 0.002936,
+      "ic_std": 0.137236,
+      "icir": 0.021394,
+      "t_stat": 0.121,
+      "pct_positive": 0.5312,
+      "n_months": 32
+    },
+    "roe": {
+      "ic_mean": -0.02044,
+      "ic_std": 0.142495,
+      "icir": -0.143445,
+      "t_stat": -0.8114,
+      "pct_positive": 0.4062,
+      "n_months": 32
+    },
+    "relative_turnover": {
+      "ic_mean": 0.029422,
+      "ic_std": 0.111896,
+      "icir": 0.262937,
+      "t_stat": 1.4402,
+      "pct_positive": 0.6667,
+      "n_months": 30
+    },
+    "industry_momentum": {
+      "ic_mean": -0.044395,
+      "ic_std": 0.141866,
+      "icir": -0.312939,
+      "t_stat": -1.714,
+      "pct_positive": 0.4,
+      "n_months": 30
+    }
+  },
+  "high_corr_pairs": [
+    {
+      "factor_a": "reversal_1m",
+      "factor_b": "cgo_simple",
+      "corr": 0.7772
+    },
+    {
+      "factor_a": "low_vol_20d",
+      "factor_b": "turnover_rev",
+      "corr": 0.9739
+    },
+    {
+      "factor_a": "low_vol_20d",
+      "factor_b": "enhanced_mom",
+      "corr": 0.7839
+    },
+    {
+      "factor_a": "low_vol_20d",
+      "factor_b": "quality_mom",
+      "corr": 0.7352
+    },
+    {
+      "factor_a": "low_vol_20d",
+      "factor_b": "idiosyncratic_vol",
+      "corr": 0.7561
+    },
+    {
+      "factor_a": "turnover_rev",
+      "factor_b": "enhanced_mom",
+      "corr": 0.8009
+    },
+    {
+      "factor_a": "turnover_rev",
+      "factor_b": "quality_mom",
+      "corr": 0.7655
+    },
+    {
+      "factor_a": "turnover_rev",
+      "factor_b": "idiosyncratic_vol",
+      "corr": 0.7691
+    },
+    {
+      "factor_a": "enhanced_mom",
+      "factor_b": "quality_mom",
+      "corr": 0.9205
+    },
+    {
+      "factor_a": "enhanced_mom",
+      "factor_b": "idiosyncratic_vol",
+      "corr": 0.9144
+    },
+    {
+      "factor_a": "quality_mom",
+      "factor_b": "idiosyncratic_vol",
+      "corr": 0.8477
+    },
+    {
+      "factor_a": "ma_ratio_120",
+      "factor_b": "cgo_simple",
+      "corr": -0.8244
+    }
+  ],
+  "recommended_factors": [
+    "low_vol_20d",
+    "team_coin",
+    "shadow_lower",
+    "amihud_illiq",
+    "price_vol_divergence"
+  ],
+  "recommended_reason": "筛选条件：|IC_mean|>0.01（1 个因子 IC 不足被剔除），|t_stat|>2.0（10 个因子 t-stat 不足被剔除），|corr|>0.6 贪心去重（4 个因子被去重）。最终推荐 5 个因子：['low_vol_20d', 'team_coin', 'shadow_lower', 'amihud_illiq', 'price_vol_divergence']。"
+}
