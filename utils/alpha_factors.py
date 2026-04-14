@@ -20,8 +20,8 @@ Alpha 因子库 — quant-dojo 完整因子集
 微观结构（4）：
   shadow_upper, shadow_lower, amplitude_hidden, w_reversal
 
-行为金融（3）：
-  cgo, str_salience, team_coin
+行为金融（4）：
+  cgo, str_salience, team_coin, retail_open_trap
 
 网络/关系（2）：
   network_scc, apm_overnight
@@ -45,6 +45,8 @@ Alpha 因子库 — quant-dojo 完整因子集
   [13] Sloan 1996 / 应计异象（盈利质量）
   [14] Novy-Marx 2013 / 盈利动量（盈利加速度）
   [15] 价值投资经典 / 股息率因子
+  [16] Barber & Odean 2008 JF / A股散户开盘追涨行为
+  [17] 方正证券-A股行为金融系列（高开低走机构分配）
 """
 import numpy as np
 import pandas as pd
