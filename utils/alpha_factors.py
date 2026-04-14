@@ -1345,6 +1345,119 @@ def vwap_deviation(price: pd.DataFrame, volume: pd.DataFrame, window: int = 20) 
 
 
 # ══════════════════════════════════════════════════════════════
+# 行为金融 — 散户开盘追涨陷阱 (A股专属)
+# ══════════════════════════════════════════════════════════════
+
+def retail_open_trap(
+    close: pd.DataFrame,
+    open_price: pd.DataFrame,
+    turnover: pd.DataFrame,
+    window: int = 20,
+    gap_threshold: float = 0.01,
+    turnover_cap: float = 5.0,
+) -> pd.DataFrame:
+    """
+    散户开盘追涨陷阱因子 (Retail Open Gap Trap, ROGT)
+
+    === A 股散户行为背景 ===
+    A 股散户有强烈的"隔夜追涨"行为：
+      1. 收盘后在微信群/股吧收到推荐，带着「明天会大涨」的预期
+      2. 9:30 集中下单追涨 → 股价跳空高开（显著高于前收盘）
+      3. 机构利用散户热情在高位出货（分销）
+      4. 当天高开低走，收盘价低于开盘价
+      5. 追涨散户被套，未来几天持续抛压
+
+    当这个模式在一只股票上持续出现，说明该股正被机构系统性分发，
+    未来收益倾向于偏负。
+
+    === 与现有因子的区别 ===
+    - overnight_return：取隔夜涨跌均值，正负都算，不区分是否发生日内反转
+    - intraday_direction_efficiency：只看日内(close-open)/(high-low)，不考虑开盘跳空幅度
+    - close_minus_open_volume：方向 × 成交量，无跳空阈值，无分散户机构逻辑
+    本因子专门捕捉「显著正跳空 + 当日收盘回落 + 换手放量」三者同时成立时的信号。
+
+    === 因子构造 ===
+    Step 1: 开盘跳空幅度
+        gap = (open_t - close_{t-1}) / close_{t-1}
+        仅取正跳空（gap > gap_threshold），小跳空视为噪音
+
+    Step 2: 日内反转强度
+        intraday_fall = max(open_t - close_t, 0) / open_t
+        仅取从开盘下跌的部分（散户被套信号）
+
+    Step 3: 换手率权重
+        turnover_weight = turnover_t / rolling_mean(turnover, 60)
+        换手放大 → 散户参与度高 → 信号更强
+        cap 在 turnover_cap 倍（避免单日异常换手主导）
+
+    Step 4: 日度陷阱强度
+        daily_trap = (gap - gap_threshold).clip(0) × intraday_fall × turnover_weight
+
+    Step 5: 滚动聚合（近 window 天的平均陷阱强度）
+        raw_factor = rolling_mean(daily_trap, window)
+
+    Step 6: 取负号
+        因子值越高 = 近期陷阱越少 = 股价走势越"干净" = 预期超额收益越高
+        factor = -raw_factor
+
+    === 参数 ===
+    close          : 收盘价宽表 (日期 × 股票)
+    open_price     : 开盘价宽表 (日期 × 股票)
+    turnover       : 换手率宽表 (日期 × 股票)，单位 %
+    window         : 滚动窗口（交易日），默认 20
+    gap_threshold  : 最小有效跳空幅度，默认 1%（过滤收盘价微小波动）
+    turnover_cap   : 换手率权重上限倍数，默认 5x（防止停牌复牌日单日主导）
+
+    === 因子方向 ===
+    正向 (+1)：因子高 → 近期无散户追涨陷阱 → 价格走势干净 → 预期超额收益高
+
+    === 参考文献 ===
+    [16] Barber & Odean (2008) - Attention-Induced Trading, JF
+         散户因注意力驱动集中买入表现差的股票（高开、上涨日、新闻日）
+    [17] 方正证券 A 股行为金融系列 - 散户的开盘效应
+         A 股 9:30 集合竞价存在系统性散户追涨行为，尤其在个股有前日涨停时
+    """
+    # ── Step 1: 开盘跳空幅度（前收盘用 shift(1) 近似）──────────
+    prev_close = close.shift(1)
+    gap = (open_price - prev_close) / prev_close.replace(0, np.nan)
+
+    # 仅保留正跳空超过阈值的部分（负跳空、小跳空清零）
+    gap_excess = (gap - gap_threshold).clip(lower=0)
+
+    # ── Step 2: 日内反转强度（从开盘到收盘的下跌幅度）──────────
+    intraday_fall = (open_price - close) / open_price.replace(0, np.nan)
+    intraday_fall = intraday_fall.clip(lower=0)  # 只取下跌部分，上涨为 0
+
+    # ── Step 3: 换手率权重（相对换手，衡量散户参与强度）──────────
+    turnover_ma = turnover.rolling(60, min_periods=20).mean()
+    turnover_weight = (turnover / turnover_ma.replace(0, np.nan)).clip(
+        lower=0, upper=turnover_cap
+    )
+
+    # ── Step 4: 日度陷阱强度 ─────────────────────────────────────
+    # 三个条件同时满足才有非零值：显著正跳空 × 当日下跌 × 换手放大
+    daily_trap = gap_excess * intraday_fall * turnover_weight
+
+    # ── Step 5: 滚动聚合 ─────────────────────────────────────────
+    raw_factor = daily_trap.rolling(window, min_periods=max(window // 4, 3)).mean()
+
+    # ── Step 6: 取负号（因子越高 = 陷阱越少 = 越看多）────────────
+    factor = -raw_factor
+
+    # ── Step 7: 过滤无效零值（关键！）───────────────────────────
+    # 问题：factor 恒 ≤ 0，无跳空事件的股票 factor = 0，
+    # 这些股票（低流动性/停牌/价格不动）会污染高分位数（Q5）。
+    # 修复：窗口内至少有 min_active_days 天出现显著正跳空，
+    #       才视为因子有效；否则置 NaN（信号不足，不参与截面排序）。
+    min_active_days = max(window // 7, 2)
+    gap = (open_price - close.shift(1)) / close.shift(1).replace(0, np.nan)
+    active_count = (gap > gap_threshold).rolling(window, min_periods=1).sum()
+    factor = factor.where(active_count >= min_active_days)
+
+    return factor
+
+
+# ══════════════════════════════════════════════════════════════
 # 批量构建
 # ══════════════════════════════════════════════════════════════
 
