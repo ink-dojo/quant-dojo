@@ -854,6 +854,497 @@ def insider_buying_proxy(
 
 
 # ══════════════════════════════════════════════════════════════
+# 新增因子批次（Round 2）
+# ══════════════════════════════════════════════════════════════
+
+def high_52w_ratio(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    52 周高点锚定效应：价格距 52 周高点的接近程度。
+    公式：close / rolling(252, min_periods=126).max()
+    方向：+1，比值越高说明动量越强，锚定效应使其延续上涨。
+    """
+    return price / price.rolling(252, min_periods=126).max()
+
+
+def return_skewness_20d(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    20 日收益率偏度（彩票效应）：A 股散户偏好高偏度股票导致其被高估。
+    公式：pct_change().rolling(20, min_periods=10).skew() * -1
+    方向：-1，高偏度股票未来收益偏低，取负使高分对应看多。
+    """
+    return price.pct_change().rolling(20, min_periods=10).skew() * -1
+
+
+def beta_factor(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    低 beta 异象：低 beta 股票因被散户忽视而被低估，长期超额收益更高。
+    公式：rolling(60) cov(ret, market_ret) / var(market_ret)，取负后低 beta 得高分。
+    方向：-1，高 beta 看空；函数内取负输出，低 beta = 高因子值 = 看多。
+    """
+    ret = price.pct_change()
+    # 等权市场收益（截面均值）
+    market_ret = ret.mean(axis=1)
+
+    # 向量化 rolling beta：cov(ret_i, mkt) / var(mkt)
+    # rolling().cov(other) 对每列分别计算与 other 的滚动协方差
+    roll_cov = ret.rolling(60, min_periods=30).cov(market_ret)   # shape: date × stock
+    roll_var = market_ret.rolling(60, min_periods=30).var()       # shape: date
+
+    beta = roll_cov.div(roll_var.replace(0, np.nan), axis=0)
+    # 取负：低 beta 得高分
+    return -beta
+
+
+def max_ret_1m(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    最大单日收益（MAX effect）：过去一个月最大单日涨幅越高，未来收益越低（彩票效应）。
+    公式：pct_change().rolling(20, min_periods=10).max() * -1
+    方向：-1，高 MAX 看空，函数内取负后高值对应低 MAX 的看多方向。
+    """
+    return price.pct_change().rolling(20, min_periods=10).max() * -1
+
+
+def turnover_acceleration(turnover: pd.DataFrame) -> pd.DataFrame:
+    """
+    换手率加速：短期换手率相对中期均值的加速比，捕捉资金入场/出场信号。
+    公式：rolling(5).mean() / rolling(20).mean()
+    方向：待测试（先 +1，让 IC 告知方向）；比值 >1 表示换手加速。
+    """
+    short_mean = turnover.rolling(5, min_periods=3).mean()
+    long_mean = turnover.rolling(20, min_periods=10).mean()
+    return short_mean / long_mean.replace(0, np.nan)
+
+
+def bollinger_pct(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    Bollinger 带位置百分比：散户主导市场中，价格偏离 Bollinger 带有均值回归倾向。
+    公式：(price - lower) / (upper - lower)，然后取负后偏移 0.5 使低位置得高分。
+    方向：+1（低位置 = 超卖 = 看多），返回 -(pct - 0.5) 使超卖区域因子值为正。
+    """
+    ma20 = price.rolling(20).mean()
+    std20 = price.rolling(20).std()
+    upper = ma20 + 2 * std20
+    lower = ma20 - 2 * std20
+    band_width = (upper - lower).replace(0, np.nan)
+    pct = (price - lower) / band_width
+    # 低位置(pct→0)看多；取负后偏移 0.5 使超卖时值为正
+    return -(pct - 0.5)
+
+
+def volume_surge(price: pd.DataFrame, volume: pd.DataFrame) -> pd.DataFrame:
+    """
+    量价突增（smart money 代理）：放量上涨是机构资金入场信号，量缩下跌是出场信号。
+    公式：vol_ratio = volume / rolling(20).mean()；surge = pct_change * vol_ratio；返回 rolling(5).mean()
+    方向：+1，正值表示放量上涨（看多），负值表示放量下跌（看空）。
+    """
+    vol_mean = volume.rolling(20, min_periods=10).mean().replace(0, np.nan)
+    vol_ratio = volume / vol_mean
+    surge_flag = price.pct_change() * vol_ratio
+    return surge_flag.rolling(5).mean()
+
+
+def bid_ask_spread_proxy(high: pd.DataFrame, low: pd.DataFrame) -> pd.DataFrame:
+    """
+    买卖价差代理（简化 Corwin-Schultz spread）：high-low spread 估计流动性成本。
+    公式：spread = (high - low) / ((high + low) / 2)，rolling(20).mean()，取负。
+    方向：-1（低 spread = 流动性好 = 高因子值），取负后低成本得高分。
+    """
+    mid = (high + low) / 2
+    spread = (high - low) / mid.replace(0, np.nan)
+    spread_20d = spread.rolling(20, min_periods=10).mean()
+    return -spread_20d
+
+
+# ══════════════════════════════════════════════════════════════
+# Round 2 新因子（2026-04-14 因子挖掘会话）
+# ══════════════════════════════════════════════════════════════
+
+
+def price_anchor_dist(price: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    价格整数心理锚距离因子（A 股行为金融）。
+    A 股散户对整数价格（5/10/20 元）有强心理锚，接近整数时抛压集中。
+    frac = price % 1（小数部分）；考虑到最近整数：dist = min(frac, 1-frac)。
+    小 dist = 价格紧贴整数 = 阻力/支撑密集 → 预期短期均值回归。
+    方向：-1（高值=远离整数=阻力少=看多；取负后低 dist 高分）
+    返回值已取负（-dist 截面 z-score），高值=远离整数=看多。
+    """
+    frac = price % 1.0
+    dist_to_nearest = pd.concat([frac, 1.0 - frac], axis=0).groupby(level=0).min()
+    # 截面 z-score 标准化（消除不同时期的量级差异），取负让"远离整数"为正
+    rolling_mean = dist_to_nearest.rolling(window, min_periods=window // 2).mean()
+    rolling_std  = dist_to_nearest.rolling(window, min_periods=window // 2).std().clip(lower=1e-8)
+    zscore = (dist_to_nearest - rolling_mean) / rolling_std
+    return zscore  # 正值=当前距整数比历史更远=阻力少=看多
+
+
+def close_minus_open_volume(close: pd.DataFrame, open_price: pd.DataFrame,
+                             volume: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    价格方向 × 成交量（主力净买入代理）。
+    (close - open) * volume 捕捉单日资金净流向，rolling mean 平滑信号。
+    正值 = 持续放量上涨 = 主力吸筹；负值 = 放量下跌 = 主力出货。
+    方向：+1（持续正值 = 买方主导 = 看多）
+    """
+    direction = (close - open_price) / close.replace(0, np.nan)  # 归一化到收益率尺度
+    signal = direction * volume / volume.rolling(window, min_periods=window // 2).mean().replace(0, np.nan)
+    return signal.rolling(window, min_periods=window // 2).mean()
+
+
+def win_rate_trend(price: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    胜率趋势因子：短期胜率 vs 长期胜率的差。
+    胜率上升趋势代表资金持续流入，与量无关，捕捉纯方向性持续性。
+    方向：+1（胜率上升 = 买方持续主导 = 看多）
+    """
+    ret = price.pct_change()
+    up = (ret > 0).astype(float)
+    long_win  = up.rolling(window, min_periods=window // 2).mean()
+    short_win = up.rolling(window // 2, min_periods=max(window // 4, 3)).mean()
+    return short_win - long_win  # 正 = 最近胜率在提升
+
+def overnight_return(open_price: pd.DataFrame, close: pd.DataFrame,
+                     window: int = 20) -> pd.DataFrame:
+    """
+    隔夜收益因子：open_t / close_{t-1} - 1 的滚动均值。
+    代理信息不对称与隔夜信息流入强度，与日内动量（low_vol）机制不同。
+    方向：+1（持续正隔夜收益 = 信息积累 = 看多）
+    """
+    overnight = open_price / close.shift(1) - 1
+    return overnight.rolling(window, min_periods=window // 2).mean()
+
+
+def sharpe_20d(price: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    20 日 Sharpe 比率（风险调整后动量）。
+    = mean(ret) / std(ret)，不同于 low_vol_20d（纯波动）和动量（纯方向）。
+    方向：+1（高 Sharpe = 稳定上涨 = 看多）
+    """
+    ret = price.pct_change()
+    mean_ret = ret.rolling(window, min_periods=window // 2).mean()
+    std_ret = ret.rolling(window, min_periods=window // 2).std()
+    return mean_ret / std_ret.replace(0, np.nan)
+
+
+def up_down_volume_ratio(close: pd.DataFrame, volume: pd.DataFrame,
+                          window: int = 20) -> pd.DataFrame:
+    """
+    上涨日成交量 / 下跌日成交量 比率（买卖盘积极性代理）。
+    A 股特征：主力吸筹时上涨放量、下跌缩量；出货时相反。
+    方向：+1（高比值 = 上涨吸引更多成交 = 看多）
+    """
+    ret = close.pct_change()
+    up_vol = volume.where(ret > 0, 0).rolling(window, min_periods=window // 2).mean()
+    down_vol = volume.where(ret < 0, 0).rolling(window, min_periods=window // 2).mean()
+    return up_vol / down_vol.replace(0, np.nan)
+
+
+def ret_autocorr_1d(price: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    日收益率 lag-1 自相关系数（均值回归速度代理）。
+    高负自相关 = 快速均值回归 = 逆势因子；高正自相关 = 动量延续。
+    方向：-1（负自相关高 = 强均值回归 = 未来反转，取负后高值看空）
+    实际返回值已取负：返回 -autocorr，正向因子（低负自相关，即接近 0 或正，较稳定）。
+    """
+    ret = price.pct_change()
+
+    def _rolling_autocorr(col: pd.Series) -> pd.Series:
+        return col.rolling(window, min_periods=window // 2).apply(
+            lambda x: pd.Series(x).autocorr(lag=1) if len(x) >= 4 else np.nan,
+            raw=False
+        )
+
+    # 向量化版本：手动计算 lag-1 Pearson 相关
+    ret_lag = ret.shift(1)
+    n = window
+    # rolling cov(ret, ret_lag) / (std(ret) * std(ret_lag))
+    mean_r  = ret.rolling(n, min_periods=n // 2).mean()
+    mean_l  = ret_lag.rolling(n, min_periods=n // 2).mean()
+    cov_rl  = (ret * ret_lag).rolling(n, min_periods=n // 2).mean() - mean_r * mean_l
+    std_r   = ret.rolling(n, min_periods=n // 2).std()
+    std_l   = ret_lag.rolling(n, min_periods=n // 2).std()
+    autocorr = cov_rl / (std_r * std_l).replace(0, np.nan)
+    return -autocorr  # 取负：负自相关 → 高正值 → 看空（强均值回归后反转）
+
+
+def momentum_6m_skip1m(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    6 个月动量跳过最近 1 个月（标准截面动量因子）。
+    = price_{t-21} / price_{t-126} - 1，避免短期反转噪音。
+    A 股中长期动量效应虽弱于美股，但跳过反转期后信号更干净。
+    方向：+1（过去 6 个月（跳过最近 1 个月）涨幅高 = 看多）
+    """
+    return price.shift(21) / price.shift(126) - 1
+
+
+def vol_asymmetry(price: pd.DataFrame, window: int = 60) -> pd.DataFrame:
+    """
+    上涨/下跌波动率非对称性因子（尾部风险代理）。
+    vol_up = std(returns on positive days, window)
+    vol_down = std(returns on negative days, window)
+    asymmetry = vol_down / vol_up
+    高比值 = 下跌时波动更大 = 尾部崩溃风险高
+    低比值 = 上涨下跌对称 = 稳定股票
+    方向：-1（高 vol_down/vol_up = 高崩溃风险 = 看空）
+    """
+    ret = price.pct_change()
+    up_mask = ret > 0
+    vol_up = ret.where(up_mask).rolling(window, min_periods=window//4).std()
+    vol_down = ret.where(~up_mask).rolling(window, min_periods=window//4).std()
+    return vol_down / vol_up.replace(0, np.nan)
+
+
+def earnings_window_proxy(price: pd.DataFrame, window: int = 5) -> pd.DataFrame:
+    """
+    季末收益公告窗口代理（A 股财报披露效应）。
+    A 股季报在 4/8/10/4 月底前后披露；季末前后成交量和价格往往异动。
+    用价格相对 MA 在季末月份（3/6/9/12 月最后 20 日）的偏离度作为代理。
+    = (price - MA20) / MA20，只在季末 20 日内计算，其余置 0。
+    方向：需经 IC 验证
+    注意：这是一个季节性/日历因子，信号稀疏但可能捕捉财报效应。
+    方向：+1（季末上涨 = 预期好结果 = 动量延续）
+    """
+    ma = price.rolling(20, min_periods=10).mean().replace(0, np.nan)
+    dev = (price - ma) / ma
+    # 仅在月末 20 日内有效（月份的后 20 个交易日）
+    day_of_month = pd.Series(price.index.day, index=price.index)
+    month_end_mask = day_of_month >= 10  # 简化：月中以后的交易日
+    return dev.where(month_end_mask.values.reshape(-1, 1), 0)
+
+
+def return_zscore_20d(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    当日收益率在近 20 日收益率分布中的 z-score（极端收益信号）。
+    = (today_ret - mean_20d_ret) / std_20d_ret
+    高 z-score = 今天涨幅远超近期均值 = 短期强力追高 = 反转信号
+    低 z-score = 今天跌幅远超近期均值 = 超卖 = 反弹信号
+    方向：-1（高 z-score 当日 = 追高 = 均值回归压力）
+    """
+    ret = price.pct_change()
+    mean_ret = ret.rolling(20, min_periods=10).mean()
+    std_ret = ret.rolling(20, min_periods=10).std().clip(lower=1e-6)
+    return (ret - mean_ret) / std_ret
+
+
+def avg_intraday_range(high: pd.DataFrame, low: pd.DataFrame,
+                       price: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    平均日内波动幅度（振幅稳定性因子）。
+    = rolling_mean[(high - low) / price] over window days
+    高振幅 = 每天价格大幅波动 = 高散户情绪/噪音
+    低振幅 = 价格平稳 = 机构稳定持有或流动性不足
+    方向：-1（高振幅 = 高风险/散户主导 = 看空；低振幅 = 质量信号）
+    """
+    daily_range = (high - low) / price.replace(0, np.nan)
+    return daily_range.rolling(window, min_periods=window // 2).mean()
+
+
+def volume_concentration(volume: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    量能集中度（单日成交量峰值占比）。
+    = rolling_max(volume, window) / rolling_sum(volume, window)
+    高值：成交量集中在一天（事件驱动/消息刺激，散户一次性拥入）
+    低值：成交量均匀分布（持续稳定积累，机构有序买入信号）
+    A 股散户倾向在单日消息后集中买入，之后量能迅速萎缩并均值回归。
+    方向：-1（高集中度=非持续性拥入=后续看空；选量能均匀的稳定股票）
+    """
+    vol_max = volume.rolling(window, min_periods=window // 2).max()
+    vol_sum = volume.rolling(window, min_periods=window // 2).sum().replace(0, np.nan)
+    return vol_max / vol_sum
+
+
+def vol_regime(price: pd.DataFrame, fast: int = 20, slow: int = 120) -> pd.DataFrame:
+    """
+    波动率状态比（短期/长期波动率比较）。
+    = rolling_fast_vol / rolling_slow_vol
+    > 1：当前波动率高于历史基准 = 市场不稳定/过渡期
+    < 1：当前波动率低于历史基准 = 价格稳定/积聚期
+    在 A 股中：波动率压缩后通常会有方向性突破
+    方向：需通过 IC 测试确定（不确定是看多还是看空）
+    """
+    ret = price.pct_change()
+    vol_fast = ret.rolling(fast, min_periods=fast // 2).std()
+    vol_slow = ret.rolling(slow, min_periods=slow // 2).std().replace(0, np.nan)
+    return vol_fast / vol_slow
+
+
+def price_momentum_quality(price: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    动量质量因子（风险调整动量）。
+    = rolling_window_return / rolling_window_vol
+    = 短期夏普比率代理
+    高值 = 上涨质量好（涨而不波动）= 机构有序建仓
+    低值 = 下跌或高波动上涨 = 散户追涨或不稳定
+    方向：需通过 IC 测试确定（A 股可能是反转，也可能是动量延续）
+    """
+    ret = price.pct_change()
+    cum_ret = ret.rolling(window, min_periods=window // 2).sum()
+    vol = ret.rolling(window, min_periods=window // 2).std().clip(lower=1e-6)
+    return cum_ret / vol
+
+
+def momentum_3m_skip1m(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    3 个月动量跳过最近 1 个月（中短期截面动量）。
+    = price_{t-21} / price_{t-63} - 1
+    区别于 momentum_6m_skip1m（使用 126 日），此处用 63 日，
+    捕捉更短的趋势时间窗口。
+    A 股中短期动量通常也呈反转，但时间尺度不同于 6M。
+    方向：需通过 IC 测试确定（A 股若为反转则方向=-1）
+    """
+    return price.shift(21) / price.shift(63) - 1
+
+
+def win_rate_60d(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    60 日胜率（正收益天数占比）。
+    = rolling_60d_mean(daily_ret > 0) — 过去 60 天中正收益的频率
+    高胜率 = 持续上涨 = 超买压力（A 股散户追涨）
+    低胜率 = 持续下跌 = 超卖机会（A 股均值回归）
+    方向：-1（高胜率 = 超买 = 看空；低胜率 = 超卖 = 看多）
+    """
+    ret = price.pct_change()
+    return (ret > 0).astype(float).rolling(60, min_periods=30).mean()
+
+
+def stock_max_drawdown_60d(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    股票近 60 日个股最大回撤（风险筛选因子）。
+    = (rolling_60d_high - price) / rolling_60d_high
+    高最大回撤 = 股票近期波动大/风险高 = 看空（多头组合回避高回撤）
+    低最大回撤 = 价格相对平稳 = 低波质量股（配合 low_vol 使用）
+    方向：-1（高回撤 = 高风险 = 看空；选近期回撤小的稳定股票）
+    """
+    rolling_high = price.rolling(60, min_periods=30).max()
+    return (rolling_high - price) / rolling_high.replace(0, np.nan)
+
+
+def vol_scaled_reversal(price: pd.DataFrame, rev_window: int = 5, vol_window: int = 20) -> pd.DataFrame:
+    """
+    波动率调整的短期反转（风险归因的超买超卖）。
+    = (price/price.shift(rev_window)-1) / rolling_vol(vol_window)
+    = 短期收益率 ÷ 近期波动率 → 风险调整后的超买程度
+    rev_window=5（默认：5 日），vol_window=20（归一化波动率窗口）
+    方向：-1（高值=快涨=风险调整后超买=均值回归压力）
+    """
+    ret_5d = price / price.shift(rev_window) - 1
+    vol = price.pct_change().rolling(vol_window, min_periods=vol_window // 2).std().clip(lower=1e-6)
+    return ret_5d / vol
+
+
+def rsi_factor(price: pd.DataFrame, window: int = 14) -> pd.DataFrame:
+    """
+    RSI 因子（相对强弱指数）。
+    RSI = 100 - 100/(1+RS)，RS = avg_up / avg_down over window days。
+    低 RSI = 超卖 = 均值回归机会（A 股散户追涨杀跌导致 RSI 极端后反转）。
+    方向：-1（高 RSI = 超买 = 看空；取反后低 RSI = 超卖 = 看多）
+    """
+    delta = price.diff()
+    up = delta.clip(lower=0)
+    down = (-delta).clip(lower=0)
+    avg_up = up.rolling(window, min_periods=window // 2).mean()
+    avg_down = down.rolling(window, min_periods=window // 2).mean().replace(0, np.nan)
+    rs = avg_up / avg_down
+    return 100 - 100 / (1 + rs)
+
+
+def chaikin_money_flow(close: pd.DataFrame, high: pd.DataFrame,
+                       low: pd.DataFrame, volume: pd.DataFrame,
+                       window: int = 20) -> pd.DataFrame:
+    """
+    Chaikin 资金流量因子（CMF）。
+    CLV = (2*close - high - low) / (high - low + 1e-6)  → [-1, +1] 日内资金方向
+    CMF = rolling_sum(CLV * volume, window) / rolling_sum(volume, window)
+    CMF > 0：资金持续流入（机构吸筹）；CMF < 0：资金持续流出（出货）
+    方向：+1（高 CMF = 持续资金净流入 = 看多）
+    """
+    clv = (2 * close - high - low) / (high - low + 1e-6).clip(lower=1e-6)
+    clv_vol = clv * volume
+    cmf = (clv_vol.rolling(window, min_periods=window // 2).sum() /
+           volume.rolling(window, min_periods=window // 2).sum().replace(0, np.nan))
+    return cmf
+
+
+def price_distance_from_ma(price: pd.DataFrame, window: int = 60) -> pd.DataFrame:
+    """
+    价格相对长期均线的偏离度（均值回归距离因子）。
+    = (price - MA_window) / MA_window
+    正值：价格高于均线（均值回归压力）
+    负值：价格低于均线（均值回归动能）
+    长窗口（60d）捕捉中期超买超卖，区别于短期 RSI 指标。
+    方向：-1（正偏离 = 高于均线 = 看空，选择低于均线的超卖股票）
+    """
+    ma = price.rolling(window, min_periods=window // 2).mean().replace(0, np.nan)
+    return (price - ma) / ma
+
+
+def intraday_direction_efficiency(close: pd.DataFrame, open_price: pd.DataFrame,
+                                   high: pd.DataFrame, low: pd.DataFrame,
+                                   window: int = 20) -> pd.DataFrame:
+    """
+    日内方向效率因子（趋向一致性）。
+    = rolling_mean[(close - open) / (high - low + 1e-6)] over window days
+    正值：收盘价更靠近当日最高价（日内趋势向上，机构持续吸筹信号）
+    负值：收盘价更靠近当日最低价（日内趋势向下，主力持续出货信号）
+    方向：+1（持续正值 = 日内吸筹 = 看多）
+    """
+    numerator = close - open_price
+    denominator = (high - low).clip(lower=1e-6)
+    ratio = numerator / denominator
+    return ratio.rolling(window, min_periods=window // 2).mean()
+
+
+def turnover_trend(turnover: pd.DataFrame, fast: int = 5, slow: int = 20) -> pd.DataFrame:
+    """
+    换手率趋势（智能资金的关注度变化）。
+    = 短期换手率均值 / 长期换手率均值（换手率加速）的趋势版本
+    与 turnover_acceleration 不同：这里用的是 z-score 形式，
+    捕捉换手率的持续上升（资金开始关注）vs 持续下降（资金撤离）。
+    z = (fast_ma - slow_ma) / slow_ma.std(slow)
+    方向：-1（换手率加速上涨 = 散户涌入 = 均值回归看空）
+    """
+    fast_ma = turnover.rolling(fast, min_periods=fast // 2).mean()
+    slow_ma = turnover.rolling(slow, min_periods=slow // 2).mean().replace(0, np.nan)
+    slow_std = turnover.rolling(slow, min_periods=slow // 2).std().clip(lower=1e-8)
+    return (fast_ma - slow_ma) / slow_std
+
+
+def reversal_5d(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    5 日短期反转因子。
+    = price_{t} / price_{t-5} - 1（5 日收益率取反，用于多头选股）。
+    A 股散户短线追高后均值回归效应强，5 日窗口捕捉最近过热信号。
+    方向：-1（近 5 日涨幅高 = 过热 = 看空；取反后低值=超卖=看多）
+    """
+    return price / price.shift(5) - 1
+
+
+def reversal_12m_skip3m(price: pd.DataFrame) -> pd.DataFrame:
+    """
+    12 个月反转跳过最近 3 个月。
+    = price_{t-63} / price_{t-252} - 1，捕捉长期超强股的均值回归。
+    A 股长期强势股往往在牛熊转换中大幅回撤；跳过 3 月避短期噪音。
+    方向：-1（高 12M 涨幅 = 长期超买 = 均值回归；A 股反转效应）
+    """
+    return price.shift(63) / price.shift(252) - 1
+
+
+def vwap_deviation(price: pd.DataFrame, volume: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    价格相对 VWAP 的偏离度（成交量加权平均价偏差因子）。
+    VWAP = Σ(price * vol) / Σ(vol)，rolling window 天。
+    偏差 = (price - vwap) / vwap，标准化后代表相对成本基础的贵/便宜程度。
+    A 股散户倾向追高，价格远高于 VWAP 时通常面临压力。
+    方向：-1（正偏差=价格高于均价=浮盈筹码多=压力大；取反选择价格低于均价的股票）
+    """
+    pv = price * volume
+    rolling_pv = pv.rolling(window, min_periods=window // 2).sum()
+    rolling_v = volume.rolling(window, min_periods=window // 2).sum().replace(0, np.nan)
+    vwap = rolling_pv / rolling_v
+    return (price - vwap) / vwap.replace(0, np.nan)
+
+
+# ══════════════════════════════════════════════════════════════
 # 批量构建
 # ══════════════════════════════════════════════════════════════
 
@@ -971,6 +1462,34 @@ def build_fast_factors(
     if high is not None and low is not None and volume is not None:
         factors["insider_buying_proxy"] = insider_buying_proxy(price, high, low, volume)
 
+    # ── Round 2 新因子 ──────────────────────────────────────────
+    # 52 周高点锚定（仅需 price）
+    factors["high_52w_ratio"] = high_52w_ratio(price)
+
+    # 收益率偏度（彩票效应，仅需 price）
+    factors["return_skewness_20d"] = return_skewness_20d(price)
+
+    # 低 beta 异象（仅需 price）
+    factors["beta_factor"] = beta_factor(price)
+
+    # MAX effect（仅需 price）
+    factors["max_ret_1m"] = max_ret_1m(price)
+
+    # Bollinger 带位置（仅需 price）
+    factors["bollinger_pct"] = bollinger_pct(price)
+
+    # 换手率加速（需要 turnover）
+    if turnover is not None:
+        factors["turnover_acceleration"] = turnover_acceleration(turnover)
+
+    # 量价突增（需要 volume）
+    if volume is not None:
+        factors["volume_surge"] = volume_surge(price, volume)
+
+    # 买卖价差代理（需要 high/low）
+    if high is not None and low is not None:
+        factors["bid_ask_spread_proxy"] = bid_ask_spread_proxy(high, low)
+
     return factors
 
 
@@ -1027,6 +1546,47 @@ FACTOR_CATALOG = {
         "category": "微观结构",
         "source": "国泰君安2020-增持预测因子",
         "data": ["close", "high", "low", "volume"],
+    },
+    # ── Round 2 新因子 ──────────────────────────────────────────
+    "high_52w_ratio": {
+        "category": "动量",
+        "source": "George & Hwang 2004 / 52周高点锚定效应",
+        "data": ["close"],
+    },
+    "return_skewness_20d": {
+        "category": "行为金融",
+        "source": "Bali et al. 2011 / 彩票效应-偏度",
+        "data": ["close"],
+    },
+    "beta_factor": {
+        "category": "风险",
+        "source": "Frazzini & Pedersen 2014 / 低beta异象",
+        "data": ["close"],
+    },
+    "max_ret_1m": {
+        "category": "行为金融",
+        "source": "Bali et al. 2011 / MAX effect-彩票效应",
+        "data": ["close"],
+    },
+    "turnover_acceleration": {
+        "category": "流动性",
+        "source": "换手率加速度-资金入场信号",
+        "data": ["turnover"],
+    },
+    "bollinger_pct": {
+        "category": "技术",
+        "source": "Bollinger 1992 / 技术分析-均值回归",
+        "data": ["close"],
+    },
+    "volume_surge": {
+        "category": "微观结构",
+        "source": "量价突增-smart money代理",
+        "data": ["close", "volume"],
+    },
+    "bid_ask_spread_proxy": {
+        "category": "流动性",
+        "source": "Corwin & Schultz 2012 / high-low spread估计",
+        "data": ["high", "low"],
     },
 }
 

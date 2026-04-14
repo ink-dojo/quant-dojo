@@ -25,7 +25,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PYTHON="/opt/homebrew/opt/python@3.11/libexec/bin/python"
-STRATEGY="v10"
+STRATEGY="v16"
 LOG_DIR="logs"
 mkdir -p "$LOG_DIR"
 
