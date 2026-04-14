@@ -149,9 +149,12 @@ def _portfolio_card() -> dict:
         row = dict(zip(header, last))
         nav = float(row.get("nav", row.get("total_value", 1.0)))
         last_date = row.get("date", "?")
-        initial = 1.0
+        # 初始净值：优先读 initial_capital 列；否则取第一条数据行的 nav
         if "initial_capital" in header:
             initial = float(row.get("initial_capital", 1.0)) or 1.0
+        else:
+            first = dict(zip(header, lines[1].split(",")))
+            initial = float(first.get("nav", first.get("total_value", 1.0))) or 1.0
         pnl = (nav / initial - 1) * 100 if initial else 0.0
         return {
             "key": "portfolio",

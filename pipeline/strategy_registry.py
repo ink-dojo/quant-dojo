@@ -417,6 +417,29 @@ def _register_builtins() -> None:
         factory=lambda params: _MultiFactorV9Adapter(n_stocks=params.get("n_stocks", 30)),
     ))
 
+    # ── 6. 多因子选股策略 v10（因子审计推荐，5 因子无冗余）──────────
+    register(StrategyEntry(
+        id="multi_factor_v10",
+        name="多因子选股策略 v10（审计精选，5 因子）",
+        description=(
+            "基于 2022-2025 因子审计结果，保留 ICIR>0.37 且 t>2.0 且互不高度相关的 5 个因子："
+            "low_vol_20d（ICIR=0.72）/ team_coin（ICIR=0.63）/ shadow_lower（ICIR=-0.49，方向取反）/"
+            "amihud_illiq（ICIR=0.38）/ price_vol_divergence（ICIR=0.38）。"
+            "全部 IC 加权合成 + 行业中性化；high/low/volume 不可用时对应因子跳过。"
+        ),
+        hypothesis=(
+            "剔除 v9 中 IC 不显著（bp、industry_momentum、insider_buying_proxy）"
+            "及高相关冗余（idiosyncratic_vol 与 low_vol_20d 相关 0.76）因子，"
+            "用流动性溢价（amihud）和价量背离替换，提升因子正交性和信号稳定性。"
+        ),
+        params=[
+            StrategyParam("n_stocks", "选股数量", 30, "int"),
+        ],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV10Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
 
 class _MultiFactorAdapter:
     """
@@ -732,6 +755,119 @@ class _MultiFactorV9Adapter:
         # ── 行业分类（用于中性化）────────────────────────────────
         # industry_map 已在上方加载，直接复用
         config = StrategyConfig(name="multi_factor_v9")
+        strategy = MultiFactorStrategy(
+            config=config,
+            factors=factors,
+            n_stocks=self.n_stocks,
+            ic_weighting=True,
+            industry_map=industry_map,
+            neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        """获取日收益率"""
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV10Adapter:
+    """
+    多因子策略 v10 适配器 — 因子审计精选，5 个互不高度相关的有效因子。
+
+    因子组合（2022-2025 审计结果）：
+      - low_vol_20d        ICIR=+0.72，纯价格
+      - team_coin          ICIR=+0.63，纯价格
+      - shadow_lower       ICIR=-0.49，方向取反（需要 low 宽表）
+      - amihud_illiq       ICIR=+0.38（需要 volume 宽表）
+      - price_vol_divergence ICIR=+0.38（需要 volume 宽表）
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        """
+        计算 v10 因子集并运行多因子策略。
+
+        参数:
+            price_wide: 收盘价宽表 (date × symbol)
+
+        返回:
+            回测结果 DataFrame
+        """
+        from utils.alpha_factors import (
+            low_vol_20d,
+            team_coin,
+            shadow_lower,
+            amihud_illiquidity,
+            price_volume_divergence,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end = str(price_wide.index[-1].date())
+
+        # ── 纯价格因子（始终可用）────────────────────────────────
+        try:
+            factors["low_vol_20d"] = (low_vol_20d(price_wide), 1)
+        except Exception as e:
+            _log.warning("low_vol_20d 计算失败，跳过: %s", e)
+
+        try:
+            factors["team_coin"] = (team_coin(price_wide), 1)
+        except Exception as e:
+            _log.warning("team_coin 计算失败，跳过: %s", e)
+
+        # ── 需要 low 宽表 ─────────────────────────────────────────
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                sl = shadow_lower(price_wide, low_wide.reindex_like(price_wide))
+                factors["shadow_lower"] = (sl, -1)  # 负向因子：IC=-0.056
+            else:
+                _log.warning("low 宽表为空，shadow_lower 跳过")
+        except Exception as e:
+            _log.warning("shadow_lower 计算失败（low 数据不可用），跳过: %s", e)
+
+        # ── 需要 volume 宽表 ──────────────────────────────────────
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty:
+                vol_wide = None
+                _log.warning("volume 宽表为空，amihud_illiq / price_vol_divergence 跳过")
+        except Exception as e:
+            _log.warning("volume 数据加载失败，跳过: %s", e)
+
+        if vol_wide is not None:
+            try:
+                factors["amihud_illiq"] = (
+                    amihud_illiquidity(price_wide, vol_wide.reindex_like(price_wide)), 1
+                )
+            except Exception as e:
+                _log.warning("amihud_illiq 计算失败，跳过: %s", e)
+
+            try:
+                factors["price_vol_divergence"] = (
+                    price_volume_divergence(price_wide, vol_wide.reindex_like(price_wide)), 1
+                )
+            except Exception as e:
+                _log.warning("price_vol_divergence 计算失败，跳过: %s", e)
+
+        # ── 行业分类（中性化）────────────────────────────────────
+        industry_map = _load_industry_map(symbols)
+
+        config = StrategyConfig(name="multi_factor_v10")
         strategy = MultiFactorStrategy(
             config=config,
             factors=factors,

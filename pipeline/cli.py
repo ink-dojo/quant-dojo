@@ -429,6 +429,19 @@ def _prev_trading_date(date_str: str) -> str:
     return d.isoformat()
 
 
+def cmd_prev_trading_date(args):
+    """
+    输出给定日期的前一个 A 股交易日，供 shell 脚本调用。
+
+    用法:
+        python -m pipeline.cli prev-trading-date 2026-04-13
+        → 2026-04-10
+    """
+    import datetime as _dt
+    date_str = args.date or _dt.date.today().isoformat()
+    print(_prev_trading_date(date_str))
+
+
 def cmd_rebalance_run(args):
     """
     执行调仓：读取前一交易日信号，用当日开盘价成交。
@@ -1301,7 +1314,7 @@ def main():
     p_sig_run = sig_sub.add_parser("run", help="运行每日选股信号生成")
     p_sig_run.add_argument("--date", type=str, default=None, help="日期 YYYY-MM-DD（默认今日）")
     p_sig_run.add_argument("--strategy", type=str,
-                           choices=["ad_hoc", "v7", "v8", "v9", "auto_gen"], default="v7",
+                           choices=["ad_hoc", "v7", "v8", "v9", "v10", "auto_gen"], default="v10",
                            help="因子策略（默认 v7）")
 
     # ── rebalance ────────────────────────────────────────────
@@ -1313,7 +1326,7 @@ def main():
     p_reb_run = reb_sub.add_parser("run", help="执行调仓")
     p_reb_run.add_argument("--date", type=str, required=True, help="调仓日期 YYYY-MM-DD")
     p_reb_run.add_argument("--strategy", type=str,
-                           choices=["ad_hoc", "v7", "v8", "v9", "auto_gen"], default="v7",
+                           choices=["ad_hoc", "v7", "v8", "v9", "v10", "auto_gen"], default="v10",
                            help="因子策略（默认 v7）")
 
     # ── risk ─────────────────────────────────────────────────
@@ -1431,6 +1444,9 @@ def main():
     p_idea.add_argument("--end", type=str, default="2025-12-31",
                         help="回测结束日期 YYYY-MM-DD（默认 2025-12-31）")
 
+    p_ptd = subparsers.add_parser("prev-trading-date", help="输出前一个 A 股交易日（供 shell 脚本调用）")
+    p_ptd.add_argument("date", nargs="?", default=None, help="日期 YYYY-MM-DD（默认今天）")
+
     subparsers.add_parser("positions", help="查看当前模拟盘持仓")
     subparsers.add_parser("performance", help="查看模拟盘绩效指标")
     p_fh = subparsers.add_parser("factor-health", help="因子健康度检查")
@@ -1469,6 +1485,7 @@ def main():
         "factor-health": cmd_factor_health,
         "strategies": cmd_strategies,
         "doctor": cmd_doctor,
+        "prev-trading-date": cmd_prev_trading_date,
         # idea-to-strategy 流水线
         "idea": cmd_idea,
         # 兼容旧命令
