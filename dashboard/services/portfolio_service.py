@@ -76,6 +76,32 @@ def get_nav_history() -> list[dict]:
         return []
 
 
+def get_trades_history(limit: int = 100) -> dict:
+    """
+    读取 live/portfolio/trades.json 并返回最近 N 条成交记录（倒序）。
+
+    trades.json 每条形如 {"date","symbol","action","shares","price","cost"}。
+
+    返回:
+        {"count": total_count, "trades": [...]}；
+        文件缺失时返回 {"count": 0, "trades": []}。
+    """
+    import json
+    from pathlib import Path
+
+    trades_file = Path(__file__).parent.parent.parent / "live" / "portfolio" / "trades.json"
+    if not trades_file.exists():
+        return {"count": 0, "trades": []}
+    try:
+        data = json.loads(trades_file.read_text(encoding="utf-8"))
+        if not isinstance(data, list):
+            return {"count": 0, "trades": []}
+        # 最新的在前
+        return {"count": len(data), "trades": data[::-1][:limit]}
+    except Exception:
+        return {"count": 0, "trades": []}
+
+
 if __name__ == "__main__":
     print("=== portfolio summary ===")
     summary = get_portfolio_summary()
