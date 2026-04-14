@@ -50,6 +50,8 @@ logger = logging.getLogger(__name__)
 STRATEGY_FACTORS = {
     "v7": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp"],
     "v8": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp", "shadow_lower"],
+    "v9": ["low_vol_20d", "team_coin", "bp", "idiosyncratic_vol", "industry_momentum", "insider_buying_proxy"],
+    "v10": ["low_vol_20d", "team_coin", "shadow_lower", "amihud_illiq", "price_vol_divergence"],
     "ad_hoc": ["momentum_20", "ep", "low_vol", "turnover_rev"],
     # auto_gen 因子列表是动态的，从 strategies/generated/auto_gen_latest.json 加载
     "auto_gen": [],
@@ -512,8 +514,10 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
         print(f"  因子: {', '.join(factor_names)}")
 
         # 因子统计 + 相关性矩阵
+        # 用次日收益（forward return）计算 IC：ret_wide.loc[t] = close[t+1]/close[t] - 1
+        # pct_change().shift(-1) 将每行移为次日收益，与 T 日因子配对 → 正确的 1 日 forward IC
         from utils.factor_analysis import compute_ic_series
-        ret_wide = price_wide.pct_change()
+        ret_wide = price_wide.pct_change().shift(-1)
         factor_stats = {}
         ic_dict = {}
         for name, (fac_wide, direction) in factors.items():
