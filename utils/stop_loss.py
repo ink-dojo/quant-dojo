@@ -150,6 +150,57 @@ def portfolio_stop(
     return result
 
 
+def half_position_stop(
+    portfolio_ret: pd.Series,
+    threshold: float = -0.08,
+) -> pd.Series:
+    """
+    组合降仓止损：累计回撤超过 threshold 时将持仓规模降至 50%，
+    净值创新高后自动恢复满仓。
+
+    状态机：
+    - 满仓状态：跟踪当前净值 vs 历史高点。若回撤 < threshold → 切到半仓。
+    - 半仓状态：日收益乘以 0.5（现金部分收益视为 0）。净值创新高 → 恢复满仓。
+
+    与 portfolio_stop 的区别：
+    - portfolio_stop 触发后归零（完全清仓）
+    - half_position_stop 触发后乘以 0.5（保留一半仓位）
+
+    参数:
+        portfolio_ret: 日收益率 Series
+        threshold: 回撤触发阈值，默认 -0.08（-8%）
+
+    返回:
+        修改后的日收益率 Series
+    """
+    if len(portfolio_ret) == 0:
+        return portfolio_ret.copy()
+
+    result = portfolio_ret.copy()
+    in_full = True
+    peak = 1.0
+    nav = 1.0
+
+    for i in range(len(portfolio_ret)):
+        daily_ret = portfolio_ret.iloc[i]
+        scale = 1.0 if in_full else 0.5
+        adjusted_ret = daily_ret * scale
+        result.iloc[i] = adjusted_ret
+        nav = nav * (1 + adjusted_ret)
+
+        if in_full:
+            if nav > peak:
+                peak = nav
+            elif (nav - peak) / peak < threshold:
+                in_full = False
+        else:
+            if nav > peak:
+                in_full = True
+                peak = nav
+
+    return result
+
+
 if __name__ == "__main__":
     # 冒烟测试
     import numpy as np
