@@ -60,20 +60,31 @@ def get_factor_health() -> dict:
             {"error": "<异常信息>", "factors": {}}
     """
     try:
-        from pipeline.factor_monitor import factor_health_report
+        from pipeline.factor_monitor import factor_health_report, FACTOR_PRESETS
+        from pipeline.active_strategy import get_active_strategy
 
-        raw = factor_health_report()
+        # 用当前活跃策略的因子集；fallback 到 v16 → legacy
+        try:
+            active_id = get_active_strategy().lstrip("multi_factor_")
+        except Exception:
+            active_id = "v16"
+        factor_list = FACTOR_PRESETS.get(active_id) or FACTOR_PRESETS.get("v16") or FACTOR_PRESETS["legacy"]
+
+        raw = factor_health_report(factors=factor_list)
         factors: dict[str, Any] = {}
         for factor_name, info in raw.items():
+            if factor_name == "__meta__":
+                continue
             raw_status = info.get("status", "no_data")
             normalized = _STATUS_MAP.get(raw_status, "warning")
             factors[factor_name] = {
                 "rolling_ic": info.get("rolling_ic"),
+                "t_stat": info.get("t_stat"),
                 "status": normalized,
             }
         return factors
-    except Exception:
-        return {"error": "Internal server error", "factors": {}}
+    except Exception as e:
+        return {"error": str(e), "factors": {}}
 
 
 def get_factor_snapshot() -> dict:

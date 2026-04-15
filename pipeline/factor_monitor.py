@@ -178,6 +178,12 @@ FACTOR_PRESETS = {
     "v7": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp"],
     # v8 = v7 + shadow_lower 微观结构因子
     "v8": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp", "shadow_lower"],
+    # v16 = 当前生产策略，9因子，IC加权，A股反转主导
+    "v16": [
+        "low_vol_20d", "team_coin", "shadow_lower", "amihud_illiquidity",
+        "price_vol_divergence", "high_52w_ratio", "turnover_acceleration",
+        "momentum_6m_skip1m", "win_rate_60d",
+    ],
     # v9 = 重组因子集：保留 v7 三个核心因子，新增特质波动率 / 行业动量 / 增持代理
     # 覆盖四类：技术(low_vol_20d) + 行为金融(team_coin) + 基本面(bp) + 风险(idiosyncratic_vol)
     #           行业轮动(industry_momentum) + 微观结构(insider_buying_proxy)
