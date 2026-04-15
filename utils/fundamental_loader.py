@@ -3,9 +3,11 @@
 提供个股估值指标（PE/PB/PS）、财务摘要、行业分类
 数据源：akshare（百度股市通 + 新浪财经 + 东方财富）
 """
+import logging
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +15,12 @@ import pandas as pd
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "fundamentals"
 WIDE_DIR = RAW_DIR / "wide"
 LEGACY_INDUSTRY_CSV = Path(__file__).parent.parent / "data" / "raw" / "industry_baostock.csv"
+
+_INDUSTRY_CACHE_PATH = RAW_DIR / "industry_sw.parquet"
+# 申万行业调整频率低（季度级别），30 天 TTL 足够
+_INDUSTRY_CACHE_TTL = timedelta(days=30)
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────
@@ -159,44 +167,61 @@ def get_financials(
 # 行业分类
 # ─────────────────────────────────────────────
 
-def get_industry_classification(
-    symbols: list = None,
-    use_cache: bool = True,
-) -> pd.DataFrame:
+def refresh_industry_classification(force: bool = False) -> pd.DataFrame:
     """
-    获取个股申万行业分类（一次拉取全量，速度快）
+    从 akshare 拉取最新申万行业分类并写缓存。
+
+    正常情况下调用方不需要直接调此函数——`get_industry_classification` 会在
+    缓存过期（>30 天）时自动触发。仅在需要强制刷新时手动调用。
 
     参数:
-        symbols  : 股票代码列表，如 ["000001", "600519"]；为 None 返回全部
-        use_cache: 是否使用缓存
+        force: True 则忽略 TTL，强制从 akshare 重拉
 
     返回:
-        DataFrame，列：symbol, industry_code
+        DataFrame，列：symbol, industry_code（全 A 股）
+
+    降级策略:
+        akshare 不可用时使用旧缓存（如存在）；两者都没有则用 legacy CSV
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    cache_path = RAW_DIR / "industry_sw.parquet"
 
-    if use_cache and cache_path.exists():
-        df = pd.read_parquet(cache_path)
-    else:
-        try:
-            import akshare as ak
-            # 申万行业分类：一次调用返回全部A股的行业归属历史
-            raw = ak.stock_industry_clf_hist_sw()
-            # 每只股票取最新的行业分类（按 start_date 最新）
-            df = (
-                raw.sort_values("start_date")
-                .drop_duplicates(subset="symbol", keep="last")
-                [["symbol", "industry_code"]]
-                .reset_index(drop=True)
-            )
-            df.to_parquet(cache_path, index=False)
-        except Exception as exc:
-            if not LEGACY_INDUSTRY_CSV.exists():
-                raise
-            warnings.warn(
-                f"在线行业分类拉取失败，回退到本地 industry_baostock.csv: {exc}"
-            )
+    # TTL 检查（非 force 模式）
+    if not force and _INDUSTRY_CACHE_PATH.exists():
+        mtime = datetime.fromtimestamp(_INDUSTRY_CACHE_PATH.stat().st_mtime)
+        age = datetime.now() - mtime
+        if age < _INDUSTRY_CACHE_TTL:
+            logger.debug("申万行业缓存有效（age=%.1f 天），跳过刷新", age.days + age.seconds / 86400)
+            return pd.read_parquet(_INDUSTRY_CACHE_PATH)
+
+    logger.info("刷新申万行业分类（akshare）...")
+    try:
+        import akshare as ak
+        raw = ak.stock_industry_clf_hist_sw()
+        df = (
+            raw.sort_values("start_date")
+            .drop_duplicates(subset="symbol", keep="last")
+            [["symbol", "industry_code"]]
+            .reset_index(drop=True)
+        )
+        # 原子写：tmp + rename，防止拉取中途崩溃污染缓存
+        tmp = _INDUSTRY_CACHE_PATH.with_suffix(".parquet.tmp")
+        df.to_parquet(tmp, index=False)
+        tmp.replace(_INDUSTRY_CACHE_PATH)
+        logger.info("申万行业分类已刷新：%d 只股票，%d 个行业",
+                    len(df), df["industry_code"].nunique())
+        return df
+
+    except Exception as exc:
+        logger.warning("akshare 申万行业拉取失败: %s", exc)
+        # 优先使用旧缓存（哪怕过期了，比没有强）
+        if _INDUSTRY_CACHE_PATH.exists():
+            mtime = datetime.fromtimestamp(_INDUSTRY_CACHE_PATH.stat().st_mtime)
+            age_days = (datetime.now() - mtime).days
+            logger.warning("使用旧缓存（age=%d 天）", age_days)
+            return pd.read_parquet(_INDUSTRY_CACHE_PATH)
+        # 最后降级：legacy baostock CSV
+        if LEGACY_INDUSTRY_CSV.exists():
+            logger.warning("回退到 legacy industry_baostock.csv")
             legacy = pd.read_csv(LEGACY_INDUSTRY_CSV)
             legacy["symbol"] = legacy["code"].astype(str).str.split(".").str[-1]
             legacy = legacy.rename(columns={"industry": "industry_code"})
@@ -206,8 +231,30 @@ def get_industry_classification(
                 .drop_duplicates(subset="symbol", keep="last")
                 .reset_index(drop=True)
             )
-            df.to_parquet(cache_path, index=False)
+            # 不写缓存（legacy 数据已经是旧的，不要假装它是新的）
+            return df
+        raise RuntimeError("申万行业分类不可用：akshare 失败，无缓存，无 legacy CSV") from exc
 
+
+def get_industry_classification(
+    symbols: list = None,
+    use_cache: bool = True,
+) -> pd.DataFrame:
+    """
+    获取申万行业分类。缓存 30 天自动刷新（不会永远用旧数据）。
+
+    参数:
+        symbols  : 股票代码列表，如 ["000001", "600519"]；None 返回全部
+        use_cache: False 则强制从 akshare 重拉（等同于 refresh_industry_classification(force=True)）
+
+    返回:
+        DataFrame，列：symbol, industry_code
+
+    调用逻辑:
+        use_cache=True  → TTL 检查 → 未过期: 读缓存；过期: 自动刷新
+        use_cache=False → 强制刷新
+    """
+    df = refresh_industry_classification(force=(not use_cache))
     if symbols is not None:
         return df[df["symbol"].isin(symbols)].reset_index(drop=True)
     return df

@@ -55,8 +55,15 @@ step() {
     echo "━━━ $1 ━━━ $(date '+%H:%M:%S')"
 }
 
+# ── Step 0: 申万行业分类（30 天 TTL，过期才真正打网络）──
+# --quiet：缓存有效时静默退出；过期或首次才刷新并打印
+step "Step 0/6: 申万行业分类（TTL 检查）"
+"$PYTHON" scripts/refresh_industry.py --quiet || {
+    echo "⚠ 申万行业刷新失败，使用旧缓存继续"
+}
+
 # ── Step 1: 数据更新（拉最新 A 股日行情到今天）──
-step "Step 1/5: 数据更新"
+step "Step 1/6: 数据更新"
 "$PYTHON" -m pipeline.cli data update --source tushare || {
     echo "⚠ 数据更新失败（可能是非交易日或网络问题），继续使用现有数据"
 }
@@ -64,19 +71,19 @@ step "Step 1/5: 数据更新"
 # ── Step 2: 生成昨日（T 日）信号 ──
 # 用 prev-trading-date 命令计算前一 A 股交易日（正确处理节假日，不只跳周末）
 SIGNAL_DATE=$("$PYTHON" -m pipeline.cli prev-trading-date "$TRADE_DATE")
-step "Step 2/5: 生成 T 日信号 (signal_date=$SIGNAL_DATE, strategy=$STRATEGY)"
+step "Step 2/6: 生成 T 日信号 (signal_date=$SIGNAL_DATE, strategy=$STRATEGY)"
 "$PYTHON" -m pipeline.cli signal run --strategy "$STRATEGY" --date "$SIGNAL_DATE"
 
 # ── Step 3: 用 T+1 日开盘价执行调仓 ──
-step "Step 3/5: 调仓执行（用 ${TRADE_DATE} 开盘价成交）"
+step "Step 3/6: 调仓执行（用 ${TRADE_DATE} 开盘价成交）"
 "$PYTHON" -m pipeline.cli rebalance run --strategy "$STRATEGY" --date "$TRADE_DATE"
 
 # ── Step 4: 风险检查 ──
-step "Step 4/5: 风险检查"
+step "Step 4/6: 风险检查"
 "$PYTHON" -m pipeline.cli risk check
 
 # ── Step 5: 持仓确认 ──
-step "Step 5/5: 持仓确认"
+step "Step 5/6: 持仓确认"
 "$PYTHON" -m pipeline.cli positions
 echo ""
 "$PYTHON" -m pipeline.cli performance
