@@ -29,6 +29,7 @@ import pandas as pd
 from strategies.base import StrategyConfig
 from strategies.multi_factor import MultiFactorStrategy
 from utils.local_data_loader import load_price_wide, get_all_symbols, load_factor_wide
+from utils.listing_metadata import universe_alive_during
 from utils.metrics import (
     annualized_return,
     annualized_volatility,
@@ -487,9 +488,18 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
 
         # ── 1. 加载价格数据 ──────────────────────────────────
         print("  加载价格数据...")
-        symbols = get_all_symbols()
         # 回看窗口：因子计算需要历史数据
         lookback_start = str(int(config.start[:4]) - config.lookback_years) + config.start[4:]
+
+        # 用"在 [lookback_start, end] 任一时刻存活过"的股票并集，修复幸存者偏差：
+        # 已退市股票回测时仍参与，避免现在活着的股票相对被高估。
+        # 逐日 rebalance 时由下游策略/universe_at_date 再过滤当日存活股票。
+        try:
+            symbols = universe_alive_during(lookback_start, config.end, require_local_data=True)
+            print(f"  股票池（历史感知）: {len(symbols)} 只（survivorship-aware）")
+        except Exception as exc:
+            logger.warning("listing_metadata 不可用，退回 get_all_symbols（有幸存者偏差）: %s", exc)
+            symbols = get_all_symbols()
 
         price_wide = load_price_wide(symbols, lookback_start, config.end, field="close")
         if price_wide.empty:

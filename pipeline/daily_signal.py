@@ -31,6 +31,7 @@ from utils.local_data_loader import (
     load_factor_wide,
     get_all_symbols,
 )
+from utils.listing_metadata import universe_at_date
 
 SIGNAL_DIR = Path(__file__).parent.parent / "live" / "signals"
 SNAPSHOT_DIR = Path(__file__).parent.parent / "live" / "factor_snapshot"
@@ -89,14 +90,23 @@ def run_daily_pipeline(
     if n_stocks is None:
         n_stocks = default_n_stocks
 
-    if symbols is None:
-        symbols = get_all_symbols()
-
-    n_input_symbols = len(symbols)
-
     # 确定日期范围（因子计算需要回看窗口）
     end = date or datetime.now().strftime("%Y-%m-%d")
     start = str(int(end[:4]) - 1) + end[4:]  # 回看1年
+
+    if symbols is None:
+        # 用"当日已上市且尚未退市"的股票池，修复幸存者偏差。
+        # 若元数据模块失败（首次运行网络异常等），退回 get_all_symbols()
+        try:
+            symbols = universe_at_date(end, require_local_data=True)
+            if not symbols:
+                warnings.warn(f"universe_at_date({end}) 返回空，退回 get_all_symbols")
+                symbols = get_all_symbols()
+        except Exception as exc:
+            warnings.warn(f"listing_metadata 不可用，退回 get_all_symbols（有幸存者偏差）: {exc}")
+            symbols = get_all_symbols()
+
+    n_input_symbols = len(symbols)
 
     # ── 加载数据 ──────────────────────────────────────────────
     try:
