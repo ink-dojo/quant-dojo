@@ -679,6 +679,13 @@ def run_daily_pipeline(
         }
 
     # ── 元数据 ────────────────────────────────────────────────
+    # 数据 vintage 指纹：记录当次用的输入数据状态，便于事后复查
+    try:
+        from utils.data_manifest import compute_data_manifest
+        data_manifest = compute_data_manifest(symbols=symbols)
+    except Exception as _mf_exc:
+        data_manifest = {"status": "error", "error": str(_mf_exc)}
+
     metadata = {
         "n_input_symbols": n_input_symbols,
         "n_after_filters": n_after_filters,
@@ -690,6 +697,7 @@ def run_daily_pipeline(
             "min_listing_days": min_listing_days,
         },
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "data_manifest": data_manifest,
     }
 
     result = {
