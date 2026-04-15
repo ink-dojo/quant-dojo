@@ -53,6 +53,44 @@ import pandas as pd
 
 
 # ══════════════════════════════════════════════════════════════
+# 因子 winsorize 契约
+# ══════════════════════════════════════════════════════════════
+#
+# 本文件中大多数因子**默认不自我 winsorize**，依赖调用方（通常是
+# strategies/multi_factor.py:_winsorize_zscore，±3σ 截尾）做全局去极值。
+#
+# 但以下类别的因子**必须自我 winsorize**，以免在非 multi_factor 路径
+# （notebook 直接 IC / daily_signal 单因子查看 / 新策略接入）下产生爆炸值：
+#   1. 估值倒数（ep / bp）：PE 或 PB 接近 0 时值会炸到百千量级
+#   2. 对数收益减方差惩罚（enhanced/quality_momentum）：窗口早期
+#      sigma 极小会让 3000 * sigma^2 相对 ret_n 接近 0，但极端个股的
+#      ret_n 本身能到数倍量级
+#   3. 比率型因子（vol_asymmetry = vol_down/vol_up）：分母小会炸
+#   4. 归一化但无硬边界的微观结构因子（volume_surge / close_minus_open_volume
+#      / overnight_return / bid_ask_spread_proxy / earnings_window_proxy）
+#
+# 自我 winsorize 用截面 1%/99% quantile clip（MAD-free，对分布形状不敏感），
+# 而不是 ±3σ。理由：σ 本身受极端值影响，quantile 更鲁棒。
+
+
+def _cross_winsorize(df: pd.DataFrame, lower_q: float = 0.01,
+                     upper_q: float = 0.99) -> pd.DataFrame:
+    """逐日截面 quantile clip。
+
+    对每个交易日独立计算 lower_q / upper_q 分位数并 clip，NaN 不参与统计。
+    当截面有效样本 <5 时该日不处理，原样返回（避免对稀疏截面过度截断）。
+    """
+    def _clip_row(row: pd.Series) -> pd.Series:
+        valid = row.dropna()
+        if len(valid) < 5:
+            return row
+        lo = valid.quantile(lower_q)
+        hi = valid.quantile(upper_q)
+        return row.clip(lower=lo, upper=hi)
+    return df.apply(_clip_row, axis=1)
+
+
+# ══════════════════════════════════════════════════════════════
 # 技术/统计因子
 # ══════════════════════════════════════════════════════════════
 
@@ -80,7 +118,7 @@ def enhanced_momentum(price: pd.DataFrame, window: int = 60) -> pd.DataFrame:
     log_ret = np.log(price / price.shift(1))
     ret_n = log_ret.rolling(window).sum()
     sigma = log_ret.rolling(window).std()
-    return ret_n - 3000 * sigma ** 2
+    return _cross_winsorize(ret_n - 3000 * sigma ** 2)
 
 
 def quality_momentum(price: pd.DataFrame, window: int = 60) -> pd.DataFrame:
@@ -95,7 +133,7 @@ def quality_momentum(price: pd.DataFrame, window: int = 60) -> pd.DataFrame:
     filtered = ret.where(ret.abs() < 0.095, 0)
     cum_ret = filtered.rolling(window).sum()
     sigma = filtered.rolling(window).std()
-    return cum_ret - 3000 * sigma ** 2
+    return _cross_winsorize(cum_ret - 3000 * sigma ** 2)
 
 
 def ma_ratio_momentum(price: pd.DataFrame, window: int = 120) -> pd.DataFrame:
@@ -105,7 +143,7 @@ def ma_ratio_momentum(price: pd.DataFrame, window: int = 120) -> pd.DataFrame:
     来源：QuantsPlaybook/B-因子构建类/再论动量因子
     取负：MA/Price > 1 说明价格在 MA 下方（看空）
     """
-    return -(price.rolling(window).mean() / price)
+    return _cross_winsorize(-(price.rolling(window).mean() / price))
 
 
 # ══════════════════════════════════════════════════════════════
@@ -144,13 +182,13 @@ def amihud_illiquidity(price: pd.DataFrame, volume: pd.DataFrame,
 # ══════════════════════════════════════════════════════════════
 
 def ep_factor(pe_wide: pd.DataFrame) -> pd.DataFrame:
-    """盈利收益率：1/PE（PE<=0 设 NaN）"""
-    return 1.0 / pe_wide.where(pe_wide > 0)
+    """盈利收益率：1/PE（PE<=0 设 NaN）。截面 1%/99% quantile winsorize。"""
+    return _cross_winsorize(1.0 / pe_wide.where(pe_wide > 0))
 
 
 def bp_factor(pb_wide: pd.DataFrame) -> pd.DataFrame:
-    """账面市值比：1/PB（PB<=0 设 NaN）"""
-    return 1.0 / pb_wide.where(pb_wide > 0)
+    """账面市值比：1/PB（PB<=0 设 NaN）。截面 1%/99% quantile winsorize。"""
+    return _cross_winsorize(1.0 / pb_wide.where(pb_wide > 0))
 
 
 def roe_factor(pe_wide: pd.DataFrame, pb_wide: pd.DataFrame) -> pd.DataFrame:
@@ -942,7 +980,7 @@ def volume_surge(price: pd.DataFrame, volume: pd.DataFrame) -> pd.DataFrame:
     vol_mean = volume.rolling(20, min_periods=10).mean().replace(0, np.nan)
     vol_ratio = volume / vol_mean
     surge_flag = price.pct_change() * vol_ratio
-    return surge_flag.rolling(5).mean()
+    return _cross_winsorize(surge_flag.rolling(5).mean())
 
 
 def bid_ask_spread_proxy(high: pd.DataFrame, low: pd.DataFrame) -> pd.DataFrame:
@@ -954,7 +992,7 @@ def bid_ask_spread_proxy(high: pd.DataFrame, low: pd.DataFrame) -> pd.DataFrame:
     mid = (high + low) / 2
     spread = (high - low) / mid.replace(0, np.nan)
     spread_20d = spread.rolling(20, min_periods=10).mean()
-    return -spread_20d
+    return _cross_winsorize(-spread_20d)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -990,7 +1028,7 @@ def close_minus_open_volume(close: pd.DataFrame, open_price: pd.DataFrame,
     """
     direction = (close - open_price) / close.replace(0, np.nan)  # 归一化到收益率尺度
     signal = direction * volume / volume.rolling(window, min_periods=window // 2).mean().replace(0, np.nan)
-    return signal.rolling(window, min_periods=window // 2).mean()
+    return _cross_winsorize(signal.rolling(window, min_periods=window // 2).mean())
 
 
 def win_rate_trend(price: pd.DataFrame, window: int = 20) -> pd.DataFrame:
@@ -1013,7 +1051,7 @@ def overnight_return(open_price: pd.DataFrame, close: pd.DataFrame,
     方向：+1（持续正隔夜收益 = 信息积累 = 看多）
     """
     overnight = open_price / close.shift(1) - 1
-    return overnight.rolling(window, min_periods=window // 2).mean()
+    return _cross_winsorize(overnight.rolling(window, min_periods=window // 2).mean())
 
 
 def sharpe_20d(price: pd.DataFrame, window: int = 20) -> pd.DataFrame:
@@ -1093,7 +1131,7 @@ def vol_asymmetry(price: pd.DataFrame, window: int = 60) -> pd.DataFrame:
     up_mask = ret > 0
     vol_up = ret.where(up_mask).rolling(window, min_periods=window//4).std()
     vol_down = ret.where(~up_mask).rolling(window, min_periods=window//4).std()
-    return vol_down / vol_up.replace(0, np.nan)
+    return _cross_winsorize(vol_down / vol_up.replace(0, np.nan))
 
 
 def earnings_window_proxy(price: pd.DataFrame, window: int = 5) -> pd.DataFrame:
@@ -1111,7 +1149,7 @@ def earnings_window_proxy(price: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     # 仅在月末 20 日内有效（月份的后 20 个交易日）
     day_of_month = pd.Series(price.index.day, index=price.index)
     month_end_mask = day_of_month >= 10  # 简化：月中以后的交易日
-    return dev.where(month_end_mask.values.reshape(-1, 1), 0)
+    return _cross_winsorize(dev.where(month_end_mask.values.reshape(-1, 1), 0))
 
 
 def return_zscore_20d(price: pd.DataFrame) -> pd.DataFrame:

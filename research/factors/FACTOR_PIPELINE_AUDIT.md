@@ -3,6 +3,13 @@
 **日期**：2026-04-14  
 **范围**：`research/factors/` 下四个因子模块 + `utils/factor_analysis.py` + `utils/multi_factor.py`
 
+> **2026-04-14 更新（修复批次）**
+> - ✅ P0 已修：`research/factors/{value,quality,low_vol}/*.py` 的 `cross_zscore` 前已补 `_cross_winsorize`（commit `02c99fd`）
+> - ✅ P0 已修（范围扩展）：`utils/alpha_factors.py` 的 11 个无硬边界因子补 self-winsorize（ep/bp/三种动量/vol_asymmetry 等，1%/99% quantile，commit 见本 PR）
+> - ✅ 契约文档化：`utils/alpha_factors.py` 模块头现有"winsorize 契约"章节，说明哪些因子自我 winsorize、哪些依赖 `multi_factor.py` 全局 winsorize
+> - ⬜ P1（notebook 加 neutralize）、P1（接入真实申万行业分类）、P2/P3 仍待办
+> - 附注：审计原范围只覆盖 4 个旧研究模块，**但生产路径**（`pipeline/daily_signal.py` + `strategies/multi_factor.py`）一直是通的——日频信号和回测引擎都有 winsorize + 行业中性化
+
 ---
 
 ## 总结
