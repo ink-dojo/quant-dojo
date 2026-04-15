@@ -28,6 +28,7 @@ from utils.factor_analysis import neutralize_factor_by_industry, compute_ic_seri
 from utils.fundamental_loader import get_industry_classification
 from utils.local_data_loader import (
     load_price_wide,
+    load_adj_price_wide,
     load_factor_wide,
     get_all_symbols,
 )
@@ -129,11 +130,26 @@ def run_daily_pipeline(
                 f"指定日期 {date} 在数据中不存在，最新可用日期为 {actual_date}"
             )
 
-    # 注意时间方向：IC 权重应用 T 日因子预测 T+1 日收益（forward return）。
-    # pct_change() 是当日收益（T 日因子 ↔ T 日收益），存在前视偏差。
-    # shift(-1) 将每行移为"次日收益"，即 ret_wide.loc[t] = close[t+1]/close[t] - 1，
-    # 与 factor_wide.loc[t] 配对 → 正确的 1 日 forward IC。
-    ret_wide = price_wide.pct_change().shift(-1)
+    # ── 复权调整价格（用于动量/波动率因子）────────────────────
+    # 本地 CSV 的 close 是不复权价格，权利落日会出现 -20%~-60% 虚假跌幅。
+    # 涨跌幅(pct_change)字段是 baostock 已处理的真实日收益，用它累积得到
+    # 复权价格，供需要跨日比较的因子使用（momentum / vol / team_coin / amihud）。
+    # close 仍用于价格过滤（min_price）和组合估值。
+    try:
+        adj_price_wide = load_adj_price_wide(symbols, start, end)
+        if adj_price_wide.empty:
+            adj_price_wide = price_wide
+    except Exception as _adj_exc:
+        warnings.warn(f"复权价格加载失败，回退未复权价格: {_adj_exc}")
+        adj_price_wide = price_wide
+
+    # IC 计算用涨跌幅字段的真实日收益（已复权的 forward return）
+    try:
+        _pct_wide = load_price_wide(symbols, start, end, field="pct_change") / 100
+        ret_wide = _pct_wide.shift(-1)  # forward return
+    except Exception:
+        # 降级：用 close.pct_change()（原逻辑）
+        ret_wide = price_wide.pct_change().shift(-1)
 
     # ── 计算因子 ──────────────────────────────────────────────
     factor_dict = {}
@@ -235,19 +251,19 @@ def run_daily_pipeline(
         # v8 在 v7 基础上加入 shadow_lower（微观结构因子，ICIR=0.51）
         # 计算各因子宽表（日期 × 股票）
         try:
-            team_coin_wide = team_coin(price_wide)
+            team_coin_wide = team_coin(adj_price_wide)
         except Exception:
             warnings.warn("team_coin 计算失败，跳过")
             team_coin_wide = pd.DataFrame(np.nan, index=price_wide.index, columns=price_wide.columns)
 
         try:
-            low_vol_wide = low_vol_20d(price_wide)
+            low_vol_wide = low_vol_20d(adj_price_wide)
         except Exception:
             warnings.warn("low_vol_20d 计算失败，跳过")
             low_vol_wide = pd.DataFrame(np.nan, index=price_wide.index, columns=price_wide.columns)
 
         try:
-            enhanced_mom_wide = enhanced_momentum(price_wide)
+            enhanced_mom_wide = enhanced_momentum(adj_price_wide)
         except Exception:
             warnings.warn("enhanced_momentum 计算失败，跳过")
             enhanced_mom_wide = pd.DataFrame(np.nan, index=price_wide.index, columns=price_wide.columns)
@@ -366,12 +382,12 @@ def run_daily_pipeline(
         raw_factors = {}
 
         try:
-            raw_factors["low_vol_20d"] = low_vol_20d(price_wide)
+            raw_factors["low_vol_20d"] = low_vol_20d(adj_price_wide)
         except Exception:
             warnings.warn("low_vol_20d 计算失败，跳过")
 
         try:
-            raw_factors["team_coin"] = team_coin(price_wide)
+            raw_factors["team_coin"] = team_coin(adj_price_wide)
         except Exception:
             warnings.warn("team_coin 计算失败，跳过")
 
@@ -489,13 +505,13 @@ def run_daily_pipeline(
         factor_directions = {}  # 1=正向, -1=反向
 
         try:
-            raw_factors["low_vol_20d"] = low_vol_20d(price_wide)
+            raw_factors["low_vol_20d"] = low_vol_20d(adj_price_wide)
             factor_directions["low_vol_20d"] = 1
         except Exception:
             warnings.warn("low_vol_20d 计算失败，跳过")
 
         try:
-            raw_factors["team_coin"] = team_coin(price_wide)
+            raw_factors["team_coin"] = team_coin(adj_price_wide)
             factor_directions["team_coin"] = 1
         except Exception:
             warnings.warn("team_coin 计算失败，跳过")
@@ -518,7 +534,7 @@ def run_daily_pipeline(
             if not vol_wide_v10.empty:
                 vol_aligned = vol_wide_v10.reindex_like(price_wide)
                 try:
-                    raw_factors["amihud_illiq"] = amihud_illiquidity(price_wide, vol_aligned)
+                    raw_factors["amihud_illiq"] = amihud_illiquidity(adj_price_wide, vol_aligned)
                     factor_directions["amihud_illiq"] = 1
                 except Exception:
                     warnings.warn("amihud_illiq 计算失败，跳过")

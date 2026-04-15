@@ -216,6 +216,53 @@ def load_price_wide(
     return wide
 
 
+def load_adj_price_wide(
+    symbols: list,
+    start: str,
+    end: str,
+) -> pd.DataFrame:
+    """
+    从涨跌幅(pct_change)字段累积构建前复权调整价格宽表。
+
+    本地 CSV 的 close 字段是不复权价格（复权状态=3），在权利落/送配股日
+    会出现 -20%~-60% 的虚假单日跌幅。涨跌幅(pct_change)字段是 baostock
+    已经处理过的实际日收益率（含分红再投资），不受此影响。
+
+    此函数从涨跌幅累积复利，归一化到 100 作为起点，返回一个等效的
+    "复权调整价格"宽表，专用于动量/波动率因子计算。
+
+    **不能用于实际成交价格**（close 才是真实价格）。
+
+    Args:
+        symbols: 股票代码列表
+        start: 开始日期，格式 'YYYY-MM-DD'
+        end: 结束日期，格式 'YYYY-MM-DD'
+
+    Returns:
+        复权调整价格宽表 (date × symbol)，起始值约为 100
+
+    使用场景:
+        - enhanced_momentum / quality_momentum / ma_ratio_momentum
+        - low_vol_20d / team_coin / amihud_illiquidity
+        不适用: shadow_lower / bp_factor / ep_factor（这些用 close 或 fundamentals）
+    """
+    pct_wide = load_price_wide(symbols, start, end, field="pct_change")
+    if pct_wide.empty:
+        return pd.DataFrame()
+
+    # 涨跌幅是百分比（如 -3.19 表示 -3.19%），转为小数
+    ret_wide = pct_wide / 100.0
+
+    # 累积复利，从首日开始，归一化起始值为 100
+    # fillna(0) 处理缺失数据：停牌日等视为 0 收益
+    adj = (1 + ret_wide.fillna(0)).cumprod() * 100.0
+
+    # 恢复原始缺失位置（停牌日不应有价格）
+    adj = adj.where(ret_wide.notna())
+    adj.index.name = "date"
+    return adj
+
+
 def load_factor_wide(
     symbols: list,
     factor: str,
