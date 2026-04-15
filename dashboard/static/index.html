@@ -1191,7 +1191,7 @@ async function loadHomePicks(){
   const scores=d.scores||{};
   const excl=d.excluded||{};
   $('#home-picks-meta').textContent=`${d.picks.length} stocks · excl. ${excl.st||0} ST`;
-  el.innerHTML=`<div style="overflow-y:auto;max-height:230px;"><table class="data-table" style="width:100%;"><tbody>${d.picks.slice(0,20).map((sym,i)=>`<tr><td style="color:var(--text-muted);font-size:11px;width:22px;padding:5px 4px;">${i+1}</td><td class="mono" style="font-size:13px;padding:5px 4px;">${escHtml(sym)}</td><td class="num mono" style="color:var(--text-muted);font-size:12px;padding:5px 4px;">${scores[sym]!=null?scores[sym].toFixed(4):''}</td></tr>`).join('')}</tbody></table></div>`;
+  el.innerHTML=`<div style="overflow-y:auto;max-height:230px;"><table class="data-table" style="width:100%;"><tbody>${d.picks.slice(0,20).map((p,i)=>{const code=p?.code||p;const name=p?.name||'';const sc=scores[code];return`<tr><td style="color:var(--text-muted);font-size:11px;width:22px;padding:5px 4px;">${i+1}</td><td style="padding:5px 4px;"><span class="mono" style="font-size:13px;">${escHtml(code)}</span>${name?`<span style="margin-left:6px;font-size:12px;color:var(--text-muted);">${escHtml(name)}</span>`:''}</td><td class="num mono" style="color:var(--text-muted);font-size:12px;padding:5px 4px;">${sc!=null?Number(sc).toFixed(4):''}</td></tr>`}).join('')}</tbody></table></div>`;
 }
 
 async function loadHomeFactors(){
