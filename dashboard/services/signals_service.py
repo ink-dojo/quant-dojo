@@ -4,7 +4,39 @@ signals_service.py — 信号服务层
 封装最新信号和历史信号查询，所有函数捕获异常并返回空值结构。
 """
 
+import json
+from pathlib import Path
+
 from dashboard.services.data_loader import load_latest_signal, load_signal_history
+
+# 股票名称缓存
+_STOCK_NAMES: dict[str, str] = {}
+_NAMES_FILE = Path(__file__).parent.parent.parent / "data" / "cache" / "stock_names.json"
+
+
+def _load_stock_names() -> dict[str, str]:
+    global _STOCK_NAMES
+    if _STOCK_NAMES:
+        return _STOCK_NAMES
+    try:
+        _STOCK_NAMES = json.loads(_NAMES_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return _STOCK_NAMES
+
+
+def _enrich_picks(picks: list) -> list[dict]:
+    """把 ['600025', ...] 转成 [{'code': '600025', 'name': '华能水电'}, ...]"""
+    names = _load_stock_names()
+    result = []
+    for p in picks:
+        if isinstance(p, dict):
+            code = p.get("code", "")
+            result.append({**p, "name": names.get(code, code)})
+        else:
+            code = str(p)
+            result.append({"code": code, "name": names.get(code, code)})
+    return result
 
 # 信号缺失时的默认返回结构
 _EMPTY_SIGNAL: dict = {
@@ -50,7 +82,7 @@ def get_latest_signal() -> dict:
 
         return {
             "as_of_date": as_of_date,
-            "picks": picks,
+            "picks": _enrich_picks(picks),
             "scores": scores,
             "excluded": excluded,
         }
