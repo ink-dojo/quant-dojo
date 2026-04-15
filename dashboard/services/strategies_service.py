@@ -133,6 +133,38 @@ _STRATEGY_META: dict[str, dict] = {
             },
         ],
     },
+    "v16": {
+        "id": "v16",
+        "display_name": "v16 — 9因子 IC加权，A股反转主导",
+        "tagline": "当前生产策略 · 22.4% 年化 · Sharpe 0.73 · 9因子 IC加权",
+        "description": (
+            "v16 是经过 30+ 因子实验筛选后的最优 9 因子组合，于 2026-04-14 启用。"
+            "核心逻辑：A 股短中期以均值回归为主——追涨、换手加速、52 周高点附近均是反转信号；"
+            "低波动、低流动性股票存在长期溢价。"
+            "9 个因子两两相关性 < 0.5，信息高度正交；IC 加权 + 行业中性化合成。"
+            "12 次单因子扰动实验均退步，确认 v16 在当前因子空间是局部最优。"
+        ),
+        "factors": [
+            {"id": "low_vol_20d",          "label": "低波动 20d",      "direction": 1,  "icir": 0.717,
+             "explain": "20日收益率标准差取负。A股最稳健信号，低波动股长期有显著溢价。"},
+            {"id": "team_coin",            "label": "团队币",           "direction": 1,  "icir": 0.634,
+             "explain": "行为金融复合因子：低波时跟动量、高波时抄反转，自适应市场状态。"},
+            {"id": "shadow_lower",         "label": "下影线支撑",       "direction": -1, "icir": 0.494,
+             "explain": "K 线下影线长度。A 股中长下影线后往往反转，与技术分析理解相反。"},
+            {"id": "amihud_illiquidity",   "label": "Amihud 非流动性", "direction": 1,  "icir": 0.377,
+             "explain": "单位成交量的价格冲击 = |ret|/amount。流动性溢价：越难成交收益越高。"},
+            {"id": "price_vol_divergence", "label": "量价背离",         "direction": 1,  "icir": 0.375,
+             "explain": "价格与成交量滚动 Spearman 相关。价涨量缩=上涨动能弱，反向持有。"},
+            {"id": "high_52w_ratio",       "label": "52周高点锚定",    "direction": -1, "icir": 0.348,
+             "explain": "当前价 / 52 周最高价。越接近年度高点，散户追涨越充分，反转压力越大。"},
+            {"id": "turnover_acceleration","label": "换手加速",         "direction": -1, "icir": 0.312,
+             "explain": "短期换手率 vs 中期均值的加速比。换手急剧放大=散户追高顶部信号，看空。"},
+            {"id": "momentum_6m_skip1m",   "label": "6月动量(跳1月)",  "direction": -1, "icir": 0.305,
+             "explain": "过去 6 月收益跳过最近 1 月。A 股中期动量呈反转（≠美股延续），看空强势股。"},
+            {"id": "win_rate_60d",         "label": "60日胜率反转",    "direction": -1, "icir": 0.391,
+             "explain": "近 60 日正收益天数占比。每天都在涨=散户集体追涨=过热，均值回归压力大。"},
+        ],
+    },
     "auto_gen": {
         "id": "auto_gen",
         "display_name": "auto-gen（AI 自动合成）",
