@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from utils.runtime_config import get_transaction_cost_rate
+from live.ledger import Ledger
 
 _REBALANCE_LOCK = threading.Lock()
 
@@ -25,6 +26,7 @@ PORTFOLIO_DIR = Path(__file__).parent / "portfolio"
 POSITIONS_FILE = PORTFOLIO_DIR / "positions.json"
 TRADES_FILE = PORTFOLIO_DIR / "trades.json"
 NAV_FILE = PORTFOLIO_DIR / "nav.csv"
+LEDGER_FILE = PORTFOLIO_DIR / "ledger.db"
 
 class PaperTrader:
     """模拟盘交易类，用于追踪持仓、记录交易和计算净值。"""
@@ -41,6 +43,20 @@ class PaperTrader:
 
         # 确保数据目录存在
         PORTFOLIO_DIR.mkdir(parents=True, exist_ok=True)
+
+        # ── SQLite 账本：ACID 备份 ─────────────────────────────
+        # 首次启动时从 JSON 迁移历史数据；之后 SQLite 是 source-of-truth，
+        # JSON/CSV 作为 dashboard/tests 的读缓存（每次写后由 rehydrate 刷新）
+        self._ledger = Ledger(LEDGER_FILE, initial_capital=initial_capital)
+        ledger_empty = not (self._ledger.read_trades() or self._ledger.read_nav())
+        if ledger_empty:
+            # 首次：把已有 JSON 导入 SQLite
+            stats = self._ledger.migrate_from_json(POSITIONS_FILE, TRADES_FILE, NAV_FILE)
+            if stats.get("imported_trades", 0) > 0 or stats.get("imported_nav_rows", 0) > 0:
+                self._log.info(
+                    "SQLite 账本首次初始化：导入 %d 条交易、%d 行净值",
+                    stats["imported_trades"], stats["imported_nav_rows"],
+                )
 
         # 加载已有数据或初始化空状态
         if POSITIONS_FILE.exists():
@@ -134,23 +150,37 @@ class PaperTrader:
         return cash + stock_value
 
     def _save_positions(self):
-        """将持仓数据持久化到磁盘。"""
-        with open(POSITIONS_FILE, "w", encoding="utf-8") as f:
+        """将持仓数据持久化到磁盘（SQLite 为主，JSON 为读缓存，均原子写）。"""
+        try:
+            self._ledger.replace_positions(self.positions)
+        except Exception as exc:
+            self._log.warning("SQLite positions 写入失败（降级到 JSON）: %s", exc)
+        # 原子写：tmp + rename，防止崩溃导致 JSON 损坏
+        tmp = POSITIONS_FILE.with_suffix(POSITIONS_FILE.suffix + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(self.positions, f, ensure_ascii=False, indent=2)
+        tmp.replace(POSITIONS_FILE)
 
     def _save_trades(self):
-        """将交易记录持久化到磁盘。"""
-        with open(TRADES_FILE, "w", encoding="utf-8") as f:
+        """将交易记录持久化到磁盘（SQLite 已在 _record_trade 入库；此处仅刷新 JSON 缓存）。"""
+        tmp = TRADES_FILE.with_suffix(TRADES_FILE.suffix + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(self.trades, f, ensure_ascii=False, indent=2)
+        tmp.replace(TRADES_FILE)
 
     def _append_nav(self, trade_date: str, nav: float):
         """
-        写入一条净值记录到 nav.csv，若该日期已存在则覆盖，避免重复行。
+        写入一条净值记录：先进 SQLite（ACID），再原子刷新 nav.csv 缓存。
 
         参数:
             trade_date: 交易日期字符串，格式 YYYY-MM-DD
             nav: 当日净值
         """
+        try:
+            self._ledger.upsert_nav(trade_date, nav)
+        except Exception as exc:
+            self._log.warning("SQLite NAV 写入失败: %s", exc)
+
         if NAV_FILE.exists():
             # dtype 强制 float，防止全整数列被推断为 int64 导致后续赋值报错
             nav_df = pd.read_csv(NAV_FILE, dtype={"nav": float})
@@ -169,7 +199,10 @@ class PaperTrader:
 
         # 按日期排序，避免乱序写入导致下游读取最后一行 != 最新日期
         nav_df = nav_df.sort_values("date").reset_index(drop=True)
-        nav_df.to_csv(NAV_FILE, index=False)
+        # 原子写：tmp + rename
+        tmp = NAV_FILE.with_suffix(NAV_FILE.suffix + ".tmp")
+        nav_df.to_csv(tmp, index=False)
+        tmp.replace(NAV_FILE)
 
     def _validate_state(self) -> list:
         """
@@ -218,15 +251,22 @@ class PaperTrader:
         return nav_df
 
     def _record_trade(self, trade_date: str, symbol: str, action: str, shares: int, price: float):
-        """记录一笔交易。"""
-        self.trades.append({
+        """记录一笔交易（双写：SQLite append-only + in-memory list）。"""
+        trade = {
             "date": trade_date,
             "symbol": symbol,
             "action": action,
             "shares": int(shares),
             "price": float(price),
             "cost": float(shares * price * get_transaction_cost_rate()),
-        })
+        }
+        # SQLite 先入库（ACID），失败则降级纯内存（此次 rebalance 结束时 _save_trades
+        # 至少保证 JSON 反映当前内存状态，不会丢交易历史）
+        try:
+            self._ledger.append_trade(trade)
+        except Exception as exc:
+            self._log.warning("SQLite trade 写入失败（仅 JSON 侧持久化）: %s", exc)
+        self.trades.append(trade)
 
     # ------------------------------------------------------------------
     # 核心接口
@@ -572,6 +612,18 @@ class PaperTrader:
             "n_trades": n_trades,
             "running_days": running_days,
         }
+
+    def rehydrate_from_ledger(self) -> None:
+        """从 SQLite 账本重建 JSON/CSV（JSON 损坏或跨机器迁移时用）。"""
+        self._ledger.rehydrate_to_json(POSITIONS_FILE, TRADES_FILE, NAV_FILE)
+        # 重新加载到内存
+        if POSITIONS_FILE.exists():
+            with open(POSITIONS_FILE, "r", encoding="utf-8") as f:
+                self.positions = json.load(f)
+        if TRADES_FILE.exists():
+            with open(TRADES_FILE, "r", encoding="utf-8") as f:
+                self.trades = json.load(f)
+        self._log.info("已从 SQLite 账本重建 JSON/CSV 缓存")
 
     def get_current_positions(self) -> pd.DataFrame:
         """
