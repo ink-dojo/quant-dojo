@@ -151,7 +151,7 @@ _STRATEGY_META: dict[str, dict] = {
              "explain": "行为金融复合因子：低波时跟动量、高波时抄反转，自适应市场状态。"},
             {"id": "shadow_lower",         "label": "下影线支撑",       "direction": -1, "icir": 0.494,
              "explain": "K 线下影线长度。A 股中长下影线后往往反转，与技术分析理解相反。"},
-            {"id": "amihud_illiquidity",   "label": "Amihud 非流动性", "direction": 1,  "icir": 0.377,
+            {"id": "amihud_illiq",          "label": "Amihud 非流动性", "direction": 1,  "icir": 0.377,
              "explain": "单位成交量的价格冲击 = |ret|/amount。流动性溢价：越难成交收益越高。"},
             {"id": "price_vol_divergence", "label": "量价背离",         "direction": 1,  "icir": 0.375,
              "explain": "价格与成交量滚动 Spearman 相关。价涨量缩=上涨动能弱，反向持有。"},
