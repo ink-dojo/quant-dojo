@@ -1,9 +1,20 @@
 """
 价值因子计算模块
 支持 EP（市盈率倒数）、BP（市净率倒数）、SP（市销率倒数）及合成价值因子
+
+合成流程：截面 winsorize → 截面 z-score → 等权合成 → 再做一次 winsorize + z-score。
+winsorize 必须在 z-score 之前，否则极端估值（如 PE=0.1）会把均值和标准差拉偏，
+导致大量股票被误挤到负侧。参考 FACTOR_PIPELINE_AUDIT.md P0 问题。
 """
 import numpy as np
 import pandas as pd
+
+from utils.factor_analysis import winsorize
+
+
+def _cross_winsorize(df: pd.DataFrame, n_sigma: float = 3.0) -> pd.DataFrame:
+    """逐行（按截面日）应用 ±n_sigma 截尾，防止极端值污染 z-score。"""
+    return df.apply(lambda row: winsorize(row, n_sigma=n_sigma), axis=1)
 
 
 def compute_ep(pe_wide: pd.DataFrame) -> pd.DataFrame:
@@ -83,9 +94,9 @@ def compute_composite_value(
         std = std.replace(0, np.nan)
         return df.sub(mean, axis=0).div(std, axis=0)
 
-    ep_z = cross_zscore(ep)
-    bp_z = cross_zscore(bp)
-    sp_z = cross_zscore(sp)
+    ep_z = cross_zscore(_cross_winsorize(ep))
+    bp_z = cross_zscore(_cross_winsorize(bp))
+    sp_z = cross_zscore(_cross_winsorize(sp))
 
     w_ep, w_bp, w_sp = weights
 
@@ -99,8 +110,8 @@ def compute_composite_value(
         + w_sp * sp_z.loc[common_idx, common_col]
     )
 
-    # 最终再做一次截面 z-score，使输出量纲统一
-    composite = cross_zscore(composite)
+    # 最终再做一次截面 winsorize + z-score，使输出量纲统一
+    composite = cross_zscore(_cross_winsorize(composite))
 
     return composite
 

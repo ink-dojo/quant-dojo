@@ -16,6 +16,13 @@
 import numpy as np
 import pandas as pd
 
+from utils.factor_analysis import winsorize
+
+
+def _cross_winsorize(wide: pd.DataFrame, n_sigma: float = 3.0) -> pd.DataFrame:
+    """逐行（按截面日）应用 ±n_sigma 截尾，防止极端值污染 z-score。"""
+    return wide.apply(lambda row: winsorize(row, n_sigma=n_sigma), axis=1)
+
 
 def compute_roe_factor(financials_dict: dict) -> pd.DataFrame:
     """
@@ -135,8 +142,13 @@ def compute_gross_margin(financials_dict: dict) -> pd.DataFrame:
     return wide
 
 
-def _cross_section_zscore(wide: pd.DataFrame) -> pd.DataFrame:
-    """截面 z-score 标准化，逐行（逐日）处理。"""
+def _cross_section_zscore(wide: pd.DataFrame, n_sigma: float = 3.0) -> pd.DataFrame:
+    """截面 winsorize + z-score 标准化，逐行（逐日）处理。
+
+    先 ±n_sigma 截尾再标准化，避免极端值（负 ROE、异常高毛利率等）拉偏均值和
+    标准差。参考 FACTOR_PIPELINE_AUDIT.md P0 问题。
+    """
+    wide = _cross_winsorize(wide, n_sigma=n_sigma)
     mean = wide.mean(axis=1)
     std = wide.std(axis=1).replace(0, np.nan)
     return wide.sub(mean, axis=0).div(std, axis=0)

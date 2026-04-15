@@ -8,6 +8,13 @@
 import numpy as np
 import pandas as pd
 
+from utils.factor_analysis import winsorize
+
+
+def _cross_winsorize(df: pd.DataFrame, n_sigma: float = 3.0) -> pd.DataFrame:
+    """逐行（按截面日）应用 ±n_sigma 截尾，防止极端值污染 z-score。"""
+    return df.apply(lambda row: winsorize(row, n_sigma=n_sigma), axis=1)
+
 
 def compute_realized_vol(ret_wide: pd.DataFrame, window: int = 20) -> pd.DataFrame:
     """
@@ -115,8 +122,8 @@ def compute_composite_low_vol(
         std = df.std(axis=1)
         return df.sub(mean, axis=0).div(std.replace(0, np.nan), axis=0)
 
-    vol_z = cross_zscore(vol_aligned)
-    beta_z = cross_zscore(beta_aligned)
+    vol_z = cross_zscore(_cross_winsorize(vol_aligned))
+    beta_z = cross_zscore(_cross_winsorize(beta_aligned))
 
     composite = vol_z * w_vol + beta_z * w_beta
     return composite
