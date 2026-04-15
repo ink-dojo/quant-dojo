@@ -23,6 +23,10 @@ from utils.alpha_factors import (
     insider_buying_proxy,
     amihud_illiquidity,
     price_volume_divergence,
+    high_52w_ratio,
+    turnover_acceleration,
+    momentum_6m_skip1m,
+    win_rate_60d,
 )
 from utils.factor_analysis import neutralize_factor_by_industry, compute_ic_series
 from utils.fundamental_loader import get_industry_classification
@@ -613,6 +617,142 @@ def run_daily_pipeline(
                     "n_input_symbols": n_input_symbols,
                     "error": "v10 所有因子数据不足，无法生成合成评分",
                 },
+            }
+
+        composite = composite_series.dropna().sort_values(ascending=False)
+        factor_dict = {name: raw_factors[name].iloc[-1] for name in raw_factors}
+        snapshot_dict = {name: fac_wide.iloc[-1] for name, fac_wide in neutralized_factors.items()}
+
+    elif strategy == "v16":
+        # ── v16 策略：9因子 IC加权，A股反转主导 ──────────────
+        # ICIR: low_vol_20d(0.72)/team_coin(0.63)/shadow_lower(-0.49)/
+        #       amihud_illiq(0.38)/price_vol_divergence(0.38)/high_52w_ratio(-0.35)/
+        #       turnover_acceleration(-0.31)/momentum_6m_skip1m(-0.31)/win_rate_60d(-0.39)
+        # 方向: -1 = 反向（取负后合成），1 = 正向
+        raw_factors = {}
+        factor_directions = {}
+
+        # ── 价格类因子（只需 adj_price_wide / price_wide） ──
+        try:
+            raw_factors["low_vol_20d"] = low_vol_20d(adj_price_wide)
+            factor_directions["low_vol_20d"] = 1
+        except Exception:
+            warnings.warn("v16: low_vol_20d 计算失败，跳过")
+
+        try:
+            raw_factors["team_coin"] = team_coin(adj_price_wide)
+            factor_directions["team_coin"] = 1
+        except Exception:
+            warnings.warn("v16: team_coin 计算失败，跳过")
+
+        try:
+            raw_factors["high_52w_ratio"] = high_52w_ratio(adj_price_wide)
+            factor_directions["high_52w_ratio"] = -1  # A股：接近52w高点=反转压力，看空
+        except Exception:
+            warnings.warn("v16: high_52w_ratio 计算失败，跳过")
+
+        try:
+            raw_factors["momentum_6m_skip1m"] = momentum_6m_skip1m(adj_price_wide)
+            factor_directions["momentum_6m_skip1m"] = -1  # A股中期动量反转
+        except Exception:
+            warnings.warn("v16: momentum_6m_skip1m 计算失败，跳过")
+
+        try:
+            raw_factors["win_rate_60d"] = win_rate_60d(adj_price_wide)
+            factor_directions["win_rate_60d"] = -1  # 高胜率=超买=看空
+        except Exception:
+            warnings.warn("v16: win_rate_60d 计算失败，跳过")
+
+        # ── 需要 low 价宽表 ──
+        try:
+            low_wide_v16 = load_price_wide(symbols, start, end, field="low")
+            if not low_wide_v16.empty:
+                raw_factors["shadow_lower"] = shadow_lower(price_wide, low_wide_v16.reindex_like(price_wide))
+                factor_directions["shadow_lower"] = -1  # A股：长下影线=反转
+            else:
+                warnings.warn("v16: low 宽表为空，shadow_lower 跳过")
+        except Exception:
+            warnings.warn("v16: shadow_lower 计算失败，跳过")
+
+        # ── 需要 volume / turnover 宽表 ──
+        try:
+            vol_wide_v16 = load_price_wide(symbols, start, end, field="volume")
+            if not vol_wide_v16.empty:
+                vol_aligned_v16 = vol_wide_v16.reindex_like(price_wide)
+                try:
+                    raw_factors["amihud_illiq"] = amihud_illiquidity(adj_price_wide, vol_aligned_v16)
+                    factor_directions["amihud_illiq"] = 1
+                except Exception:
+                    warnings.warn("v16: amihud_illiq 计算失败，跳过")
+                try:
+                    raw_factors["price_vol_divergence"] = price_volume_divergence(price_wide, vol_aligned_v16)
+                    factor_directions["price_vol_divergence"] = 1
+                except Exception:
+                    warnings.warn("v16: price_vol_divergence 计算失败，跳过")
+            else:
+                warnings.warn("v16: volume 宽表为空，amihud/pvd 跳过")
+        except Exception:
+            warnings.warn("v16: volume 数据加载失败，跳过")
+
+        try:
+            turnover_wide_v16 = load_factor_wide(symbols, "turnover", start, end)
+            if not turnover_wide_v16.empty:
+                raw_factors["turnover_acceleration"] = turnover_acceleration(turnover_wide_v16)
+                factor_directions["turnover_acceleration"] = -1  # 换手加速=追高信号=看空
+            else:
+                warnings.warn("v16: turnover 宽表为空，turnover_acceleration 跳过")
+        except Exception:
+            warnings.warn("v16: turnover_acceleration 计算失败，跳过")
+
+        # ── 行业中性化 + IC 加权合成（与 v10 相同逻辑） ──
+        try:
+            industry_df = get_industry_classification(symbols=symbols)
+        except Exception as _ie:
+            warnings.warn(f"v16: 行业分类加载失败: {_ie}")
+            industry_df = pd.DataFrame(columns=["symbol", "industry_code"])
+
+        neutralized_factors = {}
+        ic_series_dict = {}
+        for name, fac_wide in raw_factors.items():
+            if fac_wide.empty or fac_wide.dropna(how="all").shape[0] < 30:
+                continue
+            directed = fac_wide * factor_directions.get(name, 1)
+            try:
+                neutral = neutralize_factor_by_industry(directed, industry_df)
+            except Exception as e:
+                warnings.warn(f"v16: 中性化失败 {name}: {e}")
+                neutral = directed
+            neutralized_factors[name] = neutral
+            try:
+                ic_s = compute_ic_series(neutral, ret_wide, method="spearman")
+                ic_series_dict[name] = ic_s
+            except Exception as e:
+                warnings.warn(f"v16: IC 序列计算失败 {name}: {e}")
+
+        if neutralized_factors and ic_series_dict:
+            ic_df = pd.DataFrame(ic_series_dict)
+            rolling_ic = ic_df.rolling(60, min_periods=20).mean()
+            last_ic = rolling_ic.iloc[-1].abs()
+            total_ic = last_ic.sum()
+            weights = last_ic / total_ic if total_ic > 0 else pd.Series(1.0 / len(neutralized_factors), index=last_ic.index)
+        else:
+            n = len(neutralized_factors) or 1
+            weights = pd.Series(1.0 / n, index=neutralized_factors.keys())
+
+        last_day_vals = {name: fac_wide.iloc[-1] for name, fac_wide in neutralized_factors.items()}
+        factor_df = pd.DataFrame(last_day_vals)
+        weight_series = pd.Series({n: weights.get(n, 0) for n in factor_df.columns})
+        valid_mask = factor_df.notna()
+        effective_weights = valid_mask.multiply(weight_series, axis=1)
+        weight_sums = effective_weights.sum(axis=1)
+        effective_weights = effective_weights.div(weight_sums, axis=0)
+        composite_series = (factor_df * effective_weights).sum(axis=1)
+        composite_series[weight_sums == 0] = np.nan
+
+        if composite_series.dropna().empty:
+            return {
+                "date": actual_date, "picks": [], "scores": {}, "factor_values": {}, "excluded": [],
+                "metadata": {"strategy": strategy, "n_input_symbols": n_input_symbols, "error": "v16 所有因子数据不足"},
             }
 
         composite = composite_series.dropna().sort_values(ascending=False)
