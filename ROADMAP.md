@@ -132,6 +132,15 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
        2026-04-07 首次对照 8 天，见 `journal/live_vs_backtest_v7_20260407_analysis.md`，
        量化出 -2.05% 累计偏差，主因是 fresh-start 方法论差异 + 交易成本）
 
+### 基础设施补齐（2026-04-14，小型私募及格线）
+- [x] **P0.1 幸存者偏差修复** — `utils/listing_metadata.py` + `universe_at_date`
+      （回测/信号用"当时存活"股票池；2010 年回测从 5,477 变 1,657 只）
+- [x] **P0.2 数据 vintage 快照** — `utils/data_manifest.py`
+      （每次运行记录输入数据 SHA 指纹；RunRecord.artifacts["data_manifest"]）
+- [x] **P1 SQLite ACID 账本** — `live/ledger.py`
+      （WAL + 事务 + append-only trades；JSON/CSV 作为读缓存原子刷新；
+       15+ PaperTrader 调用方零侵入；见 `journal/infrastructure_baseline_20260414.md`）
+
 **交付物：** 可信的模拟盘基础设施，支持连续运行和审计
 
 ---
