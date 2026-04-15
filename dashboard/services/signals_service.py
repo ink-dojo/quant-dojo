@@ -104,6 +104,71 @@ def get_signal_history() -> list[dict]:
         return []
 
 
+def get_stock_detail(code: str) -> dict:
+    """
+    获取单只股票在最新信号中的详情。
+
+    返回:
+        {
+          "code": str, "name": str,
+          "composite_score": float | None,
+          "rank": int | None,           # 在 picks 里排第几（1-based）
+          "in_picks": bool,
+          "factor_scores": {            # 各因子原始值 + 分位数排名
+            "low_vol_20d": {"value": -0.009, "pct_rank": 0.82, "direction": 1},
+            ...
+          },
+          "as_of_date": str | None,
+          "strategy": str | None,
+        }
+    """
+    try:
+        data = load_latest_signal()
+        if not data:
+            return {"code": code, "error": "无信号数据"}
+
+        names = _load_stock_names()
+        picks = data.get("picks", data.get("selected_stocks", []))
+        scores = data.get("scores", {})
+        factor_values = data.get("factor_values", {})
+        metadata = data.get("metadata", {})
+
+        # 计算每个因子的原始值 + 全市场分位数排名
+        factor_scores: dict = {}
+        for factor_name, stock_vals in factor_values.items():
+            if not isinstance(stock_vals, dict):
+                continue
+            val = stock_vals.get(code)
+            if val is None:
+                continue
+            all_vals = [v for v in stock_vals.values() if v is not None]
+            pct_rank = sum(1 for v in all_vals if v <= val) / len(all_vals) if all_vals else None
+            factor_scores[factor_name] = {
+                "value": round(float(val), 6),
+                "pct_rank": round(pct_rank, 4) if pct_rank is not None else None,
+            }
+
+        rank = None
+        if code in picks:
+            try:
+                rank = picks.index(code) + 1
+            except Exception:
+                pass
+
+        return {
+            "code": code,
+            "name": names.get(code, code),
+            "composite_score": scores.get(code),
+            "rank": rank,
+            "in_picks": code in picks,
+            "factor_scores": factor_scores,
+            "as_of_date": data.get("as_of_date", data.get("date")),
+            "strategy": metadata.get("strategy"),
+        }
+    except Exception as exc:
+        return {"code": code, "error": str(exc)}
+
+
 if __name__ == "__main__":
     print("=== latest signal ===")
     sig = get_latest_signal()

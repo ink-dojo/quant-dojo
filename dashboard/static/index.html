@@ -586,6 +586,67 @@
     }
     .quote-card:hover { border-color: var(--border-bright); }
 
+    /* ═══ Drilldown Panel ═══ */
+    .dd-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 900;
+      opacity: 0; transition: opacity 0.18s ease;
+      pointer-events: none;
+    }
+    .dd-overlay.open { opacity: 1; pointer-events: auto; }
+    .dd-panel {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 92vw;
+      background: var(--bg-sidebar); border-left: 1px solid var(--border-bright);
+      z-index: 901; display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform 0.22s cubic-bezier(.25,.8,.25,1);
+      box-shadow: -12px 0 48px rgba(0,0,0,0.45);
+    }
+    .dd-panel.open { transform: translateX(0); }
+    .dd-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .dd-breadcrumb { font-size: 11px; color: var(--text-muted); cursor: pointer; }
+    .dd-breadcrumb:hover { color: var(--accent); }
+    .dd-title { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; }
+    .dd-close {
+      background: none; border: none; color: var(--text-muted); font-size: 18px;
+      cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm);
+      line-height: 1;
+    }
+    .dd-close:hover { color: var(--text-primary); background: var(--bg-hover); }
+    .dd-body { flex: 1; overflow-y: auto; padding: 16px; }
+    .dd-section { margin-bottom: 20px; }
+    .dd-section-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+      color: var(--text-muted); text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .dd-kv { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); }
+    .dd-kv:last-child { border-bottom: none; }
+    .dd-kv-key { font-size: 12px; color: var(--text-muted); }
+    .dd-kv-val { font-size: 12px; font-family: 'Fira Code', monospace; color: var(--text-primary); }
+    .pct-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .pct-bar { height: 4px; border-radius: 2px; background: var(--bg-raised); width: 80px; flex-shrink: 0; overflow: hidden; }
+    .pct-bar-fill { height: 100%; border-radius: 2px; }
+    .ic-bar-chart { display: flex; align-items: flex-end; gap: 2px; height: 60px; }
+    .ic-bar { flex: 1; border-radius: 1px 1px 0 0; min-width: 3px; }
+    .dd-factor-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; border-bottom: 1px solid var(--border);
+      cursor: pointer; border-radius: var(--radius-sm);
+      transition: background 0.1s;
+    }
+    .dd-factor-row:last-child { border-bottom: none; }
+    .dd-factor-row:hover { background: var(--bg-hover); padding-left: 6px; }
+    .dd-factor-name { font-size: 12px; flex: 1; }
+    .dir-badge {
+      font-size: 10px; font-weight: 700; padding: 1px 5px;
+      border-radius: var(--radius-sm);
+    }
+    .dir-pos { background: var(--pos-dim); color: var(--pos); }
+    .dir-neg { background: var(--neg-dim); color: var(--neg); }
+
     /* ═══ Utilities ═══ */
     .hidden { display: none !important; }
     .flex { display: flex; }
@@ -1191,7 +1252,7 @@ async function loadHomePicks(){
   const scores=d.scores||{};
   const excl=d.excluded||{};
   $('#home-picks-meta').textContent=`${d.picks.length} stocks · excl. ${excl.st||0} ST`;
-  el.innerHTML=`<div style="overflow-y:auto;max-height:230px;"><table class="data-table" style="width:100%;"><tbody>${d.picks.slice(0,20).map((p,i)=>{const code=p?.code||p;const name=p?.name||'';const sc=scores[code];return`<tr><td style="color:var(--text-muted);font-size:11px;width:22px;padding:5px 4px;">${i+1}</td><td style="padding:5px 4px;"><span class="mono" style="font-size:13px;">${escHtml(code)}</span>${name?`<span style="margin-left:6px;font-size:12px;color:var(--text-muted);">${escHtml(name)}</span>`:''}</td><td class="num mono" style="color:var(--text-muted);font-size:12px;padding:5px 4px;">${sc!=null?Number(sc).toFixed(4):''}</td></tr>`}).join('')}</tbody></table></div>`;
+  el.innerHTML=`<div style="overflow-y:auto;max-height:230px;"><table class="data-table" style="width:100%;"><tbody>${d.picks.slice(0,20).map((p,i)=>{const code=p?.code||p;const name=p?.name||'';const sc=scores[code];return`<tr style="cursor:pointer;" onclick="drilldownStock('${escHtml(code)}','${escHtml(name)}')" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''"><td style="color:var(--text-muted);font-size:11px;width:22px;padding:5px 4px;">${i+1}</td><td style="padding:5px 4px;"><span class="mono" style="font-size:13px;">${escHtml(code)}</span>${name?`<span style="margin-left:6px;font-size:12px;color:var(--text-muted);">${escHtml(name)}</span>`:''}</td><td class="num mono" style="color:var(--text-muted);font-size:12px;padding:5px 4px;">${sc!=null?Number(sc).toFixed(4):''}</td><td style="width:16px;color:var(--text-muted);font-size:11px;padding:5px 0;">›</td></tr>`}).join('')}</tbody></table></div>`;
 }
 
 async function loadHomeFactors(){
@@ -1202,9 +1263,12 @@ async function loadHomeFactors(){
   const healthy=items.filter(([,v])=>v.status==='healthy').length;
   $('#home-factor-meta').textContent=`${healthy}/${items.length} healthy`;
   el.innerHTML=items.map(([k,v])=>{
-    const ok=v.status==='healthy';
+    const ok=v.status==='healthy';const warn=v.status==='warning';
+    const dotColor=ok?'var(--pos)':warn?'var(--warn)':'var(--neg)';
+    const meta=_V16_FACTORS[k]||{};
+    const label=meta.label||k;
     const ic=v.rolling_ic!=null?`IC ${Number(v.rolling_ic).toFixed(3)}`:'';
-    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);"><div style="display:flex;align-items:center;gap:8px;min-width:0;"><span style="width:5px;height:5px;border-radius:50%;background:${ok?'var(--green)':'var(--yellow)'};display:inline-block;flex-shrink:0;"></span><span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(k)}</span></div><span class="mono" style="font-size:11px;color:var(--text-muted);flex-shrink:0;margin-left:8px;">${ic}</span></div>`;
+    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;border-radius:3px;" onclick="drilldownFactor('${escHtml(k)}')" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''"><div style="display:flex;align-items:center;gap:8px;min-width:0;"><span style="width:5px;height:5px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;"></span><span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(label)}</span></div><div style="display:flex;align-items:center;gap:8px;flex-shrink:0;"><span class="mono" style="font-size:11px;color:var(--text-muted);">${ic}</span><span style="font-size:11px;color:var(--text-muted);">›</span></div></div>`;
   }).join('');
 }
 
@@ -1387,7 +1451,161 @@ function applyTheme(t){document.documentElement.setAttribute('data-theme',t);con
 function toggleTheme(){const cur=document.documentElement.getAttribute('data-theme')||'dark';const next=cur==='dark'?'light':'dark';try{localStorage.setItem('qd-theme',next)}catch(e){}applyTheme(next)}
 
 // ── Init ──
-document.addEventListener('DOMContentLoaded',()=>{applyTheme(document.documentElement.getAttribute('data-theme')||'dark');const tb=$('#theme-toggle');if(tb)tb.addEventListener('click',toggleTheme);const pd=$('#pipeline-date');if(pd)pd.value=new Date().toISOString().split('T')[0];loadHome();setInterval(()=>{if(!$('#tab-home').classList.contains('hidden'))loadHome()},5*60*1000)});
+document.addEventListener('DOMContentLoaded',()=>{applyTheme(document.documentElement.getAttribute('data-theme')||'dark');const tb=$('#theme-toggle');if(tb)tb.addEventListener('click',toggleTheme);const pd=$('#pipeline-date');if(pd)pd.value=new Date().toISOString().split('T')[0];initDrilldown();loadHome();setInterval(()=>{if(!$('#tab-home').classList.contains('hidden'))loadHome()},5*60*1000)});
+
+// ══════════════════════════════════════════════════════════════
+// Drilldown Panel
+// ══════════════════════════════════════════════════════════════
+function initDrilldown(){
+  $('#dd-overlay').addEventListener('click', closeDrilldown);
+  $('#dd-close').addEventListener('click', closeDrilldown);
+  document.addEventListener('keydown', e => { if(e.key==='Escape') closeDrilldown(); });
+}
+
+function openDrilldown(title, html){
+  $('#dd-title').textContent = title;
+  $('#dd-body').innerHTML = html;
+  $('#dd-overlay').classList.add('open');
+  $('#dd-panel').classList.add('open');
+}
+
+function closeDrilldown(){
+  $('#dd-overlay').classList.remove('open');
+  $('#dd-panel').classList.remove('open');
+}
+
+// Factor ICIR labels from v16 metadata
+const _V16_FACTORS = {
+  low_vol_20d: {label:'低波动 20d', direction:-1, icir:0.717, explain:'20日收益率标准差取负。A股最稳健信号，低波动股长期有显著溢价。'},
+  team_coin: {label:'团队币', direction:1, icir:0.634, explain:'行为金融复合因子：低波时跟动量、高波时抄反转，自适应市场状态。'},
+  shadow_lower: {label:'下影线支撑', direction:-1, icir:0.494, explain:'K线下影线长度。A股中长下影线后往往反转，与技术分析理解相反。'},
+  amihud_illiquidity: {label:'Amihud非流动性', direction:1, icir:0.377, explain:'单位成交量的价格冲击。流动性溢价：越难成交收益越高。'},
+  price_vol_divergence: {label:'量价背离', direction:1, icir:0.375, explain:'价格与成交量滚动Spearman相关。价涨量缩=上涨动能弱，反向持有。'},
+  high_52w_ratio: {label:'52周高点锚定', direction:-1, icir:0.348, explain:'当前价/52周最高价。越接近年度高点，散户追涨越充分，反转压力越大。'},
+  turnover_acceleration: {label:'换手加速', direction:-1, icir:0.312, explain:'短期换手率 vs 中期均值的加速比。换手急剧放大=散户追高顶部信号，看空。'},
+  momentum_6m_skip1m: {label:'6月动量(跳1月)', direction:-1, icir:0.305, explain:'过去6月收益跳过最近1月。A股中期动量呈反转（≠美股延续），看空强势股。'},
+  win_rate_60d: {label:'60日胜率反转', direction:-1, icir:0.391, explain:'近60日正收益天数占比。每天都在涨=散户集体追涨=过热，均值回归压力大。'},
+  amihud_illiq: {label:'Amihud非流动性', direction:1, icir:0.377, explain:'单位成交量的价格冲击。流动性溢价：越难成交收益越高。'},
+};
+
+async function drilldownStock(code, name){
+  openDrilldown(`${code}${name?' · '+name:''}`, '<div class="loading">加载中...</div>');
+  const d = await api(`/api/signals/stock/${code}`);
+  if(!d || d.error){
+    $('#dd-body').innerHTML = `<div style="color:var(--neg);font-size:12px;">${d?.error||'加载失败'}</div>`;
+    return;
+  }
+  const scoreColor = (d.composite_score||0)>0?'var(--pos)':'var(--neg)';
+  let html = `
+    <div class="dd-section">
+      <div class="dd-section-label">持仓概况</div>
+      <div class="dd-kv"><span class="dd-kv-key">代码</span><span class="dd-kv-val mono">${escHtml(d.code)}</span></div>
+      <div class="dd-kv"><span class="dd-kv-key">名称</span><span class="dd-kv-val">${escHtml(d.name||'—')}</span></div>
+      <div class="dd-kv"><span class="dd-kv-key">综合得分</span><span class="dd-kv-val mono" style="color:${scoreColor}">${d.composite_score!=null?d.composite_score.toFixed(4):'—'}</span></div>
+      <div class="dd-kv"><span class="dd-kv-key">持仓排名</span><span class="dd-kv-val">${d.rank!=null?'#'+d.rank:'未入选'}</span></div>
+      <div class="dd-kv"><span class="dd-kv-key">信号日期</span><span class="dd-kv-val mono">${escHtml(d.as_of_date||'—')}</span></div>
+      <div class="dd-kv"><span class="dd-kv-key">策略</span><span class="dd-kv-val mono">${escHtml(d.strategy||'—')}</span></div>
+    </div>`;
+
+  const fs = d.factor_scores || {};
+  if(Object.keys(fs).length){
+    html += `<div class="dd-section"><div class="dd-section-label">因子得分明细 <span style="font-weight:400;text-transform:none;letter-spacing:0;">（点击查看 IC 时序）</span></div>`;
+    for(const [fid, fdata] of Object.entries(fs)){
+      const meta = _V16_FACTORS[fid]||{};
+      const label = meta.label||fid;
+      const dir = meta.direction||1;
+      const pct = fdata.pct_rank!=null ? fdata.pct_rank : null;
+      const val = fdata.value!=null ? fdata.value.toFixed(4) : '—';
+      // color bar: if direction=1, higher pct rank is green; if -1, lower pct rank is green
+      const goodPct = dir===1 ? pct : (pct!=null?1-pct:null);
+      const barColor = goodPct!=null?(goodPct>0.7?'var(--pos)':goodPct<0.3?'var(--neg)':'var(--accent)'):'var(--text-muted)';
+      const dirLabel = dir===1?'+':'-';
+      const dirClass = dir===1?'dir-pos':'dir-neg';
+      html += `<div class="dd-factor-row" onclick="drilldownFactor('${escHtml(fid)}')">
+        <span class="dir-badge ${dirClass}">${dirLabel}</span>
+        <span class="dd-factor-name">${escHtml(label)}</span>
+        ${pct!=null?`<div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:${Math.round(pct*100)}%;background:${barColor};"></div></div><span style="font-size:10px;color:var(--text-muted);width:32px;text-align:right;">${Math.round(pct*100)}%</span></div>`:''}
+        <span style="font-size:11px;font-family:'Fira Code',monospace;color:var(--text-muted);min-width:60px;text-align:right;">${val}</span>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  if(Object.keys(fs).length){
+    html += `<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">分位数 = 在全市场的排名百分位；点击因子行查看 IC 时序</div>`;
+  }
+  $('#dd-body').innerHTML = html;
+}
+
+async function drilldownFactor(factorId){
+  const meta = _V16_FACTORS[factorId]||{};
+  const label = meta.label||factorId;
+  openDrilldown(`因子详情 · ${label}`, '<div class="loading">加载 IC 时序...</div>');
+
+  const d = await api(`/api/factors/ic/${factorId}`);
+  const hd = await api(`/api/factors/health`);
+  const health = hd?.[factorId]||{};
+
+  let statusColor = 'var(--text-muted)';
+  if(health.status==='healthy') statusColor='var(--pos)';
+  else if(health.status==='warning') statusColor='var(--warn)';
+  else if(health.status==='failed') statusColor='var(--neg)';
+
+  const dir = meta.direction||1;
+  const dirLabel = dir===1?'做多（正向）':'做空（负向）';
+
+  let html = `
+    <div class="dd-section">
+      <div class="dd-section-label">因子概况</div>
+      <div class="dd-kv"><span class="dd-kv-key">因子ID</span><span class="dd-kv-val mono">${escHtml(factorId)}</span></div>
+      <div class="dd-kv"><span class="dd-kv-key">ICIR</span><span class="dd-kv-val mono">${meta.icir!=null?meta.icir.toFixed(3):'—'}</span></div>
+      <div class="dd-kv"><span class="dd-kv-key">方向</span><span class="dd-kv-val">${dirLabel}</span></div>
+      <div class="dd-kv"><span class="dd-kv-key">健康状态</span><span class="dd-kv-val" style="color:${statusColor}">${health.status||'—'}</span></div>
+      ${health.rolling_ic!=null?`<div class="dd-kv"><span class="dd-kv-key">滚动均值IC</span><span class="dd-kv-val mono">${health.rolling_ic.toFixed(4)}</span></div>`:''}
+      ${health.t_stat!=null?`<div class="dd-kv"><span class="dd-kv-key">t-stat</span><span class="dd-kv-val mono">${health.t_stat.toFixed(2)}</span></div>`:''}
+    </div>`;
+
+  if(meta.explain){
+    html += `<div class="dd-section">
+      <div class="dd-section-label">投资逻辑</div>
+      <div style="font-size:12px;line-height:1.6;color:var(--text-secondary);">${escHtml(meta.explain)}</div>
+    </div>`;
+  }
+
+  // IC chart
+  const series = d?.ic_series || [];
+  if(series.length){
+    const meanIC = d.mean_ic||0;
+    const maxAbs = Math.max(...series.map(x=>Math.abs(x.ic)), 0.001);
+    const bars = series.map(pt => {
+      const h = Math.round((Math.abs(pt.ic)/maxAbs)*54)+1;
+      const col = pt.ic>=0 ? 'var(--pos)' : 'var(--neg)';
+      return `<div class="ic-bar" style="height:${h}px;background:${col};opacity:0.8;" title="${pt.date}: ${pt.ic.toFixed(4)}"></div>`;
+    }).join('');
+    html += `<div class="dd-section">
+      <div class="dd-section-label">60日 IC 时序 <span style="font-weight:400;text-transform:none;">均值 ${meanIC>=0?'+':''}${meanIC.toFixed(4)}</span></div>
+      <div class="ic-bar-chart">${bars}</div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px;">
+        <span>${series[0]?.date||''}</span><span>${series[series.length-1]?.date||''}</span>
+      </div>
+    </div>`;
+  } else {
+    html += `<div class="dd-section"><div style="font-size:12px;color:var(--text-muted);">暂无 IC 数据（需要 live/factor_snapshot/ 快照文件）</div></div>`;
+  }
+
+  $('#dd-body').innerHTML = html;
+}
 </script>
+
+<!-- Drilldown Panel -->
+<div id="dd-overlay" class="dd-overlay"></div>
+<div id="dd-panel" class="dd-panel">
+  <div class="dd-header">
+    <span id="dd-title" class="dd-title">详情</span>
+    <button id="dd-close" class="dd-close">×</button>
+  </div>
+  <div id="dd-body" class="dd-body"></div>
+</div>
+
 </body>
 </html>

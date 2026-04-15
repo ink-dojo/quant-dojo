@@ -12,6 +12,7 @@ from fastapi import APIRouter
 from dashboard.services.factors_service import (
     get_factor_detail,
     get_factor_health,
+    get_factor_ic_series,
     get_factor_snapshot,
     list_factor_catalog,
     list_factor_library,
@@ -55,3 +56,9 @@ def factor_readme(factor_dir: str) -> dict:
 def factor_detail(name: str) -> dict:
     """返回单个因子的完整详情：docstring + 源码 + 今日截面 + 健康。"""
     return get_factor_detail(name)
+
+
+@router.get("/ic/{name}")
+def factor_ic(name: str) -> dict:
+    """返回单个因子最近 60 日 IC 时序 + 均值 + t-stat。"""
+    return get_factor_ic_series(name)
