@@ -39,6 +39,7 @@ from utils.market_regime import (
     rsrs_regime_mask, llt_timing, higher_moment_timing,
     classify_regime_3state, smooth_regime,
 )
+from utils.stop_loss import half_position_stop
 from utils.alpha_factors import (
     team_coin as _team_coin,
     low_vol_20d as _low_vol_20d,
@@ -93,6 +94,10 @@ V8_REGIME_WEIGHTS = {
 # 平滑参数（避免单日噪音触发权重切换）
 REGIME_SMOOTH_WINDOW = 5   # 5日滚动投票
 REGIME_SMOOTH_THRESH = 2   # 净得分 ≥ 2 才切换
+
+# 组合层动态止损（方案2）
+# 累计回撤超过 STOP_LOSS_THRESH 时降仓至 50%，净值创新高后恢复满仓
+STOP_LOSS_THRESH = -0.08   # -8% 触发降仓
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -231,8 +236,11 @@ def run_is_oos_comparison(price, neutral, tradable, regime3, v7_regime_mask, hs3
         mask=tradable, lag1=True,
     ) if regime3 is not None else pd.Series(dtype=float)
 
+    # v8 加组合层止损
+    ret_v8_sl = half_position_stop(ret_v8, threshold=STOP_LOSS_THRESH) if len(ret_v8) > 0 else ret_v8
+
     results = {}
-    for label, ret in [("v7_fixed", ret_v7), ("v8_adaptive", ret_v8)]:
+    for label, ret in [("v7_fixed", ret_v7), ("v8_adaptive", ret_v8), ("v8_adaptive+sl", ret_v8_sl)]:
         is_ret  = ret.loc[IS_START:IS_END]
         oos_ret = ret.loc[OOS_START:OOS_END]
         results[label] = {
@@ -243,7 +251,7 @@ def run_is_oos_comparison(price, neutral, tradable, regime3, v7_regime_mask, hs3
         print(f"  {label} IS: 年化={m.get('ann',0):+.2%}  夏普={m.get('sr',0):.4f}"
               f"  回撤={m.get('mdd',0):.2%}  超额={m.get('excess',float('nan')):+.2%}")
 
-    return results, ret_v7, ret_v8
+    return results, ret_v7, ret_v8, ret_v8_sl
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -290,6 +298,9 @@ def run_wf_adaptive(price, pb, tradable, regime3):
             n_stocks=N_STOCKS, cost=COST,
             mask=None, lag1=True,
         )
+        # 加组合层止损
+        if len(wf_ret) > 0:
+            wf_ret = half_position_stop(wf_ret, threshold=STOP_LOSS_THRESH)
         return wf_ret.loc[test_start:test_end] if len(wf_ret) > 0 else pd.Series(dtype=float)
 
     wf_summary = None
@@ -353,7 +364,7 @@ def write_report(is_oos, wf_v7_ref, wf_v8):
         "| 策略 | 区间 | 年化 | 夏普 | 最大回撤 | 超额 |",
         "| --- | --- | ---: | ---: | ---: | ---: |",
     ]
-    for label in ["v7_fixed", "v8_adaptive"]:
+    for label in ["v7_fixed", "v8_adaptive", "v8_adaptive+sl"]:
         res = is_oos.get(label, {})
         for period in ["is", "oos"]:
             m = res.get(period, {})
@@ -383,10 +394,20 @@ def write_report(is_oos, wf_v7_ref, wf_v8):
     lines += ["", "## 结论", ""]
     if wf_v8:
         med = wf_v8['sharpe_median']
-        v8_sr = is_oos.get("v8_adaptive", {}).get("is", {}).get("sr", 0)
-        v7_sr = is_oos.get("v7_fixed", {}).get("is", {}).get("sr", 0)
-        if med > 0.2 and v8_sr >= v7_sr * 0.9:
-            verdict = "**PROMOTE** — WF 中位数显著改善，IS 表现维持，建议作为 v8 正式候选。"
+        v8_sl = is_oos.get("v8_adaptive+sl", {}).get("is", {})
+        v8_mdd = v8_sl.get("mdd", -99)
+        v8_sr  = v8_sl.get("sr", 0)
+        v7_sr  = is_oos.get("v7_fixed", {}).get("is", {}).get("sr", 0)
+        if med > 0.2 and v8_mdd > -0.30 and v8_sr >= v7_sr * 0.85:
+            verdict = (
+                f"**PROMOTE** — WF 中位数={med:.4f}，IS 回撤={v8_mdd:.2%}（通过 -30% 门槛），"
+                f"夏普={v8_sr:.4f}。建议作为 v8 正式候选提交入模。"
+            )
+        elif med > 0.2:
+            verdict = (
+                f"**CONDITIONAL** — WF 中位数={med:.4f} 已达标，但 IS 回撤={v8_mdd:.2%} 仍超 -30% 门槛。"
+                f"需进一步加强止损或收窄 bull 权重。"
+            )
         elif med > 0.0:
             verdict = "**CONDITIONAL** — WF 中位数有改善但未达 0.20，继续优化权重设计。"
         else:
@@ -408,7 +429,7 @@ def main():
     price, pb, hs300_full, tradable = load_data()
     neutral = build_factors(price, pb)
     regime3, v7_regime_mask = build_regime(hs300_full)
-    is_oos, ret_v7, ret_v8 = run_is_oos_comparison(
+    is_oos, ret_v7, ret_v8, ret_v8_sl = run_is_oos_comparison(
         price, neutral, tradable, regime3, v7_regime_mask, hs300_full
     )
     wf_summary = run_wf_adaptive(price, pb, tradable, regime3)
