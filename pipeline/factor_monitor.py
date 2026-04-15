@@ -180,7 +180,7 @@ FACTOR_PRESETS = {
     "v8": ["team_coin", "low_vol_20d", "cgo_simple", "enhanced_mom_60", "bp", "shadow_lower"],
     # v16 = 当前生产策略，9因子，IC加权，A股反转主导
     "v16": [
-        "low_vol_20d", "team_coin", "shadow_lower", "amihud_illiquidity",
+        "low_vol_20d", "team_coin", "shadow_lower", "amihud_illiq",
         "price_vol_divergence", "high_52w_ratio", "turnover_acceleration",
         "momentum_6m_skip1m", "win_rate_60d",
     ],
