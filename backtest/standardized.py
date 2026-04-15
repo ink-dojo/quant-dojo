@@ -30,6 +30,7 @@ from strategies.base import StrategyConfig
 from strategies.multi_factor import MultiFactorStrategy
 from utils.local_data_loader import load_price_wide, get_all_symbols, load_factor_wide
 from utils.listing_metadata import universe_alive_during
+from utils.data_manifest import compute_data_manifest
 from utils.metrics import (
     annualized_return,
     annualized_volatility,
@@ -107,6 +108,8 @@ class BacktestResult:
     status: str = "pending"
     error: Optional[str] = None
     created_at: str = ""
+    # 数据 vintage 指纹（compute_data_manifest 的返回值）
+    data_manifest: dict = field(default_factory=dict)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -507,6 +510,13 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
 
         print(f"  价格数据: {price_wide.shape[0]} 天 x {price_wide.shape[1]} 只股票")
 
+        # 数据 vintage 快照：记录当次运行用的输入指纹，用于复查/复现
+        try:
+            result.data_manifest = compute_data_manifest(symbols=symbols)
+        except Exception as exc:
+            logger.warning("data manifest 计算失败: %s", exc)
+            result.data_manifest = {"status": "error", "error": str(exc)}
+
         # 数据质量检查
         data_warnings = _validate_price_data(price_wide)
         for w in data_warnings:
@@ -747,6 +757,9 @@ def _persist_result(result: BacktestResult) -> str:
         error=result.error,
         created_at=result.created_at,
     )
+    # 把数据 vintage 指纹放到 artifacts，便于后续 verify_data_manifest
+    if result.data_manifest:
+        record.artifacts["data_manifest"] = result.data_manifest
 
     save_run(record, equity_df=result.equity_curve)
     return run_id
