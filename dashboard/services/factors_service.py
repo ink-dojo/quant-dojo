@@ -499,6 +499,44 @@ def get_factor_detail(name: str) -> dict:
     }
 
 
+def get_factor_ic_series(factor_id: str) -> dict:
+    """
+    获取单个因子最近 60 天的日 IC 时序。
+
+    返回:
+        {
+          "factor": str,
+          "ic_series": [{"date": "2026-03-01", "ic": 0.031}, ...],
+          "mean_ic": float | None,
+          "t_stat": float | None,
+        }
+    """
+    if not _VALID_FACTOR_NAME.match(factor_id):
+        return {"factor": factor_id, "ic_series": [], "error": "非法因子名"}
+    try:
+        from pipeline.factor_monitor import compute_rolling_ic
+        ic = compute_rolling_ic(factor_id, lookback_days=60)
+        if ic.empty:
+            return {"factor": factor_id, "ic_series": [], "mean_ic": None, "t_stat": None}
+        import numpy as np
+        vals = ic.dropna()
+        mean_ic = float(vals.mean()) if len(vals) else None
+        std_ic = float(vals.std()) if len(vals) > 1 else None
+        n = len(vals)
+        t_stat = (mean_ic / (std_ic / (n ** 0.5))) if (std_ic and std_ic > 0 and n > 0) else None
+        return {
+            "factor": factor_id,
+            "ic_series": [
+                {"date": d.strftime("%Y-%m-%d"), "ic": round(float(v), 6)}
+                for d, v in vals.items()
+            ],
+            "mean_ic": round(mean_ic, 6) if mean_ic is not None else None,
+            "t_stat": round(t_stat, 4) if t_stat is not None else None,
+        }
+    except Exception as exc:
+        return {"factor": factor_id, "ic_series": [], "error": str(exc)}
+
+
 if __name__ == "__main__":
     print("=== factor health ===")
     health = get_factor_health()

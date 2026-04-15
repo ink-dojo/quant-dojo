@@ -7,7 +7,7 @@ GET /api/signals/history  → 最近 10 期信号日期和持仓数
 
 from fastapi import APIRouter
 
-from dashboard.services.signals_service import get_latest_signal, get_signal_history
+from dashboard.services.signals_service import get_latest_signal, get_signal_history, get_stock_detail
 
 router = APIRouter()
 
@@ -22,3 +22,9 @@ def latest_signal() -> dict:
 def signal_history() -> list:
     """返回最近 10 期信号的日期和持仓数，格式 [{"date": "...", "n_picks": ...}]。"""
     return get_signal_history()
+
+
+@router.get("/stock/{code}")
+def stock_detail(code: str) -> dict:
+    """返回单只股票在最新信号中的详情：因子得分、分位排名、持仓排名。"""
+    return get_stock_detail(code)
