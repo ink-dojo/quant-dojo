@@ -333,6 +333,44 @@ TIMING_CATALOG = {
 }
 
 
+def classify_regime_3state(
+    close: pd.Series,
+    high: pd.Series,
+    low: pd.Series,
+    ma_window: int = 120,
+    rsrs_bull: float = 0.3,
+    rsrs_bear: float = -0.3,
+) -> pd.Series:
+    """
+    三档市场状态分类：bull / flat / bear
+
+    规则：
+      bull : 价格 > MA{ma_window} 且 RSRS > rsrs_bull
+      bear : 价格 < MA{ma_window} 且 RSRS < rsrs_bear
+      flat : 其余（震荡、过渡期）
+
+    参数:
+        close      : 指数收盘价
+        high / low : 指数日高低价（用于 RSRS）
+        ma_window  : 趋势均线窗口，默认 120 天（半年线，A 股常用）
+        rsrs_bull  : RSRS 看多阈值
+        rsrs_bear  : RSRS 看空阈值
+
+    返回:
+        pd.Series[str]，值为 "bull" / "flat" / "bear"，与 close 同索引
+    """
+    ma = close.rolling(ma_window, min_periods=max(ma_window // 2, 30)).mean()
+    above_ma = close > ma
+
+    rsrs = compute_rsrs_signal(high, low).reindex(close.index).ffill()
+
+    regime = pd.Series("flat", index=close.index, dtype=str)
+    regime[above_ma & (rsrs > rsrs_bull)] = "bull"
+    regime[(~above_ma) & (rsrs < rsrs_bear)] = "bear"
+
+    return regime
+
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent))

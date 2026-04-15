@@ -285,6 +285,106 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
 
 
 # ══════════════════════════════════════════════════════════════
+# 市场状态自适应回测
+# ══════════════════════════════════════════════════════════════
+def run_backtest_adaptive(
+    price_wide,
+    factor_dict,
+    regime_weights: dict,
+    regime_series: "pd.Series",
+    n_stocks: int = 30,
+    cost: float = 0.003,
+    mask=None,
+    max_weight: float = 0.1,
+    lag1: bool = True,
+):
+    """
+    市场状态自适应回测：每个换仓日根据当前 regime 切换因子权重。
+
+    参数:
+        price_wide    : 价格宽表
+        factor_dict   : {因子名: 因子 DataFrame}
+        regime_weights: {"bull": {因子名: 权重}, "flat": {...}, "bear": {...}}
+        regime_series : pd.Series[str]，值为 "bull"/"flat"/"bear"，日频
+        n_stocks      : 持仓数
+        cost          : 换仓双边成本
+        mask          : 可交易性 bool mask
+        max_weight    : 单票上限
+        lag1          : 是否延迟 1 日使用信号
+
+    返回:
+        pd.Series: 日收益率
+    """
+    dr = price_wide.pct_change()
+
+    # 预先为每种 regime 计算合成因子
+    composites = {}
+    for state, weights in regime_weights.items():
+        total_w = sum(weights.values())
+        norm_w = {k: v / total_w for k, v in weights.items()}
+        comp = None
+        for name, w in norm_w.items():
+            if name not in factor_dict:
+                continue
+            z = zscore_cross(factor_dict[name])
+            comp = z * w if comp is None else comp.add(z * w, fill_value=0)
+        if comp is not None:
+            if mask is not None:
+                comp = comp.where(mask.reindex_like(comp))
+            if lag1:
+                comp = comp.shift(1)
+            composites[state] = comp
+
+    if lag1:
+        regime_series = regime_series.shift(1).ffill()
+
+    rebal_dates = price_wide.resample("MS").first().index
+    rebal_dates = [d for d in rebal_dates if d in price_wide.index]
+
+    portfolio_returns = []
+    prev_picks = set()
+
+    for i, date in enumerate(rebal_dates):
+        # 选当前 regime 的合成因子
+        state = regime_series.loc[date] if date in regime_series.index else "flat"
+        if state not in composites:
+            state = "flat"
+        if state not in composites:
+            continue
+
+        composite = composites[state]
+        if date not in composite.index:
+            continue
+
+        scores = composite.loc[date].dropna()
+        if len(scores) < n_stocks:
+            continue
+
+        picks = scores.sort_values(ascending=False).head(n_stocks).index.tolist()
+        raw_w = pd.Series(1.0 / len(picks), index=picks)
+        capped_w = cap_weights(raw_w, max_weight=max_weight)
+
+        next_date = rebal_dates[i + 1] if i + 1 < len(rebal_dates) else price_wide.index[-1]
+        period_ret = dr.loc[date:next_date, picks]
+        if len(period_ret) > 1:
+            period_ret = period_ret.iloc[1:]
+
+        port_daily = period_ret.mul(capped_w, axis=1).sum(axis=1)
+
+        new_picks = set(picks)
+        turnover = 1 - len(new_picks & prev_picks) / n_stocks if prev_picks else 1.0
+        if len(port_daily) > 0:
+            port_daily.iloc[0] -= cost * turnover
+
+        prev_picks = new_picks
+        portfolio_returns.append(port_daily)
+
+    if not portfolio_returns:
+        return pd.Series(dtype=float)
+    return pd.concat(portfolio_returns).sort_index()
+
+
+# ══════════════════════════════════════════════════════════════
 # IC 快报
 # ══════════════════════════════════════════════════════════════
 def print_ic_report(factors, price, start, end):
