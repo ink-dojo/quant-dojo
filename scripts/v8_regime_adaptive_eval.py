@@ -37,7 +37,7 @@ from utils.fundamental_loader import get_industry_classification
 from utils.tradability_filter import apply_tradability_filter
 from utils.market_regime import (
     rsrs_regime_mask, llt_timing, higher_moment_timing,
-    classify_regime_3state,
+    classify_regime_3state, smooth_regime,
 )
 from utils.alpha_factors import (
     team_coin as _team_coin,
@@ -66,18 +66,19 @@ V7_WEIGHTS = {
     "bp":              0.10,
 }
 
-# ── v8 三档自适应权重 ────────────────────────────────────────────
-# 设计原则：
-#   bull：趋势单边市，均值回归失效 → 加大动量，削减 low_vol/cgo
-#   flat：震荡市，均值回归最有效 → 沿用 v7 不变
-#   bear：熊市，低波动防御 + 均值回归 → 减少动量
+# ── v8 三档自适应权重（v2：收敛 bull 激进程度，控制回撤）────────────
+# v1 问题：bull 状态 momentum 30% 导致 IS 回撤 -44%（超门槛 -30%）
+# v2 修正：
+#   bull  动量从 30% → 22%，low_vol 从 10% → 15%（保留部分防御）
+#   bear  不变
+#   切换平滑：classify_regime_3state → smooth_regime(window=5)
 V8_REGIME_WEIGHTS = {
     "bull": {
-        "team_coin":       0.35,   # 动量类，牛市最有效
-        "enhanced_mom_60": 0.30,   # 经典动量，加大
-        "bp":              0.20,   # 价值，穿越周期稳定
-        "low_vol_20d":     0.10,   # 均值回归，大幅削减
-        "cgo_simple":      0.05,   # 均值回归，大幅削减
+        "team_coin":       0.33,   # 动量类，牛市有效
+        "enhanced_mom_60": 0.22,   # 经典动量（从 30% 降至 22%，减少回撤）
+        "bp":              0.20,   # 价值，穿越周期
+        "low_vol_20d":     0.15,   # 保留部分防御（从 10% 升至 15%）
+        "cgo_simple":      0.10,   # 少量均值回归
     },
     "flat": V7_WEIGHTS,            # 震荡市：v7 原始权重不变
     "bear": {
@@ -88,6 +89,10 @@ V8_REGIME_WEIGHTS = {
         "enhanced_mom_60": 0.05,   # 动量在熊市基本无效
     },
 }
+
+# 平滑参数（避免单日噪音触发权重切换）
+REGIME_SMOOTH_WINDOW = 5   # 5日滚动投票
+REGIME_SMOOTH_THRESH = 2   # 净得分 ≥ 2 才切换
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -154,17 +159,21 @@ def build_regime(hs300_full):
         print("  无 HS300，跳过择时，全程 flat")
         return None, None
 
-    regime3 = classify_regime_3state(
+    regime3_raw = classify_regime_3state(
         close=hs300_full["close"],
         high=hs300_full["high"],
         low=hs300_full["low"],
     )
+    regime3 = smooth_regime(regime3_raw, window=REGIME_SMOOTH_WINDOW, bull_threshold=REGIME_SMOOTH_THRESH, bear_threshold=-REGIME_SMOOTH_THRESH)
 
-    counts = regime3.value_counts()
+    raw_counts = regime3_raw.value_counts()
+    smooth_counts = regime3.value_counts()
     total = len(regime3.dropna())
+    print(f"  {'状态':<8} {'原始':>8} {'平滑后':>8}")
     for state in ["bull", "flat", "bear"]:
-        n = counts.get(state, 0)
-        print(f"  {state}: {n}天 ({n/total:.0%})")
+        r = raw_counts.get(state, 0)
+        s = smooth_counts.get(state, 0)
+        print(f"  {state:<8} {r:>5}天({r/total:.0%}) → {s:>5}天({s/total:.0%})")
 
     # v7 原始二元择时（用于对比基准）
     try:

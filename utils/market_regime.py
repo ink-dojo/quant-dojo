@@ -195,6 +195,45 @@ def composite_regime(
     return result
 
 
+def smooth_regime(
+    regime_series: pd.Series,
+    window: int = 5,
+    bull_threshold: int = 2,
+    bear_threshold: int = -2,
+) -> pd.Series:
+    """
+    平滑 Regime 切换：用滚动多数投票避免单日噪音触发权重剧烈切换。
+
+    原理：
+      bull=+1, flat=0, bear=-1，对 window 天求和。
+      sum >= bull_threshold  → bull（默认需要 window 内净多 2 天）
+      sum <= bear_threshold  → bear
+      其余                   → flat
+
+    默认 window=5, threshold=±2：
+      5天里 3 bull + 2 flat → sum=3 ≥ 2 → bull ✓
+      5天里 2 bull + 1 bear + 2 flat → sum=1 < 2 → flat（避免噪音）
+      5天里 3 bear + 2 flat → sum=-3 ≤ -2 → bear ✓
+
+    参数:
+        regime_series  : pd.Series[str]，值为 "bull"/"flat"/"bear"
+        window         : 滚动投票窗口（天），默认 5
+        bull_threshold : 判定 bull 的净得分下限，默认 2
+        bear_threshold : 判定 bear 的净得分上限，默认 -2
+
+    返回:
+        pd.Series[str]，平滑后的 "bull"/"flat"/"bear"
+    """
+    num = regime_series.map({"bull": 1, "flat": 0, "bear": -1}).fillna(0)
+    roll_sum = num.rolling(window, min_periods=max(window // 2, 1)).sum()
+
+    smoothed = pd.Series("flat", index=regime_series.index, dtype=str)
+    smoothed[roll_sum >= bull_threshold] = "bull"
+    smoothed[roll_sum <= bear_threshold] = "bear"
+
+    return smoothed
+
+
 def higher_moment_timing(close: pd.Series, order: int = 5,
                          moment_window: int = 20,
                          adapt_window: int = 90) -> pd.Series:
