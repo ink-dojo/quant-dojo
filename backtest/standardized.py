@@ -28,7 +28,7 @@ import pandas as pd
 
 from strategies.base import StrategyConfig
 from strategies.multi_factor import MultiFactorStrategy
-from utils.local_data_loader import load_price_wide, get_all_symbols, load_factor_wide
+from utils.local_data_loader import load_price_wide, load_adj_price_wide, get_all_symbols, load_factor_wide
 from utils.listing_metadata import universe_alive_during
 from utils.data_manifest import compute_data_manifest
 from utils.metrics import (
@@ -123,6 +123,7 @@ def _compute_factors(
     start: str,
     end: str,
     neutralize: bool = True,
+    adj_price_wide: pd.DataFrame = None,
 ) -> dict[str, tuple[pd.DataFrame, int]]:
     """
     根据策略名计算因子宽表。
@@ -164,25 +165,28 @@ def _compute_factors(
             factors = _neutralize_factors(factors, symbols)
 
     elif strategy in ("v7", "v8"):
+        # 使用复权价格计算动量/波动率因子（避免除权日虚假大跌）
+        _adj = adj_price_wide if adj_price_wide is not None else price_wide
+
         # team_coin
         try:
-            factors["team_coin"] = (team_coin(price_wide), 1)
+            factors["team_coin"] = (team_coin(_adj), 1)
         except Exception as e:
             logger.warning("team_coin 计算失败: %s", e)
 
         # low_vol_20d
         try:
-            factors["low_vol_20d"] = (low_vol_20d(price_wide), 1)
+            factors["low_vol_20d"] = (low_vol_20d(_adj), 1)
         except Exception as e:
             logger.warning("low_vol_20d 计算失败: %s", e)
 
-        # cgo_simple = -(price / price.rolling(60).mean() - 1)
-        cgo = -(price_wide / price_wide.rolling(60).mean() - 1)
+        # cgo_simple = -(price / price.rolling(60).mean() - 1)，用复权价
+        cgo = -(_adj / _adj.rolling(60).mean() - 1)
         factors["cgo_simple"] = (cgo, 1)
 
-        # enhanced_momentum
+        # enhanced_momentum，用复权价
         try:
-            factors["enhanced_mom_60"] = (enhanced_momentum(price_wide), 1)
+            factors["enhanced_mom_60"] = (enhanced_momentum(_adj), 1)
         except Exception as e:
             logger.warning("enhanced_momentum 计算失败: %s", e)
 
@@ -209,10 +213,11 @@ def _compute_factors(
 
     else:
         # ad_hoc 策略
-        ret_wide = price_wide.pct_change()
+        _adj = adj_price_wide if adj_price_wide is not None else price_wide
+        ret_wide = _adj.pct_change()
 
-        # momentum_20
-        mom = price_wide.pct_change(20)
+        # momentum_20，用复权价
+        mom = _adj.pct_change(20)
         factors["momentum_20"] = (mom, 1)
 
         # ep (1/PE)
@@ -510,6 +515,16 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
 
         print(f"  价格数据: {price_wide.shape[0]} 天 x {price_wide.shape[1]} 只股票")
 
+        # 复权价格（从涨跌幅累积，用于动量/波动率因子，避免除权日虚假大跌）
+        try:
+            adj_price_wide = load_adj_price_wide(symbols, lookback_start, config.end)
+            if adj_price_wide.empty:
+                adj_price_wide = price_wide
+                logger.warning("复权价格为空，回退到未复权 close")
+        except Exception as exc:
+            logger.warning("复权价格加载失败，回退未复权: %s", exc)
+            adj_price_wide = price_wide
+
         # 数据 vintage 快照：记录当次运行用的输入指纹，用于复查/复现
         try:
             result.data_manifest = compute_data_manifest(symbols=symbols)
@@ -531,6 +546,7 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
             start=lookback_start,
             end=config.end,
             neutralize=config.neutralize,
+            adj_price_wide=adj_price_wide,
         )
 
         if not factors:
@@ -540,10 +556,10 @@ def run_backtest(config: BacktestConfig) -> BacktestResult:
         print(f"  因子: {', '.join(factor_names)}")
 
         # 因子统计 + 相关性矩阵
-        # 用次日收益（forward return）计算 IC：ret_wide.loc[t] = close[t+1]/close[t] - 1
+        # 用次日收益（forward return）计算 IC：用复权收益率避免除权日虚假跌幅
         # pct_change().shift(-1) 将每行移为次日收益，与 T 日因子配对 → 正确的 1 日 forward IC
         from utils.factor_analysis import compute_ic_series
-        ret_wide = price_wide.pct_change().shift(-1)
+        ret_wide = adj_price_wide.pct_change().shift(-1)
         factor_stats = {}
         ic_dict = {}
         for name, (fac_wide, direction) in factors.items():
