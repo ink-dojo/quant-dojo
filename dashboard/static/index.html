@@ -1151,7 +1151,7 @@ document.addEventListener('click',e=>{const btn=e.target.closest('[data-tab]');i
 async function loadHome(){await Promise.allSettled([loadHomeStats(),loadHomeChart(),loadHomePicks(),loadHomeFactors(),loadHomeSignals()])}
 
 async function loadHomeStats(){
-  const [port,signal]=await Promise.all([api('/api/portfolio'),api('/api/signals/latest')]);
+  const [port,signal,active]=await Promise.all([api('/api/portfolio'),api('/api/signals/latest'),api('/api/strategies/active')]);
   const s=port?.summary||{};
   const retCls=(s.return_pct||0)>=0?'val-pos':'val-neg';
   const ddCls=(s.max_drawdown||0)<=0?'val-neg':'';
@@ -1159,7 +1159,7 @@ async function loadHomeStats(){
   $('#stat-return').innerHTML=`<span class="mono ${retCls}">${s.return_pct!=null?pct(s.return_pct):'—'}</span>`;
   $('#stat-sharpe').innerHTML=`<span class="mono">${s.sharpe!=null?fix2(s.sharpe):'—'}</span>`;
   $('#stat-dd').innerHTML=`<span class="mono ${ddCls}">${s.max_drawdown!=null?pct(s.max_drawdown):'—'}</span>`;
-  $('#stat-strategy').innerHTML=`<span class="mono" style="color:var(--accent);">${signal?.strategy||'v16'}</span>`;
+  $('#stat-strategy').innerHTML=`<span class="mono" style="color:var(--accent);">${active?.active||'—'}</span>`;
   $('#stat-signal-date').innerHTML=`<span class="mono">${signal?.as_of_date||'—'}</span>`;
 }
 
@@ -1387,7 +1387,7 @@ function applyTheme(t){document.documentElement.setAttribute('data-theme',t);con
 function toggleTheme(){const cur=document.documentElement.getAttribute('data-theme')||'dark';const next=cur==='dark'?'light':'dark';try{localStorage.setItem('qd-theme',next)}catch(e){}applyTheme(next)}
 
 // ── Init ──
-document.addEventListener('DOMContentLoaded',()=>{applyTheme(document.documentElement.getAttribute('data-theme')||'dark');const tb=$('#theme-toggle');if(tb)tb.addEventListener('click',toggleTheme);$('#pipeline-date').value=new Date().toISOString().split('T')[0];loadHome();setInterval(()=>{if(!$('#tab-home').classList.contains('hidden'))loadHome()},5*60*1000)});
+document.addEventListener('DOMContentLoaded',()=>{applyTheme(document.documentElement.getAttribute('data-theme')||'dark');const tb=$('#theme-toggle');if(tb)tb.addEventListener('click',toggleTheme);const pd=$('#pipeline-date');if(pd)pd.value=new Date().toISOString().split('T')[0];loadHome();setInterval(()=>{if(!$('#tab-home').classList.contains('hidden'))loadHome()},5*60*1000)});
 </script>
 </body>
 </html>
