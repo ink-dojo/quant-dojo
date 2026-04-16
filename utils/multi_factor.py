@@ -208,6 +208,126 @@ def ic_weighted_composite(
 
 
 # ─────────────────────────────────────────────
+# ICIR 加权（训练期学习权重）
+# ─────────────────────────────────────────────
+
+def icir_weight(
+    factors: dict,
+    price_wide: pd.DataFrame,
+    train_start,
+    train_end,
+    fwd_days: int = 20,
+    min_weight: float = 0.0,
+    min_stocks: int = 30,
+) -> dict:
+    """
+    基于训练期 ICIR 计算各因子权重（严格无未来泄漏）。
+
+    算法：
+      1. 构造 fwd_ret = 未来 fwd_days 日收益率（shift(-fwd_days)）
+      2. 在 [train_start, train_end - fwd_days] 区间内计算每个因子的每日截面 Rank IC
+         （上限截断确保 fwd_ret 值完全落在训练期内，不用到测试期价格）
+      3. ICIR_i = mean(IC_i) / std(IC_i)
+      4. 权重_i = |ICIR_i| / Σ|ICIR|
+      5. 应用 min_weight 地板并重新归一化
+      6. 方向 sign_i = sign(mean(IC_i))，供调用方将负IC因子翻转
+
+    参数:
+        factors     : {因子名: 因子宽表}，所有因子已对齐相同 index/columns
+        price_wide  : 原始价格宽表，用于计算前向收益
+        train_start : 训练期起始（Timestamp 或字符串）
+        train_end   : 训练期结束
+        fwd_days    : 前向收益窗口（交易日），默认 20（约一个月）
+        min_weight  : 权重下限，默认 0（无下限）。设为 0.05 可防止极端稀疏
+        min_stocks  : 单日 IC 计算的最低有效股票数
+
+    返回:
+        dict:
+          "weights"  : {因子名: 权重}，和=1，值域 [min_weight, 1]
+          "signs"    : {因子名: +1 或 -1}，IC 均值为负的因子翻转
+          "ic_stats" : {因子名: {"ic_mean", "ic_std", "icir", "n"}}
+
+    幂等性与退化：
+      - 若训练期天数 ≤ fwd_days：返回等权
+      - 若所有因子 IC 都是 NaN：返回等权
+      - 若某因子 n<20（IC 样本不足）：该因子 |ICIR| 记为 0，权重降至 min_weight
+    """
+    from utils.factor_analysis import compute_ic_series
+
+    n_factors = len(factors)
+    if n_factors == 0:
+        return {"weights": {}, "signs": {}, "ic_stats": {}}
+
+    # 构造前向收益
+    fwd_ret = price_wide.pct_change(fwd_days).shift(-fwd_days)
+
+    # 训练期日期
+    train_dates = price_wide.loc[train_start:train_end].index
+    if len(train_dates) <= fwd_days + 5:
+        # 训练期太短 → 退化等权
+        w_eq = 1.0 / n_factors
+        return {
+            "weights":  {name: w_eq for name in factors},
+            "signs":    {name: 1 for name in factors},
+            "ic_stats": {name: {"ic_mean": np.nan, "ic_std": np.nan, "icir": 0.0, "n": 0}
+                         for name in factors},
+        }
+
+    # 截断到训练期末 - fwd_days：确保 fwd_ret 只用训练期价格
+    # 前提：train_dates 是 price_wide.index 在 [train_start, train_end] 的连续切片，
+    # 所以 train_dates[-fwd_days-1] 向后 fwd_days 行恰好是 train_dates[-1]（最后训练日）
+    cutoff = train_dates[-fwd_days - 1]
+
+    ic_stats = {}
+    abs_icirs = {}
+    signs = {}
+
+    for name, fac in factors.items():
+        fac_slice = fac.loc[train_start:cutoff]
+        ret_slice = fwd_ret.loc[train_start:cutoff]
+        ic = compute_ic_series(fac_slice, ret_slice, method="spearman",
+                               min_stocks=min_stocks)
+        ic = ic.dropna()
+        if len(ic) < 20:
+            ic_stats[name] = {"ic_mean": np.nan, "ic_std": np.nan, "icir": 0.0, "n": len(ic)}
+            abs_icirs[name] = 0.0
+            signs[name] = 1
+            continue
+        ic_mean = ic.mean()
+        ic_std = ic.std()
+        icir = ic_mean / ic_std if ic_std > 0 else 0.0
+        abs_icirs[name] = abs(icir)
+        signs[name] = 1 if ic_mean >= 0 else -1
+        ic_stats[name] = {"ic_mean": ic_mean, "ic_std": ic_std, "icir": icir, "n": len(ic)}
+
+    # 构造权重：先扣除 floor，剩余按 |ICIR| 比例分配
+    total_icir = sum(abs_icirs.values())
+    w_eq = 1.0 / n_factors
+
+    if min_weight <= 0 or min_weight * n_factors >= 1.0 - 1e-9:
+        # 无 floor，或 floor 不可行（n*min > 1）→ 纯比例或等权
+        if min_weight * n_factors >= 1.0 - 1e-9:
+            weights = {name: w_eq for name in factors}
+        elif total_icir <= 1e-12:
+            weights = {name: w_eq for name in factors}
+        else:
+            weights = {name: v / total_icir for name, v in abs_icirs.items()}
+    else:
+        # Floor 可行：每人先分 min_weight，剩余按 |ICIR| 比例
+        remainder = 1.0 - min_weight * n_factors
+        if total_icir <= 1e-12:
+            # ICIR 全零 → 等权
+            weights = {name: w_eq for name in factors}
+        else:
+            weights = {
+                name: min_weight + remainder * (abs_icirs[name] / total_icir)
+                for name in factors
+            }
+
+    return {"weights": weights, "signs": signs, "ic_stats": ic_stats}
+
+
+# ─────────────────────────────────────────────
 # 评分合成
 # ─────────────────────────────────────────────
 
@@ -317,5 +437,77 @@ if __name__ == "__main__":
     assert sc.shape == (10, 5)
     assert sc.min().min() >= 0 and sc.max().max() <= 1.0
     print(f"✅ score_composite OK | shape={sc.shape}")
+
+    # ─────────── icir_weight 测试 ───────────
+    # 构造一个"信号强"的因子：f_strong[t] 和 未来收益同号
+    # 和一个"纯噪音"的因子：f_noise 与未来收益无关
+    np.random.seed(2025)
+    n_days = 400
+    n_stocks = 60
+    dates_big = pd.date_range("2024-01-01", periods=n_days, freq="B")
+    symbols_big = [f"S{i:02d}" for i in range(n_stocks)]
+
+    # 价格：随机游走
+    returns = np.random.randn(n_days, n_stocks) * 0.02
+    prices = pd.DataFrame(100 * np.exp(np.cumsum(returns, axis=0)),
+                          index=dates_big, columns=symbols_big)
+
+    # 强因子：前向 20 日收益 + 小噪音（IC 应该很高）
+    fwd20 = prices.pct_change(20).shift(-20)
+    f_strong = fwd20 + np.random.randn(n_days, n_stocks) * 0.01
+    f_noise  = pd.DataFrame(np.random.randn(n_days, n_stocks),
+                            index=dates_big, columns=symbols_big)
+    f_medium = 0.5 * fwd20 + 0.5 * pd.DataFrame(
+        np.random.randn(n_days, n_stocks), index=dates_big, columns=symbols_big)
+
+    fac_dict = {"strong": f_strong, "noise": f_noise, "medium": f_medium}
+
+    train_start = dates_big[0]
+    train_end = dates_big[250]
+
+    # 基础测试
+    result = icir_weight(fac_dict, prices, train_start, train_end, fwd_days=20)
+    ws = result["weights"]
+    assert len(ws) == 3, "权重个数应等于因子数"
+    assert abs(sum(ws.values()) - 1.0) < 1e-9, f"权重应和为 1，实际 {sum(ws.values())}"
+    assert ws["strong"] > ws["noise"], f"强因子权重应>噪音因子，实际 strong={ws['strong']:.3f}, noise={ws['noise']:.3f}"
+    assert ws["strong"] > ws["medium"], "强因子权重应>中等因子"
+    assert all(w >= 0 for w in ws.values()), "权重不应为负"
+    print(f"✅ icir_weight 基础测试 OK | strong={ws['strong']:.3f} medium={ws['medium']:.3f} noise={ws['noise']:.3f}")
+
+    # 方向检测测试：构造一个反向因子（IC 为负）
+    f_inverse = -f_strong  # 和未来收益反向
+    fac_inv = {"strong": f_strong, "inverse": f_inverse, "noise": f_noise}
+    res_inv = icir_weight(fac_inv, prices, train_start, train_end, fwd_days=20)
+    assert res_inv["signs"]["inverse"] == -1, f"反向因子 sign 应为 -1，实际 {res_inv['signs']['inverse']}"
+    assert res_inv["signs"]["strong"] == 1, "强因子 sign 应为 +1"
+    # inverse 的 |ICIR| 应接近 strong（只是方向反了）
+    assert abs(res_inv["weights"]["inverse"] - res_inv["weights"]["strong"]) < 0.1, \
+        "反向因子权重幅值应接近强因子"
+    print(f"✅ icir_weight 方向检测 OK | inverse sign={res_inv['signs']['inverse']}")
+
+    # min_weight floor 测试
+    res_floor = icir_weight(fac_dict, prices, train_start, train_end,
+                             fwd_days=20, min_weight=0.2)
+    assert all(w >= 0.2 - 1e-9 for w in res_floor["weights"].values()), \
+        f"min_weight floor 失效：{res_floor['weights']}"
+    assert abs(sum(res_floor["weights"].values()) - 1.0) < 1e-9, "floor 后应重新归一化"
+    print(f"✅ icir_weight min_weight floor OK | 最低={min(res_floor['weights'].values()):.3f}")
+
+    # 退化测试：训练期太短
+    res_short = icir_weight(fac_dict, prices, dates_big[0], dates_big[10], fwd_days=20)
+    ws_short = res_short["weights"]
+    assert all(abs(w - 1/3) < 1e-9 for w in ws_short.values()), \
+        f"训练期太短应退化等权：{ws_short}"
+    print(f"✅ icir_weight 训练期太短退化等权 OK")
+
+    # 诊断信息完整性
+    stats_dict = result["ic_stats"]
+    for name in fac_dict:
+        assert name in stats_dict, f"缺少 {name} 的 ic_stats"
+        s = stats_dict[name]
+        assert {"ic_mean", "ic_std", "icir", "n"}.issubset(s.keys()), \
+            f"{name} ic_stats 缺字段：{s.keys()}"
+    print(f"✅ icir_weight 诊断信息完整")
 
     print("\n✅ 所有多因子合成函数冒烟测试通过")
