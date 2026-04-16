@@ -1,0 +1,91 @@
+# Portfolio 英雄因子选定 — 2026-04-16
+
+> **作者**：jialong
+> **关联 Issue**：[#18](https://github.com/ink-dojo/quant-dojo/issues/18)
+> **背景**：[portfolio_data_audit_2026-04-16.md](./portfolio_data_audit_2026-04-16.md)
+
+## 选定原则
+
+在 66 个因子里挑 8 个做"深度页"（完整 IC/分层/衰减/公式/代码/经济学直觉），其余因子只做卡片+公式+类别标签的轻量展示。
+
+选人的三条筛选线（按优先级）：
+
+1. **数据完整性** — 覆盖度审计 score ≥ 2（至少两项证据）
+2. **故事完整性** — 4 个核心 + 4 个实验 = 体现"经典教材 → 自主创新"的递进
+3. **诚实性信号** — 必须包含一个"研究失败但诚实承认"的案例
+
+## 8 个英雄因子（Core 4 + Experimental 4）
+
+### 核心组（Phase 3 经典研究，对标教科书）
+
+| # | 因子 | 类别 | ICIR | 入选理由 |
+|---|------|------|------|---------|
+| 1 | **`enhanced_momentum`** | technical | 0.27 | 风险调整动量，是 `reversal_1m` 的进化版；有 `research/factors/momentum/` + notebook + v7 权重 0.15 |
+| 2 | **`bp_factor`** | fundamental | 0.28 | 经典 Fama-French 价值因子；`research/factors/value/` + v7 权重 0.10；FM t=1.94 边缘显著 |
+| 3 | **`low_vol_20d`** | technical | 0.34 | 全库 score 最高（5/6）；`research/factors/low_vol/` + v7+v16 双版本；ICIR 稳、FM t=2.83 |
+| 4 | **`roe_factor`** | fundamental | **-0.03** | **诚实性案例**：有 `research/factors/quality/` + 完整代码，但 IC≈0、FM 不显著。Portfolio 页明确写"研究假设 → 实证证伪 → 结论"，面试场景中"敢公开失败"比"只秀成功"更有说服力 |
+
+### 实验组（展示超越教材的研究能力）
+
+| # | 因子 | 类别 | ICIR | 入选理由 |
+|---|------|------|------|---------|
+| 5 | **`team_coin`** | behavioral | **0.45** | 全库 ICIR 最高 + FM t=5.08 双杀第一；自研行为金融因子；v7+v16 都在用。**这是全站的 centerpiece** |
+| 6 | **`cgo`** | behavioral | 0.33 | Capital Gain Overhang / 处置效应，独特行为金融视角；ICIR=0.33 + FM t=3.38；v7 权重 0.20 |
+| 7 | **`amihud_illiquidity`** | liquidity | 待测 | v16 新加入的流动性因子，在 live snapshot 里；代表 2026 Q2 研究进展；story: "核心 5 因子稳定后引入流动性维度" |
+| 8 | **`momentum_6m_skip1m`** | technical | 待测 | v16 新加入的中期动量变体；与 `enhanced_momentum`（60 日）形成短/中期互补；体现"因子挖掘从单点到结构化" |
+
+## 故事弧线（面试官会看到的叙事）
+
+```
+第一层  Phase 3 经典研究（2026 Q1）
+        → enhanced_momentum / bp_factor / low_vol_20d   （通过教材门槛）
+        → roe_factor                                     （诚实承认失败）
+
+第二层  多因子合成与行为金融（2026 Q2-Q3）
+        → team_coin   （自研因子，ICIR 全库第一）
+        → cgo         （行为金融独特信号）
+        → v7 策略落地 （Sharpe 1.23，IC 加权）
+
+第三层  生产迭代与因子挖掘（2026 Q4 - 2026 Q2）
+        → amihud_illiquidity       （引入流动性维度）
+        → momentum_6m_skip1m       （结构化动量挖掘）
+        → v16 策略                 （9 因子组合，22.37% 年化）
+
+未来层  ICIR 学习与组合止损（进行中）
+        → v9 (ICIR 权重学习，OOS +18%)
+        → v10 (v9 + 止损层，运行中)
+        → 后续研究持续接入
+```
+
+## 对前端结构的影响
+
+### 英雄页（8 个）应放在
+- `/research/core-factors/momentum`          → enhanced_momentum
+- `/research/core-factors/value`             → bp_factor
+- `/research/core-factors/quality`           → roe_factor（附"实证证伪"专栏）
+- `/research/core-factors/low-volatility`    → low_vol_20d
+- `/research/factor-library/behavioral/team-coin`
+- `/research/factor-library/behavioral/cgo`
+- `/research/factor-library/liquidity/amihud-illiquidity`
+- `/research/factor-library/technical/momentum-6m-skip1m`
+
+### 数据需要 Phase B 前重跑的
+
+| 因子 | IC 时序 | 衰减 | 分层 | 现状 |
+|------|--------|------|------|------|
+| enhanced_momentum | 缺 | 缺 | 缺 | 只有汇总 ICIR=0.27 |
+| bp_factor | 缺 | 缺 | 缺 | 只有汇总 ICIR=0.28 |
+| low_vol_20d | 缺 | 缺 | 缺 | 只有汇总 ICIR=0.34 |
+| roe_factor | 缺 | 缺 | 缺 | 只有汇总 ICIR=-0.03 |
+| team_coin | 缺 | 缺 | 缺 | 只有汇总 ICIR=0.45 |
+| cgo | 缺 | 缺 | 缺 | 只有汇总 ICIR=0.33 |
+| amihud_illiquidity | 缺 | 缺 | 缺 | 只有 snapshot 截面值 |
+| momentum_6m_skip1m | 缺 | 缺 | 缺 | 只有 v16 成员身份 |
+
+**动作**：Phase B 开工前先建 `scripts/deep_analysis_hero_factors.py` 批量生成，写入 `journal/hero_factor_stats_YYYYMMDD.json` 给 `export_data.py` 消费。
+
+## 可复用性
+
+本决策不是锁死的：
+- 将来 v10 出结果 / 新因子挖掘产出更强的候选，可以替换实验组 4 个之一
+- 替换时只需更新 `scripts/deep_analysis_hero_factors.py` 顶部的 `HERO_FACTORS` 列表，数据和前端页会自动跟上

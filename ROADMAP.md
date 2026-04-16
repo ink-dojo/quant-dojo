@@ -245,3 +245,19 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
 2027 Q2  →  Phase 7：Agentic Research
 2027 H2  →  Phase 8：更深度自动化 / 实盘准备（条件成熟再开）
 ```
+
+---
+
+## Portfolio 站点（并行轨道，2026-04 起）
+
+对外展示 quant-dojo 研究的网站 `quant-dojo/portfolio/`，分阶段实施，详见 `PORTFOLIO_PLAN.md`。
+
+- [x] **Phase 0** — 数据审计与英雄因子选定（Issue #18, 2026-04-16）
+      审计 66 因子覆盖度 → 定 8 英雄因子 → 定 v9+v16 双门面策略
+- [ ] **Phase A** — 骨架：Next.js + 设计 token + 导出脚本最小版
+- [ ] **Phase B** — 英雄因子深度页（先跑 `scripts/deep_analysis_hero_factors.py` 补数据）
+- [ ] **Phase C** — 策略构建流程 + 回测图表
+- [ ] **Phase D** — 主页 + 开发历程时间线
+- [ ] **Phase E** — 66 因子长尾 + 筛选
+- [ ] **Phase F** — Infra 页 + 实盘页 + Vercel 部署
+- [ ] **Phase G** — 可持续化自动化（每次新研究回流到站点）
