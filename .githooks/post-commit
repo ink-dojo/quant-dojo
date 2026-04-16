@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# post-commit hook for quant-dojo
+# ───────────────────────────────
+# Regenerates portfolio/public/data/* after any commit that touched files
+# the exporter reads from. Runs in the background so the commit returns
+# immediately. Writes a new "chore: 刷新 portfolio 数据" commit if anything
+# changed.
+#
+# Install: `make install-hooks`   (or copy to .git/hooks/post-commit manually)
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# If we just made the auto-regen commit ourselves, don't loop.
+LAST_MSG="$(git log -1 --pretty=%s)"
+if [[ "$LAST_MSG" == chore:\ 刷新\ portfolio\ 数据* ]]; then
+  exit 0
+fi
+
+# Only regenerate when the last commit actually touched exporter inputs.
+CHANGED_FILES="$(git show --pretty=format: --name-only HEAD)"
+NEEDS_REGEN=false
+for f in $CHANGED_FILES; do
+  case "$f" in
+    utils/alpha_factors.py|ROADMAP.md) NEEDS_REGEN=true; break ;;
+    journal/portfolio_factor_coverage.json) NEEDS_REGEN=true; break ;;
+    journal/hero_factor_stats_*.json) NEEDS_REGEN=true; break ;;
+    live/strategy_state.json) NEEDS_REGEN=true; break ;;
+    live/runs/*|live/signals/*|live/factor_snapshot/*) NEEDS_REGEN=true; break ;;
+    portfolio/scripts/export_data.py) NEEDS_REGEN=true; break ;;
+  esac
+done
+if [[ "$NEEDS_REGEN" != "true" ]]; then
+  exit 0
+fi
+
+echo "[post-commit] exporter inputs changed → regenerating portfolio data..."
+
+# Fire-and-forget so the commit returns immediately. A subshell detaches.
+(
+  python3 portfolio/scripts/export_data.py >/tmp/qd-portfolio-export.log 2>&1 || {
+    echo "[post-commit] exporter failed — see /tmp/qd-portfolio-export.log" >&2
+    exit 1
+  }
+
+  # Only commit if actual JSON content changed.
+  if git diff --quiet -- portfolio/public/data/; then
+    echo "[post-commit] no data diff, skipping chore commit"
+    exit 0
+  fi
+
+  git add portfolio/public/data/
+  git commit -m "chore: 刷新 portfolio 数据 (post-commit auto-regen)" \
+    --no-verify >/dev/null
+  echo "[post-commit] ✅ committed refreshed portfolio/public/data/"
+) </dev/null >/dev/null 2>&1 &
+
+disown 2>/dev/null || true
+exit 0
