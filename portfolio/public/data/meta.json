@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-16T16:35:52+00:00",
+  "generated_at": "2026-04-16T16:38:57+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "0f3855ec9bfde362e3c2891f520bbf3b9a03a631",
-    "short": "0f3855ec",
-    "subject": "feat(portfolio): /research 页完整重写 — Core/Experimental Hero 区 + 全因子库"
+    "sha": "2a6f89b5aa9a3863ca6d79e7e84ea81bf91ebb2c",
+    "short": "2a6f89b5",
+    "subject": "feat(portfolio): Phase C — /strategy + /validation 页完整叙事"
   },
   "face": {
     "research": "v9",

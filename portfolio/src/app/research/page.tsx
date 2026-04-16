@@ -90,10 +90,9 @@ export default async function ResearchPage() {
 }
 
 function HeroCard({ hero }: { hero: HeroFactorsFile["factors"][number] }) {
-  const slug = hero.research_slug ?? hero.name;
   return (
     <Link
-      href={`/research/${slug}`}
+      href={`/research/${hero.name}`}
       className="group block p-5 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 hover:bg-[var(--bg-surface)] hover:border-[var(--border)] transition-all"
     >
       <div className="flex items-start justify-between gap-4">
