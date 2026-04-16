@@ -1,69 +1,173 @@
 import type { FactorCategory } from "./constants";
 
-export interface ICStats {
-  source_name: string;
-  category_zh: string;
-  ic_mean: number;
-  icir: number;
-  ic_positive_pct: number;
-  fm_t_stat: number;
-  verdict: string;
+export interface Meta {
+  generated_at: string;
+  coverage_generated_at: string;
+  git: { sha: string | null; short: string | null; subject: string | null };
+  face: { research: string; production: string };
 }
 
-export interface FactorSummary {
+export interface FactorIndexItem {
   name: string;
   category: FactorCategory;
-  lineno: number;
-  docstring_first: string;
-  has_compute_func: boolean;
-  has_research_folder: boolean;
-  research_folder_slug: string | null;
-  has_dedicated_notebook: boolean;
-  has_ic_stats: boolean;
-  ic_stats: ICStats | null;
-  in_v7_strategy: boolean;
-  in_v16_strategy: boolean;
-  in_latest_snapshot: boolean;
+  docstring: string;
   coverage_score: number;
+  has_research_folder: boolean;
+  research_slug: string | null;
+  in_v7: boolean;
+  in_v16: boolean;
+  in_snapshot: boolean;
+  ic_mean: number | null;
+  icir: number | null;
+  fm_t_stat: number | null;
+  verdict: string | null;
 }
 
 export interface FactorIndex {
   generated_at: string;
-  source_file: string;
-  total_factors: number;
+  total: number;
   with_ic_stats: number;
   with_research_folder: number;
   in_v7_strategy: number;
   in_v16_strategy: number;
-  by_category: Record<string, string[]>;
-  factors: FactorSummary[];
+  by_category_counts: Record<string, number>;
+  factors: FactorIndexItem[];
+}
+
+export type HeroTier = "core" | "experimental";
+
+export interface HeroFactor {
+  name: string;
+  tier: HeroTier;
+  title_en: string;
+  title_zh: string;
+  pitch: string;
+  category: FactorCategory;
+  docstring: string;
+  coverage_score: number;
+  research_slug: string | null;
+  lineno: number;
+  in_v7: boolean;
+  in_v16: boolean;
+  ic_mean: number | null;
+  icir: number | null;
+  ic_positive_pct: number | null;
+  fm_t_stat: number | null;
+  verdict: string | null;
+  has_ic_stats: boolean;
+}
+
+export interface HeroFactorsFile {
+  generated_at: string;
+  factors: HeroFactor[];
+}
+
+export interface ICSummary {
+  ic_mean: number | null;
+  ic_std: number | null;
+  icir: number | null;
+  t_stat: number | null;
+  pct_pos: number | null;
+  n: number;
+}
+
+export interface ICMonthlyPoint {
+  date: string;
+  ic: number;
+}
+
+export interface DecayPayload {
+  ic_by_lag: { lag: number; ic: number | null }[];
+  half_life_days: number | null;
+  decay_rate: number | null;
+  ic_0: number | null;
+  fit_quality: number | null;
+  recommended_rebalance_freq: string;
+}
+
+export interface QuintilePoint {
+  date: string;
+  Q1: number | null;
+  Q2: number | null;
+  Q3: number | null;
+  Q4: number | null;
+  Q5: number | null;
+}
+
+export interface LongShortStats {
+  ann_return?: number;
+  ann_vol?: number;
+  sharpe?: number | null;
+  max_drawdown?: number;
+  total_return?: number;
+  n_days?: number;
+}
+
+export interface HeroDetailEntry {
+  name: string;
+  direction?: "positive" | "reversal";
+  fwd_days?: number;
+  ic?: { summary: ICSummary; monthly: ICMonthlyPoint[] };
+  decay?: DecayPayload;
+  quintile?: {
+    direction: string;
+    cum_monthly: QuintilePoint[];
+    ls_stats: LongShortStats;
+  };
+  error?: string;
+}
+
+export interface HeroDetailFile {
+  generated_at: string;
+  window: {
+    warmup_start: string;
+    analysis_start: string;
+    analysis_end: string;
+  };
+  fwd_days: number;
+  universe_size: number;
+  trading_days: number;
+  factors: Record<string, HeroDetailEntry>;
 }
 
 export interface StrategyMetrics {
+  total_return: number | null;
   annualized_return: number | null;
   sharpe: number | null;
   max_drawdown: number | null;
-  information_ratio: number | null;
-  total_return: number | null;
-  start_date: string | null;
-  end_date: string | null;
+  volatility: number | null;
+  win_rate: number | null;
   n_trading_days: number | null;
+  period_start: string | null;
+  period_end: string | null;
 }
+
+export type StrategyStatus =
+  | "legacy"
+  | "research-face"
+  | "production"
+  | "candidate"
+  | "running";
 
 export interface StrategyVersion {
   id: string;
-  role: "research_face" | "production_face" | "historical" | "pending";
-  label: string;
-  summary: string;
+  name_en: string;
+  name_zh: string;
+  tagline: string;
+  status: StrategyStatus;
+  era_start: string;
   factors: string[];
-  metrics: StrategyMetrics | null;
+  highlights?: string[];
+  is_active: boolean;
   run_id: string | null;
-  commit: string | null;
-  notes: string[];
+  metrics: StrategyMetrics | null;
+  equity_file: string | null;
 }
 
 export interface StrategyVersionsFile {
   generated_at: string;
+  active_strategy: string | null;
+  active_note: string | null;
   research_face: string;
   production_face: string;
   versions: StrategyVersion[];
@@ -71,58 +175,28 @@ export interface StrategyVersionsFile {
 
 export interface EquityPoint {
   date: string;
-  nav: number;
+  cum_return: number;
 }
 
-export interface EquityCurve {
-  version: string;
-  series: EquityPoint[];
-  metrics: StrategyMetrics;
+export interface EquityCurveFile {
+  strategy: string;
+  points: EquityPoint[];
 }
+
+export type PhaseStatus = "done" | "running" | "planned";
 
 export interface Phase {
-  id: number;
+  id: string;
+  label: string;
   title: string;
-  subtitle: string;
-  period: string;
-  status: "complete" | "in_progress" | "pending";
-  deliverables: string[];
-  key_decision: string | null;
-  metrics: Record<string, number | string> | null;
+  status: PhaseStatus;
+  checks_total: number;
+  checks_done: number;
+  progress: number | null;
 }
 
 export interface JourneyFile {
   generated_at: string;
+  source: string;
   phases: Phase[];
-}
-
-export interface HeroFactorStats {
-  name: string;
-  ic_series: { date: string; ic: number }[];
-  decay_curve: { lag: number; ic: number }[];
-  quintile: {
-    labels: string[];
-    annual_returns: number[];
-    sharpes: number[];
-  };
-  formula_latex: string;
-  economic_intuition: string;
-  implementation_code: string;
-  stats: {
-    ic_mean: number;
-    ic_std: number;
-    icir: number;
-    t_stat: number;
-    ic_positive_pct: number;
-    half_life_days: number | null;
-    long_short_annual: number;
-    long_short_sharpe: number;
-  };
-  related_factors: string[];
-}
-
-export interface HeroFactorsFile {
-  generated_at: string;
-  computed_period: { start: string; end: string };
-  hero_factors: HeroFactorStats[];
 }

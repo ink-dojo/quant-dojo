@@ -34,6 +34,7 @@ COVERAGE_JSON = ROOT / "journal" / "portfolio_factor_coverage.json"
 ROADMAP_MD = ROOT / "ROADMAP.md"
 RUNS_DIR = ROOT / "live" / "runs"
 STATE_JSON = ROOT / "live" / "strategy_state.json"
+JOURNAL_DIR = ROOT / "journal"
 
 # 双门面策略决策见 journal/portfolio_face_strategy.md
 FACE_RESEARCH_VERSION = "v9"
@@ -177,6 +178,18 @@ def load_coverage() -> dict:
     return json.loads(COVERAGE_JSON.read_text(encoding="utf-8"))
 
 
+def load_hero_stats() -> dict | None:
+    """取 journal/hero_factor_stats_*.json 里最新的那份（文件名含日期）。"""
+    candidates = sorted(JOURNAL_DIR.glob("hero_factor_stats_*.json"))
+    if not candidates:
+        return None
+    try:
+        return json.loads(candidates[-1].read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"  [warn] hero_factor_stats load failed: {e}")
+        return None
+
+
 def latest_run(strategy_id: str) -> Path | None:
     """取 live/runs/ 里指定策略最新的成功 run JSON。"""
     candidates = sorted(
@@ -270,6 +283,29 @@ def write_factors(coverage: dict) -> None:
     )
     print(f"  wrote factors/index.json  ({len(rows)} factors)")
     print(f"  wrote factors/hero.json   ({len(hero_rows)} hero factors)")
+
+    # hero_detail.json — 深度数据（IC 月度序列 / 衰减 / 分层）
+    hero_stats = load_hero_stats()
+    if hero_stats is None:
+        print("  [skip] factors/hero_detail.json — "
+              "run scripts/deep_analysis_hero_factors.py to populate")
+        return
+    detail_payload = {
+        "generated_at": hero_stats.get("generated_at"),
+        "window": hero_stats.get("window"),
+        "fwd_days": hero_stats.get("fwd_days"),
+        "universe_size": hero_stats.get("universe_size"),
+        "trading_days": hero_stats.get("trading_days"),
+        "factors": hero_stats.get("factors", {}),
+    }
+    (factors_dir / "hero_detail.json").write_text(
+        json.dumps(detail_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    n_with_data = sum(
+        1 for f in detail_payload["factors"].values() if "error" not in f
+    )
+    print(f"  wrote factors/hero_detail.json ({n_with_data} factors with deep data)")
 
 
 def write_strategy(coverage_generated_at: str) -> None:
