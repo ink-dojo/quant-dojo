@@ -126,12 +126,19 @@ STRATEGY_VERSIONS: list[dict] = [
     },
     {
         "id": "v10",
-        "name_en": "v9 + Portfolio Stop-Loss",
-        "name_zh": "ICIR 权重 + 组合止损",
-        "tagline": "在 v9 研究门面基础上加入组合止损层 — 数据待 admission gate 复核",
-        "status": "candidate",
+        "name_en": "v9 + Portfolio Stop-Loss (Rejected)",
+        "name_zh": "ICIR 权重 + 组合止损（已否决）",
+        "tagline": "止损层破坏 OOS 泛化 — 诚实证伪案例",
+        "status": "rejected",
         "era_start": "2026-Q2",
         "factors": ["team_coin", "low_vol_20d", "cgo", "enhanced_momentum", "bp_factor"],
+        "highlights": [
+            "IS 回撤 -42% → -24%（看起来在救命）",
+            "OOS Sharpe 1.60 → 0.27（止损把超额砍光）",
+            "WF 中位数 0.53 → 0.46（样本外平均更差）",
+            "结论：单独叠加止损无 regime 信号不够，已回滚",
+        ],
+        "eval_report": "journal/v10_icir_stoploss_eval_20260416.md",
     },
     {
         "id": FACE_PRODUCTION_VERSION,

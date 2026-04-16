@@ -147,6 +147,7 @@ export type StrategyStatus =
   | "research-face"
   | "production"
   | "candidate"
+  | "rejected"
   | "running";
 
 export interface StrategyVersion {
@@ -158,6 +159,7 @@ export interface StrategyVersion {
   era_start: string;
   factors: string[];
   highlights?: string[];
+  eval_report?: string;
   is_active: boolean;
   run_id: string | null;
   metrics: StrategyMetrics | null;
