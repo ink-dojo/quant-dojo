@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-16T16:41:23+00:00",
+  "generated_at": "2026-04-16T16:42:55+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "b19c2748a4968acc2bab391442e8d25569c8a9a9",
-    "short": "b19c2748",
-    "subject": "feat(portfolio): Phase B — /research/[slug] 英雄因子深度详情页"
+    "sha": "e9d6d7070501cfa321c86e69813dcee01ec70f0c",
+    "short": "e9d6d707",
+    "subject": "feat(portfolio): Phase D — Home + Journey 完整叙事"
   },
   "face": {
     "research": "v9",

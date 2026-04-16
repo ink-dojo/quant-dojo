@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FactorCard } from "@/components/cards/FactorCard";
 import { CategoryBadge } from "@/components/cards/CategoryBadge";
 import { GaugeRing } from "@/components/viz/GaugeRing";
+import { FactorLibrary } from "@/components/research/FactorLibrary";
 import { readData } from "@/lib/data";
 import { fmtNum } from "@/lib/formatters";
 import type {
@@ -58,32 +58,20 @@ export default async function ResearchPage() {
       </section>
 
       <section className="max-w-content mx-auto px-6 pb-24">
-        <div className="flex items-end justify-between mb-6">
-          <div>
-            <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
-              Full Library · {index.total}
-            </h2>
-            <p className="text-sm text-[var(--text-secondary)]">
-              全部因子一览 — {index.with_ic_stats} 个带完整 IC 统计，{index.with_research_folder}{" "}
-              个有独立研究文件夹。覆盖度点越多代表数据越完整。
-            </p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {Object.entries(index.by_category_counts).map(([cat, n]) => (
-              <span
-                key={cat}
-                className="text-xs font-mono text-[var(--text-tertiary)] px-2 py-1 rounded border border-[var(--border-soft)]"
-              >
-                <CategoryBadge category={cat} /> <span className="ml-1">{n}</span>
-              </span>
-            ))}
-          </div>
+        <div className="mb-6">
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
+            Full Library · {index.total}
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)]">
+            全部因子一览 — {index.with_ic_stats} 个带完整 IC 统计，{index.with_research_folder}{" "}
+            个有独立研究文件夹。按分类过滤、按 ICIR 排序、或搜名称/描述。
+            英雄因子可点击进入深度页。
+          </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {index.factors.map((f) => (
-            <FactorCard key={f.name} factor={f} />
-          ))}
-        </div>
+        <FactorLibrary
+          index={index}
+          heroSlugs={new Set(heroes.factors.map((h) => h.name))}
+        />
       </section>
     </>
   );
