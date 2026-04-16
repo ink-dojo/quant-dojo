@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-04-16",
+  "source": "ROADMAP.md",
+  "phases": [
+    {
+      "id": "phase-0",
+      "label": "Phase 0",
+      "title": "环境搭建（第1周）",
+      "status": "done",
+      "checks_total": 4,
+      "checks_done": 4,
+      "progress": 1.0
+    },
+    {
+      "id": "phase-1",
+      "label": "Phase 1",
+      "title": "基础建设（第2-4周）",
+      "status": "done",
+      "checks_total": 10,
+      "checks_done": 10,
+      "progress": 1.0
+    },
+    {
+      "id": "phase-2",
+      "label": "Phase 2",
+      "title": "回测体系（第5-8周）",
+      "status": "done",
+      "checks_total": 5,
+      "checks_done": 5,
+      "progress": 1.0
+    },
+    {
+      "id": "phase-3",
+      "label": "Phase 3",
+      "title": "因子研究（第9-16周）  完成",
+      "status": "done",
+      "checks_total": 8,
+      "checks_done": 8,
+      "progress": 1.0
+    },
+    {
+      "id": "phase-4",
+      "label": "Phase 4",
+      "title": "策略打磨（第17-24周）  完成",
+      "status": "done",
+      "checks_total": 9,
+      "checks_done": 9,
+      "progress": 1.0
+    },
+    {
+      "id": "phase-5",
+      "label": "Phase 5",
+      "title": "模拟实盘基础设施（第25-36周）  完成",
+      "status": "done",
+      "checks_total": 17,
+      "checks_done": 17,
+      "progress": 1.0
+    },
+    {
+      "id": "phase-6",
+      "label": "Phase 6",
+      "title": "Control Plane（CLI 统一执行 + Dashboard 统一展示）",
+      "status": "planned",
+      "checks_total": 10,
+      "checks_done": 9,
+      "progress": 0.9
+    },
+    {
+      "id": "phase-7",
+      "label": "Phase 7",
+      "title": "Agentic Research（AI 研究助理 → 有门禁的操作员）",
+      "status": "planned",
+      "checks_total": 7,
+      "checks_done": 7,
+      "progress": 1.0
+    },
+    {
+      "id": "phase-8",
+      "label": "Phase 8",
+      "title": "Agentic Execution / Real-Money Readiness（远期）",
+      "status": "planned",
+      "checks_total": 5,
+      "checks_done": 0,
+      "progress": 0.0
+    }
+  ]
+}
