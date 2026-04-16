@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-04-16T16:21:10+00:00",
+  "coverage_generated_at": "2026-04-16",
+  "git": {
+    "sha": "5bcd0a211fd408db7b8079badc5ae4ab62c18c87",
+    "short": "5bcd0a21",
+    "subject": "feat(portfolio): Home + 6 route stubs（research/strategy/validation/live/infrastructure/journey）"
+  },
+  "face": {
+    "research": "v9",
+    "production": "v16"
+  }
+}

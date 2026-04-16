@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "export-data": "python3 scripts/export_data.py",
     "dev": "next dev",
+    "prebuild": "npm run export-data",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

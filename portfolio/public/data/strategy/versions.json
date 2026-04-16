@@ -1,0 +1,124 @@
+{
+  "generated_at": "2026-04-16",
+  "active_strategy": "v16",
+  "active_note": "升级到 v16：因子挖掘会话精选（9因子）low_vol_20d/team_coin/shadow_lower/amihud_illiq/price_vol_divergence/high_52w/turnover_accel/mom_6m_skip1m/win_rate_60d | 22.37%年化/0.730 Sharpe",
+  "research_face": "v9",
+  "production_face": "v16",
+  "versions": [
+    {
+      "id": "v7",
+      "name_en": "5-Factor Baseline",
+      "name_zh": "5 因子等权基线",
+      "tagline": "通过 admission 的第一版 — 手工权重、等权合成",
+      "status": "legacy",
+      "era_start": "2026-Q1",
+      "factors": [
+        "team_coin",
+        "low_vol_20d",
+        "cgo",
+        "enhanced_momentum",
+        "bp_factor"
+      ],
+      "is_active": false,
+      "run_id": null,
+      "metrics": null,
+      "equity_file": null
+    },
+    {
+      "id": "v9",
+      "name_en": "ICIR-Weighted Research Face",
+      "name_zh": "ICIR 学习权重 · 研究门面",
+      "tagline": "从手工权重到数据驱动 — walk-forward 评估 OOS +18%",
+      "status": "research-face",
+      "era_start": "2026-Q2",
+      "factors": [
+        "team_coin",
+        "low_vol_20d",
+        "cgo",
+        "enhanced_momentum",
+        "bp_factor"
+      ],
+      "highlights": [
+        "OOS Sharpe 1.60 (vs v7 1.35)",
+        "Walk-forward 中位 Sharpe 0.5256",
+        "权重演化反映 A 股风格切换"
+      ],
+      "is_active": false,
+      "run_id": "multi_factor_v9_20260413_bc30d3da",
+      "metrics": {
+        "total_return": 0.592934,
+        "annualized_return": 0.128714,
+        "sharpe": 0.481,
+        "max_drawdown": -0.26624,
+        "volatility": 0.226028,
+        "win_rate": 0.5222,
+        "n_trading_days": 969,
+        "period_start": "2022-01-04",
+        "period_end": "2025-12-31"
+      },
+      "equity_file": "equity_v9.json"
+    },
+    {
+      "id": "v10",
+      "name_en": "v9 + Portfolio Stop-Loss",
+      "name_zh": "ICIR 权重 + 组合止损",
+      "tagline": "在 v9 研究门面基础上加入组合止损层 — 数据待 admission gate 复核",
+      "status": "candidate",
+      "era_start": "2026-Q2",
+      "factors": [
+        "team_coin",
+        "low_vol_20d",
+        "cgo",
+        "enhanced_momentum",
+        "bp_factor"
+      ],
+      "is_active": false,
+      "run_id": "multi_factor_v10_20260413_fe7c2dfa",
+      "metrics": {
+        "total_return": 0.972604,
+        "annualized_return": 0.193242,
+        "sharpe": 0.632,
+        "max_drawdown": -0.435666,
+        "volatility": 0.274103,
+        "win_rate": 0.5366,
+        "n_trading_days": 969,
+        "period_start": "2022-01-04",
+        "period_end": "2025-12-31"
+      },
+      "equity_file": "equity_v10.json"
+    },
+    {
+      "id": "v16",
+      "name_en": "9-Factor Production Face",
+      "name_zh": "9 因子生产门面",
+      "tagline": "因子挖掘落地 — 年化 22.37%，当前 live active",
+      "status": "production",
+      "era_start": "2026-Q4",
+      "factors": [
+        "low_vol_20d",
+        "team_coin",
+        "shadow_lower",
+        "amihud_illiquidity",
+        "price_volume_divergence",
+        "high_52w_ratio",
+        "turnover_acceleration",
+        "momentum_6m_skip1m",
+        "win_rate_60d"
+      ],
+      "is_active": true,
+      "run_id": "multi_factor_v16_20260414_36127e73",
+      "metrics": {
+        "total_return": 1.173652,
+        "annualized_return": 0.223743,
+        "sharpe": 0.7295,
+        "max_drawdown": -0.430636,
+        "volatility": 0.279289,
+        "win_rate": 0.5562,
+        "n_trading_days": 969,
+        "period_start": "2022-01-04",
+        "period_end": "2025-12-31"
+      },
+      "equity_file": "equity_v16.json"
+    }
+  ]
+}
