@@ -34,6 +34,8 @@ COVERAGE_JSON = ROOT / "journal" / "portfolio_factor_coverage.json"
 ROADMAP_MD = ROOT / "ROADMAP.md"
 RUNS_DIR = ROOT / "live" / "runs"
 STATE_JSON = ROOT / "live" / "strategy_state.json"
+SIGNALS_DIR = ROOT / "live" / "signals"
+SNAPSHOT_DIR = ROOT / "live" / "factor_snapshot"
 JOURNAL_DIR = ROOT / "journal"
 
 # 双门面策略决策见 journal/portfolio_face_strategy.md
@@ -485,6 +487,84 @@ def write_journey() -> None:
     print(f"  wrote journey/phases.json ({len(phases)} phases)")
 
 
+def write_live() -> None:
+    """导出 live/dashboard.json：最近信号、最近 runs、strategy state 摘要。"""
+    live_dir = OUT / "live"
+    live_dir.mkdir(parents=True, exist_ok=True)
+
+    state: dict = {}
+    if STATE_JSON.exists():
+        try:
+            state = json.loads(STATE_JSON.read_text(encoding="utf-8"))
+        except Exception:
+            state = {}
+
+    signal_dates: list[str] = []
+    if SIGNALS_DIR.exists():
+        signal_dates = sorted(
+            [p.stem for p in SIGNALS_DIR.glob("*.json")],
+            reverse=True,
+        )[:10]
+
+    snapshot_dates: list[str] = []
+    if SNAPSHOT_DIR.exists():
+        snapshot_dates = sorted(
+            [p.stem for p in SNAPSHOT_DIR.glob("*.json")],
+            reverse=True,
+        )[:10]
+
+    recent_runs: list[dict] = []
+    seen_run_ids: set[str] = set()
+    if RUNS_DIR.exists():
+        candidates = sorted(
+            RUNS_DIR.glob("multi_factor_*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for p in candidates[:40]:
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            rid = data.get("run_id")
+            if not rid or rid in seen_run_ids:
+                continue
+            seen_run_ids.add(rid)
+            m = data.get("metrics") or {}
+            recent_runs.append(
+                {
+                    "run_id": rid,
+                    "strategy_id": data.get("strategy_id"),
+                    "strategy_name": data.get("strategy_name"),
+                    "status": data.get("status"),
+                    "created_at": data.get("created_at"),
+                    "annualized_return": m.get("annualized_return"),
+                    "sharpe": m.get("sharpe"),
+                    "max_drawdown": m.get("max_drawdown"),
+                }
+            )
+            if len(recent_runs) >= 15:
+                break
+
+    payload = {
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "active_strategy": state.get("active_strategy"),
+        "active_note": state.get("note"),
+        "state_updated_at": state.get("updated_at"),
+        "signal_dates": signal_dates,
+        "snapshot_dates": snapshot_dates,
+        "recent_runs": recent_runs,
+    }
+    (live_dir / "dashboard.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(
+        f"  wrote live/dashboard.json "
+        f"(signals={len(signal_dates)}, runs={len(recent_runs)})"
+    )
+
+
 def write_meta(coverage: dict) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "meta.json").write_text(
@@ -512,6 +592,7 @@ def main() -> None:
     write_meta(coverage)
     write_factors(coverage)
     write_strategy(coverage["generated_at"])
+    write_live()
     write_journey()
     print("done.")
 
