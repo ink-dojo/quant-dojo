@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd portfolio && npm install && npm run build",
+  "outputDirectory": "portfolio/out",
+  "installCommand": "echo skip-root-install",
+  "framework": null,
+  "ignoreCommand": "bash -lc 'git diff --quiet HEAD~1 HEAD -- portfolio/ utils/alpha_factors.py ROADMAP.md journal/ live/ && exit 1 || exit 0'"
+}

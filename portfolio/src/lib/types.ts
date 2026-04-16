@@ -185,6 +185,27 @@ export interface EquityCurveFile {
   points: EquityPoint[];
 }
 
+export interface LiveRunSummary {
+  run_id: string;
+  strategy_id: string;
+  strategy_name: string;
+  status: string;
+  created_at: string;
+  annualized_return: number | null;
+  sharpe: number | null;
+  max_drawdown: number | null;
+}
+
+export interface LiveDashboard {
+  generated_at: string;
+  active_strategy: string | null;
+  active_note: string | null;
+  state_updated_at: string | null;
+  signal_dates: string[];
+  snapshot_dates: string[];
+  recent_runs: LiveRunSummary[];
+}
+
 export type PhaseStatus = "done" | "running" | "planned";
 
 export interface Phase {

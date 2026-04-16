@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-16T16:42:55+00:00",
+  "generated_at": "2026-04-16T16:46:19+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "e9d6d7070501cfa321c86e69813dcee01ec70f0c",
-    "short": "e9d6d707",
-    "subject": "feat(portfolio): Phase D — Home + Journey 完整叙事"
+    "sha": "234a3194421f12bf36d8904fde4de1892dd4bfd8",
+    "short": "234a3194",
+    "subject": "feat(portfolio): Phase E — 因子库客户端筛选/排序"
   },
   "face": {
     "research": "v9",
