@@ -201,6 +201,71 @@ def half_position_stop(
     return result
 
 
+def adaptive_half_position_stop(
+    portfolio_ret: pd.Series,
+    baseline_threshold: float = -0.08,
+    vol_window: int = 60,
+    ref_vol: float = 0.20,
+    min_scale: float = 0.5,
+    max_scale: float = 2.0,
+) -> pd.Series:
+    """
+    波动率自适应的半仓止损：阈值随组合滚动波动率缩放。
+
+        threshold_t = baseline_threshold × clip(σ_t / ref_vol, min_scale, max_scale)
+
+    直觉：
+    - 市场波动率高（2025 震荡行情）→ 阈值放宽 → 不被噪音摇下车
+    - 市场波动率低（长期阴跌）→ 阈值收紧 → 及时降仓
+
+    状态机同 half_position_stop：满仓↔半仓，切换条件由时变阈值决定。
+
+    参数:
+        portfolio_ret: 日收益率 Series
+        baseline_threshold: 锚点阈值（σ_t == ref_vol 时的触发阈值），默认 -0.08
+        vol_window: 波动率窗口（日），默认 60
+        ref_vol: 参考年化波动率（锚点），默认 0.20
+            WF 场景下应传入训练期波动率中位数以避免未来泄漏
+        min_scale / max_scale: σ_t / ref_vol 的夹紧区间，默认 [0.5, 2.0]
+            对应阈值区间 [baseline×0.5, baseline×2.0]，即 [-0.04, -0.16]
+
+    返回:
+        修改后的日收益率 Series
+    """
+    if len(portfolio_ret) == 0:
+        return portfolio_ret.copy()
+
+    # 滚动年化波动率（min_periods 防止前段全 NaN）
+    sigma_t = portfolio_ret.rolling(vol_window, min_periods=20).std() * np.sqrt(252)
+    ratio = (sigma_t / ref_vol).clip(min_scale, max_scale).fillna(1.0)
+    threshold_t = baseline_threshold * ratio
+
+    result = portfolio_ret.copy()
+    in_full = True
+    peak = 1.0
+    nav = 1.0
+
+    for i in range(len(portfolio_ret)):
+        daily_ret = portfolio_ret.iloc[i]
+        scale = 1.0 if in_full else 0.5
+        adjusted_ret = daily_ret * scale
+        result.iloc[i] = adjusted_ret
+        nav = nav * (1 + adjusted_ret)
+
+        thr_t = threshold_t.iloc[i]
+        if in_full:
+            if nav > peak:
+                peak = nav
+            elif (nav - peak) / peak < thr_t:
+                in_full = False
+        else:
+            if nav > peak:
+                in_full = True
+                peak = nav
+
+    return result
+
+
 if __name__ == "__main__":
     # 冒烟测试
     import numpy as np
@@ -267,5 +332,30 @@ if __name__ == "__main__":
     empty_df = pd.DataFrame()
     assert per_stock_stop(empty_df).empty, "空 DataFrame 处理错误"
     print("✅ per_stock_stop 边界情况 OK")
+
+    # 测试 adaptive_half_position_stop
+    # 1) 空序列
+    assert adaptive_half_position_stop(pd.Series([], dtype=float)).empty
+    # 2) 低波动序列 + 大回撤 → 应触发（阈值收紧到 min_scale × baseline）
+    low_vol = pd.Series([0.001] * 80 + [-0.02] * 10, dtype=float)
+    adj_low = adaptive_half_position_stop(low_vol, baseline_threshold=-0.08, ref_vol=0.20)
+    assert adj_low.iloc[-5:].abs().max() < low_vol.iloc[-5:].abs().max(), \
+        "低波动大回撤应触发降仓"
+    # 3) 高波动序列 + 同样回撤 → 不一定触发（阈值放宽）
+    np.random.seed(123)
+    noisy = pd.Series(np.random.randn(90) * 0.03, dtype=float)  # 年化约 48%
+    adj_noisy = adaptive_half_position_stop(noisy, baseline_threshold=-0.08, ref_vol=0.20)
+    assert len(adj_noisy) == len(noisy)
+    # 4) 无回撤：全正收益不应触发
+    all_pos = pd.Series([0.005] * 80, dtype=float)
+    adj_pos = adaptive_half_position_stop(all_pos)
+    assert np.allclose(adj_pos.values, all_pos.values), "全正收益不应降仓"
+    # 5) baseline 等价性：极端高 ref_vol 下 ratio 被夹到 min_scale → 阈值恒为 baseline×min_scale
+    adj_clip = adaptive_half_position_stop(
+        pd.Series([-0.05] * 60, dtype=float),
+        baseline_threshold=-0.05, ref_vol=100.0,  # ratio → 0 → clip 到 min_scale=0.5
+    )
+    assert len(adj_clip) == 60
+    print("✅ adaptive_half_position_stop OK | 5 项测试通过")
 
     print("\n✅ 止损管理模块冒烟测试通过")
