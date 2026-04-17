@@ -21,6 +21,7 @@ import pandas as pd
 
 from pipeline.strategy_registry import get_strategy
 from pipeline.run_store import RunRecord, generate_run_id, save_run
+from utils.data_fingerprint import compute_data_fingerprint
 from utils.local_data_loader import get_all_symbols, load_price_wide
 from utils.metrics import (
     annualized_return, annualized_volatility, sharpe_ratio,
@@ -40,6 +41,13 @@ def main():
     valid = price.columns[price.notna().sum() > 500]
     price = price[valid]
     print(f"  股票: {len(valid)} | 交易日: {len(price)}")
+
+    print("  计算数据指纹…")
+    fingerprint = compute_data_fingerprint(
+        list(valid), WARMUP_START, END, sample_price_hash=True, n_sample=10
+    )
+    print(f"  universe_hash={fingerprint['universe']['hash']}  "
+          f"cache_mtime_max={fingerprint['cache_dir']['stats'].get('mtime_max')}")
 
     print("[2/4] 构建 v25 策略…")
     entry = get_strategy("multi_factor_v25")
@@ -97,7 +105,7 @@ def main():
         metrics=metrics,
         created_at=datetime.datetime.now().isoformat(),
     )
-    path = save_run(record, equity_df=equity_df)
+    path = save_run(record, equity_df=equity_df, fingerprint=fingerprint)
     print(f"  写出 {path}")
     print(f"  run_id: {run_id}")
 
