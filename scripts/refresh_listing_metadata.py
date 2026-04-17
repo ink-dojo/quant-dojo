@@ -100,13 +100,19 @@ def fetch_one_status(status: str) -> pd.DataFrame:
     return out
 
 
-def merge_stages() -> pd.DataFrame:
-    """读三份 stage file, 按 D > P > L 优先合并."""
+def merge_stages(require_all: bool = False) -> pd.DataFrame:
+    """读 stage files, 按 D > P > L 优先合并. D 和 L 是必需, P 可选."""
     frames = []
+    missing = []
     for status, path in STAGE_FILES.items():
         if not path.exists():
-            raise RuntimeError(f"缺少 stage file {path}, 先跑 --status {status}")
+            missing.append(status)
+            if require_all or status in ("D", "L"):
+                raise RuntimeError(f"缺少 stage file {path}, 先跑 --status {status}")
+            continue
         frames.append(pd.read_parquet(path))
+    if missing:
+        print(f"  注意: 缺 stage {missing} (P 非关键, 跳过; 暂停上市股本地元数据保留)")
 
     combined = pd.concat(frames, ignore_index=True)
     priority = {"D": 0, "P": 1, "L": 2}
