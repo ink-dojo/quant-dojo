@@ -73,8 +73,19 @@ def walk_forward_test(
             price_train = price_wide.loc[train_start:train_end]
             price_test = price_wide.loc[test_start:test_end]
 
-            # 因子数据只切到训练期末，防止策略在训练阶段偷看测试期因子值
-            factor_slice = factor_data if isinstance(factor_data, dict) else factor_data.loc[train_start:train_end]
+            # 因子数据只切到训练期末，防止策略在训练阶段偷看测试期因子值。
+            # 修复（2026-04-17）：过去 dict 情况下整套未切片透传，测试期因子值被暴露 →
+            # WF 全样本泄漏。现逐 key 切片。
+            if isinstance(factor_data, dict):
+                factor_slice = {}
+                for k, v in factor_data.items():
+                    if isinstance(v, (pd.DataFrame, pd.Series)) and \
+                            isinstance(v.index, pd.DatetimeIndex):
+                        factor_slice[k] = v.loc[:train_end]
+                    else:
+                        factor_slice[k] = v  # 非时间序列（如 (df, direction) 元组由上层处理）
+            else:
+                factor_slice = factor_data.loc[train_start:train_end]
 
             # full_slice 包含训练+测试期价格，策略需要测试期价格来计算收益
             # 但因子数据已限制在训练期内，防止前视偏差
@@ -140,7 +151,9 @@ def walk_forward_test(
                     f"sharpe={sr:.2f}, mdd={mdd:.2%}, ret={total_ret:.2%}"
                 )
 
-        except Exception as e:
+        except (ValueError, KeyError, IndexError, pd.errors.EmptyDataError) as e:
+            # 仅捕获数据相关异常：空切片、索引越界、空 DataFrame。编程错误
+            # （AttributeError / TypeError / NameError）让它向上抛，不被掩盖成 NaN 行
             logger.error(f"窗口 {train_start} ~ {test_end} 处理异常: {e}")
             results.append({
                 "train_start": train_start,

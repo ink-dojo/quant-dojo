@@ -235,8 +235,12 @@ def adaptive_half_position_stop(
     if len(portfolio_ret) == 0:
         return portfolio_ret.copy()
 
-    # 滚动年化波动率（min_periods 防止前段全 NaN）
-    sigma_t = portfolio_ret.rolling(vol_window, min_periods=20).std() * np.sqrt(252)
+    # 滚动年化波动率；shift(1) 保证 t 日决策只看到 t-1 及以前的收益
+    # （修复 2026-04-17：原版本用 t 日 σ 决定 t 日阈值，混入当天收益 → 轻度前视）
+    sigma_t = (
+        portfolio_ret.rolling(vol_window, min_periods=20).std().shift(1)
+        * np.sqrt(252)
+    )
     ratio = (sigma_t / ref_vol).clip(min_scale, max_scale).fillna(1.0)
     threshold_t = baseline_threshold * ratio
 
