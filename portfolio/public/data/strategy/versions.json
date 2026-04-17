@@ -208,11 +208,11 @@
         }
       },
       "is_active": false,
-      "run_id": "multi_factor_v25_20260417_12a7d3cd",
+      "run_id": "multi_factor_v25_20260417_96ee6d68",
       "metrics": {
         "total_return": 0.9343479855515182,
         "annualized_return": 0.1871804590446513,
-        "sharpe": 0.7675929251717104,
+        "sharpe": 0.7675929251717102,
         "max_drawdown": -0.2605004073735344,
         "volatility": 0.2329385791695438,
         "win_rate": 0.5614035087719298,

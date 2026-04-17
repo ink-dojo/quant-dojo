@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-17T04:39:42+00:00",
+  "generated_at": "2026-04-17T05:53:10+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "44ff0295936bd37eefec38665bef2decc37a29d7",
-    "short": "44ff0295",
-    "subject": "feat(portfolio): v25 上架 candidate + 候选复审 JSON 发布"
+    "sha": "b1334cf3baa9eef7444dfe24c209381b163e1a26",
+    "short": "b1334cf3",
+    "subject": "research(factors): 反转因子残余 α 评估 — reversal_skip1m 候选入池"
   },
   "face": {
     "research": "v9",
