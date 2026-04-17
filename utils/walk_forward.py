@@ -21,6 +21,7 @@ def walk_forward_test(
     factor_data: Dict[str, Any],
     train_years: int = 3,
     test_months: int = 6,
+    embargo_days: int = 0,
 ) -> pd.DataFrame:
     """
     滚动样本外验证。逐步前移窗口，每次用 train_years 年训练，预测 test_months 个月。
@@ -31,6 +32,9 @@ def walk_forward_test(
         factor_data: 因子数据字典，可包含特征矩阵等
         train_years: 训练窗口大小（年），默认3年
         test_months: 测试窗口大小（月），默认6个月
+        embargo_days: 训练期末与测试期始之间的禁运期天数（López de Prado AFML Ch.7.5）。
+                      对 label_horizon 为 1（下一日收益）的日频再平衡策略可设 0；
+                      对多日持仓策略建议设为 holding_days 以避免序列自相关泄漏。
 
     返回:
         DataFrame，包含每个窗口的回测结果：
@@ -41,6 +45,8 @@ def walk_forward_test(
         - total_return: 测试期总收益
         - n_periods: 测试期交易天数
     """
+    if embargo_days < 0:
+        raise ValueError(f"embargo_days 必须 ≥ 0，收到 {embargo_days}")
     # 获取排序的日期列表
     dates = sorted(price_wide.index)
     if len(dates) < 2:
@@ -57,6 +63,9 @@ def walk_forward_test(
     train_idx = 0
     while train_idx + train_days < len(dates):
         train_end_idx = train_idx + train_days
+        # Embargo: 训练期末与测试期始之间保留 embargo_days 天禁运。
+        # 使用 train_end_idx - embargo_days 作为实际训练截止点，保持测试窗口位置不变。
+        train_cutoff_idx = max(train_idx + 1, train_end_idx - embargo_days)
         test_end_idx = min(train_end_idx + test_days, len(dates))
 
         # 如果测试窗口不足，停止
@@ -64,7 +73,7 @@ def walk_forward_test(
             break
 
         train_start = dates[train_idx]
-        train_end = dates[train_end_idx - 1]
+        train_end = dates[train_cutoff_idx - 1]
         test_start = dates[train_end_idx]
         test_end = dates[test_end_idx - 1]
 
