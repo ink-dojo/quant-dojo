@@ -15,6 +15,26 @@
   "snapshot_dates": [],
   "recent_runs": [
     {
+      "run_id": "multi_factor_v25_20260417_96ee6d68",
+      "strategy_id": "multi_factor_v25",
+      "strategy_name": "多因子选股策略 v25（v16 + HS300-regime 门控止损）",
+      "status": "success",
+      "created_at": "2026-04-17T01:00:43.021521",
+      "annualized_return": 0.1871804590446513,
+      "sharpe": 0.7675929251717102,
+      "max_drawdown": -0.2605004073735344
+    },
+    {
+      "run_id": "multi_factor_v25_20260417_b86bc68f",
+      "strategy_id": "multi_factor_v25",
+      "strategy_name": "多因子选股策略 v25（v16 + HS300-regime 门控止损）",
+      "status": "success",
+      "created_at": "2026-04-17T00:56:49.614986",
+      "annualized_return": 0.18718045904465108,
+      "sharpe": 0.7675929251717103,
+      "max_drawdown": -0.26050040737353436
+    },
+    {
       "run_id": "multi_factor_v25_20260417_12a7d3cd",
       "strategy_id": "multi_factor_v25",
       "strategy_name": "多因子选股策略 v25（v16 + HS300-regime 门控止损）",
@@ -143,26 +163,6 @@
       "annualized_return": 0.214055,
       "sharpe": 0.6992,
       "max_drawdown": -0.415593
-    },
-    {
-      "run_id": "multi_factor_v12_20260413_bceea98c",
-      "strategy_id": "multi_factor_v12",
-      "strategy_name": "多因子选股策略 v12（8 因子，含主力净买代理）",
-      "status": "success",
-      "created_at": "2026-04-13T23:52:05.259655",
-      "annualized_return": 0.134186,
-      "sharpe": 0.3976,
-      "max_drawdown": -0.445665
-    },
-    {
-      "run_id": "multi_factor_v11_20260413_dbf94ad6",
-      "strategy_id": "multi_factor_v11",
-      "strategy_name": "多因子选股策略 v11（8 因子，正交扩展）",
-      "status": "success",
-      "created_at": "2026-04-13T23:45:45.628397",
-      "annualized_return": 0.212654,
-      "sharpe": 0.6972,
-      "max_drawdown": -0.428017
     }
   ]
 }
