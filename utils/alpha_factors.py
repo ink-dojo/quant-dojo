@@ -1372,16 +1372,6 @@ def turnover_trend(turnover: pd.DataFrame, fast: int = 5, slow: int = 20) -> pd.
     return (fast_ma - slow_ma) / slow_std
 
 
-def reversal_5d(price: pd.DataFrame) -> pd.DataFrame:
-    """
-    5 日短期反转因子。
-    = price_{t} / price_{t-5} - 1（5 日收益率取反，用于多头选股）。
-    A 股散户短线追高后均值回归效应强，5 日窗口捕捉最近过热信号。
-    方向：-1（近 5 日涨幅高 = 过热 = 看空；取反后低值=超卖=看多）
-    """
-    return price / price.shift(5) - 1
-
-
 def reversal_12m_skip3m(price: pd.DataFrame) -> pd.DataFrame:
     """
     12 个月反转跳过最近 3 个月。
