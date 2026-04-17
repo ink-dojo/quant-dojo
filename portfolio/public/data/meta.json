@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-04-16T16:46:19+00:00",
+  "generated_at": "2026-04-17T04:38:29+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "234a3194421f12bf36d8904fde4de1892dd4bfd8",
-    "short": "234a3194",
-    "subject": "feat(portfolio): Phase E — 因子库客户端筛选/排序"
+    "sha": "64c1cbba8c6676bb59e32df27028dd8c55d48c22",
+    "short": "64c1cbba",
+    "subject": "feat(strategy): 注册 v22 (正交性剪枝) + v23 (自适应半仓止损)"
   },
   "face": {
     "research": "v9",
-    "production": "v16"
+    "production": "v9"
   }
 }
