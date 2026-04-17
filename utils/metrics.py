@@ -50,11 +50,15 @@ def sharpe_ratio(returns: pd.Series, risk_free: float = 0.02) -> float:
 
 
 def max_drawdown(returns: pd.Series) -> float:
-    """最大回撤"""
-    cumulative = (1 + returns).cumprod()
+    """最大回撤。空/短序列返回 0，NaN 先剔除避免 cumprod 传播。"""
+    r = returns.dropna()
+    if len(r) == 0:
+        return 0.0
+    cumulative = (1 + r).cumprod()
     rolling_max = cumulative.cummax()
     drawdown = (cumulative - rolling_max) / rolling_max
-    return drawdown.min()
+    val = drawdown.min()
+    return float(val) if pd.notna(val) else 0.0
 
 
 def calmar_ratio(returns: pd.Series) -> float:
@@ -65,15 +69,34 @@ def calmar_ratio(returns: pd.Series) -> float:
 
 
 def win_rate(returns: pd.Series) -> float:
-    """胜率（日收益为正的比例）"""
-    return (returns > 0).mean()
+    """胜率（日收益为正的比例）。先剔 NaN，避免 NaN 被记为 '非正'。"""
+    r = returns.dropna()
+    if len(r) == 0:
+        return 0.0
+    return float((r > 0).mean())
 
 
 def profit_loss_ratio(returns: pd.Series) -> float:
-    """盈亏比 = 平均盈利 / 平均亏损"""
-    wins = returns[returns > 0].mean()
-    losses = abs(returns[returns < 0].mean())
-    return wins / losses if losses != 0 else float("inf")
+    """
+    盈亏比 = 平均盈利 / 平均亏损。
+
+    边界:
+      - 无亏损日 → +inf (全胜)
+      - 无盈利日 → 0.0 (全亏)
+      - 空序列 → 0.0
+    """
+    r = returns.dropna()
+    if len(r) == 0:
+        return 0.0
+    win_mask = r > 0
+    loss_mask = r < 0
+    if not loss_mask.any():
+        return float("inf") if win_mask.any() else 0.0
+    if not win_mask.any():
+        return 0.0
+    wins = float(r[win_mask].mean())
+    losses = abs(float(r[loss_mask].mean()))
+    return wins / losses
 
 
 def performance_summary(returns: pd.Series, name: str = "Strategy") -> pd.DataFrame:
