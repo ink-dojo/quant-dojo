@@ -270,6 +270,101 @@ def adaptive_half_position_stop(
     return result
 
 
+def regime_gated_half_position_stop(
+    portfolio_ret: pd.Series,
+    regime_bear: pd.Series,
+    threshold: float = -0.10,
+) -> pd.Series:
+    """
+    Regime-gated 半仓止损：**只在熊市 regime 内启用止损**。
+
+    **动机**（来自 v10/v11 rejection 教训，2026-04-16）：
+        - v10 固定 -8% 止损: IS 好看 (MDD -42%→-24%)，但 OOS 年化 35%→6% 惨跌；
+          MDD 本身只从 -17.83% 到 -17.76%，改善几乎为零。
+        - v11 vol-adaptive 止损: 在 2025 OOS 被夹到与 v10 完全相同（σ_t 近似 σ_ref）。
+        - 根因: 2025 "假摔" 是 3-5 日脉冲急跌+反弹，-8% 触发后半仓，
+          需净值创新高恢复 → 在震荡市里永远半仓，错过反弹。
+        - 2015/2018 IS 看起来好看是因为那是真熊市（数月持续下跌），止损有效。
+
+    **本函数的修正思路**（Route B from v10 eval）：
+        用一个外生 regime 判别（如 HS300 < MA120 = 熊市）来**门控**止损是否启用：
+        - Bear=True: 开启止损；回撤触发半仓（同 half_position_stop）
+        - Bear=False: 止损关闭，永远满仓
+        这样短期震荡市不会误触发，长期熊市仍被保护。
+
+    参数:
+        portfolio_ret: 日收益率 Series（策略净收益）
+        regime_bear  : 与 portfolio_ret 同索引的 bool/0-1 Series，True 表示熊市
+                       （调用者应已 shift(1)，此函数不再 shift）
+        threshold    : 熊市期内的回撤触发阈值，默认 -0.10
+
+    返回:
+        修改后的日收益率 Series
+    """
+    if len(portfolio_ret) == 0:
+        return portfolio_ret.copy()
+
+    regime = regime_bear.reindex(portfolio_ret.index).fillna(False).astype(bool)
+
+    result = portfolio_ret.copy()
+    in_full = True
+    peak = 1.0
+    nav = 1.0
+
+    for i in range(len(portfolio_ret)):
+        daily_ret = portfolio_ret.iloc[i]
+        is_bear = bool(regime.iloc[i])
+
+        # 牛市 regime 下强制恢复满仓；熊市才进入半仓状态机
+        if not is_bear and not in_full:
+            in_full = True
+            peak = nav  # reset peak 以免牛市反弹时仍触发旧 peak 的回撤
+
+        scale = 1.0 if in_full else 0.5
+        adjusted_ret = daily_ret * scale
+        result.iloc[i] = adjusted_ret
+        nav = nav * (1 + adjusted_ret)
+
+        if is_bear and in_full:
+            if nav > peak:
+                peak = nav
+            elif (nav - peak) / peak < threshold:
+                in_full = False
+        elif is_bear and not in_full:
+            if nav > peak:
+                in_full = True
+                peak = nav
+        else:
+            # 牛市: 仅更新 peak，不进半仓
+            if nav > peak:
+                peak = nav
+
+    return result
+
+
+def hs300_bear_regime(
+    hs300_close: pd.Series,
+    ma_window: int = 120,
+    shift_days: int = 1,
+) -> pd.Series:
+    """
+    HS300 跌破 ma_window 日均线 → 熊市 regime。
+
+    参数:
+        hs300_close: HS300 每日收盘价 Series（DatetimeIndex）
+        ma_window : 均线周期，默认 120 交易日（~6 个月）
+        shift_days: 信号 shift 天数，默认 1（避免当日偷看）
+
+    返回:
+        bool Series（索引 = hs300_close 索引），True = 熊市
+    """
+    if not isinstance(hs300_close.index, pd.DatetimeIndex):
+        raise TypeError("hs300_close 必须用 DatetimeIndex")
+    ma = hs300_close.rolling(ma_window, min_periods=ma_window // 2).mean()
+    bear = hs300_close < ma
+    return bear.shift(shift_days).fillna(False)
+
+
 if __name__ == "__main__":
     # 冒烟测试
     import numpy as np
