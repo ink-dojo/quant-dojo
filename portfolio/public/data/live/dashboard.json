@@ -1,8 +1,11 @@
 {
-  "generated_at": "2026-04-16",
-  "active_strategy": "v16",
-  "active_note": "升级到 v16：因子挖掘会话精选（9因子）low_vol_20d/team_coin/shadow_lower/amihud_illiq/price_vol_divergence/high_52w/turnover_accel/mom_6m_skip1m/win_rate_60d | 22.37%年化/0.730 Sharpe",
+  "generated_at": "2026-04-17",
+  "declared_active": "v16",
+  "declared_note": "升级到 v16：因子挖掘会话精选（9因子）low_vol_20d/team_coin/shadow_lower/amihud_illiq/price_vol_divergence/high_52w/turnover_accel/mom_6m_skip1m/win_rate_60d | 22.37%年化/0.730 Sharpe",
   "state_updated_at": "2026-04-14T04:00:00",
+  "production_face": "v9",
+  "candidate": "v25",
+  "last_signal_strategy": "v10",
   "signal_dates": [
     "2026-04-10",
     "2026-04-09",
@@ -11,6 +14,46 @@
   ],
   "snapshot_dates": [],
   "recent_runs": [
+    {
+      "run_id": "multi_factor_v25_20260417_12a7d3cd",
+      "strategy_id": "multi_factor_v25",
+      "strategy_name": "多因子选股策略 v25（v16 + HS300-regime 门控止损）",
+      "status": "success",
+      "created_at": "2026-04-17T00:35:12.178972",
+      "annualized_return": 0.1871804590446513,
+      "sharpe": 0.7675929251717104,
+      "max_drawdown": -0.2605004073735344
+    },
+    {
+      "run_id": "multi_factor_v24_20260417_2dee9e8d",
+      "strategy_id": "multi_factor_v24",
+      "strategy_name": "多因子选股策略 v24（v16 九因子，60 只持仓）",
+      "status": "success",
+      "created_at": "2026-04-17T00:35:12.175554",
+      "annualized_return": 0.1859154428271761,
+      "sharpe": 0.6912880564131748,
+      "max_drawdown": -0.40561045428031006
+    },
+    {
+      "run_id": "multi_factor_v23_20260416_2abc645e",
+      "strategy_id": "multi_factor_v23",
+      "strategy_name": "多因子选股策略 v23（v16 + 自适应半仓止损）",
+      "status": "success",
+      "created_at": "2026-04-16T15:17:21.850121",
+      "annualized_return": 0.14810986689647887,
+      "sharpe": 0.673934852680001,
+      "max_drawdown": -0.2817788805822636
+    },
+    {
+      "run_id": "multi_factor_v22_20260416_8135f5a0",
+      "strategy_id": "multi_factor_v22",
+      "strategy_name": "多因子选股策略 v22（5 独立因子，正交剪枝）",
+      "status": "success",
+      "created_at": "2026-04-16T15:09:45.708065",
+      "annualized_return": 0.16538570934295582,
+      "sharpe": 0.5446079239420614,
+      "max_drawdown": -0.4085849637333476
+    },
     {
       "run_id": "multi_factor_v21_20260414_adb4ab12",
       "strategy_id": "multi_factor_v21",
@@ -120,46 +163,6 @@
       "annualized_return": 0.212654,
       "sharpe": 0.6972,
       "max_drawdown": -0.428017
-    },
-    {
-      "run_id": "multi_factor_v11_20260413_34b5f1b2",
-      "strategy_id": "multi_factor_v11",
-      "strategy_name": "多因子选股策略 v11（8 因子，正交扩展）",
-      "status": "success",
-      "created_at": "2026-04-13T23:42:20.006472",
-      "annualized_return": 0.138455,
-      "sharpe": 0.4377,
-      "max_drawdown": -0.412354
-    },
-    {
-      "run_id": "multi_factor_v9_20260413_bc30d3da",
-      "strategy_id": "multi_factor_v9",
-      "strategy_name": "多因子选股策略 v9（正交增强）",
-      "status": "success",
-      "created_at": "2026-04-13T23:25:00.145699",
-      "annualized_return": 0.128714,
-      "sharpe": 0.481,
-      "max_drawdown": -0.26624
-    },
-    {
-      "run_id": "multi_factor_v9_20260413_80fb1553",
-      "strategy_id": "multi_factor_v9",
-      "strategy_name": "多因子选股策略 v9（正交增强）",
-      "status": "success",
-      "created_at": "2026-04-13T23:24:40.064812",
-      "annualized_return": 0.128714,
-      "sharpe": 0.481,
-      "max_drawdown": -0.26624
-    },
-    {
-      "run_id": "multi_factor_v10_20260413_fe7c2dfa",
-      "strategy_id": "multi_factor_v10",
-      "strategy_name": "多因子选股策略 v10（审计精选，5 因子）",
-      "status": "success",
-      "created_at": "2026-04-13T23:19:32.382545",
-      "annualized_return": 0.193242,
-      "sharpe": 0.632,
-      "max_drawdown": -0.435666
     }
   ]
 }

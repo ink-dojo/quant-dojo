@@ -38,9 +38,13 @@ SIGNALS_DIR = ROOT / "live" / "signals"
 SNAPSHOT_DIR = ROOT / "live" / "factor_snapshot"
 JOURNAL_DIR = ROOT / "journal"
 
-# 双门面策略决策见 journal/portfolio_face_strategy.md
+# 策略门面（诚实版）
+# v9  — 实际生产门面：ICIR 学习权重、WF 中位 sharpe 0.53、OOS +18%，真实 track record
+# v16 — 因子挖掘会话候选：2026-04-14 从 v11-v21 中挑出，仅 1 次 IS 回测、未做 WF，
+#       最大回撤 -43% 超过 30% 红线、sharpe 0.73 未达 0.8 门槛 → 标为 candidate 不上 live
+FACE_PRODUCTION_VERSION = "v9"
 FACE_RESEARCH_VERSION = "v9"
-FACE_PRODUCTION_VERSION = "v16"
+CANDIDATE_VERSION = "v25"
 
 # 8 个英雄因子（见 journal/portfolio_hero_factors.md）
 HERO_FACTORS: list[dict] = [
@@ -113,17 +117,18 @@ STRATEGY_VERSIONS: list[dict] = [
         "factors": ["team_coin", "low_vol_20d", "cgo", "enhanced_momentum", "bp_factor"],
     },
     {
-        "id": FACE_RESEARCH_VERSION,
-        "name_en": "ICIR-Weighted Research Face",
-        "name_zh": "ICIR 学习权重 · 研究门面",
-        "tagline": "从手工权重到数据驱动 — walk-forward 评估 OOS +18%",
-        "status": "research-face",
+        "id": "v9",
+        "name_en": "ICIR-Weighted Production Face",
+        "name_zh": "ICIR 学习权重 · 生产门面",
+        "tagline": "手工权重 → 数据驱动。WF 中位 sharpe 0.53、OOS 较 v7 +18%，四代里唯一通过完整验证的门面",
+        "status": "production",
         "era_start": "2026-Q2",
         "factors": ["team_coin", "low_vol_20d", "cgo", "enhanced_momentum", "bp_factor"],
         "highlights": [
             "OOS Sharpe 1.60 (vs v7 1.35)",
-            "Walk-forward 中位 Sharpe 0.5256",
+            "Walk-forward 17 窗口中位 Sharpe 0.53",
             "权重演化反映 A 股风格切换",
+            "与 v7 同因子集 → 方法论升级，非扩因子",
         ],
     },
     {
@@ -138,17 +143,17 @@ STRATEGY_VERSIONS: list[dict] = [
             "IS 回撤 -42% → -24%（看起来在救命）",
             "OOS Sharpe 1.60 → 0.27（止损把超额砍光）",
             "WF 中位数 0.53 → 0.46（样本外平均更差）",
-            "结论：单独叠加止损无 regime 信号不够，已回滚",
+            "结论：无 regime 信号的裸止损不够，已回滚",
         ],
         "eval_report": "journal/v10_icir_stoploss_eval_20260416.md",
     },
     {
-        "id": FACE_PRODUCTION_VERSION,
-        "name_en": "9-Factor Production Face",
-        "name_zh": "9 因子生产门面",
-        "tagline": "因子挖掘落地 — 年化 22.37%，当前 live active",
-        "status": "production",
-        "era_start": "2026-Q4",
+        "id": "v16",
+        "name_en": "9-Factor Mining Candidate",
+        "name_zh": "9 因子挖掘候选（pending WF）",
+        "tagline": "2026-04-14 因子挖掘会话从 v11-v21 共 12 个候选中挑出；IS sharpe 0.80、回撤 -43% 红线未过",
+        "status": "candidate",
+        "era_start": "2026-Q2",
         "factors": [
             "low_vol_20d",
             "team_coin",
@@ -160,6 +165,52 @@ STRATEGY_VERSIONS: list[dict] = [
             "momentum_6m_skip1m",
             "win_rate_60d",
         ],
+        "highlights": [
+            "IS 年化 22.9% / Sharpe 0.80（sharpe 公式 2026-04-17 修复后重算）",
+            "PSR 95.3% — 夏普显著大于零",
+            "但最大回撤 -43% 超过 30% 红线（CLAUDE.md）",
+            "WF 验证尚未运行 — 样本外表现未知",
+            "与 v10 当初的幻觉同构：从 12 候选里挑 best-in-sample",
+        ],
+        "gate_check": {
+            "annual_return": {"value": 0.2287, "threshold": 0.15, "pass": True},
+            "sharpe": {"value": 0.80, "threshold": 0.8, "pass": True},
+            "max_drawdown": {"value": -0.4306, "threshold": -0.30, "pass": False},
+            "wf_validated": {"value": False, "threshold": True, "pass": False},
+        },
+    },
+    {
+        "id": "v25",
+        "name_en": "v16 + HS300 Regime-Gated Stop",
+        "name_zh": "v16 + HS300 熊市门控止损",
+        "tagline": "2026-04-17 回撤治理：HS300<MA120 时启用半仓止损，MDD 从 -43% 收到 -26%；sharpe 仅退 0.03",
+        "status": "candidate",
+        "era_start": "2026-Q2",
+        "factors": [
+            "low_vol_20d",
+            "team_coin",
+            "shadow_lower",
+            "amihud_illiquidity",
+            "price_volume_divergence",
+            "high_52w_ratio",
+            "turnover_acceleration",
+            "momentum_6m_skip1m",
+            "win_rate_60d",
+        ],
+        "highlights": [
+            "IS 2022-2025 年化 18.7% / Sharpe 0.77 / MDD -26%",
+            "PSR 95.1% — 夏普显著大于零；DSR 91.1%",
+            "MDD 过 admission -30% 门（v16 -43% 不过）",
+            "Sharpe 0.77 仍低于 0.80 admission 门槛，差 0.03",
+            "外生 regime（HS300 120 日均线）门控 → 震荡市不触发，避免 v10/v11 反例",
+            "WF 验证待办：验证 regime 门控在 OOS 仍有效",
+        ],
+        "gate_check": {
+            "annual_return": {"value": 0.1872, "threshold": 0.15, "pass": True},
+            "sharpe": {"value": 0.77, "threshold": 0.8, "pass": False},
+            "max_drawdown": {"value": -0.2605, "threshold": -0.30, "pass": True},
+            "wf_validated": {"value": False, "threshold": True, "pass": False},
+        },
     },
 ]
 
@@ -364,12 +415,23 @@ def write_strategy(coverage_generated_at: str) -> None:
             }
         )
 
+    # 诚实门面 vs strategy_state.json 声明的 active：
+    #   production_face = 我们判断的生产门面（v9，经过 WF 验证）
+    #   declared_active = live/strategy_state.json 当前写入（2026-04-14 声明为 v16，
+    #                     但 v16 未通过 admission gate 且未生成过 live 信号）
+    # 两者不一致本身是故事的一部分，页面上会展示这个 gap。
     payload = {
         "generated_at": coverage_generated_at,
-        "active_strategy": active,
-        "active_note": state.get("note"),
-        "research_face": FACE_RESEARCH_VERSION,
         "production_face": FACE_PRODUCTION_VERSION,
+        "research_face": FACE_RESEARCH_VERSION,
+        "candidate": CANDIDATE_VERSION,
+        "declared_active": active,
+        "declared_note": state.get("note"),
+        "face_note": (
+            "v9 是实际经过 walk-forward 验证的生产门面（中位 Sharpe 0.53、OOS +18%）。"
+            "strategy_state.json 在 2026-04-14 声明 v16 为 active，但 v16 仅 1 次 IS 回测、"
+            "回撤 -43% 超红线、sharpe 0.73 未达门槛、尚未生成任何 live 信号 — 仍为 candidate。"
+        ),
         "versions": versions_out,
     }
     (strategy_dir / "versions.json").write_text(
@@ -468,6 +530,112 @@ def parse_roadmap() -> list[dict]:
     return phases
 
 
+CANDIDATES_CHANGE: dict[str, str] = {
+    "v11": "v10 + 2 个正交新因子（shadow_lower + amihud_illiquidity）",
+    "v12": "v11 + close_minus_open_volume（主力净买入代理）",
+    "v13": "v11 + momentum_6m_skip1m（中期反转）",
+    "v14": "v13 + rsi_factor（RSI-14 超买超卖）",
+    "v15": "v13 用 price_dist_ma60 替换 high_52w",
+    "v16": "v13 + win_rate_60d（60 日胜率反转）",
+    "v17": "v16 + vol_asymmetry（上涨/下跌波动率比）",
+    "v18": "v16 + network_scc（股票相关性网络关联度）",
+    "v19": "v16 + volume_concentration（量能集中度）",
+    "v20": "v16 + w_reversal（W 型价格反转）",
+    "v21": "v16 用 w_reversal 替换 high_52w",
+    "v22": "v16 正交剪枝：5 独立因子（low_vol_20d / team_coin / shadow_lower / pv_div / turnover_accel）",
+    "v23": "v16 + adaptive_half_position_stop（IS 调参，2022-2025 MDD -26% 但 sharpe 退 0.08）",
+    "v24": "v16 九因子，n_stocks 30→60（宽持仓稀释尾部风险）",
+    "v25": "v16 + regime_gated_half_position_stop（HS300<MA120 熊市门控）— 本次会话选中",
+}
+
+
+def write_candidates() -> None:
+    """
+    导出历次会话产出的 v11-v25 候选。用于 /strategy/candidates 页，
+    让访客看到选中版本是从 15 个候选里挑的，不是「独立得到的最优解」。
+
+    指标来源：candidate_review.json（从 equity CSV 基于当前 metrics 公式重新计算，
+    避免 2026-04-14 sharpe 公式修复前留下的过时 JSON 指标混入）。
+    """
+    strategy_dir = OUT / "strategy"
+    strategy_dir.mkdir(parents=True, exist_ok=True)
+
+    review_path = strategy_dir / "candidate_review.json"
+    review_rows: dict[str, dict] = {}
+    if review_path.exists():
+        try:
+            review_rows = {
+                r["version"]: r
+                for r in json.loads(review_path.read_text(encoding="utf-8"))["candidates"]
+            }
+        except Exception:
+            review_rows = {}
+
+    ids = list(CANDIDATES_CHANGE.keys())
+    rows: list[dict] = []
+    for sid in ids:
+        p = latest_run(sid)
+        if p is None:
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        # 优先用 candidate_review.json（权威口径）；缺失时回退 run.json 原始指标
+        rev = review_rows.get(sid)
+        if rev is not None:
+            ann = rev.get("ann_return")
+            sr = rev.get("sharpe")
+            mdd = rev.get("max_drawdown")
+            wr = rev.get("win_rate")
+            psr = rev.get("psr_vs_zero")
+        else:
+            m = data.get("metrics") or {}
+            ann = m.get("annualized_return")
+            sr = m.get("sharpe")
+            mdd = m.get("max_drawdown")
+            wr = m.get("win_rate")
+            psr = None
+
+        rows.append({
+            "id": sid,
+            "change_zh": CANDIDATES_CHANGE[sid],
+            "run_id": data.get("run_id"),
+            "strategy_name": data.get("strategy_name"),
+            "created_at": data.get("created_at"),
+            "status": data.get("status"),
+            "annualized_return": ann,
+            "sharpe": sr,
+            "max_drawdown": mdd,
+            "win_rate": wr,
+            "psr": psr,
+            "selected": (sid == CANDIDATE_VERSION),
+        })
+
+    # 按 sharpe 降序
+    rows.sort(key=lambda r: (r.get("sharpe") is None, -(r.get("sharpe") or 0)))
+
+    payload = {
+        "session_date": "2026-04-17",
+        "session_note": (
+            "2026-04-17 回撤治理专场：先修 sharpe 公式 / WF 泄漏 / factor 前视 "
+            "/ stop_loss σ 偷看 等 7 处统计代码 bug；再走 Route B—"
+            "v25 = v16 + regime_gated_half_position_stop（HS300<MA120 熊市门控）。"
+            "IS 2022-2025 MDD 从 -43% 收到 -26%（过 admission -30% 门），"
+            "sharpe 仅退 0.03 至 0.768，DSR 91.1%。另 v24（n=60 宽持仓）、"
+            "v22（正交剪枝）未能改善回撤或 sharpe，淘汰。"
+            "v25 sharpe 0.768 仍 < 0.80 admission gate，下一步需 walk-forward 确认 OOS。"
+        ),
+        "selected": CANDIDATE_VERSION,
+        "candidates": rows,
+    }
+    (strategy_dir / "candidates.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"  wrote strategy/candidates.json ({len(rows)} candidates)")
+
+
 def write_journey() -> None:
     journey_dir = OUT / "journey"
     journey_dir.mkdir(parents=True, exist_ok=True)
@@ -546,11 +714,28 @@ def write_live() -> None:
             if len(recent_runs) >= 15:
                 break
 
+    # 最新信号文件读出来的 strategy 字段（metadata.strategy）— 那才是 signal
+    # generator 当天实际使用的 factor list。strategy_state.json 是声明，
+    # signal metadata 是事实。
+    last_signal_strategy: str | None = None
+    if signal_dates:
+        last = SIGNALS_DIR / f"{signal_dates[0]}.json"
+        try:
+            sig = json.loads(last.read_text(encoding="utf-8"))
+            last_signal_strategy = (sig.get("metadata") or {}).get("strategy")
+        except Exception:
+            last_signal_strategy = None
+
     payload = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "active_strategy": state.get("active_strategy"),
-        "active_note": state.get("note"),
+        "declared_active": state.get("active_strategy"),
+        "declared_note": state.get("note"),
         "state_updated_at": state.get("updated_at"),
+        # 实际生产门面由我们判断（经过 WF 验证的 v9），见 FACE_PRODUCTION_VERSION
+        "production_face": FACE_PRODUCTION_VERSION,
+        "candidate": CANDIDATE_VERSION,
+        # 最近一次 signal 文件里的 strategy（事实，不是声明）
+        "last_signal_strategy": last_signal_strategy,
         "signal_dates": signal_dates,
         "snapshot_dates": snapshot_dates,
         "recent_runs": recent_runs,
@@ -592,6 +777,7 @@ def main() -> None:
     write_meta(coverage)
     write_factors(coverage)
     write_strategy(coverage["generated_at"])
+    write_candidates()
     write_live()
     write_journey()
     print("done.")

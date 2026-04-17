@@ -1,9 +1,11 @@
 {
   "generated_at": "2026-04-16",
-  "active_strategy": "v16",
-  "active_note": "升级到 v16：因子挖掘会话精选（9因子）low_vol_20d/team_coin/shadow_lower/amihud_illiq/price_vol_divergence/high_52w/turnover_accel/mom_6m_skip1m/win_rate_60d | 22.37%年化/0.730 Sharpe",
+  "production_face": "v9",
   "research_face": "v9",
-  "production_face": "v16",
+  "candidate": "v25",
+  "declared_active": "v16",
+  "declared_note": "升级到 v16：因子挖掘会话精选（9因子）low_vol_20d/team_coin/shadow_lower/amihud_illiq/price_vol_divergence/high_52w/turnover_accel/mom_6m_skip1m/win_rate_60d | 22.37%年化/0.730 Sharpe",
+  "face_note": "v9 是实际经过 walk-forward 验证的生产门面（中位 Sharpe 0.53、OOS +18%）。strategy_state.json 在 2026-04-14 声明 v16 为 active，但 v16 仅 1 次 IS 回测、回撤 -43% 超红线、sharpe 0.73 未达门槛、尚未生成任何 live 信号 — 仍为 candidate。",
   "versions": [
     {
       "id": "v7",
@@ -26,10 +28,10 @@
     },
     {
       "id": "v9",
-      "name_en": "ICIR-Weighted Research Face",
-      "name_zh": "ICIR 学习权重 · 研究门面",
-      "tagline": "从手工权重到数据驱动 — walk-forward 评估 OOS +18%",
-      "status": "research-face",
+      "name_en": "ICIR-Weighted Production Face",
+      "name_zh": "ICIR 学习权重 · 生产门面",
+      "tagline": "手工权重 → 数据驱动。WF 中位 sharpe 0.53、OOS 较 v7 +18%，四代里唯一通过完整验证的门面",
+      "status": "production",
       "era_start": "2026-Q2",
       "factors": [
         "team_coin",
@@ -40,8 +42,9 @@
       ],
       "highlights": [
         "OOS Sharpe 1.60 (vs v7 1.35)",
-        "Walk-forward 中位 Sharpe 0.5256",
-        "权重演化反映 A 股风格切换"
+        "Walk-forward 17 窗口中位 Sharpe 0.53",
+        "权重演化反映 A 股风格切换",
+        "与 v7 同因子集 → 方法论升级，非扩因子"
       ],
       "is_active": false,
       "run_id": "multi_factor_v9_20260413_bc30d3da",
@@ -76,7 +79,7 @@
         "IS 回撤 -42% → -24%（看起来在救命）",
         "OOS Sharpe 1.60 → 0.27（止损把超额砍光）",
         "WF 中位数 0.53 → 0.46（样本外平均更差）",
-        "结论：单独叠加止损无 regime 信号不够，已回滚"
+        "结论：无 regime 信号的裸止损不够，已回滚"
       ],
       "eval_report": "journal/v10_icir_stoploss_eval_20260416.md",
       "is_active": false,
@@ -96,11 +99,11 @@
     },
     {
       "id": "v16",
-      "name_en": "9-Factor Production Face",
-      "name_zh": "9 因子生产门面",
-      "tagline": "因子挖掘落地 — 年化 22.37%，当前 live active",
-      "status": "production",
-      "era_start": "2026-Q4",
+      "name_en": "9-Factor Mining Candidate",
+      "name_zh": "9 因子挖掘候选（pending WF）",
+      "tagline": "2026-04-14 因子挖掘会话从 v11-v21 共 12 个候选中挑出；IS sharpe 0.80、回撤 -43% 红线未过",
+      "status": "candidate",
+      "era_start": "2026-Q2",
       "factors": [
         "low_vol_20d",
         "team_coin",
@@ -112,6 +115,35 @@
         "momentum_6m_skip1m",
         "win_rate_60d"
       ],
+      "highlights": [
+        "IS 年化 22.9% / Sharpe 0.80（sharpe 公式 2026-04-17 修复后重算）",
+        "PSR 95.3% — 夏普显著大于零",
+        "但最大回撤 -43% 超过 30% 红线（CLAUDE.md）",
+        "WF 验证尚未运行 — 样本外表现未知",
+        "与 v10 当初的幻觉同构：从 12 候选里挑 best-in-sample"
+      ],
+      "gate_check": {
+        "annual_return": {
+          "value": 0.2287,
+          "threshold": 0.15,
+          "pass": true
+        },
+        "sharpe": {
+          "value": 0.8,
+          "threshold": 0.8,
+          "pass": true
+        },
+        "max_drawdown": {
+          "value": -0.4306,
+          "threshold": -0.3,
+          "pass": false
+        },
+        "wf_validated": {
+          "value": false,
+          "threshold": true,
+          "pass": false
+        }
+      },
       "is_active": true,
       "run_id": "multi_factor_v16_20260414_36127e73",
       "metrics": {
@@ -126,6 +158,69 @@
         "period_end": "2025-12-31"
       },
       "equity_file": "equity_v16.json"
+    },
+    {
+      "id": "v25",
+      "name_en": "v16 + HS300 Regime-Gated Stop",
+      "name_zh": "v16 + HS300 熊市门控止损",
+      "tagline": "2026-04-17 回撤治理：HS300<MA120 时启用半仓止损，MDD 从 -43% 收到 -26%；sharpe 仅退 0.03",
+      "status": "candidate",
+      "era_start": "2026-Q2",
+      "factors": [
+        "low_vol_20d",
+        "team_coin",
+        "shadow_lower",
+        "amihud_illiquidity",
+        "price_volume_divergence",
+        "high_52w_ratio",
+        "turnover_acceleration",
+        "momentum_6m_skip1m",
+        "win_rate_60d"
+      ],
+      "highlights": [
+        "IS 2022-2025 年化 18.7% / Sharpe 0.77 / MDD -26%",
+        "PSR 95.1% — 夏普显著大于零；DSR 91.1%",
+        "MDD 过 admission -30% 门（v16 -43% 不过）",
+        "Sharpe 0.77 仍低于 0.80 admission 门槛，差 0.03",
+        "外生 regime（HS300 120 日均线）门控 → 震荡市不触发，避免 v10/v11 反例",
+        "WF 验证待办：验证 regime 门控在 OOS 仍有效"
+      ],
+      "gate_check": {
+        "annual_return": {
+          "value": 0.1872,
+          "threshold": 0.15,
+          "pass": true
+        },
+        "sharpe": {
+          "value": 0.77,
+          "threshold": 0.8,
+          "pass": false
+        },
+        "max_drawdown": {
+          "value": -0.2605,
+          "threshold": -0.3,
+          "pass": true
+        },
+        "wf_validated": {
+          "value": false,
+          "threshold": true,
+          "pass": false
+        }
+      },
+      "is_active": false,
+      "run_id": "multi_factor_v25_20260417_12a7d3cd",
+      "metrics": {
+        "total_return": 0.9343479855515182,
+        "annualized_return": 0.1871804590446513,
+        "sharpe": 0.7675929251717104,
+        "max_drawdown": -0.2605004073735344,
+        "volatility": 0.2329385791695438,
+        "win_rate": 0.5614035087719298,
+        "n_trading_days": 969,
+        "period_start": "2022-01-04",
+        "period_end": "2025-12-31"
+      },
+      "equity_file": "equity_v25.json"
     }
   ]
 }
