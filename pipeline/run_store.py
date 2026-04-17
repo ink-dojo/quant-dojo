@@ -131,13 +131,16 @@ def generate_run_id(strategy_id: str, start: str, end: str, params: dict) -> str
     return f"{strategy_id}_{date_tag}_{h}"
 
 
-def save_run(record: RunRecord, equity_df=None) -> Path:
+def save_run(record: RunRecord, equity_df=None, fingerprint: Optional[dict] = None) -> Path:
     """
     保存运行记录到磁盘
 
     参数:
         record: RunRecord 实例
         equity_df: 可选的净值曲线 DataFrame（需有 date 索引）
+        fingerprint: 可选的数据指纹 dict（来自 utils.data_fingerprint.compute_data_fingerprint）
+                     若提供，会额外落盘 {run_id}_fingerprint.json，并在 artifacts 中记录路径。
+                     用于防止同策略跨天结果漂移时无法溯源（见 W16 2026-04-17 基础设施审计）。
 
     返回:
         记录文件路径
@@ -154,6 +157,14 @@ def save_run(record: RunRecord, equity_df=None) -> Path:
         equity_path = RUNS_DIR / f"{record.run_id}_equity.csv"
         equity_df.to_csv(equity_path)
         record.artifacts["equity_csv"] = str(equity_path)
+
+    # 数据指纹（可选）— 数据版本锁定，便于跨天诊断漂移
+    if fingerprint is not None:
+        fp_path = RUNS_DIR / f"{record.run_id}_fingerprint.json"
+        fp_path.write_text(
+            json.dumps(fingerprint, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        record.artifacts["fingerprint_json"] = str(fp_path)
 
     record_path = RUNS_DIR / f"{record.run_id}.json"
     data = _make_serializable(asdict(record))
