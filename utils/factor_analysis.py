@@ -83,30 +83,74 @@ def compute_ic_series(
     return pd.Series(ic_list, index=common_dates, name=f"IC_{method}")
 
 
-def ic_summary(ic_series: pd.Series, name: str = "Factor") -> dict:
+def _newey_west_se(x: np.ndarray, lag: int) -> float:
+    """计算 Newey-West HAC 标准误（针对均值 mean(x)）。
+
+    适用于 IC 序列：A 股 IC 常有 1-3 日正自相关，普通 t-stat 被高估。
+    """
+    n = len(x)
+    if n < 2:
+        return float("nan")
+    mu = x.mean()
+    e = x - mu
+    gamma0 = float((e ** 2).mean())
+    s2 = gamma0
+    for h in range(1, min(lag, n - 1) + 1):
+        gamma = float((e[h:] * e[:-h]).mean())
+        w = 1.0 - h / (lag + 1.0)  # Bartlett 核
+        s2 += 2.0 * w * gamma
+    s2 = max(s2, 1e-12)
+    return float(np.sqrt(s2 / n))
+
+
+def ic_summary(
+    ic_series: pd.Series,
+    name: str = "Factor",
+    nw_lag: int | None = None,
+    fwd_days: int = 1,
+    verbose: bool = True,
+) -> dict:
     """
     打印并返回 IC 统计摘要
 
     关键指标:
-        IC 均值   : 越大（绝对值）越好，一般 |IC| > 0.03 视为有效
-        ICIR      : IC均值 / IC标准差，|ICIR| > 0.3 视为稳定
-        IC>0 占比 : 对于正向因子 > 50% 为佳，对于反转因子 < 50%
-        t 统计量  : |t| > 2 则 IC 统计显著
+        IC 均值       : 越大（绝对值）越好，一般 |IC| > 0.03 视为有效
+        ICIR          : IC均值 / IC标准差，|ICIR| > 0.3 视为稳定
+        IC>0 占比     : 对于正向因子 > 50% 为佳，对于反转因子 < 50%
+        t 统计量      : 普通 t（不修正自相关）
+        HAC t 统计量  : Newey-West 修正后的 t，A股 IC 自相关普遍存在，这个才是可信的那个
+
+    **HAC lag 选择**（2026-04-17 修复）:
+        - 前向收益窗口 fwd_days > 1 时，连续两天 IC 样本共享 fwd_days-1 天返回 →
+          人为诱发 MA(fwd_days-1) 自相关。NW lag 必须 ≥ fwd_days-1。
+        - nw_lag=None 时自动取 max(fwd_days-1, Andrews 1991 规则 floor(4*(n/100)^(2/9)))
+        - 显式传入 nw_lag 覆盖自动；传入 fwd_days 让函数知道回报窗口长度。
     """
     ic_clean = ic_series.dropna()
+    n = len(ic_clean)
     mean_ic = ic_clean.mean()
     std_ic = ic_clean.std()
     icir = mean_ic / std_ic if std_ic > 0 else np.nan
     pct_pos = (ic_clean > 0).mean()
-    t_stat = mean_ic / (std_ic / np.sqrt(len(ic_clean)))
+    t_stat = mean_ic / (std_ic / np.sqrt(n)) if std_ic > 0 and n > 1 else np.nan
 
-    print(f"【{name}】IC 统计摘要")
-    print(f"  IC 均值    : {mean_ic:.4f}")
-    print(f"  IC 标准差  : {std_ic:.4f}")
-    print(f"  ICIR       : {icir:.4f}")
-    print(f"  IC>0 占比  : {pct_pos:.2%}")
-    print(f"  t 统计量   : {t_stat:.4f}  (|t|>2 视为显著)")
-    print()
+    # 自动选 NW lag：取 Andrews 1991 与 fwd_days-1 的较大者
+    if nw_lag is None:
+        andrews = int(np.floor(4 * (max(n, 1) / 100) ** (2 / 9))) if n > 0 else 1
+        nw_lag = max(andrews, max(fwd_days - 1, 1))
+
+    hac_se = _newey_west_se(ic_clean.values, lag=nw_lag) if n > nw_lag + 1 else float("nan")
+    t_hac = mean_ic / hac_se if hac_se and hac_se == hac_se and hac_se > 0 else np.nan
+
+    if verbose:
+        print(f"【{name}】IC 统计摘要")
+        print(f"  IC 均值       : {mean_ic:.4f}")
+        print(f"  IC 标准差     : {std_ic:.4f}")
+        print(f"  ICIR          : {icir:.4f}")
+        print(f"  IC>0 占比     : {pct_pos:.2%}")
+        print(f"  t 统计量      : {t_stat:.4f}")
+        print(f"  HAC t (NW-{nw_lag}) : {t_hac:.4f}  (|t|>2 视为显著)")
+        print()
 
     return {
         "name": name,
@@ -115,6 +159,9 @@ def ic_summary(ic_series: pd.Series, name: str = "Factor") -> dict:
         "ICIR": icir,
         "pct_pos": pct_pos,
         "t_stat": t_stat,
+        "t_stat_hac": t_hac,
+        "nw_lag": nw_lag,
+        "n": n,
     }
 
 
@@ -463,18 +510,27 @@ def ic_weighted_period_composite(
     factor_dict: dict,
     ic_series_dict: dict,
     rolling_window: int = 60,
+    shift_days: int | None = None,
 ) -> pd.DataFrame:
     """
     IC 加权合成同一因子的多个回看周期（滚动窗口内的 IC 均值绝对值作为权重）
+
+    **前视保护**（2026-04-17 修复）:
+        IC(t) 用的是 t+1..t+N 的前向收益；直接用 rolling_ic.loc[t] 做
+        当日因子组合 → 权重吸收了 t..t+N 的未来信息。必须在权重上 shift。
+
+        shift_days 默认取 max(periods) + 1，确保 t 日的权重只用到
+        t-(N+1) 及以前的 IC 值（对应 return 窗口 ≤ t-1 结束）。
 
     与 multi_factor.ic_weighted_composite 的区别：
     - 本函数合成同一因子的不同周期（如动量 5/10/20/60/120 日），需外部传入 IC 序列
     - multi_factor.ic_weighted_composite 合成不同因子，内部自行计算 IC
 
     参数:
-        factor_dict    : {周期N: factor_wide, ...}
+        factor_dict    : {周期N: factor_wide, ...}  N 为前向收益天数
         ic_series_dict : {周期N: ic_series, ...}，各周期的 IC 时序
         rolling_window : 计算权重的滚动窗口（默认60日）
+        shift_days     : 权重 shift 天数；None 则自动取 max(periods)+1
 
     返回:
         factor_ic_weighted : 加权合成后的因子宽表
@@ -492,6 +548,20 @@ def ic_weighted_period_composite(
         return abs_ic / total
 
     weight_df = rolling_ic.apply(_weights, axis=1)
+
+    # 前视保护：IC(t) 基于 t+1..t+N 前向收益；权重必须 shift 以避免泄漏
+    if shift_days is None:
+        try:
+            shift_days = max(int(p) for p in periods) + 1
+        except (TypeError, ValueError):
+            shift_days = 0  # periods 不是数字，放弃自动 shift，交给调用者
+            import warnings
+            warnings.warn(
+                "periods 不是数字，无法自动 shift 权重以避免前视；请显式传入 shift_days",
+                RuntimeWarning,
+            )
+    if shift_days > 0:
+        weight_df = weight_df.shift(shift_days)
 
     # 以第一个因子的形状为基准
     base_fac = factor_dict[periods[0]]
