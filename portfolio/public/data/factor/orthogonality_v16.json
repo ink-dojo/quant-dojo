@@ -1,0 +1,330 @@
+{
+  "generated_at": "2026-04-16",
+  "window": {
+    "start": "2022-01-01",
+    "end": "2025-12-31",
+    "fwd_days": 5
+  },
+  "factors": [
+    {
+      "name": "low_vol_20d",
+      "direction": 1,
+      "category": "risk",
+      "ic": 0.07398329457362632,
+      "icir": 0.3803670538316604,
+      "t_hac": 6.196538491679784,
+      "n": 964
+    },
+    {
+      "name": "team_coin",
+      "direction": 1,
+      "category": "behavioral",
+      "ic": 0.04139649470851823,
+      "icir": 0.5202145783939192,
+      "t_hac": 9.0964585201554,
+      "n": 964
+    },
+    {
+      "name": "shadow_lower",
+      "direction": -1,
+      "category": "price_action",
+      "ic": 0.044234649551215845,
+      "icir": 0.43310220647984754,
+      "t_hac": 8.686410727170292,
+      "n": 964
+    },
+    {
+      "name": "amihud_illiq",
+      "direction": 1,
+      "category": "liquidity",
+      "ic": 0.0019270352528837722,
+      "icir": 0.011823643499546703,
+      "t_hac": 0.19242853627226503,
+      "n": 964
+    },
+    {
+      "name": "price_vol_divergence",
+      "direction": 1,
+      "category": "volume",
+      "ic": 0.053527801208041695,
+      "icir": 0.5711077606891434,
+      "t_hac": 9.842172895672352,
+      "n": 964
+    },
+    {
+      "name": "high_52w",
+      "direction": -1,
+      "category": "reversal",
+      "ic": 0.022065684601085857,
+      "icir": 0.13940726247898894,
+      "t_hac": 2.2669756739039886,
+      "n": 964
+    },
+    {
+      "name": "turnover_accel",
+      "direction": -1,
+      "category": "volume",
+      "ic": 0.03678120937717204,
+      "icir": 0.3860219002980319,
+      "t_hac": 6.508329248398246,
+      "n": 964
+    },
+    {
+      "name": "mom_6m_skip1m",
+      "direction": -1,
+      "category": "reversal",
+      "ic": 0.02266299380352792,
+      "icir": 0.14730926032225497,
+      "t_hac": 2.466158609292813,
+      "n": 964
+    },
+    {
+      "name": "win_rate_60d",
+      "direction": -1,
+      "category": "reversal",
+      "ic": 0.02153243674181965,
+      "icir": 0.19843653301545444,
+      "t_hac": 3.304870771979129,
+      "n": 964
+    }
+  ],
+  "corr_matrix": {
+    "low_vol_20d": {
+      "low_vol_20d": 1.0,
+      "team_coin": 0.0932,
+      "shadow_lower": 0.1027,
+      "amihud_illiq": -0.2767,
+      "price_vol_divergence": 0.2755,
+      "high_52w": -0.1078,
+      "turnover_accel": -0.0432,
+      "mom_6m_skip1m": 0.1627,
+      "win_rate_60d": 0.1242
+    },
+    "team_coin": {
+      "low_vol_20d": 0.0932,
+      "team_coin": 1.0,
+      "shadow_lower": 0.0619,
+      "amihud_illiq": -0.0154,
+      "price_vol_divergence": -0.0486,
+      "high_52w": 0.0361,
+      "turnover_accel": 0.0332,
+      "mom_6m_skip1m": -0.0116,
+      "win_rate_60d": -0.0614
+    },
+    "shadow_lower": {
+      "low_vol_20d": 0.1027,
+      "team_coin": 0.0619,
+      "shadow_lower": 1.0,
+      "amihud_illiq": -0.0306,
+      "price_vol_divergence": 0.1584,
+      "high_52w": 0.1249,
+      "turnover_accel": 0.3712,
+      "mom_6m_skip1m": -0.0953,
+      "win_rate_60d": 0.0882
+    },
+    "amihud_illiq": {
+      "low_vol_20d": -0.2767,
+      "team_coin": -0.0154,
+      "shadow_lower": -0.0306,
+      "amihud_illiq": 1.0,
+      "price_vol_divergence": 0.0718,
+      "high_52w": 0.2433,
+      "turnover_accel": -0.0039,
+      "mom_6m_skip1m": 0.0892,
+      "win_rate_60d": -0.0564
+    },
+    "price_vol_divergence": {
+      "low_vol_20d": 0.2755,
+      "team_coin": -0.0486,
+      "shadow_lower": 0.1584,
+      "amihud_illiq": 0.0718,
+      "price_vol_divergence": 1.0,
+      "high_52w": 0.1247,
+      "turnover_accel": 0.068,
+      "mom_6m_skip1m": 0.0044,
+      "win_rate_60d": 0.1477
+    },
+    "high_52w": {
+      "low_vol_20d": -0.1078,
+      "team_coin": 0.0361,
+      "shadow_lower": 0.1249,
+      "amihud_illiq": 0.2433,
+      "price_vol_divergence": 0.1247,
+      "high_52w": 1.0,
+      "turnover_accel": 0.1078,
+      "mom_6m_skip1m": 0.475,
+      "win_rate_60d": 0.2754
+    },
+    "turnover_accel": {
+      "low_vol_20d": -0.0432,
+      "team_coin": 0.0332,
+      "shadow_lower": 0.3712,
+      "amihud_illiq": -0.0039,
+      "price_vol_divergence": 0.068,
+      "high_52w": 0.1078,
+      "turnover_accel": 1.0,
+      "mom_6m_skip1m": -0.0946,
+      "win_rate_60d": 0.049
+    },
+    "mom_6m_skip1m": {
+      "low_vol_20d": 0.1627,
+      "team_coin": -0.0116,
+      "shadow_lower": -0.0953,
+      "amihud_illiq": 0.0892,
+      "price_vol_divergence": 0.0044,
+      "high_52w": 0.475,
+      "turnover_accel": -0.0946,
+      "mom_6m_skip1m": 1.0,
+      "win_rate_60d": 0.1892
+    },
+    "win_rate_60d": {
+      "low_vol_20d": 0.1242,
+      "team_coin": -0.0614,
+      "shadow_lower": 0.0882,
+      "amihud_illiq": -0.0564,
+      "price_vol_divergence": 0.1477,
+      "high_52w": 0.2754,
+      "turnover_accel": 0.049,
+      "mom_6m_skip1m": 0.1892,
+      "win_rate_60d": 1.0
+    }
+  },
+  "high_corr_pairs": [],
+  "gs_order": [
+    "price_vol_divergence",
+    "team_coin",
+    "shadow_lower",
+    "turnover_accel",
+    "low_vol_20d",
+    "win_rate_60d",
+    "mom_6m_skip1m",
+    "high_52w",
+    "amihud_illiq"
+  ],
+  "residual_ic": {
+    "price_vol_divergence": {
+      "order": 1,
+      "raw_ic": 0.053527801208041695,
+      "raw_icir": 0.5711077606891434,
+      "residual_ic": 0.053527801208041695,
+      "residual_icir": 0.5711077606891434,
+      "residual_ic_ci95": [
+        0.04276793336093819,
+        0.06489084089197075
+      ],
+      "marginal_ratio": 1.0,
+      "n": 964
+    },
+    "team_coin": {
+      "order": 2,
+      "raw_ic": 0.04139649470851823,
+      "raw_icir": 0.5202145783939192,
+      "residual_ic": 0.041230018413499485,
+      "residual_icir": 0.5320947421182687,
+      "residual_ic_ci95": [
+        0.03171688953067572,
+        0.051598069202799426
+      ],
+      "marginal_ratio": 0.9959784929571709,
+      "n": 964
+    },
+    "shadow_lower": {
+      "order": 3,
+      "raw_ic": 0.044234649551215845,
+      "raw_icir": 0.43310220647984754,
+      "residual_ic": 0.02926423661635221,
+      "residual_icir": 0.29998028604989474,
+      "residual_ic_ci95": [
+        0.018265170286709192,
+        0.03874106046966442
+      ],
+      "marginal_ratio": 0.6615681804479866,
+      "n": 964
+    },
+    "turnover_accel": {
+      "order": 4,
+      "raw_ic": 0.03678120937717204,
+      "raw_icir": 0.3860219002980319,
+      "residual_ic": 0.018444790915059964,
+      "residual_icir": 0.23147281093031033,
+      "residual_ic_ci95": [
+        0.00989350076890077,
+        0.027341510506748257
+      ],
+      "marginal_ratio": 0.501473204046074,
+      "n": 964
+    },
+    "low_vol_20d": {
+      "order": 5,
+      "raw_ic": 0.07398329457362632,
+      "raw_icir": 0.3803670538316604,
+      "residual_ic": 0.049236918164701673,
+      "residual_icir": 0.29304729022848236,
+      "residual_ic_ci95": [
+        0.03232206836466177,
+        0.06799791452179849
+      ],
+      "marginal_ratio": 0.665513998105374,
+      "n": 964
+    },
+    "win_rate_60d": {
+      "order": 6,
+      "raw_ic": 0.02153243674181965,
+      "raw_icir": 0.19843653301545444,
+      "residual_ic": 0.0022328791763008638,
+      "residual_icir": 0.024289020650589223,
+      "residual_ic_ci95": [
+        -0.008385998527449381,
+        0.013059879317940812
+      ],
+      "marginal_ratio": 0.1036983971240112,
+      "n": 964
+    },
+    "mom_6m_skip1m": {
+      "order": 7,
+      "raw_ic": 0.02266299380352792,
+      "raw_icir": 0.14730926032225497,
+      "residual_ic": 0.007344986929217261,
+      "residual_icir": 0.06302911614222408,
+      "residual_ic_ci95": [
+        -0.011106082438320806,
+        0.02285639130244375
+      ],
+      "marginal_ratio": 0.32409605689756116,
+      "n": 964
+    },
+    "high_52w": {
+      "order": 8,
+      "raw_ic": 0.022065684601085857,
+      "raw_icir": 0.13940726247898894,
+      "residual_ic": -0.00469447308080763,
+      "residual_icir": -0.041497002416190754,
+      "residual_ic_ci95": [
+        -0.018922745090669428,
+        0.010355557027437524
+      ],
+      "marginal_ratio": -0.21274994026591923,
+      "n": 964
+    },
+    "amihud_illiq": {
+      "order": 9,
+      "raw_ic": 0.0019270352528837722,
+      "raw_icir": 0.011823643499546703,
+      "residual_ic": 0.009371236579353492,
+      "residual_icir": 0.09443849892040716,
+      "residual_ic_ci95": [
+        -0.009948832257049007,
+        0.02633659112767834
+      ],
+      "marginal_ratio": 4.863033286666454,
+      "n": 964
+    }
+  },
+  "redundant_candidates": [
+    "win_rate_60d",
+    "mom_6m_skip1m",
+    "high_52w",
+    "amihud_illiq"
+  ],
+  "note": "Gram-Schmidt 按 |ICIR| 降序排序；残差 IC 的 95% CI 跨零即判定冗余。Ratio = residual_IC / raw_IC，<20% 代表该因子 80% 以上信号被前面因子吸收。"
+}

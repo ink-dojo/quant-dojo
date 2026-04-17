@@ -220,7 +220,17 @@ def _load_data(entry: StrategyEntry, start: str, end: str, params: dict) -> pd.D
         # 宽表策略 — 加载本地 CSV 或通过 data_loader
         try:
             local_loader = importlib.import_module("utils.local_data_loader")
-            symbols = local_loader.get_all_symbols()
+            # PIT 股票池：只加载在 [start, end] 期间曾经上市且未退市的股票，
+            # 修复 get_all_symbols() 导致的幸存者偏差（listing_metadata.py 已实现）
+            try:
+                listing = importlib.import_module("utils.listing_metadata")
+                symbols = listing.universe_alive_during(start, end, require_local_data=True)
+                if not symbols:
+                    _log.warning("universe_alive_during 返回空集，降级 get_all_symbols")
+                    symbols = local_loader.get_all_symbols()
+            except Exception as exc:
+                _log.warning("PIT universe 加载失败，降级 get_all_symbols: %s", exc)
+                symbols = local_loader.get_all_symbols()
             return local_loader.load_price_wide(symbols, start, end, field="close")
         except ModuleNotFoundError:
             # 本地数据模块不存在，降级到远程数据
@@ -497,6 +507,51 @@ def _register_builtins() -> None:
         default_lookback_days=750,
         data_type="wide",
         factory=lambda params: _MultiFactorV14Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 19. 多因子选股策略 v23（v16 + 自适应回撤控制，2026-04-16）──
+    register(StrategyEntry(
+        id="multi_factor_v23",
+        name="多因子选股策略 v23（v16 + 自适应半仓止损）",
+        description=(
+            "v16 九因子 + adaptive_half_position_stop 叠加层："
+            "baseline_threshold=-0.10, vol_window=60, ref_vol=0.15。"
+            "累计回撤触发阈值随 60 日组合实现波动率缩放；"
+            "回撤突破阈值时仓位降为 50%，净值创新高后恢复满仓。"
+            "目的：把 v16 的 -43% MDD 压到 -30% 以内，保持 Sharpe。"
+        ),
+        hypothesis=(
+            "v16 的因子信号强但尾部风险大（MDD -43% 违反 admission gate）。"
+            "A 股震荡行情里仓位管理的边际贡献 > 因子选择。用自适应半仓止损把"
+            "MDD 限制在 -30% 以内的同时，高波动期的 '假回调' 不会误杀。"
+            "IS 扫描：sharpe 0.74 → 0.84，MDD -43% → -26%，年化 22.9% → 18.2%。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV23Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 18. 多因子选股策略 v22（正交性剪枝，2026-04-16）────────────
+    register(StrategyEntry(
+        id="multi_factor_v22",
+        name="多因子选股策略 v22（5 独立因子，正交剪枝）",
+        description=(
+            "基于 v16 正交性分析（scripts/factor_orthogonality_analysis.py）："
+            "Gram-Schmidt 残差化后，win_rate_60d / mom_6m_skip1m / high_52w / "
+            "amihud_illiq 的残差 IC 95%CI 都跨零，边际贡献不显著。剔除这 4 个"
+            "冗余因子，保留 5 个独立信号：low_vol_20d / team_coin / shadow_lower"
+            " / price_vol_divergence / turnover_accel。IC 加权 + 行业中性化。"
+        ),
+        hypothesis=(
+            "候选池 σ 窄（DSR≈Sharpe 排名）暗示 v16 九因子存在冗余，剪枝后"
+            "单因子信号强度（avg raw ICIR）从 0.310 提升至 0.458，同时释放"
+            "IC 加权权重给真实独立因子，预期 out-of-sample sharpe 更稳健。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV22Adapter(n_stocks=params.get("n_stocks", 30)),
     ))
 
     # ── 17. 多因子选股策略 v21（v16 中用 w_reversal 替换 high_52w，2026-04-14）
@@ -1315,6 +1370,157 @@ class _MultiFactorV12Adapter:
 
         industry_map = _load_industry_map(symbols)
         config = StrategyConfig(name="multi_factor_v12")
+        strategy = MultiFactorStrategy(
+            config=config, factors=factors, n_stocks=self.n_stocks,
+            ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
+        )
+        result = strategy.run(price_wide)
+        self.results = getattr(strategy, "results", None)
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
+
+
+class _MultiFactorV23Adapter:
+    """
+    多因子策略 v23 — v16 + adaptive_half_position_stop 叠加层（2026-04-16）。
+
+    纯叠加层，不改动 v16 的因子与信号逻辑：先用 V16Adapter 跑出
+    portfolio_return，再施加 adaptive_half_position_stop，生成新的
+    日收益序列和 cumulative_return。
+
+    参数来自 scripts/sweep_v16_dd_overlay.py 的 IS 扫描（2022-01 ~ 2025-12）
+    前 2 名：baseline_threshold=-0.10, vol_window=60, ref_vol=0.15。
+
+    IS 表现（警告：参数来自 14 组 IS 扫描，有 selection bias）：
+      sharpe 0.740 → 0.837  ann 22.87% → 18.21%  MDD -43.06% → -26.42%
+
+    产出的 DataFrame 列：date, portfolio_return, cumulative_return
+    （与 v16 同 schema，便于下游消费）。
+    """
+
+    # 参数固定，避免 DSR 漏洞——下次调参要用 WF 学，别 IS 挑最好
+    BASELINE_THRESHOLD = -0.10
+    VOL_WINDOW = 60
+    REF_VOL = 0.15
+    MIN_SCALE = 0.5
+    MAX_SCALE = 2.0
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+        self._v16 = _MultiFactorV16Adapter(n_stocks=n_stocks)
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.stop_loss import adaptive_half_position_stop
+
+        base_result = self._v16.run(price_wide)
+        if "portfolio_return" in base_result.columns:
+            base_ret = base_result["portfolio_return"].astype(float)
+        elif "returns" in base_result.columns:
+            base_ret = base_result["returns"].astype(float)
+        else:
+            raise RuntimeError(
+                f"V16 未产出 portfolio_return / returns 列: {base_result.columns.tolist()}"
+            )
+
+        overlay = adaptive_half_position_stop(
+            base_ret,
+            baseline_threshold=self.BASELINE_THRESHOLD,
+            vol_window=self.VOL_WINDOW,
+            ref_vol=self.REF_VOL,
+            min_scale=self.MIN_SCALE,
+            max_scale=self.MAX_SCALE,
+        )
+
+        out = pd.DataFrame({
+            "portfolio_return": overlay.values,
+            "cumulative_return": (1 + overlay).cumprod().values - 1,
+        }, index=overlay.index)
+        out.index.name = "date"
+
+        self.results = out
+        return out
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["portfolio_return"]
+
+
+class _MultiFactorV22Adapter:
+    """
+    多因子策略 v22 — v16 正交性剪枝（2026-04-16）。
+
+    保留 5 个独立因子（Gram-Schmidt 残差 IC 95%CI 均不跨零）：
+      low_vol_20d (+1), team_coin (+1), shadow_lower (-1),
+      price_vol_divergence (+1), turnover_accel (-1)
+
+    剔除 4 个冗余因子（残差 CI 跨零）：
+      win_rate_60d, mom_6m_skip1m, high_52w, amihud_illiq
+
+    分析文档：journal/factor_orthogonality_v16_20260416.md
+    """
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.alpha_factors import (
+            low_vol_20d, team_coin, shadow_lower,
+            price_volume_divergence, turnover_acceleration,
+        )
+        from strategies.multi_factor import MultiFactorStrategy
+        from strategies.base import StrategyConfig
+
+        factors = {}
+        symbols = list(price_wide.columns)
+        start = str(price_wide.index[0].date())
+        end   = str(price_wide.index[-1].date())
+
+        # ── 纯价格因子 ────────────────────────────────────────
+        for name, fn, d in [
+            ("low_vol_20d", lambda: low_vol_20d(price_wide), 1),
+            ("team_coin",   lambda: team_coin(price_wide),   1),
+        ]:
+            try: factors[name] = (fn(), d)
+            except Exception as e: _log.warning("%s 跳过: %s", name, e)
+
+        # ── shadow_lower 需要 low ────────────────────────────
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            low_wide = _lpw(symbols, start, end, field="low")
+            if not low_wide.empty:
+                factors["shadow_lower"] = (shadow_lower(price_wide, low_wide.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("shadow_lower 跳过: %s", e)
+
+        # ── price_vol_divergence 需要 volume ─────────────────
+        vol_wide = None
+        try:
+            from utils.local_data_loader import load_price_wide as _lpw
+            vol_wide = _lpw(symbols, start, end, field="volume")
+            if vol_wide.empty: vol_wide = None
+        except Exception as e: _log.warning("volume 加载失败: %s", e)
+
+        if vol_wide is not None:
+            va_vol = vol_wide.reindex_like(price_wide)
+            try: factors["price_vol_divergence"] = (price_volume_divergence(price_wide, va_vol), 1)
+            except Exception as e: _log.warning("price_vol_div 跳过: %s", e)
+
+        # ── turnover_accel 需要 turnover ─────────────────────
+        try:
+            from utils.local_data_loader import load_factor_wide as _lfw
+            tv = _lfw(symbols, "turnover", start, end)
+            if not tv.empty:
+                factors["turnover_accel"] = (turnover_acceleration(tv.reindex_like(price_wide)), -1)
+        except Exception as e: _log.warning("turnover_accel 跳过: %s", e)
+
+        industry_map = _load_industry_map(symbols)
+        config = StrategyConfig(name="multi_factor_v22")
         strategy = MultiFactorStrategy(
             config=config, factors=factors, n_stocks=self.n_stocks,
             ic_weighting=True, industry_map=industry_map, neutralize=bool(industry_map),
