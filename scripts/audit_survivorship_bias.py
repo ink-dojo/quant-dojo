@@ -72,10 +72,14 @@ def audit(start: pd.Timestamp, end: pd.Timestamp,
         (eligible["delist_date"] > start) & (eligible["delist_date"] <= end)
     )
 
-    # 在本地 parquet cache 里有几只
-    cache_dir = Path("data/cache/local")
-    cached = {p.stem for p in cache_dir.glob("*.parquet")}
-    eligible["has_data"] = eligible["symbol"].isin(cached)
+    # 检查原始 CSV 数据是否有 (通过 local_data_loader 的 get_all_symbols,
+    # 而不是 on-demand parquet cache — cache 只是实际用过的子集)
+    try:
+        from utils.local_data_loader import get_all_symbols
+        available = set(get_all_symbols())
+    except Exception:
+        available = set()
+    eligible["has_data"] = eligible["symbol"].isin(available)
 
     # 估算: notna>min_obs 过滤能保留多少死亡股
     # (真正要精确要加载 price, 这里给近似: 期内交易天数 = 死亡日 - start)
