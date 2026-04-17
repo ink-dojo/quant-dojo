@@ -6,8 +6,8 @@ Alpha 因子库 — quant-dojo 完整因子集
 
 === 因子分类 ===
 
-技术/统计（6）：
-  reversal_1m, low_vol_20d, turnover_rev,
+技术/统计（8）：
+  reversal_1m, reversal_5d, reversal_skip1m, low_vol_20d, turnover_rev,
   enhanced_momentum, quality_momentum, ma_ratio_momentum
 
 基本面（4 + 1）：
@@ -97,6 +97,29 @@ def _cross_winsorize(df: pd.DataFrame, lower_q: float = 0.01,
 def reversal_1m(price: pd.DataFrame) -> pd.DataFrame:
     """1 月反转：-pct_change(21)"""
     return -price.pct_change(21)
+
+
+def reversal_5d(price: pd.DataFrame) -> pd.DataFrame:
+    """超短期5日反转：-pct_change(5)
+
+    A股高频反转效应，散户主导的过度反应后均值回归。
+    信号衰减快，适合高换手策略。
+    """
+    return -price.pct_change(5)
+
+
+def reversal_skip1m(price: pd.DataFrame,
+                    short_window: int = 5,
+                    long_window: int = 60) -> pd.DataFrame:
+    """跳过近1个月的中期反转：-(ret_60d - ret_5d)
+
+    用60日累积收益减去近5日，规避短期动量噪声，
+    捕捉1-3个月区间的均值回归。与 enhanced_mom_60 天然对冲。
+    """
+    log_ret = np.log(price / price.shift(1))
+    ret_long = log_ret.rolling(long_window).sum()
+    ret_short = log_ret.rolling(short_window).sum()
+    return -(ret_long - ret_short)
 
 
 def low_vol_20d(price: pd.DataFrame) -> pd.DataFrame:
