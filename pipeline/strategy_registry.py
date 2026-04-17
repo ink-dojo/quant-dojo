@@ -509,6 +509,50 @@ def _register_builtins() -> None:
         factory=lambda params: _MultiFactorV14Adapter(n_stocks=params.get("n_stocks", 30)),
     ))
 
+    # ── 21. 多因子选股策略 v25（v16 + regime-gated 止损，2026-04-16）
+    register(StrategyEntry(
+        id="multi_factor_v25",
+        name="多因子选股策略 v25（v16 + HS300-regime 门控止损）",
+        description=(
+            "v16 九因子 + regime_gated_half_position_stop 叠加层。"
+            "用 HS300 < MA120 作为熊市判别，仅在熊市期启用半仓止损"
+            "（threshold=-0.10），牛市/震荡市永远满仓。"
+            "v10/v11 的教训：'一刀切' 止损在 2025 震荡市误杀信号；本版通过"
+            "外生 regime 门控只在真实熊市保护，不干扰震荡市因子发挥。"
+        ),
+        hypothesis=(
+            "v16 MDD -43% 集中在 2022/2024 熊市段；2023/2025 震荡市里 v16 因子"
+            "本身表现良好，不需要止损。用 HS300 120日均线做 regime 判别："
+            "熊市（HS300<MA120）开启止损→压低大回撤；牛市/震荡市关闭止损→"
+            "保留因子 alpha。预期 sharpe≥0.80 同时 MDD<-30% 满足 admission gate。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 30, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV25Adapter(n_stocks=params.get("n_stocks", 30)),
+    ))
+
+    # ── 20. 多因子选股策略 v24（v16 + 更宽持仓，2026-04-16）────────
+    register(StrategyEntry(
+        id="multi_factor_v24",
+        name="多因子选股策略 v24（v16 九因子，60 只持仓）",
+        description=(
+            "v16 九因子完全相同，唯一区别：n_stocks 从 30 提升至 60。"
+            "不改因子、不加止损，纯粹用更宽的持仓稀释个股尾部风险。"
+            "预期：ann 略降（平均 score 下沉），但 MDD 显著改善。"
+        ),
+        hypothesis=(
+            "v16 -43% MDD 一部分来自 30 只持仓的尾部集中度；组合内个股"
+            "'踩雷' 占权重 3.3%。扩大到 60 只 → 单股权重降到 1.7%，"
+            "idiosyncratic 回撤减半。若 MDD<-30% 达标且 sharpe 降幅<0.1，"
+            "这是比止损更干净的解（无 regime 依赖、无状态机）。"
+        ),
+        params=[StrategyParam("n_stocks", "选股数量", 60, "int")],
+        default_lookback_days=750,
+        data_type="wide",
+        factory=lambda params: _MultiFactorV24Adapter(n_stocks=params.get("n_stocks", 60)),
+    ))
+
     # ── 19. 多因子选股策略 v23（v16 + 自适应回撤控制，2026-04-16）──
     register(StrategyEntry(
         id="multi_factor_v23",
@@ -1449,6 +1493,112 @@ class _MultiFactorV23Adapter:
         if self.results is None:
             raise RuntimeError("请先调用 run()")
         return self.results["portfolio_return"]
+
+
+class _MultiFactorV25Adapter:
+    """
+    多因子策略 v25 — v16 + regime_gated_half_position_stop（2026-04-16）。
+
+    思路（Route B from journal/v10_icir_stoploss_eval_20260416.md）：
+    只在 HS300 跌破 120 日均线（= 长期熊市）时开启半仓止损，
+    牛市/震荡市永远满仓。避开 v10/v11 的教训（一刀切止损在 2025 震荡市误杀）。
+
+    参数固定，不调：threshold=-0.10（历史验证的直觉阈值），ma_window=120。
+    调参要走 WF，不在 IS 挑最好。
+
+    产出列：portfolio_return, cumulative_return（与 v16 同 schema）。
+    """
+
+    THRESHOLD = -0.10
+    MA_WINDOW = 120
+    HS300_SYMBOL = "399300"  # 沪深300 指数本地存储代码
+
+    def __init__(self, n_stocks: int = 30):
+        self.n_stocks = n_stocks
+        self.results = None
+        self._v16 = _MultiFactorV16Adapter(n_stocks=n_stocks)
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        from utils.stop_loss import (
+            regime_gated_half_position_stop,
+            hs300_bear_regime,
+        )
+        from utils.local_data_loader import load_price_wide as _lpw
+
+        base_result = self._v16.run(price_wide)
+        if "portfolio_return" in base_result.columns:
+            base_ret = base_result["portfolio_return"].astype(float)
+        elif "returns" in base_result.columns:
+            base_ret = base_result["returns"].astype(float)
+        else:
+            raise RuntimeError(
+                f"V16 未产出 portfolio_return / returns 列: {base_result.columns.tolist()}"
+            )
+
+        # 加载 HS300 并计算 regime（shift=1 已在函数内做）
+        start = str(price_wide.index[0].date())
+        end = str(price_wide.index[-1].date())
+        hs300_wide = _lpw([self.HS300_SYMBOL], start, end, field="close")
+        if hs300_wide.empty or self.HS300_SYMBOL not in hs300_wide.columns:
+            raise RuntimeError(
+                f"无法加载 HS300 ({self.HS300_SYMBOL}) 作为 regime 指标"
+            )
+        hs300_close = hs300_wide[self.HS300_SYMBOL].dropna()
+        regime_bear = hs300_bear_regime(
+            hs300_close, ma_window=self.MA_WINDOW, shift_days=1,
+        )
+        # 对齐到策略日期
+        regime_bear = regime_bear.reindex(base_ret.index).fillna(False).astype(bool)
+
+        bear_days = int(regime_bear.sum())
+        _log.info(
+            "v25 regime 统计: 总 %d 日，熊市 %d 日 (%.1f%%)",
+            len(regime_bear), bear_days, 100.0 * bear_days / max(len(regime_bear), 1),
+        )
+
+        overlay = regime_gated_half_position_stop(
+            base_ret, regime_bear, threshold=self.THRESHOLD,
+        )
+
+        out = pd.DataFrame({
+            "portfolio_return": overlay.values,
+            "cumulative_return": (1 + overlay).cumprod().values - 1,
+        }, index=overlay.index)
+        out.index.name = "date"
+
+        self.results = out
+        return out
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["portfolio_return"]
+
+
+class _MultiFactorV24Adapter:
+    """
+    多因子策略 v24 — v16 九因子，n_stocks=60（2026-04-16）。
+
+    完全继承 v16 的因子/权重逻辑，仅修改持仓数量参数。
+    思路：用更宽的持仓稀释个股尾部风险，不依赖 regime 判别或止损状态机。
+
+    产出 schema 与 v16 一致（返回 strategy.run() 直接结果）。
+    """
+
+    def __init__(self, n_stocks: int = 60):
+        self.n_stocks = n_stocks
+        self._v16 = _MultiFactorV16Adapter(n_stocks=n_stocks)
+        self.results = None
+
+    def run(self, price_wide: pd.DataFrame) -> pd.DataFrame:
+        result = self._v16.run(price_wide)
+        self.results = self._v16.results
+        return result
+
+    def get_returns(self):
+        if self.results is None:
+            raise RuntimeError("请先调用 run()")
+        return self.results["returns"]
 
 
 class _MultiFactorV22Adapter:
