@@ -112,8 +112,10 @@ def _fetch_disclosure_single(
 # 业绩快报 (EPS + 同比)
 # ─────────────────────────────────────────────
 
-def _fetch_financials_single(period_yyyymmdd: str, use_cache: bool = True) -> pd.DataFrame:
-    """拉一个季度的业绩快报 (带 parquet 缓存). ~30s 首次."""
+def _fetch_financials_single(
+    period_yyyymmdd: str, use_cache: bool = True, max_retry: int = 3
+) -> pd.DataFrame:
+    """拉一个季度的业绩快报 (带 parquet 缓存 + 网络重试). ~30s 首次."""
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = RAW_DIR / f"financials_{period_yyyymmdd}.parquet"
 
@@ -123,7 +125,21 @@ def _fetch_financials_single(period_yyyymmdd: str, use_cache: bool = True) -> pd
     import akshare as ak
     logger.info(f"拉业绩快报 {period_yyyymmdd}... (约 30s)")
     t0 = time.time()
-    df = ak.stock_yjbb_em(date=period_yyyymmdd)
+
+    # akshare 偶发 ChunkedEncodingError / ProtocolError (东方财富服务端早关 stream), retry
+    last_err = None
+    for attempt in range(max_retry):
+        try:
+            df = ak.stock_yjbb_em(date=period_yyyymmdd)
+            break
+        except Exception as e:
+            last_err = e
+            logger.warning(
+                f"  {period_yyyymmdd} attempt {attempt+1}/{max_retry} {type(e).__name__}: {e}"
+            )
+            time.sleep(5 * (attempt + 1))
+    else:
+        raise RuntimeError(f"{period_yyyymmdd} 重试 {max_retry} 次仍失败: {last_err}")
 
     keep = df[[
         "股票代码", "股票简称", "每股收益",
