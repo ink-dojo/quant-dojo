@@ -6,13 +6,16 @@
   全部集中在 2026-03-26 ~ 2026-04-10 (15 天, scraper 最后抓取失败的快照,
   不是真实历史退市日期)。导致: 长历史回测无法校正幸存者偏差。
 
-Tushare 限流:
-  免费 120 积分的 stock_basic 是 **每小时 1 次** (不是每分钟)。
-  所以要分三次跑, 每次间隔 >= 60 分钟。本脚本用"增量落盘"机制:
+Tushare 限流 (2026-04-17 实测):
+  免费 120 积分的 stock_basic 是 **每天最多 5 次** (不是 1 次/小时;
+  原文档错了, 实际错误信息: "您每天最多访问该接口5次")。失败调用也
+  消耗配额。推荐做法: 一天内顺序跑 D → L → P (间隔建议 ≥ 60 分钟避免
+  其他接口联动限流), 全部失败则次日重试。"增量落盘"机制:
   - 第 1 次跑 --status=D: 保存 data/raw/_listing_D.parquet
-  - 第 2 次跑 --status=L (1 小时后): 保存 _listing_L.parquet
-  - 第 3 次跑 --status=P (再 1 小时后): 保存 _listing_P.parquet
-  - 最后 --merge-apply: 读 3 份合并, 写 listing_metadata.parquet
+  - 第 2 次跑 --status=L: 保存 _listing_L.parquet
+  - 第 3 次跑 --status=P: 保存 _listing_P.parquet (非关键)
+  - 最后 --merge-apply: 读 stage 文件合并, 写 listing_metadata.parquet
+  - P 可选: D + L 足以覆盖幸存者偏差分析 (P = 暂停上市, 非退市)
 
 紧急 "立即" 修复 (无需 API):
   --patch-nat: 把原 parquet 里 289 条伪造的 delist_date 清成 NaT。
@@ -185,11 +188,11 @@ def main():
         if status not in STAGE_FILES:
             print(f"错误: --status 只能是 L/D/P, 不是 {status}")
             sys.exit(2)
-        print(f"[fetch] 拉 list_status={status} (免费限流 1 次/小时)...")
+        print(f"[fetch] 拉 list_status={status} (免费限流 5 次/天, 失败也扣配额)...")
         fetch_one_status(status)
         remaining = [s for s, p in STAGE_FILES.items() if not p.exists()]
         if remaining:
-            print(f"\n还需拉: {remaining}. 每次间隔 >= 60 分钟。")
+            print(f"\n还需拉: {remaining}. 当日配额不足需次日重试 (P 非关键可跳过)。")
             print("全部拉完后: python scripts/refresh_listing_metadata.py --merge-apply")
         else:
             print("\n✅ 三份 stage file 齐全, 可以 --merge-apply 了。")
