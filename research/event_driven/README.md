@@ -22,11 +22,18 @@
 
 ### 本研究的 PEAD 定义 (预注册)
 - **事件**: 上市公司财报披露日 (季报/半年报/年报, 优先 annual + Q3)
-- **surprise 代理**: EPS YoY (本期 vs 去年同期), 不用 consensus (A 股分析师覆盖率低)
-- **分层**: 全样本按 EPS YoY 排序, 取 top 30% (positive surprise) / bottom 30%
+- **surprise 代理 (primary)**: **净利润 YoY** (本期 vs 去年同期)
+  - 2026-04-18 Phase 1 数据探索发现: akshare `stock_yjbb_em` 直接返回"净利润-同比增长"
+    字段, 无需 join 两年数据 (低 NaN 率); EPS YoY 需两年 join, 期内 delisted / 业务
+    重组 → NaN 污染预估 > 15%
+  - 净利润 YoY 学术证据同样稳健 (Bernard-Thomas 1989 原实证 earnings 而非 per-share)
+  - **此调整发生在零回测结果前, 属 data-availability-driven refinement, 非 p-hacking**
+- **surprise 代理 (sensitivity check)**: EPS YoY (同数据源, 两年 join 后计算), 仅在
+  主信号结果后运行一次 robustness 对照, 不重新预注册
+- **分层**: 全样本按 净利润 YoY 排序, 取 top 30% (positive surprise) / bottom 30%
 - **持仓窗口**: 公告后 T+1 ~ T+20 (避开 T+0 盘后信息吸收)
 - **买卖**: long top / short bottom → market-neutral L/S, OR long-only top 30%
-- **调仓**: 滚动 monthly, 每只股票持仓上限 = min(EPS surprise rank, 持仓窗口)
+- **调仓**: 滚动 monthly, 每只股票持仓上限 = min(surprise rank, 持仓窗口)
 
 ### 预注册 Admission 门槛 (不调, 不软化)
 - 年化收益 ann > 15% (net of txn 0.3%)
