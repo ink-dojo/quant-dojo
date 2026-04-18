@@ -164,6 +164,118 @@ def _fetch_financials_single(
 
 
 # ─────────────────────────────────────────────
+# 限售股解禁 (Phase 3 事件)
+# ─────────────────────────────────────────────
+
+def _fetch_lockup_month(
+    yyyymm: str, use_cache: bool = True, max_retry: int = 3
+) -> pd.DataFrame:
+    """拉一个月的解禁详情. akshare stock_restricted_release_detail_em."""
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    cache_path = RAW_DIR / f"lockup_{yyyymm}.parquet"
+
+    if use_cache and cache_path.exists():
+        return pd.read_parquet(cache_path)
+
+    import akshare as ak
+    year, month = int(yyyymm[:4]), int(yyyymm[4:6])
+    if month == 12:
+        next_y, next_m = year + 1, 1
+    else:
+        next_y, next_m = year, month + 1
+    start_date = f"{year:04d}{month:02d}01"
+    # 用下月 1 号, akshare 接口是 [start, end) 还是 [start, end]? 实测: end 包含.
+    # 取 end = 本月最后一天: 简化为 yyyymm28/30/31 会漏. 直接用下月01再 filter.
+    end_date = f"{next_y:04d}{next_m:02d}01"
+
+    logger.info(f"拉解禁 {yyyymm}...")
+    t0 = time.time()
+    last_err = None
+    for attempt in range(max_retry):
+        try:
+            df = ak.stock_restricted_release_detail_em(
+                start_date=start_date, end_date=end_date
+            )
+            break
+        except Exception as e:
+            last_err = e
+            logger.warning(f"  {yyyymm} attempt {attempt+1}/{max_retry} {type(e).__name__}: {e}")
+            time.sleep(5 * (attempt + 1))
+    else:
+        raise RuntimeError(f"{yyyymm} 重试 {max_retry} 次仍失败: {last_err}")
+
+    if df is None or df.empty:
+        empty = pd.DataFrame(columns=[
+            "symbol", "name", "release_date", "lockup_type",
+            "release_shares", "release_actual", "release_value",
+            "pct_of_float", "pre_close", "pre_20d_return", "post_20d_return",
+        ])
+        empty.to_parquet(cache_path, index=False)
+        logger.info(f"  {yyyymm}: 空, {time.time()-t0:.1f}s")
+        return empty
+
+    keep = df[[
+        "股票代码", "股票简称", "解禁时间", "限售股类型",
+        "解禁数量", "实际解禁数量", "实际解禁市值",
+        "占解禁前流通市值比例", "解禁前一交易日收盘价",
+        "解禁前20日涨跌幅", "解禁后20日涨跌幅",
+    ]].copy()
+    keep.columns = [
+        "symbol", "name", "release_date", "lockup_type",
+        "release_shares", "release_actual", "release_value",
+        "pct_of_float", "pre_close", "pre_20d_return", "post_20d_return",
+    ]
+    keep["release_date"] = pd.to_datetime(keep["release_date"], errors="coerce")
+    # filter 到本月 (防 akshare 端点宽松)
+    month_start = pd.Timestamp(f"{year:04d}-{month:02d}-01")
+    next_month_start = pd.Timestamp(f"{next_y:04d}-{next_m:02d}-01")
+    keep = keep[(keep["release_date"] >= month_start) & (keep["release_date"] < next_month_start)]
+    keep = keep.reset_index(drop=True)
+
+    keep.to_parquet(cache_path, index=False)
+    logger.info(f"  {yyyymm}: {len(keep)} 行, 耗时 {time.time()-t0:.1f}s")
+    return keep
+
+
+def get_lockup_releases(
+    start: str = "2018-01-01",
+    end: str = "2025-12-31",
+    use_cache: bool = True,
+) -> pd.DataFrame:
+    """
+    获取区间内的 A 股限售股解禁事件.
+
+    返回 DataFrame, columns:
+      symbol, name, release_date, lockup_type, release_value, pct_of_float, ...
+
+    pct_of_float 即"占解禁前流通市值比例"——解禁 strategy 的 primary signal.
+
+    注: 0 future-function: release_date 提前 3-36 个月就已公告, T-5~T-1 抢跑抛压
+        策略完全不依赖未来信息.
+    """
+    s = pd.Timestamp(start)
+    e = pd.Timestamp(end)
+    months = []
+    y, m = s.year, s.month
+    while pd.Timestamp(f"{y:04d}-{m:02d}-01") <= e:
+        months.append(f"{y:04d}{m:02d}")
+        m += 1
+        if m > 12:
+            y, m = y + 1, 1
+
+    frames = [_fetch_lockup_month(ym, use_cache=use_cache) for ym in months]
+    df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if df.empty:
+        return df
+    df = df[(df["release_date"] >= s) & (df["release_date"] <= e)]
+    logger.info(
+        f"解禁 events: {len(df)} 行, {df['symbol'].nunique()} symbols, "
+        f"{df['release_date'].min().date()} ~ {df['release_date'].max().date()}"
+    )
+    return df.sort_values(["release_date", "symbol"]).reset_index(drop=True)
+
+
+# ─────────────────────────────────────────────
 # 公开 API
 # ─────────────────────────────────────────────
 
