@@ -31,9 +31,9 @@ RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "events"
 
 # 报告期 → akshare period 字符串映射
 _PERIOD_MAP = {
-    "0331": "一季报",
+    "0331": "一季",
     "0630": "半年报",
-    "0930": "三季报",
+    "0930": "三季",
     "1231": "年报",
 }
 
@@ -64,8 +64,14 @@ def _enumerate_quarters(start: str, end: str) -> list[str]:
 # 披露日历 (实际披露日 = PEAD 事件锚点)
 # ─────────────────────────────────────────────
 
-def _fetch_disclosure_single(period_yyyymmdd: str, use_cache: bool = True) -> pd.DataFrame:
-    """拉一个季度的披露日历 (带 parquet 缓存)."""
+def _fetch_disclosure_single(
+    period_yyyymmdd: str, use_cache: bool = True, max_retry: int = 3
+) -> pd.DataFrame:
+    """拉一个季度的披露日历 (带 parquet 缓存 + 重试).
+
+    akshare 偶发 NaN 排序 bug: "'<=' not supported between datetime.date and float",
+    retry 一般第二次就成功.
+    """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = RAW_DIR / f"disclosure_{period_yyyymmdd}.parquet"
 
@@ -75,7 +81,18 @@ def _fetch_disclosure_single(period_yyyymmdd: str, use_cache: bool = True) -> pd
     import akshare as ak
     period_str = _ymd_to_period_str(period_yyyymmdd)
     logger.info(f"拉披露日历 {period_str}...")
-    df = ak.stock_report_disclosure(market="沪深京", period=period_str)
+
+    last_err = None
+    for attempt in range(max_retry):
+        try:
+            df = ak.stock_report_disclosure(market="沪深京", period=period_str)
+            break
+        except TypeError as e:
+            last_err = e
+            logger.warning(f"  {period_str} attempt {attempt+1}/{max_retry} TypeError (akshare NaN bug), retry...")
+            time.sleep(2)
+    else:
+        raise RuntimeError(f"{period_str} 重试 {max_retry} 次仍失败: {last_err}")
 
     keep = df[["股票代码", "股票简称", "首次预约", "实际披露"]].copy()
     keep.columns = ["symbol", "name", "scheduled_date", "announce_date"]
