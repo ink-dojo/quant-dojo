@@ -82,6 +82,11 @@ def fetch_one_status(status: str) -> pd.DataFrame:
     fields = "ts_code,symbol,name,list_date,delist_date,market"
     df = pro.stock_basic(exchange="", list_status=status, fields=fields)
     if df is None or df.empty:
+        # 2026-04-18 实测: 免费层 list_status=P 稳定返回空 (推测 VIP-only 数据).
+        # D + L 是必需, P 非关键 (暂停上市 ≠ 退市, 不影响幸存者偏差).
+        if status == "P":
+            print(f"  list_status={status}: 免费层返回空 (已知限制, P 非关键可跳过)")
+            return pd.DataFrame()
         raise RuntimeError(f"list_status={status} 返回空")
 
     df["is_delisted"] = (status == "D")
