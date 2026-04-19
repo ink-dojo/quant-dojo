@@ -110,7 +110,7 @@ export default async function Home() {
         >
           <div className="flex items-baseline gap-3 mb-1">
             <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-[var(--green)]">
-              Event-driven · 21 pre-reg trials
+              Event-driven · 21 tabulated trials
             </span>
             <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
               Phase 3 · 4 · 4.1

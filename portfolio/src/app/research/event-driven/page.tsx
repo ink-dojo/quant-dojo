@@ -78,7 +78,7 @@ export default async function EventDrivenPage() {
     <>
       <PageHeader
         eyebrow="Research · Event-Driven"
-        title="21 预注册 trials · 1 个 5/5 组合"
+        title={`${trials.trials.length} 预注册 trials · 1 个 5/5 组合`}
         subtitle="Phase 3 + 4 + 4.1 · Event-driven long-only on A-share main board"
         description="从锁定期 / 回购 / 业绩预告 / 龙虎榜 / 分红 / 股东增减持六类事件出发，逐一 pre-register hypothesis → backtest → 过 5-gate admission。最终两个 4/5 候选因失败模式正交，50/50 ensemble 过全 5 gate。"
         crumbs={[
@@ -106,6 +106,10 @@ export default async function EventDrivenPage() {
             相关系数仅 <span className="font-mono">{fmtNum(trials.ensemble_50_50.correlation, 2)}</span>。
             50/50 等权 ensemble（零自由度 combination rule）达 5/5。
           </p>
+          <p className="text-xs text-[var(--text-tertiary)]">
+            DSR multi-testing penalty 保守按 n = {trials.n_trials_conservative}（包含 Phase 3 早期
+            未单独 tabulate 的探索性 trials），当前表格 tabulate 了 {trials.trials.length} 个主力 trials。
+          </p>
         </div>
       </section>
 
@@ -115,12 +119,13 @@ export default async function EventDrivenPage() {
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
           零 DoF combination (1/2 · #30 + 1/2 · #33), 主板 only, 成本 15bps/side,
-          gross cap 1.0 已施加于每个 sleeve。下图三条曲线共坐标 — 观察组合曲线
-          <span className="text-[var(--green)] font-semibold"> 尾部浅于两个成分</span>
-          但上行斜率显著高于 #30。
+          gross cap 1.0 已施加于每个 sleeve。图为 log-equity (Y 轴为 log(1+累计收益))
+          — 因为 #33 单独 8 年累计 55×，线性坐标会把其他两条压成直线。
+          <span className="text-[var(--green)] font-semibold"> 观察组合曲线尾部浅于两成分</span>
+          但上行斜率稳于 #30。
         </p>
         <div className="rounded-lg border border-[var(--green)]/30 bg-[var(--green)]/[0.05] p-4 mb-6">
-          <EquityChart series={series} height={400} />
+          <EquityChart series={series} height={400} logScale />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <EnsembleMetricCard
@@ -194,7 +199,7 @@ export default async function EventDrivenPage() {
 
       <section className="max-w-content mx-auto px-6 pb-16">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-1">
-          完整 trial 表 · {trials.n_trials_conservative} pre-registered
+          完整 trial 表 · tabulated {trials.trials.length} / DSR n = {trials.n_trials_conservative}
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
           按 n_pass 降序 — 除 2 个 4/5 候选外, 其余全部 ≤ 3/5。

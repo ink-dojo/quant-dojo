@@ -38,7 +38,7 @@ export default async function ResearchPage() {
             <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--green)]">
               Event-Driven · Phase 3 + 4
             </span>
-            <span className="text-[10px] font-mono text-[var(--text-tertiary)]">21 pre-reg trials</span>
+            <span className="text-[10px] font-mono text-[var(--text-tertiary)]">21 tabulated trials</span>
           </div>
           <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
             50/50 ensemble of BB × LHB contrarian — 5/5 admission gate pass
