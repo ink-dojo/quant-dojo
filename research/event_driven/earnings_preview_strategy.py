@@ -89,6 +89,7 @@ def load_events(end: str) -> pd.DataFrame:
 
 def build_long_only_weights(
     events: pd.DataFrame, trading_days: pd.DatetimeIndex,
+    unit_weight: float = UNIT_POS_WEIGHT,
 ) -> pd.DataFrame:
     symbols = sorted(events["symbol"].unique())
     W = pd.DataFrame(0.0, index=trading_days, columns=symbols, dtype=float)
@@ -109,7 +110,7 @@ def build_long_only_weights(
             i_close = min(len(td_arr), i_open + HOLD_DAYS)
             if i_open >= i_close or r["symbol"] not in W.columns:
                 continue
-            W.iloc[i_open:i_close, W.columns.get_loc(r["symbol"])] += UNIT_POS_WEIGHT
+            W.iloc[i_open:i_close, W.columns.get_loc(r["symbol"])] += unit_weight
             total_long += 1
 
     logger.info(f"long-only positions: {total_long} across {len(events.groupby('month'))} months")
