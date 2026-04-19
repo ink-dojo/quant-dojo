@@ -29,6 +29,28 @@ export default async function ResearchPage() {
         crumbs={[{ label: "Home", href: "/" }, { label: "Research" }]}
       />
 
+      <section className="max-w-content mx-auto px-6 pb-10">
+        <Link
+          href="/research/event-driven"
+          className="block rounded-lg border border-[var(--green)]/35 bg-[var(--green)]/[0.05] p-5 hover:bg-[var(--green)]/[0.08] transition-colors"
+        >
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--green)]">
+              Event-Driven · Phase 3 + 4
+            </span>
+            <span className="text-[10px] font-mono text-[var(--text-tertiary)]">21 pre-reg trials</span>
+          </div>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
+            50/50 ensemble of BB × LHB contrarian — 5/5 admission gate pass
+          </h3>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            两个 4/5 候选（回购 drift + 龙虎榜跌幅 contrarian）失败模式正交，相关
+            0.37，等权 ensemble 过 5 gate：ann 41.96% · SR 2.47 · MDD -26.78% · CI_low 1.17。
+            <span className="text-[var(--green)] ml-1">查看完整 DSR penalty bookkeeping →</span>
+          </p>
+        </Link>
+      </section>
+
       <section className="max-w-content mx-auto px-6 pb-16">
         <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
           Core 4 — 教材门槛
