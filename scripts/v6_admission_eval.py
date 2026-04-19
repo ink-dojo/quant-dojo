@@ -168,7 +168,8 @@ def zscore_cross(df: pd.DataFrame) -> pd.DataFrame:
 
 def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
                  cost=0.003, mask=None, max_weight=0.1,
-                 regime_mask=None, lag1=True, stop_loss_threshold=None,
+                 regime_mask=None, regime_scale=0.0,
+                 lag1=True, stop_loss_threshold=None,
                  rebalance_freq="monthly"):
     """
     多因子回测（支持月频/双周换仓）。
@@ -182,6 +183,7 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
         mask: 可交易性 bool mask
         max_weight: 单票最大权重
         regime_mask: 市场状态 mask（True=看多）
+        regime_scale: 看空时的仓位比例（0.0=清仓，0.5=半仓，1.0=满仓）
         lag1: 是否延迟 1 天使用信号（诚实基线）
         stop_loss_threshold: 个股止损阈值（如 -0.10），None 表示不启用
         rebalance_freq: 换仓频率，"monthly"（默认）或 "biweekly"
@@ -230,11 +232,17 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
 
     for i, date in enumerate(rebal_dates):
         # 择时过滤
-        if regime_mask is not None and date in regime_mask.index and not regime_mask.loc[date]:
-            if i + 1 < len(rebal_dates):
-                next_date = rebal_dates[i + 1]
-            else:
-                next_date = price_wide.index[-1]
+        bearish = (regime_mask is not None
+                   and date in regime_mask.index
+                   and not regime_mask.loc[date])
+
+        if i + 1 < len(rebal_dates):
+            next_date = rebal_dates[i + 1]
+        else:
+            next_date = price_wide.index[-1]
+
+        if bearish and regime_scale == 0.0:
+            # 完全清仓：持现金
             zero_ret = pd.Series(0.0, index=dr.loc[date:next_date].index[1:])
             if prev_picks and len(zero_ret) > 0:
                 zero_ret.iloc[0] -= cost  # 清仓成本
@@ -242,11 +250,14 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
             portfolio_returns.append(zero_ret)
             continue
 
+        # 确定实际持仓数：看空时按 regime_scale 缩减
+        actual_n = n_stocks if not bearish else max(1, int(n_stocks * regime_scale))
+
         scores = composite.loc[date].dropna()
-        if len(scores) < n_stocks:
+        if len(scores) < actual_n:
             continue
 
-        picks = scores.sort_values(ascending=False).head(n_stocks).index.tolist()
+        picks = scores.sort_values(ascending=False).head(actual_n).index.tolist()
 
         # 等权 + cap
         raw_w = pd.Series(1.0 / len(picks), index=picks)
@@ -267,10 +278,10 @@ def run_backtest(price_wide, factor_dict, weights, n_stocks=30,
 
         port_daily = period_ret.mul(capped_w, axis=1).sum(axis=1)
 
-        # 换仓成本
+        # 换仓成本（用 actual_n 作分母，反映实际持仓规模）
         new_picks = set(picks)
         if prev_picks:
-            turnover = 1 - len(new_picks & prev_picks) / n_stocks
+            turnover = 1 - len(new_picks & prev_picks) / max(actual_n, len(prev_picks))
         else:
             turnover = 1.0
         if len(port_daily) > 0:
