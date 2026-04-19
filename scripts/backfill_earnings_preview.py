@@ -13,12 +13,12 @@ import pandas as pd
 
 OUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "events" / "earnings_preview"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-ALL_PATH = OUT_DIR.parent / "_all_earnings_preview_2018_2025.parquet"
+ALL_PATH = OUT_DIR.parent / "_all_earnings_preview_2010_2025.parquet"
 
 
 def main():
     reports = []
-    for year in range(2018, 2026):
+    for year in range(2010, 2026):
         for md in ["1231", "0930", "0630", "0331"]:
             reports.append(f"{year}{md}")
 
