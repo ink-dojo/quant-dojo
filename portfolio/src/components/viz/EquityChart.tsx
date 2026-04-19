@@ -26,13 +26,15 @@ interface Props {
   height?: number;
   /** Downsample factor — pick every Nth point. Default 5 (weekly-ish from daily). */
   stride?: number;
+  /** Plot log(1 + cum_return) on Y axis — use when one curve dominates in linear scale. */
+  logScale?: boolean;
 }
 
 /**
  * Overlay multiple cumulative-return curves on one axis. Aligns by date,
  * downsamples to keep the SVG node count sane, and formats the Y axis as %.
  */
-export function EquityChart({ series, height = 320, stride = 5 }: Props) {
+export function EquityChart({ series, height = 320, stride = 5, logScale = false }: Props) {
   if (series.length === 0) {
     return (
       <div
@@ -49,7 +51,8 @@ export function EquityChart({ series, height = 320, stride = 5 }: Props) {
     s.curve.points.forEach((p, i) => {
       if (i % stride !== 0 && i !== s.curve.points.length - 1) return;
       const row = byDate.get(p.date) ?? { date: p.date };
-      row[s.id] = p.cum_return;
+      const v = logScale ? Math.log(1 + Math.max(p.cum_return, -0.999)) : p.cum_return;
+      row[s.id] = v;
       byDate.set(p.date, row);
     });
   }
@@ -83,8 +86,12 @@ export function EquityChart({ series, height = 320, stride = 5 }: Props) {
             fill: "var(--text-tertiary)",
           }}
           stroke="var(--border-soft)"
-          tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
-          width={52}
+          tickFormatter={(v: number) =>
+            logScale
+              ? `${(Math.exp(v) - 1 >= 0 ? "+" : "")}${((Math.exp(v) - 1) * 100).toFixed(0)}%`
+              : `${(v * 100).toFixed(0)}%`
+          }
+          width={60}
         />
         <Tooltip
           contentStyle={{
@@ -93,9 +100,11 @@ export function EquityChart({ series, height = 320, stride = 5 }: Props) {
             fontSize: 12,
             fontFamily: "var(--font-mono)",
           }}
-          formatter={(v) =>
-            typeof v === "number" ? `${(v * 100).toFixed(2)}%` : String(v)
-          }
+          formatter={(v) => {
+            if (typeof v !== "number") return String(v);
+            const cum = logScale ? Math.exp(v) - 1 : v;
+            return `${(cum * 100).toFixed(2)}%`;
+          }}
         />
         <Legend
           wrapperStyle={{
