@@ -54,12 +54,82 @@ interface TrialsFile {
   trials: Trial[];
 }
 
+interface WFSummary {
+  label: string;
+  n_windows: number;
+  window_years: number;
+  step_months: number;
+  sharpe_median: number;
+  sharpe_q25: number;
+  sharpe_q75: number;
+  sharpe_min: number;
+  sharpe_max: number;
+  ann_median: number;
+  mdd_median: number;
+  mdd_worst: number;
+  gate_median_gt_05: boolean;
+  gate_q25_gt_0: boolean;
+}
+
+interface RegimeBlock {
+  label: string;
+  regimes: Record<
+    string,
+    { n_obs: number; ann: number; sharpe: number; mdd: number }
+  >;
+  gate_2of3_pass: boolean;
+  n_pass: number;
+}
+
+interface YearRow {
+  year: number;
+  n_obs: number;
+  ann: number;
+  ret_total: number;
+  sharpe: number;
+  mdd: number;
+}
+
+interface TradeLevel {
+  n_trades: number;
+  win_rate: number;
+  avg_pnl: number;
+  median_pnl: number;
+  pnl_p05: number;
+  pnl_p95: number;
+  avg_holding_days: number;
+  top5_contribution_share: number;
+  gate_win_rate_gt_45: boolean;
+  gate_top5_concentration_lt_20pct: boolean;
+}
+
+interface CostRow {
+  cost_one_side: number;
+  ann: number;
+  sharpe: number;
+  mdd: number;
+  n_obs: number;
+}
+
+interface WFStressFile {
+  generated_at: string;
+  wf: { dsr30: WFSummary; dsr33: WFSummary; ensemble: WFSummary };
+  regime: { dsr30: RegimeBlock; dsr33: RegimeBlock; ensemble: RegimeBlock };
+  cost_sensitivity_dsr33: Record<string, CostRow>;
+  year_by_year_ensemble: YearRow[];
+  year_by_year_dsr30: YearRow[];
+  year_by_year_dsr33: YearRow[];
+  trade_level_dsr33: TradeLevel;
+  production_verdict: { gates: Record<string, boolean>; n_pass: number };
+}
+
 export default async function EventDrivenPage() {
-  const [trials, eq30, eq33, eqEns] = await Promise.all([
+  const [trials, eq30, eq33, eqEns, wf] = await Promise.all([
     readData<TrialsFile>("event_driven/trials.json"),
     readData<EquityCurveFile>("event_driven/equity_dsr30_bb.json"),
     readData<EquityCurveFile>("event_driven/equity_dsr33_lhb_decline.json"),
     readData<EquityCurveFile>("event_driven/equity_dsr30_33_ensemble.json"),
+    readData<WFStressFile>("event_driven/wf_stress.json"),
   ]);
 
   const byStatus = {
@@ -149,6 +219,290 @@ export default async function EventDrivenPage() {
             body={`从 ${trials.n_trials_conservative} 个 pre-reg trials 里挑 2 个做 ensemble — 选择偏差已在 DSR penalty 层面 bookkeep.`}
             tone="gold"
           />
+        </div>
+      </section>
+
+      <section className="max-w-content mx-auto px-6 pb-16">
+        <div className="flex items-baseline gap-3 mb-1">
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+            Production-grade gate · {wf.production_verdict.n_pass}/5 PASS
+          </h2>
+          <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--green)]">
+            WF · Regime · Cost · Trade
+          </span>
+        </div>
+        <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
+          单样本 5/5 只是入场券 — 真正决定能不能上 paper-trade 的是
+          <span className="text-[var(--text-primary)]"> walk-forward 中位 Sharpe / 牛熊分区 / 成本冲击 / 交易级集中度</span>。
+          五条都过, 才敢推候选策略上实盘。
+        </p>
+        <div className="rounded-lg border border-[var(--green)]/35 bg-[var(--green)]/[0.06] p-5 mb-6">
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm">
+            {Object.entries(wf.production_verdict.gates).map(([name, pass]) => (
+              <li key={name} className="flex items-start gap-2 font-mono">
+                <span style={{ color: pass ? "var(--green)" : "var(--red)" }}>
+                  {pass ? "✓" : "✗"}
+                </span>
+                <span className="text-[var(--text-secondary)]">{name}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+          <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+              Walk-forward · rolling {wf.wf.ensemble.window_years}yr / step {wf.wf.ensemble.step_months}mo
+            </h3>
+            <p className="text-xs text-[var(--text-tertiary)] mb-3">
+              {wf.wf.ensemble.n_windows} 独立窗口, 每窗样本外 Sharpe
+            </p>
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-[0.12em] text-[var(--text-tertiary)] border-b border-[var(--border-soft)]">
+                  <th className="text-left py-2 font-normal">策略</th>
+                  <th className="text-right py-2 font-normal">median SR</th>
+                  <th className="text-right py-2 font-normal">Q25 SR</th>
+                  <th className="text-right py-2 font-normal">min / max</th>
+                  <th className="text-right py-2 font-normal">worst MDD</th>
+                </tr>
+              </thead>
+              <tbody className="text-[var(--text-secondary)]">
+                {[
+                  { k: "dsr30", label: "#30 BB", d: wf.wf.dsr30 },
+                  { k: "dsr33", label: "#33 LHB", d: wf.wf.dsr33 },
+                  { k: "ens", label: "ensemble", d: wf.wf.ensemble },
+                ].map((r) => (
+                  <tr key={r.k} className="border-b border-[var(--border-soft)] last:border-b-0">
+                    <td className="py-2 text-[var(--text-primary)]">{r.label}</td>
+                    <td
+                      className="py-2 text-right"
+                      style={{ color: r.d.sharpe_median >= 0.5 ? "var(--green)" : "var(--red)" }}
+                    >
+                      {fmtNum(r.d.sharpe_median, 2)}
+                    </td>
+                    <td
+                      className="py-2 text-right"
+                      style={{ color: r.d.sharpe_q25 > 0 ? "var(--green)" : "var(--red)" }}
+                    >
+                      {fmtNum(r.d.sharpe_q25, 2)}
+                    </td>
+                    <td className="py-2 text-right text-[var(--text-tertiary)]">
+                      {fmtNum(r.d.sharpe_min, 1)} / {fmtNum(r.d.sharpe_max, 1)}
+                    </td>
+                    <td className="py-2 text-right text-[var(--red)]">
+                      {fmtPct(r.d.mdd_worst, 1)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+              Regime split · 牛 / 熊 / 震荡
+            </h3>
+            <p className="text-xs text-[var(--text-tertiary)] mb-3">
+              按 CSI300 年度方向切三期, 2018 / 2022 为熊
+            </p>
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-[0.12em] text-[var(--text-tertiary)] border-b border-[var(--border-soft)]">
+                  <th className="text-left py-2 font-normal">Regime</th>
+                  <th className="text-right py-2 font-normal">#30</th>
+                  <th className="text-right py-2 font-normal">#33</th>
+                  <th className="text-right py-2 font-normal">ensemble</th>
+                </tr>
+              </thead>
+              <tbody className="text-[var(--text-secondary)]">
+                {(["bull", "bear", "sideways"] as const).map((rg) => (
+                  <tr key={rg} className="border-b border-[var(--border-soft)] last:border-b-0">
+                    <td className="py-2 text-[var(--text-primary)]">
+                      {rg === "bull" ? "牛" : rg === "bear" ? "熊" : "震荡"}
+                      <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
+                        (n={wf.regime.ensemble.regimes[rg].n_obs})
+                      </span>
+                    </td>
+                    {(["dsr30", "dsr33", "ensemble"] as const).map((k) => {
+                      const r = wf.regime[k].regimes[rg];
+                      return (
+                        <td
+                          key={k}
+                          className="py-2 text-right"
+                          style={{ color: r.sharpe > 0.5 ? "var(--green)" : r.sharpe > 0 ? "var(--text-secondary)" : "var(--red)" }}
+                        >
+                          SR {fmtNum(r.sharpe, 2)}
+                          <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
+                            ({fmtPct(r.ann, 0)})
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-[var(--text-tertiary)] mt-3 leading-relaxed">
+              #30 在熊市 SR 0.01 (近 flat), #33 在熊市反而 SR +6.26 (reversion 逻辑在恐慌里最有效), ensemble 三期全过 — 这是组合 diversification 的最直接证据。
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+          <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+              Cost sensitivity · DSR #33 重跑
+            </h3>
+            <p className="text-xs text-[var(--text-tertiary)] mb-3">
+              按单边 bps 横扫, 找到 Sharpe 0.8 break-even
+            </p>
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-[0.12em] text-[var(--text-tertiary)] border-b border-[var(--border-soft)]">
+                  <th className="text-left py-2 font-normal">单边</th>
+                  <th className="text-right py-2 font-normal">ann</th>
+                  <th className="text-right py-2 font-normal">Sharpe</th>
+                  <th className="text-right py-2 font-normal">MDD</th>
+                </tr>
+              </thead>
+              <tbody className="text-[var(--text-secondary)]">
+                {Object.entries(wf.cost_sensitivity_dsr33).map(([bps, c]) => (
+                  <tr key={bps} className="border-b border-[var(--border-soft)] last:border-b-0">
+                    <td className="py-2 text-[var(--text-primary)]">{bps}</td>
+                    <td
+                      className="py-2 text-right"
+                      style={{ color: c.ann >= 0.15 ? "var(--green)" : c.ann > 0 ? "var(--text-secondary)" : "var(--red)" }}
+                    >
+                      {fmtPct(c.ann, 1)}
+                    </td>
+                    <td
+                      className="py-2 text-right"
+                      style={{ color: c.sharpe >= 0.8 ? "var(--green)" : c.sharpe > 0 ? "var(--text-secondary)" : "var(--red)" }}
+                    >
+                      {fmtNum(c.sharpe, 2)}
+                    </td>
+                    <td
+                      className="py-2 text-right"
+                      style={{ color: c.mdd > -0.3 ? "var(--green)" : "var(--red)" }}
+                    >
+                      {fmtPct(c.mdd, 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-[var(--text-tertiary)] mt-3 leading-relaxed">
+              至 75bps (我们 pre-reg 的 5× 强假设) ann 仍 +37%. 100bps 以上 MDD 快速失控 — 上实盘必须盯住 execution slippage。
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+              Trade-level · DSR #33 per-event
+            </h3>
+            <p className="text-xs text-[var(--text-tertiary)] mb-3">
+              {wf.trade_level_dsr33.n_trades.toLocaleString()} 笔独立事件分解
+            </p>
+            <dl className="grid grid-cols-2 gap-y-2 text-xs font-mono">
+              <dt className="text-[var(--text-tertiary)]">win rate</dt>
+              <dd className="text-right" style={{ color: wf.trade_level_dsr33.gate_win_rate_gt_45 ? "var(--green)" : "var(--red)" }}>
+                {fmtPct(wf.trade_level_dsr33.win_rate, 1)}
+              </dd>
+              <dt className="text-[var(--text-tertiary)]">avg P&L / trade</dt>
+              <dd className="text-right text-[var(--green)]">
+                {fmtPct(wf.trade_level_dsr33.avg_pnl, 2)}
+              </dd>
+              <dt className="text-[var(--text-tertiary)]">median P&L</dt>
+              <dd className="text-right text-[var(--text-secondary)]">
+                {fmtPct(wf.trade_level_dsr33.median_pnl, 2)}
+              </dd>
+              <dt className="text-[var(--text-tertiary)]">p05 / p95</dt>
+              <dd className="text-right text-[var(--text-secondary)]">
+                {fmtPct(wf.trade_level_dsr33.pnl_p05, 1)} / {fmtPct(wf.trade_level_dsr33.pnl_p95, 1)}
+              </dd>
+              <dt className="text-[var(--text-tertiary)]">avg holding</dt>
+              <dd className="text-right text-[var(--text-secondary)]">
+                {fmtNum(wf.trade_level_dsr33.avg_holding_days, 1)}d
+              </dd>
+              <dt className="text-[var(--text-tertiary)]">top-5 concentration</dt>
+              <dd className="text-right" style={{ color: wf.trade_level_dsr33.gate_top5_concentration_lt_20pct ? "var(--green)" : "var(--red)" }}>
+                {fmtPct(wf.trade_level_dsr33.top5_contribution_share, 1)}
+              </dd>
+            </dl>
+            <p className="text-[10px] text-[var(--text-tertiary)] mt-3 leading-relaxed">
+              54% 胜率 · top-5 仅占 6% — 说明 alpha 不依赖极少数爆仓股,
+              收益分布厚尾但不极度偏. 这是 reversion 策略应有的 profile。
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-[var(--gold)]/30 bg-[var(--gold)]/[0.05] p-5">
+          <div className="flex items-baseline gap-3 mb-2">
+            <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--gold)]">
+              Caveat · alpha decay
+            </span>
+            <span className="text-xs text-[var(--text-tertiary)]">必须诚实披露</span>
+          </div>
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3">
+            5/5 production gate 通过, 但 ensemble
+            <span className="text-[var(--text-primary)]"> 年度收益随时间单调衰减</span> —
+            2018 年 SR +6.43 到 2024 年 SR -0.31。
+            可能原因: 龙虎榜数据披露规则 2020+ 有调整 / 私募席位行为改变 / 北向资金主导流动性后席位净买入的信号强度稀释。
+            这是为什么下一步必须 paper-trade 验证而不是直接推规模。
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-[0.12em] text-[var(--text-tertiary)] border-b border-[var(--border-soft)]">
+                  <th className="text-left py-2 font-normal">year</th>
+                  {wf.year_by_year_ensemble.map((y) => (
+                    <th key={y.year} className="text-right py-2 px-2 font-normal">
+                      {y.year}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="text-[var(--text-secondary)]">
+                <tr className="border-b border-[var(--border-soft)]">
+                  <td className="py-2 text-[var(--text-primary)]">ret</td>
+                  {wf.year_by_year_ensemble.map((y) => (
+                    <td
+                      key={y.year}
+                      className="py-2 px-2 text-right"
+                      style={{ color: y.ret_total >= 0.15 ? "var(--green)" : y.ret_total < 0 ? "var(--red)" : "var(--text-secondary)" }}
+                    >
+                      {fmtPct(y.ret_total, 0)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b border-[var(--border-soft)]">
+                  <td className="py-2 text-[var(--text-primary)]">SR</td>
+                  {wf.year_by_year_ensemble.map((y) => (
+                    <td
+                      key={y.year}
+                      className="py-2 px-2 text-right"
+                      style={{ color: y.sharpe >= 0.8 ? "var(--green)" : y.sharpe < 0 ? "var(--red)" : "var(--text-secondary)" }}
+                    >
+                      {fmtNum(y.sharpe, 2)}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <td className="py-2 text-[var(--text-primary)]">MDD</td>
+                  {wf.year_by_year_ensemble.map((y) => (
+                    <td
+                      key={y.year}
+                      className="py-2 px-2 text-right"
+                      style={{ color: y.mdd > -0.15 ? "var(--text-secondary)" : "var(--red)" }}
+                    >
+                      {fmtPct(y.mdd, 0)}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -248,8 +602,8 @@ export default async function EventDrivenPage() {
             body="单因子 long-only alpha 普遍薄 & 方差大, 8 年样本不足以穿过 CI_low 0.5 gate。但 DSR #30 + #33 的正交失败模式支撑了 ensemble 层 5/5 — 说明 A 股 alpha 不是不存在, 只是需要多因子组合 & 风险互补才稳。"
           />
           <Takeaway
-            title="下一步 · paper-trade"
-            body="50/50 ensemble 准备进 paper-trade, 资金 10-20%, forward test 6-12 个月。若 live 曲线守住 SR > 1.0 + MDD > -30%, 把规模推到 30-50% — 否则回 drawing board 加入资金流 / 北向 / 分钟频数据。"
+            title="下一步 · paper-trade 启动 (2024 衰减已纳入预期)"
+            body="5/5 production gate (WF median SR 2.67 · regime 3/3 · cost 75bps 仍 +37% · win 54% · top5 6%) 支持 ensemble 进 paper-trade, 初始资金 10-15%。但 2023-2024 年度 SR 已跌到 -0.3 ~ 0.7 — 纪律线: 若 forward 6mo live SR < 0.5, 立即降规模并回研究阶段补充数据源 (北向资金 / 分钟频席位追踪)。不追求规模, 追求 live 曲线印证 WF 分布。"
           />
         </div>
         <div className="mt-6 text-xs text-[var(--text-tertiary)]">
