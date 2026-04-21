@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-04-17",
+  "generated_at": "2026-04-21",
   "declared_active": "v16",
-  "declared_note": "升级到 v16：因子挖掘会话精选（9因子）low_vol_20d/team_coin/shadow_lower/amihud_illiq/price_vol_divergence/high_52w/turnover_accel/mom_6m_skip1m/win_rate_60d | 22.37%年化/0.730 Sharpe",
-  "state_updated_at": "2026-04-14T04:00:00",
+  "declared_note": "【2026-04-21 诚信修正】v16 的长历史 OOS (2018-2025, v34 测试) admission 四门全 FAIL：Sharpe 0.64 (需>0.80)、MDD -38.11% (需<-30%)、DSR 0.48 (需>0.95)、CI 下界 -0.13 (需>0.80)；2018 单年 SR -1.69 熊市崩盘。v16 的 22.37% 年化仅在 2022-2025 lucky 区间成立，全周期不合格。结论：quant-dojo 目前无通过 admission gate 的主力策略。最接近实盘的候选是事件驱动 DSR #30 (BB+PV 主板 rescaled, 8yr 4/5 gate, 2024-2025 SR 1.34, CI_low 0.20 唯一 miss)，paper_trade_spec_v2_20260421.md 就绪，待启动 5% 规模 3 月验证。参见 ALPHA_THEORY_2026.md §0.2。",
+  "state_updated_at": "2026-04-21T00:00:00",
   "production_face": "v9",
   "candidate": "v25",
   "last_signal_strategy": "v10",
