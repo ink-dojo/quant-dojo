@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 import numpy as np
 import pandas as pd
 
+from utils.local_data_loader import get_all_symbols, load_price_wide
 from utils.data_loader import get_index_history
 from utils.metrics import annualized_return, sharpe_ratio, max_drawdown, calmar_ratio, win_rate
 from utils.factor_analysis import neutralize_factor_by_industry
@@ -78,21 +79,17 @@ def main():
     print(f"v18 OOS: v17 + ind_reversal_3m (训练 22-24, 测 25)")
     print("="*70)
 
-    print("\n[1/4] 加载 (local parquet)...")
-    price = pd.read_parquet(ROOT / "data/processed/price_wide_close_2014-01-01_2025-12-31_qfq_5477stocks.parquet")
-    price.index = pd.to_datetime(price.index)
-    price = price.loc[WARMUP:OOS_END]
+    print("\n[1/4] 加载 (外置盘 + pb 真值)...")
+    symbols = get_all_symbols()
+    price = load_price_wide(symbols, WARMUP, OOS_END, field="close")
     valid = price.columns[price.notna().sum() > 300]
     price = price[valid]
-    # pb 没有本地 wide parquet, 用 NaN 占位 (bp 因子会缺, 影响 v9_5f 实际会变成 4 因子)
-    # 这里用一个假的 pb 全 1.0 (bp=1 常数) 或降级为 4 因子
-    # 更干净的方法: 把 v9 的 bp_factor 从因子池剔除, 换成 5f 的其他权重
-    pb = pd.DataFrame(1.0, index=price.index, columns=price.columns)  # bp=1 → bp_factor≈1 常数, ICIR 近似 0
+    pb = load_price_wide(list(valid), WARMUP, OOS_END, field="pb").reindex(index=price.index, columns=valid)
     hs300 = get_index_history(symbol="sh000300", start=WARMUP, end=OOS_END)
     common = price.index.intersection(hs300.index)
     price = price.loc[common]; pb = pb.reindex(index=price.index); hs300 = hs300.loc[common]
     tradable = apply_tradability_filter(price)
-    print(f"  {len(valid)} 股 {len(price)} 日 | {time.time()-t0:.1f}s")
+    print(f"  {len(valid)} 股 {len(price)} 日 | pb 覆盖 {pb.notna().mean().mean():.1%} | {time.time()-t0:.1f}s")
 
     print("\n[2/4] 因子构建...")
     factors_5 = {
