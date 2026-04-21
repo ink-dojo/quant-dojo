@@ -143,6 +143,16 @@ def build_weights(events: pd.DataFrame, trading_days: pd.DatetimeIndex,
     return W
 
 
+def load_benchmark(start: str, end: str) -> pd.Series:
+    """沪深300 日收益率."""
+    idx = pd.read_parquet("data/raw/tushare/index_daily_000300.parquet")
+    idx["trade_date"] = pd.to_datetime(idx["trade_date"], format="%Y%m%d")
+    idx = idx.set_index("trade_date").sort_index()
+    # pct_chg 是百分点 (e.g. 1.0962 = 1.10%)
+    ret = idx["pct_chg"].astype(float) / 100.0
+    return ret.loc[start:end]
+
+
 def run_backtest(start="2016-01-01", end="2025-12-31") -> dict:
     logger.info("loading events")
     ev = load_events(start, end)
@@ -161,6 +171,11 @@ def run_backtest(start="2016-01-01", end="2025-12-31") -> dict:
     daily_gross = (w_exec * rets).sum(axis=1)
     turnover = w_exec.diff().abs().sum(axis=1).fillna(0)
     net = (daily_gross - turnover * (TXN_ROUND_TRIP / 2)).loc[start:end].dropna()
+    # hedged excess (long BTA - short HS300 at same gross)
+    bench = load_benchmark(start, end).reindex(net.index).fillna(0)
+    # mean_gross 作 hedge notional, 对齐 exposure
+    gross_series = W_cap.abs().sum(axis=1).loc[start:end].reindex(net.index).fillna(0)
+    excess = net - gross_series.shift(1).fillna(0) * bench
 
     ann = annualized_return(net)
     sr = sharpe_ratio(net)
@@ -170,6 +185,13 @@ def run_backtest(start="2016-01-01", end="2025-12-31") -> dict:
     mean_gross = W_cap.abs().sum(axis=1).loc[start:end].mean()
     mean_turnover_ann = turnover.loc[start:end].mean() * 252
 
+    # hedged excess metrics
+    ex_ann = annualized_return(excess)
+    ex_sr = sharpe_ratio(excess)
+    ex_mdd = max_drawdown(excess)
+    ex_psr = probabilistic_sharpe(excess, sr_benchmark=0.0)
+    ex_boot = bootstrap_sharpe_ci(excess, n_boot=2000)
+
     gate = {
         "ann>15%": ann > 0.15,
         "sharpe>0.8": sr > 0.8,
@@ -178,35 +200,55 @@ def run_backtest(start="2016-01-01", end="2025-12-31") -> dict:
         "ci_low>0.5": boot["ci_low"] > 0.5,
     }
     n_pass = sum(gate.values())
+    gate_ex = {
+        "ex_ann>10%": ex_ann > 0.10,
+        "ex_sharpe>0.8": ex_sr > 0.8,
+        "ex_mdd>-20%": ex_mdd > -0.20,
+        "ex_PSR>0.95": ex_psr > 0.95,
+        "ex_ci_low>0.5": ex_boot["ci_low"] > 0.5,
+    }
+    n_pass_ex = sum(gate_ex.values())
+
     print(f"\n=== BTA (Block-Trade Institutional Accumulation) — pre-reg run ===")
     print(f"  期间: {start} ~ {end}")
     print(f"  事件: {len(ev):,}  unique symbols: {ev['symbol'].nunique():,}")
-    print(f"  ann    = {ann:+.2%}")
-    print(f"  Sharpe = {sr:+.3f}")
-    print(f"  MDD    = {mdd:+.2%}")
-    print(f"  PSR    = {psr:.3f}")
-    print(f"  CI95   = [{boot['ci_low']:.2f}, {boot['ci_high']:.2f}]")
-    print(f"  mean_gross = {mean_gross:.3f}  (cap={GROSS_CAP})")
-    print(f"  ann turnover = {mean_turnover_ann:.2f}x")
-    print(f"  admission gate:")
+    print(f"\n  [A] long-only (unhedged):")
+    print(f"    ann={ann:+.2%}  SR={sr:+.3f}  MDD={mdd:+.2%}  PSR={psr:.3f}  CI=[{boot['ci_low']:.2f},{boot['ci_high']:.2f}]")
     for k, v in gate.items():
-        print(f"    {'PASS' if v else 'FAIL'} {k}")
-    print(f"  → {n_pass}/5")
+        print(f"      {'PASS' if v else 'FAIL'} {k}")
+    print(f"    → {n_pass}/5")
 
-    # year by year
-    print(f"\n  year-by-year returns:")
-    yearly = net.groupby(net.index.year).agg(
-        ret=lambda x: (1 + x).prod() - 1,
-        sr=lambda x: x.mean() / x.std() * np.sqrt(252) if x.std() > 0 else np.nan,
-        n=len,
-    )
+    print(f"\n  [B] hedged (long BTA − short 沪深300 同 notional):")
+    print(f"    ann={ex_ann:+.2%}  SR={ex_sr:+.3f}  MDD={ex_mdd:+.2%}  PSR={ex_psr:.3f}  CI=[{ex_boot['ci_low']:.2f},{ex_boot['ci_high']:.2f}]")
+    for k, v in gate_ex.items():
+        print(f"      {'PASS' if v else 'FAIL'} {k}")
+    print(f"    → {n_pass_ex}/5")
+
+    print(f"\n  mean_gross = {mean_gross:.3f}  (cap={GROSS_CAP})")
+    print(f"  ann turnover = {mean_turnover_ann:.2f}x")
+
+    # year by year (both long-only and hedged)
+    print(f"\n  year-by-year (long-only vs hedged):")
+    yearly = pd.DataFrame({
+        "lo_ret": net.groupby(net.index.year).apply(lambda x: (1 + x).prod() - 1),
+        "lo_sr": net.groupby(net.index.year).apply(
+            lambda x: x.mean() / x.std() * np.sqrt(252) if x.std() > 0 else np.nan
+        ),
+        "hd_ret": excess.groupby(excess.index.year).apply(lambda x: (1 + x).prod() - 1),
+        "hd_sr": excess.groupby(excess.index.year).apply(
+            lambda x: x.mean() / x.std() * np.sqrt(252) if x.std() > 0 else np.nan
+        ),
+    })
     print(yearly.round(4).to_string())
 
     return {
         "returns": net,
-        "n_pass": n_pass,
+        "excess": excess,
+        "n_pass": n_pass, "n_pass_ex": n_pass_ex,
         "ann": ann, "sr": sr, "mdd": mdd, "psr": psr,
         "ci_low": boot["ci_low"],
+        "ex_ann": ex_ann, "ex_sr": ex_sr, "ex_mdd": ex_mdd, "ex_psr": ex_psr,
+        "ex_ci_low": ex_boot["ci_low"],
         "mean_gross": mean_gross,
         "ann_turnover": mean_turnover_ann,
         "n_events": len(ev),
@@ -218,7 +260,10 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     result = run_backtest()
     out = Path("research/event_driven/bta_oos_returns.parquet")
-    result["returns"].rename("net_return").to_frame().to_parquet(out)
+    pd.DataFrame({
+        "net_return": result["returns"],
+        "excess_return": result["excess"],
+    }).to_parquet(out)
     result["yearly"].to_parquet("research/event_driven/bta_yearly.parquet")
     print(f"\n保存: {out}")
 
