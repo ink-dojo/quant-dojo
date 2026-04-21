@@ -1,0 +1,150 @@
+# Paper-Trade Spec — DSR #30 + #33 50/50 Ensemble
+
+> ⚠️ **SUPERSEDED 2026-04-21** — 本 v1 已作废, 见 `paper_trade_spec_v2_20260421.md`.
+> 理由: 2026-04-21 decay check (`journal/dsr30_decay_check_20260421.md`) 确认
+> DSR #33 最近 24 月 SR -1.86, 主动亏钱. ensemble 已死, 只保留 #30.
+
+_2026-04-20 预注册, forward 6 mo min, 启动前不得修改本文件_
+
+## 1. 策略定义
+
+**Ensemble = 50 % DSR #30 (BB-only 主板 rescaled) + 50 % DSR #33 (LHB 跌幅偏离 contrarian)**
+
+零 DoF 等权组合，合并前每策略 gross-cap 1.0，合并后再 cap 一次到 1.0。
+
+| 成分 | 事件源 | 窗口 | UNIT | 方向 | 过滤 |
+|---|---|---|---|---|---|
+| #30 | `_all_buyback.parquet` (5042) | T+1 ~ T+20 | 1/15 × 1.985 | LONG | board == 主板 |
+| #33 | `_all_lhb_2018_2025.parquet` 上榜原因 contain "跌幅" (138725 → 筛后) | T+1 ~ T+5 | 1/30 | LONG monthly top 30% | 主板 + 净买额占总成交比 > 0 |
+
+两者样本外（2018-2025）相关性 0.37，熊市失败模式正交（#30 熊 flat SR 0.01，#33 熊爆发 SR 6.26）。
+
+---
+
+## 2. 信号生成节奏
+
+**每交易日 EOD（15:00 收盘后）跑一次 pipeline**：
+
+1. `pipeline_daemon.py` 或新建 `scripts/paper_trade_daily.py` 触发
+2. 拉当日 buyback / LHB 披露事件（tushare 增量）
+3. 应用 #30 和 #33 的 event-filter → 信号列表 `(symbol, weight_30, weight_33)`
+4. 合成 ensemble weight = 0.5 × w30 + 0.5 × w33
+5. 与昨日持仓 diff → 生成 **T+1 open** 买单和到期卖单
+6. 写入 `paper_trade/orders_YYYYMMDD.csv`（字段：date, symbol, action, weight_target, reason）
+
+**不允许**：任何手动覆盖、intraday 触发、参数调节。信号发出即终态。
+
+---
+
+## 3. 资金规模与头寸
+
+- **初始规模**：总权益的 **10 %**（Phase 1，first 3 mo）
+- **升规**：若 3 mo 实盘 SR ≥ 1.0 且 DD < 15 %，可升到 15 %（Phase 2，next 3 mo）
+- **单股上限**：任意时刻持仓权重 ≤ 总权益的 **1 %**（即 ensemble 账户内 ≤ 10 %，因为 ensemble 占总权益 10 %）
+- **ensemble gross cap**：1.0（含 margin=0，纯多头）
+
+---
+
+## 4. 执行纪律
+
+| 项 | 规则 |
+|---|---|
+| 下单时机 | 每日 **09:25 集合竞价** 挂 T+1 open 限价单（限价 = 昨日收盘 × 1.005） |
+| 滑点预算 | 单边 15 bps（与回测一致） |
+| 手续费 | 单边 10 bps 佣金 + 1 bps 印花（卖方）|
+| 未成交 | open 未成交则当日作废，不追涨；下一信号日重新评估 |
+| 持仓到期 | 按策略 hold_days（#30=20, #33=5），到期日 09:30 market 卖出 |
+| 涨跌停 | 开盘一字涨停 → 跳过建仓；一字跌停 → 跳过减仓（延后至可交易首日）|
+| 停牌 | 停牌日保留仓位，复牌首日按原到期日计算 |
+
+---
+
+## 5. 风控 / Kill Switch
+
+**硬边界（破即停）**：
+
+| 触发 | 动作 |
+|---|---|
+| 30日滚动 SR < 0.5 | 仓位规模立即减半 |
+| 30日滚动 SR < 0 持续 10 日 | 全部减仓，策略下线回研究台 |
+| 累计 DD > 25 % | 全部减仓，策略下线 |
+| 单月 MDD > 15 % | 暂停新仓 7 日冷静期 |
+| 回测 vs 实盘 10 日 rolling 差 > 50 bps 日均 | flag 异常，排查数据/执行偏差 |
+
+**软边界（观察）**：
+- 当日 turnover > 50 % 总仓位 → log warn（回测均值应在 20-30 %）
+- 单日持仓只数 < 3 → 策略信号稀薄，记录
+
+---
+
+## 6. 监控 SLAs
+
+每日 EOD 输出 `paper_trade/daily_report_YYYYMMDD.md`：
+- 当日 PnL / cumulative PnL
+- 当日新开仓 / 到期平仓 明细
+- 活仓列表（symbol, weight, days_held, unrealized_pnl）
+- 运行中 SR / MDD / win rate
+- 回测 vs 实盘当日收益差（绝对 bps）
+- 预警标记（如触发任何硬/软边界）
+
+**每月 review**（第 1 个交易日）生成 `paper_trade/monthly_review_YYYYMM.md`：
+- 月度 PnL / SR / DD / 交易次数 / 胜率
+- 与回测同期对比（如有）
+- Regime 暴露（HS300 < MA120 占比）
+- 集中度检查（top 5 股票贡献）
+- 是否触及 kill switch 任何条款
+
+---
+
+## 7. Review / Upgrade / Downgrade
+
+| 时点 | 行动 |
+|---|---|
+| 启动日 T | Phase 1 start，10 % 规模 |
+| T + 3 mo | 首次升规审查：SR ≥ 1.0 且 DD < 15 % 则升到 15 % |
+| T + 6 mo | **最小实盘期终点**。此时才允许 down-scale/upgrade/kill 决策 |
+| T + 9 mo 或 alpha decay 信号 | 如 2024 衰减复现 live，主动下线 |
+
+**6 mo 硬最小 forward 期**：不允许短期波动触发情绪决策，除非硬 kill 边界触发。
+
+---
+
+## 8. Alpha Decay 应对（已知风险）
+
+回测逐年 SR 单调衰减（2018 SR 6.4 → 2024 SR -0.3），可能因：
+- LHB 披露规则 2020+ 调整
+- 北向主导流动性稀释席位信号
+- 回购 QFII 参与度变化
+
+**Paper-trade 预期**：
+- 最可能区间：annualized return **5–15 %**，Sharpe **0.5–1.0**（不是 backtest 全样本 2.67）
+- 若低于下限（SR < 0.5）：按 §5 硬边界处理
+- 若高于上限：先怀疑回测污染或执行偏差，不扩仓
+
+**不做**：试图"修正"或添加新因子来"补救"衰减 —— 那是 Phase 5 研究工作，不在 paper-trade 范围。
+
+---
+
+## 9. 基础设施 TODO（实盘启动前）
+
+- [ ] 新建 `paper_trade/` 目录（日报、月报、orders、fills、NAV）
+- [ ] 新建 `scripts/paper_trade_daily.py` (EOD pipeline)
+- [ ] 新建 `scripts/paper_trade_monthly_review.py`
+- [ ] `pipeline_daemon.py` 注入 paper-trade daily 任务
+- [ ] `portfolio/` 加 "/paper-trade" 页面：NAV 曲线 + 当前持仓 + 回测对比
+- [ ] 告警：daily report 若含 WARN/KILL 标签 → 推送（Slack 或邮件）
+
+---
+
+## 10. 预注册承诺
+
+本文件定义的所有参数、阈值、规则**不得**在 paper-trade 期间修改。如需调整：
+1. 必须在 `journal/paper_trade_change_YYYYMMDD.md` 记录具体改动和理由
+2. 新 spec 从下一笔新仓开始生效（不追溯）
+3. review 统计区分 spec-v1 和 spec-v2 期
+
+触发本条款超过 2 次 → 承认 paper-trade 失败，策略下线。
+
+— 预注册日期: **2026-04-20**
+— 策略 owner: jialong
+— 实盘启动目标日: **待 `paper_trade/` 基础设施完工**
