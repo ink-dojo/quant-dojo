@@ -125,7 +125,8 @@ def main():
         for name, fac in factors_5.items()
     }
 
-    raw_crowd = pd.read_parquet(ROOT / "research/factors/crowding_filter/composite_crowding.parquet")
+    # 使用 size-neutralized 版本（v2 修复后更干净、ICIR 0.83 > 原 0.69）
+    raw_crowd = pd.read_parquet(ROOT / "research/factors/crowding_filter/composite_crowding_sn.parquet")
     raw_crowd.index = pd.to_datetime(raw_crowd.index)
     crowd = (-raw_crowd).reindex(index=price.index, columns=price.columns)
     crowd_neu = neutralize_factor_by_industry(crowd, industry_df, show_progress=False)

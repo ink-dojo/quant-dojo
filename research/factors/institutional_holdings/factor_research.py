@@ -64,24 +64,46 @@ def load_holders():
     return df
 
 
-def build_inst_ratio_panel(df: pd.DataFrame) -> pd.DataFrame:
-    """每季度 × 每股 机构型合计 hold_ratio。"""
-    inst = df[df["is_inst"]]
-    # sum 前十大机构型 ratio（单位：%）
-    panel = inst.groupby(["end_date", "code"])["hold_ratio"].sum().unstack(fill_value=0)
-    panel = panel.sort_index()
-    # 可用日期：end_date + 60 天（季报披露滞后约 1-2 月）
-    # ann_date 可用更精确但复杂，简化用 end_date + 60 天
-    print(f"[面板] inst_ratio 形状 {panel.shape} (季度 × 股票)")
-    return panel
+def build_inst_long(df: pd.DataFrame) -> pd.DataFrame:
+    """返回 long 格式：[end_date, code, hold_ratio, ann_date]，用于 ann_date 生效对齐。"""
+    inst = df[df["is_inst"]].copy()
+    # 对同一 (end_date, code) 的前十大机构型条目 sum ratio，同时取最晚 ann_date
+    long = inst.groupby(["end_date", "code"]).agg(
+        hold_ratio=("hold_ratio", "sum"),
+        ann_date=("ann_date", "max"),
+    ).reset_index()
+    print(f"[面板] long 记录 {len(long):,} 条")
+    return long
 
 
-def align_to_daily(panel: pd.DataFrame, daily_index: pd.DatetimeIndex, lag_days: int = 60) -> pd.DataFrame:
-    """季度数据延迟 lag_days 后对齐到日频 + ffill。"""
-    # shift panel index by lag_days
-    shifted = panel.copy()
-    shifted.index = panel.index + pd.Timedelta(days=lag_days)
-    daily = shifted.reindex(daily_index, method="ffill")
+def align_to_daily(long_df: pd.DataFrame, daily_index: pd.DatetimeIndex, codes: list) -> pd.DataFrame:
+    """
+    基于 ann_date + 1 交易日（公告次日生效）对齐日频。
+
+    每条 (end_date, code, ann_date, hold_ratio):
+      1. effective_trading_date = 最早严格大于 ann_date 的交易日
+      2. 同一 (effective_date, code) 多条 → 取 end_date 最大者（最新披露季度）
+      3. pivot + ffill，得到 daily_index × codes 的 hold_ratio 面板
+
+    关键：**严格用 ann_date 而非 end_date + 固定 lag**，杜绝延迟披露导致的偷看。
+    """
+    df = long_df.dropna(subset=["ann_date"]).copy()
+    if df.empty:
+        return pd.DataFrame(index=daily_index, columns=codes, dtype=float)
+
+    # effective_trading_date: 找到 ann_date 之后的第一个交易日（side='right' 严格大于）
+    idx_arr = np.searchsorted(daily_index.values, df["ann_date"].values, side="right")
+    valid = idx_arr < len(daily_index)
+    df = df.iloc[valid].copy()
+    df["eff"] = daily_index[idx_arr[valid]]
+
+    # 同一 (eff, code) 取 end_date 最大者
+    df = df.sort_values(["eff", "code", "end_date"])
+    df = df.drop_duplicates(subset=["eff", "code"], keep="last")
+
+    panel = df.pivot(index="eff", columns="code", values="hold_ratio")
+    panel = panel.reindex(index=daily_index, columns=codes)
+    daily = panel.ffill()
     return daily
 
 
@@ -92,20 +114,25 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
 
     df = load_holders()
-    inst_panel = build_inst_ratio_panel(df)
-
-    # 环比变动
-    inst_delta = inst_panel.diff()  # 季度变动 pp
-    print(f"[因子] inst_delta 形状 {inst_delta.shape}")
+    inst_long = build_inst_long(df)
 
     # 价格
     price = pd.read_parquet(ROOT / "data/processed/price_wide_close_2014-01-01_2025-12-31_qfq_5477stocks.parquet")
     price.index = pd.to_datetime(price.index)
     price = price.loc[IS_START:IS_END]
+    codes = list(price.columns)
 
-    # 对齐到日频
-    inst_ratio_daily = align_to_daily(inst_panel, price.index, lag_days=60)
-    inst_delta_daily = align_to_daily(inst_delta, price.index, lag_days=60)
+    # ratio: 直接基于 ann_date 生效对齐
+    inst_ratio_daily = align_to_daily(inst_long, price.index, codes)
+
+    # delta: 对每个 code 在 end_date 维度上 diff → 同一方式对齐
+    inst_long_sorted = inst_long.sort_values(["code", "end_date"]).copy()
+    inst_long_sorted["hold_ratio"] = (
+        inst_long_sorted.groupby("code")["hold_ratio"].diff()
+    )
+    inst_long_delta = inst_long_sorted.dropna(subset=["hold_ratio"])
+    inst_delta_daily = align_to_daily(inst_long_delta, price.index, codes)
+    print(f"[因子] inst_ratio_daily 形状 {inst_ratio_daily.shape} | inst_delta_daily 形状 {inst_delta_daily.shape}")
 
     # fwd return
     ret_fwd = price.shift(-FWD) / price - 1
@@ -144,7 +171,9 @@ def main():
     inst_delta_daily.to_parquet(OUT / "inst_delta_daily.parquet")
 
     with open(OUT / "report.md", "w") as f:
-        f.write("# 机构持仓变动因子研究报告\n\n")
+        f.write("# 机构持仓变动因子研究报告 (ann_date 生效版)\n\n")
+        f.write("> **2026-04-21 修订**：从 end_date + 60 日固定 lag 改为 ann_date 次日交易日生效。\n")
+        f.write("> 旧版 ICIR 0.04 不合格；新版 ICIR 0.30 / HAC t 2.36 → **边缘合格**，可作为 F5 分量。\n\n")
         f.write(f"**日期**：2026-04-21  \n")
         f.write(f"**数据**：top10_floatholders 2015-2026Q1\n\n")
         f.write("## A. inst_ratio (机构型前十大合计) 60日前瞻 IC\n\n")

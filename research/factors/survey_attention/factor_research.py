@@ -31,6 +31,8 @@ from utils.factor_analysis import compute_ic_series, ic_summary, quintile_backte
 
 RAW = ROOT / "data" / "raw" / "tushare"
 OUT = ROOT / "research" / "factors" / "survey_attention"
+# 预热期：events 从 2021-08 起，滚动 60d + surge 基线 90d 需 ~150 日预热
+WARMUP_START = "2021-08-01"
 IS_START = "2022-01-01"
 IS_END = "2025-12-31"
 FWD = 20
@@ -81,20 +83,27 @@ def main():
     print("="*70)
     OUT.mkdir(parents=True, exist_ok=True)
 
-    # 价格
-    price = pd.read_parquet(ROOT / "data/processed/price_wide_close_2014-01-01_2025-12-31_qfq_5477stocks.parquet")
-    price.index = pd.to_datetime(price.index)
-    price = price.loc[IS_START:IS_END]
+    # 价格 —— 含预热期 (warmup) 避免滚动窗口截断
+    price_full = pd.read_parquet(ROOT / "data/processed/price_wide_close_2014-01-01_2025-12-31_qfq_5477stocks.parquet")
+    price_full.index = pd.to_datetime(price_full.index)
+    price_warm = price_full.loc[WARMUP_START:IS_END]  # 预热期 + IS
+    price = price_warm.loc[IS_START:IS_END]           # 评估期
+    print(f"[价格] 预热期 {WARMUP_START} ~ IS_END 含 {len(price_warm)} 交易日 | IS 评估区间 {len(price)} 日")
 
     events = load_survey_events()
 
-    panel = build_attention_panel(events, price.index, list(price.columns))
-    att_60d = panel["att_60d"]
-    surge = panel["surge_30_90"]
+    # 在预热期+IS 上构造滚动面板（关键修复：不再丢 2021 Q3/Q4 事件）
+    panel = build_attention_panel(events, price_warm.index, list(price_warm.columns))
+    att_60d_full = panel["att_60d"]
+    surge_full = panel["surge_30_90"]
 
     # shift 1 避免未来函数 (基于 T 日数据在 T+1 交易)
-    att_60d = att_60d.shift(1)
-    surge = surge.shift(1)
+    att_60d_full = att_60d_full.shift(1)
+    surge_full = surge_full.shift(1)
+
+    # 切回 IS 窗口做 IC / 分层评估；保留全 panel 供下游消费（F5 合成）
+    att_60d = att_60d_full.loc[IS_START:IS_END]
+    surge = surge_full.loc[IS_START:IS_END]
 
     # fwd return
     ret_fwd = price.shift(-FWD) / price - 1
@@ -140,9 +149,11 @@ def main():
         print(f"    分层回测 surge 失败: {e}")
         grp_ann2 = pd.Series()
 
-    # save
+    # save —— 保存 IS 切片（保持下游字段一致）+ 完整窗口（便于 F5 合成避免再预热）
     att_60d.to_parquet(OUT / "att_60d.parquet")
     surge.to_parquet(OUT / "surge_30_90.parquet")
+    att_60d_full.to_parquet(OUT / "att_60d_full.parquet")
+    surge_full.to_parquet(OUT / "surge_30_90_full.parquet")
 
     with open(OUT / "report.md", "w") as f:
         f.write("# 机构调研热度因子研究报告\n\n")
