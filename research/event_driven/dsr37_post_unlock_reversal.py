@@ -63,9 +63,15 @@ from utils.metrics import (
 )
 from utils.risk_overlay import apply_gross_cap
 
-from research.event_driven.block_trade_inst_accum_strategy import (
-    load_benchmark, PRICE_PATH,
-)
+from research.event_driven.block_trade_inst_accum_strategy import PRICE_PATH
+
+
+def load_benchmark(start: str, end: str) -> pd.Series:
+    """沪深300 日收益率 (from data/raw/indices/sh000300.parquet)."""
+    idx = pd.read_parquet("data/raw/indices/sh000300.parquet").sort_index()
+    idx.index = pd.to_datetime(idx.index)
+    ret = idx["close"].pct_change()
+    return ret.loc[start:end]
 
 logger = logging.getLogger(__name__)
 
