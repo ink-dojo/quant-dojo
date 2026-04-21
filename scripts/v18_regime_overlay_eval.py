@@ -145,7 +145,12 @@ def main():
 
     # [1] 加载数据
     print("\n[1/5] 加载价格 / PB / HS300 / 可交易性 mask ...")
-    symbols = get_all_symbols()
+    # 从 cache 目录列 symbols (源盘权限不可用时的 fallback)
+    cache_dir = Path("data/cache/local")
+    symbols = sorted(p.stem for p in cache_dir.glob("*.parquet"))
+    if not symbols:
+        symbols = get_all_symbols()
+    print(f"  symbols from cache: {len(symbols)}")
     price = load_price_wide(symbols, WARMUP_START, IS_END, field="close")
     valid = price.columns[price.notna().sum() > 300]
     price = price[valid]
