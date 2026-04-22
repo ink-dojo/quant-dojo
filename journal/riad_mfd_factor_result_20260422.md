@@ -1,4 +1,32 @@
-# RIAD + MFD 差异化因子首轮评估结果 — 2026-04-22
+# RIAD + MFD + BGFD 差异化因子首轮评估结果 — 2026-04-22
+
+## 🎯 Executive Summary (TL;DR)
+
+- **开发了 3 个 A 股独有的差异化 cross-sectional 因子** (Issue #33)
+- **RIAD (散户-机构关注度背离) 是唯一过门槛的信号**:
+  - FULL 3-year IC=-0.070, size+ind 中性化后 IC=-0.056
+  - OOS 2025 IC=-0.043, ICIR=-1.02, HAC t=-16.4 (稳健)
+  - Q2Q3_minus_Q5 FULL Sharpe **1.66**, MDD **-4.79%** (双边 0.3% 成本下)
+- **MFD (资金流背离) 反转因子**: IC=-0.020 单独不过门槛, 但揭示 "大单 ≠ smart money" 真相
+- **BGFD (券商金股共识度) 原 fade 假设被推翻**: 反向 (follow consensus) 2024-2025 有 alpha
+- **三因子高度正交** (|corr| < 0.2), 但合成 LS 反而劣化 (弱因子稀释强因子)
+- **建议 Option A (RIAD 单独 paper-trade)**, 不是 Option B (合成)
+
+**关键数据 Point (2026-04-22)**:
+
+| Strategy | FULL Sharpe | OOS 2025 Sharpe | OOS MDD |
+|---|---:|---:|---:|
+| RIAD Q2Q3_minus_Q5 | **1.66** | 0.59 | -4.79% |
+| Composite Long-Only | 0.64 | **1.52** | -13.22% |
+| Composite LS (Top30-Short30) | -0.01 | -1.20 | -4.40% |
+| Benchmark EqWt (全 A) | 0.78 | — | — |
+
+**最大教训**: 合成 ≠ 必定 alpha. 即使因子正交, 弱 Sharpe 因子等权合并也会拖累强因子.
+正确合成应 **IC-weighted** (RIAD ≈ 0.7+ 权重, 合成 ≈ RIAD 单独).
+
+---
+
+# 详细报告
 
 > 日期: 2026-04-22
 > Issue: #33
