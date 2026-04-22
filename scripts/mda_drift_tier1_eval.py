@@ -106,6 +106,10 @@ def parse_args() -> argparse.Namespace:
         "--delete-pdf-after-tokens", action="store_true",
         help="抽完 tokens 立即删 PDF (磁盘节流, full 跑推荐开)"
     )
+    p.add_argument(
+        "--workers", type=int, default=4,
+        help="并发 worker 数, 默认 4. 全局 rate-limit lock 保证不击穿 cninfo."
+    )
     return p.parse_args()
 
 
@@ -156,7 +160,8 @@ def resolve_universe(mode: str) -> list[str]:
     return sorted(keep)
 
 
-def run(mode: str, download: bool, out_path: Path, delete_pdf_after_tokens: bool) -> tuple[pd.DataFrame, pd.DataFrame]:
+def run(mode: str, download: bool, out_path: Path, delete_pdf_after_tokens: bool,
+        max_workers: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     start_year = 2022 if mode == "smoke" else LOCKED_EVAL_START_YEAR
     end_year = 2024 if mode == "smoke" else LOCKED_EVAL_END_YEAR
@@ -165,7 +170,7 @@ def run(mode: str, download: bool, out_path: Path, delete_pdf_after_tokens: bool
     print(f"[pre-reg] mode={mode} universe_n={len(symbols)} years={start_year}..{end_year}")
     print(f"[pre-reg] DriftConfig = {LOCKED_CONFIG.as_dict()}")
     print(f"[pre-reg] Kill: IC < {KILL_IC_LOWER} → stop; IC > {TIER2_IC_UPPER} → paper-trade")
-    print(f"[pre-reg] delete_pdf_after_tokens = {delete_pdf_after_tokens}")
+    print(f"[pre-reg] delete_pdf_after_tokens = {delete_pdf_after_tokens}  workers={max_workers}")
 
     factor_wide, diag = compute_mda_drift_factor(
         symbols=symbols,
@@ -175,6 +180,7 @@ def run(mode: str, download: bool, out_path: Path, delete_pdf_after_tokens: bool
         download=download,
         show_progress=True,
         delete_pdf_after_tokens=delete_pdf_after_tokens,
+        max_workers=max_workers,
     )
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -200,6 +206,7 @@ def main() -> int:
         download=not args.no_download,
         out_path=Path(args.out_path),
         delete_pdf_after_tokens=args.delete_pdf_after_tokens,
+        max_workers=args.workers,
     )
 
     # smoke 模式只验证 pipeline, 不做 IC. 非 smoke 模式的 IC 评估在后续 journal 脚本完成

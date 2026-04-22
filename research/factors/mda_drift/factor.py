@@ -163,6 +163,113 @@ def load_tokens(symbol: str, fiscal_year: int, cache_dir: Path = DEFAULT_TOKENS_
     return pd.read_parquet(path)["token"].tolist()
 
 
+def _process_symbol(
+    sym: str,
+    start_year: int,
+    end_year: int,
+    pdf_cache_dir: Path,
+    tokens_cache_dir: Path,
+    download: bool,
+    delete_pdf_after_tokens: bool,
+    rate_limit_lock,
+    last_request_time: list,
+) -> dict:
+    """
+    一家公司完整流水 (用于并发 worker): list → for each ref: download → extract → (del pdf).
+
+    rate_limit_lock + last_request_time 实现全局 token-bucket 限速: 所有线程共享
+    最近一次 cninfo 请求时间戳, 新请求前保证至少 DEFAULT_RATE_LIMIT_S 间隔.
+    这样 max_workers 增加并不会击穿 cninfo rate limit.
+
+    返回: {'manifest': [...], 'token_rows': [...], 'diagnostics_rows': [...]}
+    """
+    import time
+
+    manifest_local: list[dict] = []
+    token_rows_local: list[dict] = []
+    diagnostics_local: list[dict] = []
+
+    def _rate_limited_sleep():
+        with rate_limit_lock:
+            now = time.monotonic()
+            wait = DEFAULT_RATE_LIMIT_S - (now - last_request_time[0])
+            if wait > 0:
+                time.sleep(wait)
+            last_request_time[0] = time.monotonic()
+
+    # list_annual_reports 本身是 cninfo 请求, 也要受 rate limit 保护
+    _rate_limited_sleep()
+    try:
+        refs = list_annual_reports(sym, start_year, end_year)
+    except Exception as e:
+        logger.warning("list_annual_reports failed for %s: %r", sym, e)
+        diagnostics_local.append(
+            {"symbol": sym, "fiscal_year": -1, "status": "list_failed", "error": repr(e)}
+        )
+        return {"manifest": manifest_local, "token_rows": token_rows_local,
+                "diagnostics_rows": diagnostics_local}
+
+    for ref in refs:
+        manifest_local.append({
+            "symbol": ref.symbol,
+            "fiscal_year": ref.fiscal_year,
+            "publish_date": ref.publish_date,
+            "title": ref.title,
+            "pdf_url": ref.pdf_url,
+        })
+        pdf_path = pdf_cache_dir / f"{ref.symbol}_{ref.fiscal_year}.pdf"
+
+        tokens_path = _tokens_cache_path(tokens_cache_dir, ref.symbol, ref.fiscal_year)
+        if tokens_path.exists():
+            diag = process_single_pdf_to_tokens(
+                symbol=ref.symbol, fiscal_year=ref.fiscal_year,
+                pdf_path=pdf_path, tokens_cache_dir=tokens_cache_dir,
+            )
+            token_rows_local.append(diag)
+            diagnostics_local.append(diag)
+            continue
+
+        if download and not pdf_path.exists():
+            _rate_limited_sleep()
+            try:
+                download_annual_report(ref, cache_dir=pdf_cache_dir)
+            except Exception as e:
+                logger.warning("download failed %s_%s: %r", ref.symbol, ref.fiscal_year, e)
+                diagnostics_local.append({
+                    "symbol": ref.symbol, "fiscal_year": ref.fiscal_year,
+                    "status": "download_failed", "error": repr(e),
+                })
+                continue
+
+        if not pdf_path.exists():
+            diagnostics_local.append({
+                "symbol": ref.symbol, "fiscal_year": ref.fiscal_year,
+                "status": "missing", "pdf_path": str(pdf_path),
+            })
+            continue
+
+        diag = process_single_pdf_to_tokens(
+            symbol=ref.symbol, fiscal_year=ref.fiscal_year,
+            pdf_path=pdf_path, tokens_cache_dir=tokens_cache_dir,
+        )
+        token_rows_local.append(diag)
+        diagnostics_local.append(diag)
+
+        if (
+            delete_pdf_after_tokens
+            and diag["status"] in ("ok", "cached")
+            and diag["token_count"] > 0
+            and pdf_path.exists()
+        ):
+            try:
+                pdf_path.unlink()
+            except OSError as e:
+                logger.warning("删 PDF 失败 %s: %r", pdf_path, e)
+
+    return {"manifest": manifest_local, "token_rows": token_rows_local,
+            "diagnostics_rows": diagnostics_local}
+
+
 def compute_mda_drift_factor(
     symbols: list[str],
     start_year: int,
@@ -173,6 +280,7 @@ def compute_mda_drift_factor(
     download: bool = True,
     show_progress: bool = True,
     delete_pdf_after_tokens: bool = False,
+    max_workers: int = 1,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     端到端 pipeline: symbols × [start_year, end_year] → drift_score 宽表.
@@ -186,6 +294,8 @@ def compute_mda_drift_factor(
             用于磁盘受限的全 A 股跑 (每份年报 PDF 3-5 MB, tokens parquet 只 ~50 KB,
             40000 份 PDF ~ 120 GB vs tokens ~ 2 GB). 默认 False 保留 PDF 便于后续
             重新抽取 / 调试.
+        max_workers: 并发 worker 数 (ThreadPoolExecutor). 1 = 串行 (默认).
+            推荐 4-8, 全局 rate limit 通过 lock + 时间戳保证 cninfo 不会被击穿.
 
     返回:
         (factor_wide, diagnostics)
@@ -195,7 +305,8 @@ def compute_mda_drift_factor(
     if end_year < start_year + 1:
         raise ValueError(f"end_year 必须 >= start_year+1, got {start_year}..{end_year}")
 
-    import time
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     config = config or DriftConfig()
     diagnostics_rows: list[dict] = []
@@ -205,81 +316,47 @@ def compute_mda_drift_factor(
     pdf_cache_dir.mkdir(parents=True, exist_ok=True)
     tokens_cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # per-symbol stream: 对每家公司 list → download → extract → (delete) 一气呵成
-    # 优点: 峰值磁盘 ~ 单份 PDF (5MB), 中断可恢复 (tokens/manifest 增量落盘)
-    iterator = tqdm(symbols, desc="symbols") if show_progress else symbols
-    for sym in iterator:
-        try:
-            refs = list_annual_reports(sym, start_year, end_year)
-        except Exception as e:
-            logger.warning("list_annual_reports failed for %s: %r", sym, e)
-            diagnostics_rows.append(
-                {"symbol": sym, "fiscal_year": -1, "status": "list_failed", "error": repr(e)}
-            )
-            continue
+    # 全局 cninfo rate-limit: 所有线程共享一把锁 + 一个最近请求时间戳
+    rate_limit_lock = threading.Lock()
+    last_request_time = [0.0]  # mutable 容器, 列表首元素
 
-        for ref in refs:
-            manifest_accum.append({
-                "symbol": ref.symbol,
-                "fiscal_year": ref.fiscal_year,
-                "publish_date": ref.publish_date,
-                "title": ref.title,
-                "pdf_url": ref.pdf_url,
-            })
-            pdf_path = pdf_cache_dir / f"{ref.symbol}_{ref.fiscal_year}.pdf"
+    worker_args = dict(
+        start_year=start_year, end_year=end_year,
+        pdf_cache_dir=pdf_cache_dir, tokens_cache_dir=tokens_cache_dir,
+        download=download, delete_pdf_after_tokens=delete_pdf_after_tokens,
+        rate_limit_lock=rate_limit_lock, last_request_time=last_request_time,
+    )
 
-            # tokens 已缓存 → 跳过 PDF 下载/抽取
-            tokens_path = _tokens_cache_path(tokens_cache_dir, ref.symbol, ref.fiscal_year)
-            if tokens_path.exists():
-                diag = process_single_pdf_to_tokens(
-                    symbol=ref.symbol,
-                    fiscal_year=ref.fiscal_year,
-                    pdf_path=pdf_path,
-                    tokens_cache_dir=tokens_cache_dir,
-                )
-                token_rows.append(diag)
-                diagnostics_rows.append(diag)
-                continue
-
-            # 需要 PDF: 下载 (或校验已缓存)
-            if download and not pdf_path.exists():
+    if max_workers <= 1:
+        iterator = tqdm(symbols, desc="symbols") if show_progress else symbols
+        for sym in iterator:
+            result = _process_symbol(sym, **worker_args)
+            manifest_accum.extend(result["manifest"])
+            token_rows.extend(result["token_rows"])
+            diagnostics_rows.extend(result["diagnostics_rows"])
+    else:
+        # per-symbol 并发: list→download→extract→tokenize 在同一 worker 内串行,
+        # 所以一家公司的年报不会被切到不同线程 (减少 IO 乱序)
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {pool.submit(_process_symbol, sym, **worker_args): sym
+                       for sym in symbols}
+            pbar = tqdm(total=len(futures), desc=f"symbols (w={max_workers})") if show_progress else None
+            for fut in as_completed(futures):
+                sym = futures[fut]
                 try:
-                    download_annual_report(ref, cache_dir=pdf_cache_dir)
-                    time.sleep(DEFAULT_RATE_LIMIT_S)  # cninfo rate-limit
+                    result = fut.result()
+                    manifest_accum.extend(result["manifest"])
+                    token_rows.extend(result["token_rows"])
+                    diagnostics_rows.extend(result["diagnostics_rows"])
                 except Exception as e:
-                    logger.warning("download failed %s_%s: %r", ref.symbol, ref.fiscal_year, e)
-                    diagnostics_rows.append({
-                        "symbol": ref.symbol, "fiscal_year": ref.fiscal_year,
-                        "status": "download_failed", "error": repr(e),
-                    })
-                    continue
-
-            if not pdf_path.exists():
-                diagnostics_rows.append({
-                    "symbol": ref.symbol, "fiscal_year": ref.fiscal_year,
-                    "status": "missing", "pdf_path": str(pdf_path),
-                })
-                continue
-
-            diag = process_single_pdf_to_tokens(
-                symbol=ref.symbol,
-                fiscal_year=ref.fiscal_year,
-                pdf_path=pdf_path,
-                tokens_cache_dir=tokens_cache_dir,
-            )
-            token_rows.append(diag)
-            diagnostics_rows.append(diag)
-
-            if (
-                delete_pdf_after_tokens
-                and diag["status"] in ("ok", "cached")
-                and diag["token_count"] > 0
-                and pdf_path.exists()
-            ):
-                try:
-                    pdf_path.unlink()
-                except OSError as e:
-                    logger.warning("删 PDF 失败 %s: %r", pdf_path, e)
+                    logger.warning("worker crash on %s: %r", sym, e)
+                    diagnostics_rows.append(
+                        {"symbol": sym, "fiscal_year": -1, "status": "worker_crash", "error": repr(e)}
+                    )
+                if pbar is not None:
+                    pbar.update(1)
+            if pbar is not None:
+                pbar.close()
 
     # manifest 增量 flush (所有 symbol 跑完后一次写, 简单可靠)
     if manifest_accum:
