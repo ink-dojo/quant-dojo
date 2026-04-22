@@ -86,3 +86,7 @@ push_phase5.sh
 # Data cache
 data/cache
  data/cache*/
+
+# Ad-hoc dev screenshots at repo root (if you need to keep one, move to docs/)
+/screenshot-*.png
+/ed-section-*.png
