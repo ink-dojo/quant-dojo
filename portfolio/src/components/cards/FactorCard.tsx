@@ -7,15 +7,11 @@ interface Props {
   factor: FactorIndexItem;
   href?: string;
   sparkline?: (number | null)[];
+  intro?: string;
 }
 
-/**
- * Compact factor card for the library grid. Shows name, category pill,
- * one-line docstring, IC/ICIR numbers when available, and an inline
- * sparkline if caller provides one. Clickable only when href is given —
- * long-tail factors without detail pages stay inert.
- */
-export function FactorCard({ factor, href, sparkline }: Props) {
+export function FactorCard({ factor, href, sparkline, intro }: Props) {
+  const blurb = intro && intro.trim().length > 0 ? intro : factor.docstring;
   const inner = (
     <article className="h-full p-4 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 hover:bg-[var(--bg-surface)] hover:border-[var(--border)] transition-all flex flex-col gap-3">
       <header className="flex items-start justify-between gap-2">
@@ -29,8 +25,8 @@ export function FactorCard({ factor, href, sparkline }: Props) {
         </div>
         <CoverageDots score={factor.coverage_score} />
       </header>
-      <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
-        {factor.docstring}
+      <p className="text-xs text-[var(--text-secondary)] line-clamp-3 leading-relaxed">
+        {blurb}
       </p>
       <div className="mt-auto flex items-end justify-between gap-3">
         <div className="font-mono text-[11px] text-[var(--text-tertiary)] flex gap-3">

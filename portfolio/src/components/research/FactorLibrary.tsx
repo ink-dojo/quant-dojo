@@ -11,13 +11,14 @@ type StrategyFilter = "all" | "v7" | "v16";
 interface Props {
   index: FactorIndex;
   heroSlugs: Set<string>;
+  intros?: Record<string, string>;
 }
 
 /**
  * Client-side filter/sort for the 66-factor library. Dataset is small
  * enough that everything fits in memory — no pagination, no virtualization.
  */
-export function FactorLibrary({ index, heroSlugs }: Props) {
+export function FactorLibrary({ index, heroSlugs, intros }: Props) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<FactorCategory | "all">("all");
   const [strategy, setStrategy] = useState<StrategyFilter>("all");
@@ -120,7 +121,8 @@ export function FactorLibrary({ index, heroSlugs }: Props) {
             <FactorCard
               key={f.name}
               factor={f}
-              href={heroSlugs.has(f.name) ? `/research/${f.name}` : undefined}
+              href={`/research/${f.name}`}
+              intro={intros?.[f.name]}
             />
           ))}
         </div>

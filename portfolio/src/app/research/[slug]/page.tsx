@@ -68,7 +68,7 @@ export default async function FactorDetailPage({ params }: PageParams) {
 
   if (!hero && !item) notFound();
 
-  const detail = details?.details?.[slug];
+  const detail = details?.factors?.[slug];
   const lineNumber = lineno?.lineno?.[slug] ?? hero?.lineno ?? null;
 
   const sortedIdx = [...index.factors].sort((a, b) => a.name.localeCompare(b.name));
@@ -110,7 +110,7 @@ function HeroFactorView({
 }: {
   hero: HeroFactor;
   heroDetail: HeroDetailFile | null;
-  detail: FactorDetailsFile["details"][string] | null;
+  detail: FactorDetailsFile["factors"][string] | null;
   lineNumber: number | null;
   prev: FactorIndexItem | null;
   next: FactorIndexItem | null;
@@ -173,12 +173,16 @@ function HeroFactorView({
 
       <section className="max-w-content mx-auto px-6 pb-12 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8 items-start">
         <div className="min-w-0 space-y-4">
-          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-            Docstring
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
-            {hero.docstring}
-          </p>
+          {detail?.intuition && (
+            <>
+              <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+                Intro · 一句话讲清
+              </h2>
+              <p className="text-base text-[var(--text-primary)] leading-relaxed">
+                {detail.intuition}
+              </p>
+            </>
+          )}
           {detail?.formula_latex && (
             <>
               <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] pt-4">
@@ -190,7 +194,13 @@ function HeroFactorView({
               />
             </>
           )}
-          {detail && <EncyclopediaBlocks detail={detail} />}
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] pt-4">
+            Docstring · 代码原文
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
+            {hero.docstring}
+          </p>
+          {detail && <EncyclopediaBlocks detail={detail} skipIntuition />}
         </div>
         <div className="shrink-0 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
           <GaugeRing
@@ -349,7 +359,7 @@ function LibraryFactorView({
   next,
 }: {
   item: FactorIndexItem;
-  detail: FactorDetailsFile["details"][string] | null;
+  detail: FactorDetailsFile["factors"][string] | null;
   lineNumber: number | null;
   prev: FactorIndexItem | null;
   next: FactorIndexItem | null;
@@ -432,14 +442,16 @@ function LibraryFactorView({
       </section>
 
       <section className="max-w-content mx-auto px-6 pb-10 space-y-6">
-        <div>
-          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
-            Docstring
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
-            {item.docstring}
-          </p>
-        </div>
+        {detail?.intuition && (
+          <div>
+            <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
+              Intro · 一句话讲清
+            </h2>
+            <p className="text-base text-[var(--text-primary)] leading-relaxed">
+              {detail.intuition}
+            </p>
+          </div>
+        )}
 
         {detail?.formula_latex && (
           <div>
@@ -453,8 +465,17 @@ function LibraryFactorView({
           </div>
         )}
 
+        <div>
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
+            Docstring · 代码原文
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
+            {item.docstring}
+          </p>
+        </div>
+
         {detail ? (
-          <EncyclopediaBlocks detail={detail} />
+          <EncyclopediaBlocks detail={detail} skipIntuition />
         ) : (
           <div className="rounded-lg border border-dashed border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
             <p className="text-xs font-mono text-[var(--text-tertiary)]">
@@ -471,12 +492,14 @@ function LibraryFactorView({
 
 function EncyclopediaBlocks({
   detail,
+  skipIntuition = false,
 }: {
-  detail: FactorDetailsFile["details"][string];
+  detail: FactorDetailsFile["factors"][string];
+  skipIntuition?: boolean;
 }) {
   return (
     <div className="space-y-6">
-      {detail.intuition && (
+      {!skipIntuition && detail.intuition && (
         <div>
           <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
             Intuition · 直觉
