@@ -2,14 +2,16 @@
 # DSR #30 paper-trade EOD wrapper, 由 launchd 每工作日本地 09:30 触发 (上海 21:30 收盘后).
 #
 # 顺序:
-#   1. 尝试 daily_update.sh — 刷价格数据到最新交易日. 失败不 abort (可能 tushare token
-#      过期; paper-trade 仍可跑上次已有数据的那天).
-#   2. 跑 paper_trade_daily.py — 生成今天的 signal + trade + state.json + 日报.
+#   1. daily_update.sh 刷价格数据到最新交易日 (用 PAPER_TRADE_TUSHARE_TOKEN,
+#      120 积分 daily+adj_factor 够用). 失败不 abort.
+#   2. paper_trade_daily.py 生成今天的 signal + trade + state.json + 日报.
+#   3. 若 state.json 有变化, 自动 commit + push 到 main, 触发 Vercel 重新部署
+#      https://quantdojo.vercel.app/live/paper-trade 页面. 失败不影响 cron 成功.
 #
-# 日志: logs/paper_trade_cron.log (追加模式, 每次一段带时间戳).
-# 失败退出码非 0, launchd 不自动重试; alerts.log 里也会写一行.
+# 日志: logs/paper_trade_cron.log
+# 失败退出码非 0, launchd 不自动重试.
 
-set -u  # 不用 -e, 继续在 update 失败后
+set -u
 
 REPO_DIR="/Users/karan/work/quant-dojo"
 PYTHON="/opt/homebrew/opt/python@3.11/libexec/bin/python"
@@ -25,17 +27,40 @@ if [ -f "$REPO_DIR/.env" ]; then
     set +a
 fi
 
+# Paper-trade 专用 token 覆盖主 token (scope 仅此脚本)
+if [ -n "${PAPER_TRADE_TUSHARE_TOKEN:-}" ]; then
+    export TUSHARE_TOKEN="$PAPER_TRADE_TUSHARE_TOKEN"
+fi
+
 {
   echo "========================================"
   echo "[$(date '+%Y-%m-%d %H:%M:%S %z')] paper-trade cron start"
+  echo "  TUSHARE_TOKEN prefix: ${TUSHARE_TOKEN:0:8}... (paper-trade 专用)"
 
-  echo "--- step 1: daily_update.sh ---"
-  bash "$REPO_DIR/scripts/daily_update.sh" || echo "[warn] data update failed; 继续使用已有数据"
+  echo "--- step 1: 刷价格数据 (直接调 pipeline.cli, 避免 daily_update.sh 重新 source .env) ---"
+  "$PYTHON" -m pipeline.cli data update --source tushare || \
+      echo "[warn] data update failed; 继续使用已有数据"
 
   echo "--- step 2: paper_trade_daily.py ---"
   "$PYTHON" "$REPO_DIR/scripts/paper_trade_daily.py"
   EXIT=$?
   echo "paper_trade_daily exit=$EXIT"
+
+  echo "--- step 3: auto-commit state.json → Vercel redeploy ---"
+  STATE_JSON="$REPO_DIR/portfolio/public/data/paper_trade/state.json"
+  if [ -f "$STATE_JSON" ] && git -C "$REPO_DIR" diff --quiet -- "$STATE_JSON"; then
+      echo "  state.json 未变化, 跳过 push"
+  elif [ -f "$STATE_JSON" ]; then
+      TODAY=$(date '+%Y-%m-%d')
+      git -C "$REPO_DIR" add "$STATE_JSON"
+      git -C "$REPO_DIR" commit -m "chore(paper-trade): EOD state snapshot $TODAY" \
+          --no-verify 2>&1 | tail -3
+      if git -C "$REPO_DIR" push origin main 2>&1 | tail -3; then
+          echo "  pushed, Vercel 几分钟后会重新部署"
+      else
+          echo "  [warn] push 失败 (SSH key 未加载? 或网络?); state.json 仍在本地"
+      fi
+  fi
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S %z')] paper-trade cron done"
   echo ""
