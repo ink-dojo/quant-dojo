@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-17T08:01:45+00:00",
+  "generated_at": "2026-04-22T01:03:07+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "a4cc36238aaf2aba9201f5ba7e7cf0d74425b00d",
-    "short": "a4cc3623",
-    "subject": "cleanup(factors): 删除 reversal_5d 重复定义 (原 line 1375)"
+    "sha": "bb50e82af630f35b7dc535ce0a81bb83bd702f34",
+    "short": "bb50e82a",
+    "subject": "docs: TODO + ROADMAP 加入空间 C 三层 plan"
   },
   "face": {
     "research": "v9",
