@@ -263,6 +263,40 @@ def test_trader_active_positions_df_pnl(tmp_portfolio):
     trader.close()
 
 
+def test_trader_bb_only_mode_doubles_weight(tmp_portfolio):
+    """spec v3: ensemble_mix={bb:1.0, pv:0.0} → BB position at full UNIT, no 0.5 scale."""
+    trader = EventPaperTrader(
+        1_000_000, tmp_portfolio,
+        ensemble_mix={"bb": 1.0, "pv": 0.0},
+    )
+    entries = [_bb_entry("600000", "2025-06-16", "2025-07-14")]
+    summary = trader.process_day("2025-06-16", entries, {"600000": 10.0})
+    # Target weight = 1.0 × BB_UNIT = 0.1323, not 0.5 × BB_UNIT
+    assert summary["gross_weight"] == pytest.approx(BB_UNIT_WEIGHT, abs=1e-4)
+    trader.close()
+
+
+def test_trader_bb_only_ignores_pv_entries(tmp_portfolio):
+    """spec v3: ensemble_mix.pv=0 → any PV entries get zero weight even if supplied."""
+    trader = EventPaperTrader(
+        1_000_000, tmp_portfolio,
+        ensemble_mix={"bb": 1.0, "pv": 0.0},
+    )
+    entries = [
+        _bb_entry("600000", "2025-06-16", "2025-07-14"),
+        _pv_entry("600001", "2025-06-16", "2025-07-14"),
+    ]
+    summary = trader.process_day("2025-06-16", entries,
+                                  {"600000": 10.0, "600001": 10.0})
+    # Only BB got weight; PV mixed with 0.0 → 0
+    assert summary["gross_weight"] == pytest.approx(BB_UNIT_WEIGHT, abs=1e-4)
+    # PV entry is still recorded in open_entries (will be pruned at exit_date)
+    # but its position weight is zero so it shouldn't be bought
+    assert "600001" not in trader.positions or \
+           trader.positions.get("600001", {"shares": 0})["shares"] == 0
+    trader.close()
+
+
 def test_trader_idempotent_on_same_day_retry(tmp_portfolio):
     """Cron 重试: 同一交易日跑两次 process_day 不应该让 open_entries 翻倍."""
     entry = _bb_entry("600000", "2025-06-16", "2025-07-14")

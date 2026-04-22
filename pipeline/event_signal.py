@@ -54,7 +54,7 @@ PV_UNIT_BASE = 1.0 / 75
 PV_SCALE = 0.8 / 0.350  # ≈ 2.286
 BB_UNIT_WEIGHT = BB_UNIT_BASE * BB_SCALE
 PV_UNIT_WEIGHT = PV_UNIT_BASE * PV_SCALE
-ENSEMBLE_MIX = 0.5  # 50/50
+ENSEMBLE_MIX = 0.5  # default 50/50 (spec v2); v3 overrides via config.json
 
 Leg = Literal["bb", "pv"]
 
@@ -165,6 +165,7 @@ def generate_daily_signal(
     bb_events: pd.DataFrame | None = None,
     pv_events: pd.DataFrame | None = None,
     main_board_symbols: set[str] | None = None,
+    legs_enabled: dict[str, bool] | None = None,
 ) -> DailySignal:
     """Generate entry signals for opening at today (as_of_date) T+1-style.
 
@@ -176,6 +177,8 @@ def generate_daily_signal(
         as_of_date: today's trading date.
         trading_days: sorted DatetimeIndex of all trading days (e.g. from price data).
         bb_events, pv_events, main_board_symbols: optional overrides for tests.
+        legs_enabled: {"bb": bool, "pv": bool}. None = both enabled (spec v2 default).
+            spec v3 passes {"bb": True, "pv": False} from paper_trade/config.json.
 
     Returns:
         DailySignal with list of admitted EventEntry and stats.
@@ -208,10 +211,18 @@ def generate_daily_signal(
     exit_td = _shift_trading_day(trading_days, as_of, HOLD_DAYS)
     exit_date_str = exit_td.strftime("%Y-%m-%d") if exit_td is not None else ""
 
+    if legs_enabled is None:
+        legs_enabled = {"bb": True, "pv": True}
+
     for leg, events_df, unit_weight in [
         ("bb", bb_events, BB_UNIT_WEIGHT),
         ("pv", pv_events, PV_UNIT_WEIGHT),
     ]:
+        if not legs_enabled.get(leg, True):
+            stats[f"{leg}_candidates"] = 0
+            stats[f"{leg}_admitted"] = 0
+            stats[f"{leg}_threshold"] = None
+            continue
         threshold = _compute_threshold(events_df, as_of, THRESHOLD_WINDOW_DAYS)
         stats[f"{leg}_threshold"] = threshold
         # Candidates: events that fired on the previous trading day
