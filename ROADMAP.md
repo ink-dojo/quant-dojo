@@ -257,6 +257,21 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
 
 - [x] **Tier 1a** — MD&A drift factor 框架就绪（Issue #25, 2026-04-21）
 - [ ] **Tier 1b** — 全 A 股 2018-2025 IC 评估 + kill 判读
+
+---
+
+## 差异化因子探索轨道（2026-04-22 起, Issue #33）
+
+> 跑出 Phase 3+4 终结后的"新增候选池", 用户要求重点看 2025 年 A 股数据.
+
+- [x] **RIAD** (Retail-Institution Attention Divergence)
+      FULL IC=-0.070, ICIR=-0.89, OOS 2025 IC=-0.043 (size+ind 中性化后)
+      Q2Q3_minus_Q5 Sharpe=1.66 (FULL), 过 Phase 4 Sharpe 门槛
+      发现 regime shift: 震荡市 short 端 alpha 强, 牛市 long 端强
+- [x] **MFD** (MoneyFlow Divergence) — 反转因子 IC=-0.020, 单独不过门槛
+- [ ] **FMD** (Foreign-Margin Divergence) — 设计完成, northbound 2025 数据缺失, 待修
+- [ ] RIAD walk-forward + regime-aware gate + 融券 universe filter → paper-trade 决策
+      (详见 `journal/riad_mfd_factor_result_20260422.md`)
 - [ ] **Tier 2** — LLM hedging 密度增量（条件: Tier 1 IC ∈ [0.015, 0.025]）
 - [ ] **Tier 3** — 跨文档 conditional reasoning（条件: Tier 1/2 任一 work）
 

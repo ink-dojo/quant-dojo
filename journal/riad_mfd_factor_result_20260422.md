@@ -123,14 +123,65 @@ combined_s,t = -(zscore(RIAD) + zscore(MFD))
 | MFD 作为反转因子有弱 alpha 但 IC < 0.03 门槛 | **中** (HAC t=-4 但 IC=-0.02) |
 | RIAD + MFD 合成没有显著增量 | **高** (IC 几乎不变) |
 
+## 附录 A — 进一步中性化 + cost-aware backtest (2026-04-22 凌晨)
+
+### A.1 Size + SW1 行业双中性化
+
+| 分段 | raw IC | size-neut | size+ind |
+|---|---:|---:|---:|
+| FULL | −0.070 | −0.075 | **−0.056** |
+| OOS 2025 | −0.059 | −0.067 | **−0.043** |
+
+行业贡献约 25% 的信号. 剥离后核心 alpha 依然显著 (ICIR=-1.02, HAC t=-16.4).
+
+### A.2 **关键发现 — 分层倒 U 形**
+
+size+ind 中性化后 5 分位 20d 持有均值:
+
+```
+IS  (2023-10~2024-12) : Q1=+0.28  Q2=+0.67  Q3=+0.58  Q4=+0.32  Q5=-0.98
+OOS (2025)           : Q1=+2.99  Q2=+3.00  Q3=+3.45  Q4=+3.11  Q5=+2.47
+```
+
+真正 alpha 在 Q5 做空端, **Q2-Q3 是做多最优** (不是 Q1).
+
+### A.3 Cost-aware LS backtest (双边 0.3%, 20d 调仓)
+
+| Mode | IS Sharpe | OOS Sharpe | **FULL Sharpe** | **FULL Ann** | FULL MDD |
+|---|---:|---:|---:|---:|---:|
+| **Q2Q3_minus_Q5** | **2.00** | 0.59 | **1.66** | **+11.57%** | **-4.79%** |
+| Q1_minus_Q5 | 1.11 | 0.02 | 0.73 | +6.70% | -7.29% |
+| Q1_long_only | 0.04 | **1.43** | 0.51 | +13.54% | -27.41% |
+| Q5_short_only | 0.28 | **-1.41** | -0.26 | -7.48% | -48.03% |
+
+### A.4 Regime shift — 重要警告
+
+IS 和 OOS 的策略最佳解截然不同:
+- IS (震荡市): **Short Q5** 是主要 alpha 来源 (散户追涨股跑输)
+- OOS 2025 (涨市): **Long Q1** 反而最强, Q5 跟随牛市反弹, 做空端亏钱
+
+解读: 2025 年牛市格局下, "机构关注高的冷门股" (Q1) 被价值发现,
+而"散户追涨股" (Q5) 也参与了指数 beta. RIAD 的做空端有强 beta 暴露
+(Q5 高 beta), 在涨市容易被轧空.
+
+### A.5 建议实盘策略 (若进入 Option A)
+
+1. **Q2Q3_minus_Q5 静态** — FULL Sharpe 1.66, MDD -4.79%, 过 Phase 4 Sharpe 门槛
+   但 ann 11.57% 略低于 15% 门槛, 需要叠加 leverage (1.5x) 或 stacking
+2. **加入 regime 过滤** — 牛市 (20日 HS300 return > +3%) 关掉 short leg
+3. **A 股融券可行性检查** — Q5 通常包括 ST / 小盘 / 题材股, 大部分不可融券
+4. **组合级别 stacking** — 和 DSR #30 BB-only 做低相关度互补 (corr < 0.3 则强 ensemble)
+
 ## 下一步选项 (待 jialong 决定)
 
 ### Option A — 推进 RIAD 到 paper-trade 前
-- [ ] 行业中性化 (当前仅 size-neutral)
-- [ ] 加入融券成本假设 (做空端是核心 alpha, 但 A 股融券受限)
-- [ ] Long-only 版本 (做多 Q1) 的 backtest, 对比 benchmark
+- [x] 行业中性化 (✅ 已做 A.1)
+- [x] 加入融券成本假设 (✅ 已做 A.3, 双边 0.3%)
+- [x] Long-only 版本 (做多 Q1) 的 backtest (✅ 已做 A.3)
 - [ ] Walk-forward out-of-sample, 滚动 6 个月, 1 年 refit
 - [ ] DSR (Deflated Sharpe Ratio) 并入 PEAD/DSR n_trials = 32
+- [ ] Regime-aware gate (HS300 momentum 过滤 short leg)
+- [ ] 融券 universe filter (剔除 ST / 不可融券)
 
 ### Option B — 尝试让 MFD 独立强化
 - [ ] 只在散户占比高的股票 (turnover_rate_f 高) 里跑 MFD
