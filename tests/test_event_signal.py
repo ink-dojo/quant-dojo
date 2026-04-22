@@ -238,6 +238,39 @@ def test_signal_deduplicates_same_symbol_same_day():
     assert s1_entries[0].signal == 80.0  # kept the bigger
 
 
+def test_signal_respects_legs_enabled_pv_off():
+    """spec v3: legs_enabled={bb:True, pv:False} → PV admissions always 0."""
+    td = _make_trading_days("2025-04-01", 80)
+    main_board = {f"S{i}" for i in range(30)}
+
+    as_of = td[60]
+    prev_td = td[59]
+    history = [(td[30 + i].strftime("%Y-%m-%d"), float(i + 1), f"S{i+1}") for i in range(25)]
+    # BB candidate (signal 100) + PV candidate (signal 100) both with enough history
+    bb = _make_events(history + [(prev_td.strftime("%Y-%m-%d"), 100.0, "S28")])
+    pv = _make_events(history + [(prev_td.strftime("%Y-%m-%d"), 100.0, "S29")])
+
+    # Default: both legs → both admitted
+    sig_both = generate_daily_signal(
+        as_of_date=as_of, trading_days=td,
+        bb_events=bb, pv_events=pv, main_board_symbols=main_board,
+    )
+    legs_both = {e.leg for e in sig_both.new_entries}
+    assert "bb" in legs_both
+    assert "pv" in legs_both
+
+    # BB-only: pv admissions == 0
+    sig_bb_only = generate_daily_signal(
+        as_of_date=as_of, trading_days=td,
+        bb_events=bb, pv_events=pv, main_board_symbols=main_board,
+        legs_enabled={"bb": True, "pv": False},
+    )
+    assert sig_bb_only.stats["pv_admitted"] == 0
+    assert sig_bb_only.stats["pv_candidates"] == 0
+    assert sig_bb_only.stats["bb_admitted"] > 0
+    assert all(e.leg == "bb" for e in sig_bb_only.new_entries)
+
+
 def test_unit_weights_match_backtest_formula():
     # BB: 1/15 × (0.8/0.403) ≈ 0.1323
     assert BB_UNIT_WEIGHT == pytest.approx(1.0 / 15 * (0.8 / 0.403), rel=1e-9)

@@ -45,7 +45,11 @@ from utils.local_data_loader import load_adj_price_wide
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).parent.parent
-BACKTEST_PARQUET = PROJECT_ROOT / "research/event_driven/dsr30_mainboard_recal_ensemble_oos.parquet"
+BACKTEST_PARQUETS = {
+    "bb": PROJECT_ROOT / "research/event_driven/dsr30_mainboard_bb_oos.parquet",
+    "pv": PROJECT_ROOT / "research/event_driven/dsr30_mainboard_pv_oos.parquet",
+    "ensemble": PROJECT_ROOT / "research/event_driven/dsr30_mainboard_recal_ensemble_oos.parquet",
+}
 
 # Tolerance thresholds
 MAX_MEAN_ABS_DELTA_BPS = 10.0  # bps (日均绝对偏差; spec 说 5 但先用 10 做 initial validation)
@@ -55,6 +59,7 @@ def _precompute_admissions_strict(
     bb_events: pd.DataFrame,
     pv_events: pd.DataFrame,
     trading_days: pd.DatetimeIndex,
+    legs_enabled: dict[str, bool] | None = None,
 ) -> dict[pd.Timestamp, list[EventEntry]]:
     """
     预计算每个 entry_date 要开仓的 EventEntry 列表 (strict = monthly top 30%).
@@ -66,11 +71,15 @@ def _precompute_admissions_strict(
     """
     admissions: dict[pd.Timestamp, list[EventEntry]] = {}
     td_arr = trading_days.values
+    if legs_enabled is None:
+        legs_enabled = {"bb": True, "pv": True}
 
     for leg, events_df, unit_w in [
         ("bb", bb_events, BB_UNIT_WEIGHT),
         ("pv", pv_events, PV_UNIT_WEIGHT),
     ]:
+        if not legs_enabled.get(leg, True):
+            continue
         # Filter to main board
         ev = events_df[events_df["symbol"].isin(MAIN_BOARD_SYMBOLS)].copy()
         ev["month"] = ev["event_date"].dt.to_period("M")
@@ -108,17 +117,22 @@ def _precompute_admissions_causal(
     bb_events: pd.DataFrame,
     pv_events: pd.DataFrame,
     trading_days: pd.DatetimeIndex,
+    legs_enabled: dict[str, bool] | None = None,
 ) -> dict[pd.Timestamp, list[EventEntry]]:
     """
     Causal 版: 在每个 entry_date T, 用 trailing 60 calendar days 的 70th
     percentile 作为 threshold, admit T-1 event_date 的 events with signal ≥ threshold.
     """
     admissions: dict[pd.Timestamp, list[EventEntry]] = {}
+    if legs_enabled is None:
+        legs_enabled = {"bb": True, "pv": True}
 
     for leg, events_df, unit_w in [
         ("bb", bb_events, BB_UNIT_WEIGHT),
         ("pv", pv_events, PV_UNIT_WEIGHT),
     ]:
+        if not legs_enabled.get(leg, True):
+            continue
         ev = events_df[events_df["symbol"].isin(MAIN_BOARD_SYMBOLS)].copy()
         # For each trading day, check events with event_date = prev_td
         for i, td in enumerate(trading_days):
@@ -157,8 +171,26 @@ def replay(
     start: str,
     end: str,
     initial_capital: float = 1_000_000.0,
+    legs: str = "bb",
 ) -> pd.Series:
-    """返回 NAV daily series indexed by trading day."""
+    """返回 NAV daily series indexed by trading day.
+
+    Args:
+        legs: 'bb', 'pv', or 'ensemble'. Controls both admissions and trader
+            ensemble_mix. v3 默认 'bb'.
+    """
+    if legs == "bb":
+        legs_enabled = {"bb": True, "pv": False}
+        ensemble_mix = {"bb": 1.0, "pv": 0.0}
+    elif legs == "pv":
+        legs_enabled = {"bb": False, "pv": True}
+        ensemble_mix = {"bb": 0.0, "pv": 1.0}
+    elif legs == "ensemble":
+        legs_enabled = {"bb": True, "pv": True}
+        ensemble_mix = {"bb": 0.5, "pv": 0.5}
+    else:
+        raise ValueError(f"unknown legs={legs!r}")
+
     logger.info("Loading events and prices...")
     bb = load_bb()
     pv = load_pv()
@@ -179,18 +211,21 @@ def replay(
     logger.info(f"  prices: {prices.shape}, trading days: {len(trading_days)}")
 
     # Precompute admissions
-    logger.info(f"Precomputing {mode} admissions...")
+    logger.info(f"Precomputing {mode} admissions (legs={legs})...")
     t0 = time.time()
     if mode == "strict":
-        admissions = _precompute_admissions_strict(bb, pv, trading_days)
+        admissions = _precompute_admissions_strict(bb, pv, trading_days,
+                                                    legs_enabled=legs_enabled)
     else:
-        admissions = _precompute_admissions_causal(bb, pv, trading_days)
+        admissions = _precompute_admissions_causal(bb, pv, trading_days,
+                                                    legs_enabled=legs_enabled)
     logger.info(f"  {sum(len(v) for v in admissions.values())} admissions "
                 f"across {len(admissions)} days ({time.time()-t0:.1f}s)")
 
     # Replay day by day
-    with tempfile.TemporaryDirectory(prefix=f"smoke_{mode}_") as tmp:
-        trader = EventPaperTrader(initial_capital, Path(tmp))
+    with tempfile.TemporaryDirectory(prefix=f"smoke_{mode}_{legs}_") as tmp:
+        trader = EventPaperTrader(initial_capital, Path(tmp),
+                                   ensemble_mix=ensemble_mix)
         t0 = time.time()
         prices_np = prices.to_numpy(dtype=float)
         cols = prices.columns.tolist()
@@ -215,9 +250,10 @@ def replay(
     return nav
 
 
-def compare_vs_backtest(nav: pd.Series, label: str) -> dict:
-    """NAV → daily returns → compare to backtest parquet."""
-    bt = pd.read_parquet(BACKTEST_PARQUET)["net_return"]
+def compare_vs_backtest(nav: pd.Series, label: str, legs: str = "bb") -> dict:
+    """NAV → daily returns → compare to backtest parquet (pick by `legs`)."""
+    bt_path = BACKTEST_PARQUETS[legs]
+    bt = pd.read_parquet(bt_path)["net_return"]
     bt.index = pd.DatetimeIndex(bt.index).normalize()
     nav.index = pd.DatetimeIndex(nav.index).normalize()
 
@@ -256,6 +292,8 @@ def compare_vs_backtest(nav: pd.Series, label: str) -> dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["strict", "causal"], default="strict")
+    parser.add_argument("--legs", choices=["bb", "pv", "ensemble"], default="bb",
+                        help="spec v3 BB-only default; 'ensemble' for v2 regression")
     parser.add_argument("--quick", action="store_true", help="Only 2024")
     parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default="2025-12-31")
@@ -267,11 +305,12 @@ def main():
     end = args.end
 
     print("=" * 70)
-    print(f"  Paper-trade smoke test: mode={args.mode} period={start} ~ {end}")
+    print(f"  Paper-trade smoke test: mode={args.mode} legs={args.legs} "
+          f"period={start} ~ {end}")
     print("=" * 70)
 
-    nav = replay(args.mode, start, end)
-    res = compare_vs_backtest(nav, f"{args.mode.upper()} replay")
+    nav = replay(args.mode, start, end, legs=args.legs)
+    res = compare_vs_backtest(nav, f"{args.mode.upper()} replay", legs=args.legs)
 
     print("\n" + "=" * 70)
     verdict = "PASS" if res["pass"] else "FAIL"

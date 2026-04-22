@@ -70,15 +70,22 @@ class EventPaperTrader:
     """Event-driven paper trader for DSR #30 (BB+PV main-board rescaled 50/50)."""
 
     def __init__(self, initial_capital: float, portfolio_dir: Path | str,
-                 cost_rate: float = DEFAULT_COST_RATE):
+                 cost_rate: float = DEFAULT_COST_RATE,
+                 ensemble_mix: dict[str, float] | None = None):
         """
         Args:
             initial_capital: 初始资金 (元)
             portfolio_dir: 持仓 / trades / nav / ledger 的存储目录
             cost_rate: 单边交易成本 (默认 15 bps)
+            ensemble_mix: {"bb": float, "pv": float} 两腿合并系数. None = spec v2 默认
+                {bb:0.5, pv:0.5}. spec v3 BB-only 传 {bb:1.0, pv:0.0}.
         """
         self.initial_capital = float(initial_capital)
         self.cost_rate = float(cost_rate)
+        if ensemble_mix is None:
+            ensemble_mix = {"bb": ENSEMBLE_MIX, "pv": ENSEMBLE_MIX}
+        self.ensemble_mix = {"bb": float(ensemble_mix.get("bb", 0.0)),
+                             "pv": float(ensemble_mix.get("pv", 0.0))}
         self.portfolio_dir = Path(portfolio_dir)
         self.portfolio_dir.mkdir(parents=True, exist_ok=True)
 
@@ -191,8 +198,10 @@ class EventPaperTrader:
             pv_sym = {s: w / pv_gross for s, w in pv_sym.items()}
 
         all_syms = set(bb_sym) | set(pv_sym)
+        mix_bb = self.ensemble_mix["bb"]
+        mix_pv = self.ensemble_mix["pv"]
         portfolio = {
-            s: ENSEMBLE_MIX * bb_sym.get(s, 0.0) + ENSEMBLE_MIX * pv_sym.get(s, 0.0)
+            s: mix_bb * bb_sym.get(s, 0.0) + mix_pv * pv_sym.get(s, 0.0)
             for s in all_syms
         }
         port_gross = sum(portfolio.values())

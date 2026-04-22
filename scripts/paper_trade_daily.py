@@ -34,7 +34,19 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).parent.parent
 PAPER_TRADE_DIR = PROJECT_ROOT / "paper_trade"
-DEFAULT_INITIAL_CAPITAL = 1_000_000.0  # spec v2 §3: phase 1 = 5% of total; trader itself sees absolute
+CONFIG_PATH = PAPER_TRADE_DIR / "config.json"
+DEFAULT_INITIAL_CAPITAL = 1_000_000.0  # spec v3 §3: phase 1 = 5% of total; trader itself sees absolute
+
+
+def _load_config() -> dict:
+    """Load paper_trade/config.json with defaults for missing fields."""
+    if not CONFIG_PATH.exists():
+        return {"legs_enabled": {"bb": True, "pv": True},
+                "ensemble_mix": {"bb": 0.5, "pv": 0.5}}
+    cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    cfg.setdefault("legs_enabled", {"bb": True, "pv": True})
+    cfg.setdefault("ensemble_mix", {"bb": 0.5, "pv": 0.5})
+    return cfg
 
 
 def _today_trading_day(trading_days: pd.DatetimeIndex,
@@ -198,6 +210,12 @@ def run_daily(as_of: pd.Timestamp | None = None,
         raise ValueError(f"{today_str} is not a trading day in price data")
     trading_days = prices_df.index
 
+    # Load config (spec v3: BB-only via legs_enabled.pv=false)
+    cfg = _load_config()
+    legs_enabled = cfg["legs_enabled"]
+    ensemble_mix = cfg["ensemble_mix"]
+    logger.info("  Config: legs_enabled=%s  ensemble_mix=%s", legs_enabled, ensemble_mix)
+
     # 2. Generate signal
     sig = generate_daily_signal(
         as_of_date=as_of,
@@ -205,6 +223,7 @@ def run_daily(as_of: pd.Timestamp | None = None,
         bb_events=bb,
         pv_events=pv,
         main_board_symbols=main_board,
+        legs_enabled=legs_enabled,
     )
     logger.info("  Signal: %d new entries (BB %d adm / %d cand, PV %d adm / %d cand)",
                 len(sig.new_entries),
@@ -219,7 +238,8 @@ def run_daily(as_of: pd.Timestamp | None = None,
         dryrun_ctx = tempfile.TemporaryDirectory(prefix="paper_dryrun_")
         portfolio_dir = Path(dryrun_ctx.name)
 
-    trader = EventPaperTrader(initial_capital, portfolio_dir)
+    trader = EventPaperTrader(initial_capital, portfolio_dir,
+                               ensemble_mix=ensemble_mix)
     prices_today = _build_prices_dict(prices_df, as_of)
     summary = trader.process_day(today_str, sig.new_entries, prices_today)
     logger.info("  Summary: %s", summary)
