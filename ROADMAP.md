@@ -248,6 +248,20 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
 
 ---
 
+## 空间 C — LLM-native alpha 研究轨道（并行轨道，2026-04-21 起）
+
+战略锚: `research/space_c_llm_alpha/alpha_theory_space_c_research_20260421.md`
+
+> 由 ALPHA_THEORY_2026 §2.C 孵化出的独立研究轨道。不抢 Phase 6/7 节奏，
+> 单独跑三层 POC，每层都有独立 kill criteria。详见 TODO.md 同名章节。
+
+- [x] **Tier 1a** — MD&A drift factor 框架就绪（Issue #25, 2026-04-21）
+- [ ] **Tier 1b** — 全 A 股 2018-2025 IC 评估 + kill 判读
+- [ ] **Tier 2** — LLM hedging 密度增量（条件: Tier 1 IC ∈ [0.015, 0.025]）
+- [ ] **Tier 3** — 跨文档 conditional reasoning（条件: Tier 1/2 任一 work）
+
+---
+
 ## Portfolio 站点（并行轨道，2026-04 起）
 
 对外展示 quant-dojo 研究的网站 `quant-dojo/portfolio/`，分阶段实施，详见 `PORTFOLIO_PLAN.md`。

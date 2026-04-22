@@ -110,3 +110,38 @@
 - [x] 🔵 `live/paper_trader.py:218` `rebalance()` 208 行，可拆分卖出/买入子阶段
 - [x] 🔵 `pipeline/run_store.py:16-47` 架构注释块应合并到模块 docstring
 
+---
+
+## 空间 C — LLM-native alpha 研究轨道 (2026-04-21 开题)
+
+战略锚: `research/space_c_llm_alpha/alpha_theory_space_c_research_20260421.md`
+Issue 主线: #25
+
+> 原则: 便宜的基线必须先做完才能看到 LLM 的边际贡献. Tier 1 不 work 时
+> Tier 2/3 大概率也徒劳, 所以不要跳级投入。
+
+### Tier 1a — 基础设施 & 框架 (Issue #25, 本周)
+- [x] 归档研究 memo (`research/space_c_llm_alpha/alpha_theory_space_c_research_20260421.md`)
+- [x] 搭 `research/factors/mda_drift/` 四模块: data_loader / text_processor / similarity / factor
+- [x] 单元测试 21 项 (包括 A 股年报 "第N章" + 页眉重复 + 跨章引用 回归)
+- [x] Pre-reg runner `scripts/mda_drift_tier1_eval.py` (锁定参数)
+- [x] 端到端验证 (000001 × 2022/2023, drift ≈ 0.87)
+
+### Tier 1b — 全 A 股评估 (下一 Issue, 1-2 周)
+- [ ] 全 A 股 ~5000 × 8 年 PDF 下载 (`--full`, 预计 1-2 天)
+- [ ] MD&A 段抽取覆盖率审计 (要求 > 90% 才算 pipeline 健康)
+- [ ] Spearman rank IC 月频评估 (锁定参数, 2018-2025)
+- [ ] 分 pre-2023 / post-2023 看 IC 衰减 (> 50% 标注 regime shift)
+- [ ] Top 20 drift 公司行业集中度 HHI 审计
+- [ ] 结果回流到 `journal/mda_drift_tier1_result_YYYYMMDD.md` + Kill 决策
+
+### Tier 2 — LLM hedging 增量 (条件: Tier 1 IC ∈ [0.015, 0.025])
+- [ ] LLM 评分 MD&A "hedging 语言密度"
+- [ ] 相对 TF-IDF drift 的增量 IC / ICIR
+- [ ] 成本预算 $300, 样本 1000 家 × 2 年
+
+### Tier 3 — 跨文档 conditional reasoning (条件: Tier 1/2 任何一层 work)
+- [ ] 定义: 政策文件 + 行业动向 + 管理层表态 的三元组 reasoning
+- [ ] 仅做 forward 样本外 IC, 不回测 (避免 LLM cutoff 泄漏)
+- [ ] 成本预算 $1500
+
