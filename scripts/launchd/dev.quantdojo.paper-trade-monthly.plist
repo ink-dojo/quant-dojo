@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>dev.quantdojo.paper-trade-monthly</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/bash</string>
+      <string>/Users/karan/work/quant-dojo/scripts/paper_trade_monthly_cron.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/karan/work/quant-dojo</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+      <key>Day</key>
+      <integer>1</integer>
+      <key>Hour</key>
+      <integer>10</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/karan/work/quant-dojo/logs/launchd_paper_trade_monthly.out</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/karan/work/quant-dojo/logs/launchd_paper_trade_monthly.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+  </dict>
+</plist>
