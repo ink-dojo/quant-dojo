@@ -1,0 +1,189 @@
+{
+  "generated_at": "2026-04-21",
+  "note": "多因子策略 v7→v25 演化时间线。每个版本包含动机、方法、结果、下一版本的起因。",
+  "eras": [
+    {
+      "id": "era-baseline",
+      "era_label": "Baseline · 2026-Q1",
+      "theme": "5 因子手工等权 — 从零到过 admission gate",
+      "versions": [
+        {
+          "id": "v7",
+          "name_en": "5-Factor Baseline",
+          "name_zh": "5 因子等权基线",
+          "date": "2026-Q1",
+          "status": "legacy",
+          "motivation": "先用经典因子跑出一版能过 admission 的策略，验证全流程 (因子构建 → 行业中性 → 组合 → 回测 → gate check) 可用。",
+          "method": "team_coin + low_vol_20d + cgo + enhanced_momentum + bp_factor；5 因子 z-score 等权合成；申万一级行业中性化；月度调仓。",
+          "result": "首版通过 admission gate，ann 14.5% / Sharpe 0.81 / MDD -25%；成为 v9 的对照基准。",
+          "lessons": [
+            "等权是最稳但不是最优 — 不同因子 IC 强度不同，需要 ICIR 加权",
+            "手工挑选因子池天生有选择偏差，但 5 个经典因子出 IC 都显著，是可复现的起点"
+          ],
+          "next_trigger": "想看权重学习能否带来 OOS 提升 → v9"
+        }
+      ]
+    },
+    {
+      "id": "era-icir-weighted",
+      "era_label": "ICIR 加权 · 2026-Q2 早期",
+      "theme": "数据驱动权重，验证方法论升级的样本外红利",
+      "versions": [
+        {
+          "id": "v9",
+          "name_en": "ICIR-Weighted Production Face",
+          "name_zh": "ICIR 学习权重 · 生产门面",
+          "date": "2026-04-13",
+          "status": "production",
+          "motivation": "v7 手工等权可能没吃完样本信息 — 用过去 N 期 ICIR 加权能否持续跑赢？",
+          "method": "同 v7 的 5 因子；每月用过去 24 个月 ICIR 估计权重；过去 3 个月 IC 方向 sign-flip 保护；月度调仓。",
+          "result": "OOS Sharpe 1.60 (vs v7 的 1.35，+18%)；walk-forward 17 窗口中位 Sharpe 0.53；权重在 2023 风格切换时自动降低动量暴露 — 证明学习有效。",
+          "lessons": [
+            "WF 中位数是比 OOS 单点更可信的指标 — v9 的 0.53 代表\"任何时间重跑策略，样本外中位是这个\"",
+            "权重学习本身也会 overfit — 必须用 shrinkage / 限幅 防止单一因子暴涨"
+          ],
+          "next_trigger": "IS 回撤 -26% 看着有点痛 — 加止损能不能救？ → v10"
+        }
+      ]
+    },
+    {
+      "id": "era-stoploss-disaster",
+      "era_label": "止损层尝试 · 诚实证伪",
+      "theme": "叠加止损的两个反例 — 不是所有\"改善\"都是真改善",
+      "versions": [
+        {
+          "id": "v10",
+          "name_en": "v9 + Portfolio Stop-Loss (Rejected)",
+          "name_zh": "ICIR 权重 + 组合止损 (已否决)",
+          "date": "2026-04-13",
+          "status": "rejected",
+          "motivation": "v9 的 -26% 回撤能否通过\"组合净值跌破 -10% 就减半\"这样的简单止损改善？",
+          "method": "v9 的因子 + 权重不变，加一层：组合净值从峰值回撤 > 10% 时减半仓；恢复至峰值 95% 时复仓。",
+          "result": "IS 回撤 -42% → -24% 看起来缓解；但 OOS Sharpe 从 1.60 暴跌到 0.27；WF 中位 0.53 → 0.46。",
+          "lessons": [
+            "止损裸用会把反弹前的 drawdown 踩实，实际上是在最糟时间减仓",
+            "IS 回撤改善不等于 OOS Sharpe 改善 — 这是\"看起来在救命其实在杀人\"的典型",
+            "结论：止损必须有 regime 信号配合，否则是 OOS killer"
+          ],
+          "next_trigger": "扩因子池 + 因子挖掘 → v11-v21 实验"
+        }
+      ]
+    },
+    {
+      "id": "era-factor-mining",
+      "era_label": "因子挖掘会话 · v11-v21",
+      "theme": "2026-04-14 一次会话扫了 11 个变体，重蹈 v10 覆辙",
+      "versions": [
+        {
+          "id": "v11-v15",
+          "name_en": "Factor Mining Sandbox (v11-v15)",
+          "name_zh": "因子挖掘沙盒 v11-v15",
+          "date": "2026-04-13~14",
+          "status": "mining-round",
+          "motivation": "扩因子池看新因子能否过门槛；v11-v15 试了 8 因子、MA60 替换 52w 等组合",
+          "method": "基于 v9 因子池加入 shadow_lower / amihud / high_52w / turnover_accel 等；权重仍用 ICIR；月度调仓。",
+          "result": "v15 Sharpe 0.64 / MDD -47% — 没有单项全过 gate 的版本",
+          "lessons": [
+            "堆因子能提总回报但回撤同步上升，Sharpe 不变",
+            "因子之间有相关，等权加权会放大共同 exposure"
+          ],
+          "next_trigger": "继续试更多因子组合 → v16"
+        },
+        {
+          "id": "v16",
+          "name_en": "9-Factor Mining Candidate (FAILED)",
+          "name_zh": "9 因子挖掘候选 (已证伪)",
+          "date": "2026-04-14",
+          "status": "rejected",
+          "motivation": "在 12 个候选里 v16 是 IS best — 2022-2025 ann 22.9% / Sharpe 0.80 最亮眼",
+          "method": "9 因子: low_vol_20d, team_coin, shadow_lower, amihud, price_volume_divergence, high_52w, turnover_accel, momentum_6m_skip1m, win_rate_60d；ICIR 加权；月度调仓。",
+          "result": "IS 2022-2025 看起来过 gate (ann 22.9% / SR 0.80) — 但 v34 长历史 OOS (2018-2025) 四门全 FAIL: SR 0.64 / MDD -38% / DSR 0.48 / CI_low -0.13。2018 熊市单年 SR -1.69。",
+          "lessons": [
+            "IS 2022-2025 是 lucky 区间 — 2021-2023 小盘 regime 红利让任何小盘暴露的策略都好看",
+            "v16 本质上是 v10 陷阱的 9 因子版 — 在 IS 挑出来的就是 fit 最好的，OOS 必然回归",
+            "'一次会话挑 best of N' 就是 data snooping；DSR 修正后 N=12 的 DSR 只有 0.48"
+          ],
+          "next_trigger": "回撤 -43% 超红线 → 能不能加 regime 门控止损救活？ → v25"
+        }
+      ]
+    },
+    {
+      "id": "era-regime-gate",
+      "era_label": "外生 regime 门控 · v22-v25",
+      "theme": "2026-04-17 用 HS300 MA120 作为外生 regime 信号，尝试救 v16 的回撤",
+      "versions": [
+        {
+          "id": "v22",
+          "name_en": "5 Orthogonalized Factors",
+          "name_zh": "5 独立因子 (正交剪枝)",
+          "date": "2026-04-16",
+          "status": "mining-round",
+          "motivation": "v16 的 9 因子相关性高 — 试试正交剪枝能否保 Sharpe 而降低暴露重叠",
+          "method": "5 个互相正交的因子；ICIR 加权",
+          "result": "Sharpe 0.54 / MDD -40% — 剪枝过度，丢太多信息",
+          "lessons": ["正交化不总是好 — 有时 factor 之间的 constructive 相关才是信号"]
+        },
+        {
+          "id": "v23",
+          "name_en": "v16 + Adaptive Stop-Loss",
+          "name_zh": "v16 + 自适应半仓止损",
+          "date": "2026-04-16",
+          "status": "mining-round",
+          "motivation": "把 v10 的止损从固定阈值改成波动率自适应",
+          "method": "v16 因子；组合回撤阈值 = k × 60 日波动率",
+          "result": "Sharpe 0.67 / MDD -28% — 回撤改善但 Sharpe 掉了",
+          "lessons": ["自适应止损还是 v10 一脉 — 无 regime 信号的止损都是 OOS killer"]
+        },
+        {
+          "id": "v24",
+          "name_en": "v16 9-factor, 60 holdings",
+          "name_zh": "v16 九因子 60 只持仓",
+          "date": "2026-04-17",
+          "status": "mining-round",
+          "motivation": "减少集中度看能否降回撤",
+          "method": "v16 因子；持仓数从 30 改到 60",
+          "result": "Sharpe 0.69 / MDD -40% — 分散但没本质改善",
+          "lessons": ["分散只能降方差，不能降 systematic regime risk"]
+        },
+        {
+          "id": "v25",
+          "name_en": "v16 + HS300 Regime-Gated Stop",
+          "name_zh": "v16 + HS300 熊市门控止损",
+          "date": "2026-04-17",
+          "status": "candidate",
+          "motivation": "用外生 regime 信号 (HS300 vs MA120) 门控止损 — 熊市才启用，震荡市不触发",
+          "method": "v16 因子 + 当 HS300 < MA120 时启用半仓止损；否则正常持仓",
+          "result": "Sharpe 0.77 / MDD -26% / PSR 95% — 回撤达标，Sharpe 差 0.03 未过 0.8 门；WF 尚未验证",
+          "lessons": [
+            "外生 regime 门控是救止损的唯一方式 — 避免 v10/v11 的反例",
+            "Sharpe 0.77 离 0.8 只差 0.03，且 WF 尚未验证，仍不能挂 production",
+            "同时，v16 本身 v34 长历史 FAIL — v25 基于 FAIL 的 baseline 做止损，底层信号就有问题"
+          ],
+          "next_trigger": "不在多因子上继续死磕 → 转事件驱动 DSR → Phase 3/4"
+        }
+      ]
+    },
+    {
+      "id": "era-pivot-event-driven",
+      "era_label": "转事件驱动 · Phase 3-4",
+      "theme": "多因子 saturation 后，把精力投给事件驱动 + paper-trade DSR #30",
+      "versions": [
+        {
+          "id": "pivot-note",
+          "name_en": "Event-Driven Pivot",
+          "name_zh": "转事件驱动",
+          "date": "2026-04-18~21",
+          "status": "active",
+          "motivation": "多因子 Sprint 1+2 hit rate 2/10 — 不是工具弱而是 factor premium 空间被吃透。转向散户主导、容量受限的事件驱动 alpha。",
+          "method": "Phase 3+4 跑 34 个 DSR trials；BB/PV/LHB/解禁等 6 个事件源各 4-6 个变体。",
+          "result": "唯一 4/5 gate 通过且最近 24 月 alive 的是 DSR #30 (BB+PV 主板 rescaled) — 成为 paper_trade_spec_v2 的主角。",
+          "lessons": [
+            "挖因子 hit rate < 30% 就要换 paradigm，不是换因子",
+            "事件驱动和多因子互不矛盾，但节奏不同 — 多因子月度调仓，事件驱动按事件节奏"
+          ],
+          "next_trigger": "paper-trade DSR #30 (5% 规模 3 mo fast-check) + 基础设施建设"
+        }
+      ]
+    }
+  ]
+}

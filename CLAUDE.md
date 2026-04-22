@@ -59,26 +59,28 @@ gh project item-edit \
   --single-select-option-id 47fc9ee4
 ```
 
-### Step 4 — 创建对应分支再开始写代码
+### Step 4 — 直接在 main 上 commit + push
+
+**不再切 feature / research 分支**。commit message 里带 `Closes #编号` 即可，
+push 到 main 之后 GitHub 会自动关闭 issue 并把 kanban 卡移到 Done。
+
 ```bash
-git checkout -b feature/issue-{编号}-{简短描述}
-# 或 research/issue-{编号}-{主题}
+# 确认当前在 main
+git checkout main
+git pull origin main
+
+# 做你的修改 → 小步 commit（每个函数/章节一次）
+git add <specific files>   # 不用 git add -A，避免误提交
+git commit -m "feat: ...
+
+Closes #${ISSUE_NUM}"
+
+# push 即部署（Vercel 自动 deploy portfolio/）
+git push origin main
 ```
 
-### Step 5 — 完成后移到 In Review 并提 PR
-```bash
-# 移到 In Review
-gh project item-edit \
-  --project-id PVT_kwDOEAhsB84BSCnq \
-  --id $ITEM_ID \
-  --field-id PVTSSF_lADOEAhsB84BSCnqzg_sOx8 \
-  --single-select-option-id df73e18b
-
-# 提 PR（Closes #编号 会在合并时自动关闭 Issue 并移到 Done）
-gh pr create \
-  --title "标题" \
-  --body "Closes #${ISSUE_NUM}\n\n## 做了什么\n\n## 怎么测试"
-```
+**例外**：只有在做「大规模重构 / 真需要多轮 review 的实验」时才开分支 + PR。
+日常研究、bug fix、portfolio 更新全部直接 main。
 
 ---
 
@@ -209,8 +211,8 @@ docs: 文档更新
 refactor: 重构
 ```
 
-- 日常开发直接在 `main` 上 commit + push
-- 大型重构或实验性功能才切 `feature/` 分支
+- **日常开发全部在 `main` 上 commit + push**（不切分支）
+- 只有大型重构 / 多轮 review 的实验才切 `feature/` 分支
 - `data/` 目录已在 `.gitignore`，不要强制 add
 
 ---

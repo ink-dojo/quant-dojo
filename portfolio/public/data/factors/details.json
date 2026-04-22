@@ -1,0 +1,542 @@
+{
+  "generated_at": "2026-04-21",
+  "note": "66 因子完整百科：公式 (LaTeX) / 经济直觉 / A 股特性 / 典型失败模式 / 文献。供 /research/[slug] 详情页使用。",
+  "factors": {
+    "low_vol_20d": {
+      "formula_latex": "F_t = -\\,\\sigma\\!\\left(r_{t-19}, \\ldots, r_t\\right)",
+      "formula_caption": "过去 20 日日收益率的标准差取负 (低波动值得越高分)",
+      "intuition": "低波动异象 (Ang et al. 2006) — 风险调整后，低波股票长期跑赢高波股票，违背 CAPM。机制：杠杆限制 + 彩票偏好让高波股票被过度定价。",
+      "a_share": "A 股的低波异象比美股更强 — 散户偏好高 vol 题材股导致后者系统性高估；低波组合跨 2015/2018/2022 熊市都有保护。",
+      "pitfall": "低波因子常和 size、行业高度相关 — 必须做行业 + 市值中性化才知真实 alpha。",
+      "refs": ["Ang et al. 2006 JF", "Frazzini & Pedersen 2014 JFE"]
+    },
+    "team_coin": {
+      "formula_latex": "F_t = \\operatorname{sign}(r_t^{60}) \\cdot \\mathbb{1}\\{\\sigma_t < \\sigma_{\\text{median}}\\} - \\operatorname{sign}(r_t^{60}) \\cdot \\mathbb{1}\\{\\sigma_t \\geq \\sigma_{\\text{median}}\\}",
+      "formula_caption": "低波动时看动量、高波动时看反转 (Moskowitz 2021 的\"球队硬币\"模型)",
+      "intuition": "同一支股票在不同波动 regime 里有不同行为：低波时趋势延续、高波时均值回归。把两种 regime 用波动率分位切开，分别赋不同方向。",
+      "a_share": "A 股散户情绪驱动让这个因子格外有效 — 全库 ICIR 第一 (0.453)、FM t 第一 (5.08)。v7/v16 都有 team_coin 作为核心。",
+      "pitfall": "波动率分位数的选择 (中位数 vs 60/40 分位) 会影响因子方向 — 需要在 IS 锁死，不能反复调。",
+      "refs": ["Moskowitz 2021 JF", "方正证券 A 股行为因子系列"]
+    },
+    "cgo": {
+      "formula_latex": "F_t = \\frac{P_t - \\bar{P}_t^{RP}}{P_t}, \\quad \\bar{P}_t^{RP} = \\sum_{\\tau} w_\\tau P_\\tau,\\ \\ w_\\tau = \\text{turnover}_\\tau \\prod_{s > \\tau}(1 - \\text{turnover}_s)",
+      "formula_caption": "Capital Gains Overhang — 换手率加权的历史成本和现价的 gap",
+      "intuition": "Frazzini 2006：投资者对未实现盈利/亏损有不对称反应 (处置效应)。CGO 正 (浮盈) → 抛压大；CGO 负 (浮亏) → 惜售。",
+      "a_share": "A 股散户的处置效应比美股强 2-3 倍 — 急抛盈利股、死抱亏损股，这让 CGO 的 contrarian 信号在 A 股格外强。",
+      "pitfall": "换手率加权的窗口长度 (60d vs 250d) 会影响因子 — 太短信号噪声大，太长信号钝化；60-100 日是常用窗口。",
+      "refs": ["Frazzini 2006 JF", "Grinblatt & Han 2005 JFE", "国信证券-行为金融系列"]
+    },
+    "enhanced_momentum": {
+      "formula_latex": "F_t = \\operatorname{rank}\\!\\left(r_{t-N:t} - \\lambda \\sigma_t^2\\right)",
+      "formula_caption": "风险调整动量：N 日累计收益减去 λ × 波动率平方",
+      "intuition": "传统动量在高 vol 股票上效应被系统性放大 (但实际只是风险溢价) — 把 vol penalty 加回去，留下纯信号动量。",
+      "a_share": "A 股中短期 (3-12M) 动量弱于美股，但 enhanced 版本在 v7 里 FM t=2.94、IC=0.057 显著；v7 权重 0.25。",
+      "pitfall": "λ 的选择是自由度 — quant-dojo 固定 λ=3000 来自前期 IS；如果换样本需要重新 fit。",
+      "refs": ["Jegadeesh & Titman 1993 JF", "QuantsPlaybook-高质量动量因子"]
+    },
+    "bp_factor": {
+      "formula_latex": "F_t = \\frac{1}{PB_t},\\ PB_t > 0",
+      "formula_caption": "账面市值比 = 1/PB；PB≤0 设 NaN；1%/99% winsorize",
+      "intuition": "价值因子经典 (Fama-French 1992) — 高 BP 股票长期超额收益，源于 distress risk premium 或行为偏差 (投资者回避 unsexy 公司)。",
+      "a_share": "A 股 BP 因子 2017-2020 白马行情有效，2021 起被小盘/题材吃掉。v7 权重 0.12，FM t=1.94 边际显著。",
+      "pitfall": "需要 T+1 lag — 财报披露日之前的 PB 不可用；不然就是 look-ahead bias。",
+      "refs": ["Fama & French 1992 JF", "Daniel et al. 2020"]
+    },
+    "ep_factor": {
+      "formula_latex": "F_t = \\frac{1}{PE_t},\\ PE_t > 0",
+      "formula_caption": "盈利收益率 = 1/PE；截面 winsorize",
+      "intuition": "价值因子的盈利版本。和 BP 互补 — BP 看账面，EP 看盈利。两者相关但不完全重合。",
+      "a_share": "EP 在 A 股周期股 (钢铁/煤炭) 上特别容易失效 — 盈利大起大落导致 PE 极端值；需要用 TTM 平滑。",
+      "pitfall": "PE 为负 (亏损公司) 必须剔除，否则截面排序反向。",
+      "refs": ["Fama & French 1992 JF", "Basu 1977"]
+    },
+    "roe_factor": {
+      "formula_latex": "F_t \\approx \\frac{PB_t}{PE_t} = \\text{ROE}_t",
+      "formula_caption": "ROE 代理：DuPont 恒等式 PB/PE ≈ ROE (静态近似)",
+      "intuition": "Novy-Marx 2013 — 高 ROE 是质量溢价的代理。理论上高 ROE 股票长期跑赢。",
+      "a_share": "在 A 股这是诚实证伪案例 — IC ≈ 0，FM t 不显著。原因：ROE 代理用 PB/PE 比噪声大 + 财务造假污染。正确做法应该用直接财务报表 ROE。",
+      "pitfall": "用 PB/PE 代理 ROE 本身就是 shortcut — 真实 ROE 需要净利润 / 净资产。这个因子是为了展示\"假设 → 数据证伪\"流程。",
+      "refs": ["Novy-Marx 2013 JFE", "Fama & French 2015"]
+    },
+    "amihud_illiquidity": {
+      "formula_latex": "F_t = \\frac{1}{N}\\sum_{i=0}^{N-1} \\frac{|r_{t-i}|}{V_{t-i}^{\\$}}",
+      "formula_caption": "过去 N 天的 (收益绝对值 / 美元成交量) 均值；越高越 illiquid",
+      "intuition": "Amihud 2002 — illiquid 股票需要更高预期收益作为补偿。衡量每单位成交额造成的价格冲击。",
+      "a_share": "A 股微盘股 (市值 < 30 亿) 的 Amihud illiquidity 溢价近 5 年最稳定。v16 里 amihud 是权重因子之一。",
+      "pitfall": "Amihud 和 size 高度相关 — 不做市值中性分析会误判；微盘股的 illiquidity 是\"微盘溢价\"的一部分而不是独立 alpha。",
+      "refs": ["Amihud 2002 JFM", "Pástor & Stambaugh 2003 JPE"]
+    },
+    "momentum_6m_skip1m": {
+      "formula_latex": "F_t = \\frac{P_{t-21}}{P_{t-126}} - 1",
+      "formula_caption": "6 个月动量跳过最近 1 个月",
+      "intuition": "经典 Jegadeesh-Titman 动量；跳过最近 1 月是为了避开短期反转 (reversal_1m)。",
+      "a_share": "A 股中期动量弱于美股，但跳 1 月后信号更干净；v16 因子之一。",
+      "pitfall": "牛熊切换时，动量因子单月贡献最大单日回撤 — 必须配 regime 过滤。",
+      "refs": ["Jegadeesh & Titman 1993 JF", "Asness et al. 2013"]
+    },
+    "price_volume_divergence": {
+      "formula_latex": "F_t = \\operatorname{corr}_{\\text{Spearman}}\\!\\left(\\Delta P_{t-N:t},\\ \\Delta V_{t-N:t}\\right)",
+      "formula_caption": "过去 N 天价格变化和成交量变化的 Spearman 相关",
+      "intuition": "价量同步 (高正相关) = 健康趋势；价量背离 (负相关) = 上涨无量 or 下跌放量 = 趋势衰竭信号。",
+      "a_share": "A 股散户追涨导致\"拉升无量\"常出现在出货前 — 价量背离在 A 股作 contrarian 信号有效。v16 因子之一。",
+      "pitfall": "涨停一字板日没有信号 — 会污染 Spearman；需要剔除。",
+      "refs": ["开源证券-量价背离系列"]
+    },
+    "shadow_lower": {
+      "formula_latex": "F_t = \\operatorname{mean}_{N}\\!\\left(\\frac{\\text{close}_t - \\text{low}_t}{\\text{close}_t}\\right)",
+      "formula_caption": "过去 N 日下影线 (close - low) 均值，买盘支撑强度",
+      "intuition": "下影线长 = 日内下探后被买回 = 买盘积极。持续下影线 = 支撑买盘持续进场。",
+      "a_share": "A 股涨跌停限制让下影线信号格外干净 — 跌停一字板日极少，大部分日子下影线反映真实盘口。v16 因子之一。",
+      "pitfall": "一字跌停日 (low=close) 会让下影线为 0，污染均值；需要剔除一字板日。",
+      "refs": ["东吴证券-技术分析遇上选股因子", "开源证券-市场微观结构系列"]
+    },
+    "shadow_upper": {
+      "formula_latex": "F_t = -\\operatorname{mean}_{N}\\!\\left(\\frac{\\text{high}_t - \\text{close}_t}{\\text{close}_t}\\right)",
+      "formula_caption": "过去 N 日上影线 (high - close) 均值取负 — 卖压越小越好",
+      "intuition": "上影线长 = 日内冲高被打回 = 卖盘积极。持续上影线 = 高位套牢盘卖压持续。",
+      "a_share": "和 shadow_lower 对称；但 A 股涨停一字板让上影线出现零值偏多，信号被截断。",
+      "pitfall": "涨停一字板 (high=close) 日需剔除，否则因子值被低估。",
+      "refs": ["东吴证券-技术分析遇上选股因子"]
+    },
+    "amplitude_hidden": {
+      "formula_latex": "F_t = \\operatorname{mean}_{N}\\!\\left(\\frac{\\text{high}_t - \\text{low}_t}{\\text{close}_{t-1}}\\right)_{\\text{high-price days}}",
+      "formula_caption": "V_high：按价格高低分日，取高价日振幅均值",
+      "intuition": "开源证券\"振幅隐藏结构\"—把振幅按当日价格位置切开，\"高价日振幅\"反映了追涨阶段的资金内耗；对次日有反转预测力。",
+      "a_share": "A 股题材股在拉升阶段振幅扩大特别明显；这个因子是 A 股特色微观结构因子。",
+      "pitfall": "需要 N 日滚动窗口内至少 5 个 high-price 日，否则样本太少不可信。",
+      "refs": ["开源证券-市场微观结构系列七"]
+    },
+    "w_reversal": {
+      "formula_latex": "F_t = \\sum_{\\tau \\in \\text{high-vol days}} r_\\tau - \\sum_{\\tau \\in \\text{low-vol days}} r_\\tau",
+      "formula_caption": "按成交额高低分日，高额日累计收益减去低额日",
+      "intuition": "开源证券 W 因子 — 散户活跃 (高成交额) 日的收益往往过度反应，下次反转；低成交额日的收益更平稳。两者之差捕捉反转。",
+      "a_share": "A 股散户高参与天与机构低活跃天的区分明显 — W 因子是 A 股特有的微观结构 alpha。",
+      "pitfall": "需要成交额数据 (amount) 而不只是成交量 (volume) — 除权除息日 volume 会异常；成交额更稳。",
+      "refs": ["开源证券-市场微观结构系列一"]
+    },
+    "chip_arc": {
+      "formula_latex": "F_t = \\frac{\\bar{P}_t^{\\text{cost}}}{P_t} - 1,\\quad \\bar{P}_t^{\\text{cost}} = \\sum_\\tau w_\\tau P_\\tau,\\ w_\\tau = \\text{turnover}_\\tau \\prod_{s>\\tau}(1-\\text{turnover}_s)",
+      "formula_caption": "ARC (Average Relative Cost) — 换手率加权持仓成本相对现价",
+      "intuition": "筹码理论：换手率加权的历史价格近似当前持仓者的平均成本；ARC > 0 = 平均浮亏 (套牢区) = 阻力；ARC < 0 = 平均浮盈 = 支撑。",
+      "a_share": "筹码理论是中国特色技术派量化 — QuantsPlaybook 筹码因子系列。在散户主导市场里，筹码套牢区是真实的心理阻力。",
+      "pitfall": "新股上市 60 天内筹码未稳定；停牌期间换手率为 0 要 forward fill；复权价必须用前复权。",
+      "refs": ["QuantsPlaybook-筹码因子系列", "方正证券-筹码理论与量化实现"]
+    },
+    "chip_vrc": {
+      "formula_latex": "F_t = \\operatorname{std}_\\tau\\!\\left(P_\\tau\\ \\text{weighted by}\\ w_\\tau\\right),\\ w_\\tau\\ \\text{as in ARC}",
+      "formula_caption": "VRC (Variance Relative Cost) — 筹码成本分布的标准差",
+      "intuition": "VRC 低 = 筹码集中 = 主力控盘高；VRC 高 = 筹码分散 = 散户主导。筹码集中度变化常预示趋势开始/结束。",
+      "a_share": "同 ARC；主力吸筹过程中 VRC 会缓慢降低。",
+      "pitfall": "VRC 和 size 有关 — 大盘股天然散户多 VRC 高，必须做市值中性对比。",
+      "refs": ["QuantsPlaybook-筹码因子系列"]
+    },
+    "reversal_1m": {
+      "formula_latex": "F_t = -(P_t / P_{t-21} - 1)",
+      "formula_caption": "1 月反转 — 过去 21 日累计收益取负",
+      "intuition": "短期反转 (Jegadeesh 1990) — 1 个月内的短期涨跌次月反转。机制：流动性冲击 + 过度反应。",
+      "a_share": "A 股短期反转效应比美股更强 — 散户过度反应是主因。",
+      "pitfall": "反转因子和 low_vol 相关 — 高波股的 reversal 更强但也更 size-dependent。",
+      "refs": ["Jegadeesh 1990 JF"]
+    },
+    "reversal_5d": {
+      "formula_latex": "F_t = -(P_t / P_{t-5} - 1)",
+      "formula_caption": "5 日反转",
+      "intuition": "超短期反转 — 一周窗口捕捉最近过热信号，散户追高后均值回归。",
+      "a_share": "A 股的 5d reversal 效应很强 — 散户追涨杀跌放大短期波动。",
+      "pitfall": "高换手股票上效应更强 — 可能和流动性挂钩。",
+      "refs": ["Lehmann 1990 QJE"]
+    },
+    "reversal_skip1m": {
+      "formula_latex": "F_t = P_{t-N} / P_{t-N-M} - 1",
+      "formula_caption": "跳过最近 1 月的长期反转 (例如 12-1 的反向：-12M~-1M)",
+      "intuition": "中长期反转 (De Bondt & Thaler 1985) — 长期赢家变输家，源于均值回归。",
+      "a_share": "A 股中长期反转效应弱于短期反转，但跨牛熊看仍有信号。",
+      "pitfall": "窗口参数 N/M 组合空间大 — 典型 overfitting 温床。",
+      "refs": ["De Bondt & Thaler 1985 JF"]
+    },
+    "turnover_rev": {
+      "formula_latex": "F_t = -\\operatorname{mean}_{20}(|r_t|)",
+      "formula_caption": "换手率反转 (实际实现为绝对收益均值取负)",
+      "intuition": "高绝对收益均值 = 波动大 = 散户活跃 → 未来反转。",
+      "a_share": "代理性较强，和 low_vol_20d 相关 — 两者难以同时上 (共线)。",
+      "pitfall": "换手率有更直接的 tushare 字段 (turnover_rate)；实现上用绝对收益是历史遗留。",
+      "refs": ["开源证券-换手率因子系列"]
+    },
+    "quality_momentum": {
+      "formula_latex": "F_t = \\operatorname{rank}(r_t^N \\mid r_i \\neq \\text{涨停}) - \\lambda \\sigma_t^2",
+      "formula_caption": "高质量动量 — 排除涨停日的动量 + 方差惩罚",
+      "intuition": "涨停日的收益是被制度约束的 noise，排除后动量更干净；再加方差惩罚接近 enhanced_momentum。",
+      "a_share": "A 股涨跌停制度让这个因子特别有意义 — 美股没有这类需求。",
+      "pitfall": "排除逻辑用 today's return ≥ 9.9% 作为涨停近似，新政策下 ST/北交所阈值不同。",
+      "refs": ["QuantsPlaybook-高质量动量因子"]
+    },
+    "ma_ratio_momentum": {
+      "formula_latex": "F_t = \\frac{\\operatorname{MA}_N(P_t)}{P_t}",
+      "formula_caption": "MA 比率动量 — 均线除以价格",
+      "intuition": "单调性比 (P_t/P_{t-N}-1) 更强，且对极端值更鲁棒。",
+      "a_share": "简单版本的动量过滤；在 A 股可以作为 baseline。",
+      "pitfall": "MA 窗口选择 (60 vs 120 vs 252) 影响大，容易 overfit。",
+      "refs": ["QuantsPlaybook-再论动量因子"]
+    },
+    "accruals_quality": {
+      "formula_latex": "F_t = -\\frac{\\text{净利润}_t - \\text{经营现金流}_t}{\\text{总资产}_t}",
+      "formula_caption": "Sloan 1996 应计异象 — 利润/现金流 gap 越大质量越差",
+      "intuition": "当净利润大幅领先于经营现金流，往往是激进收入确认；高应计 → 未来盈利回撤。",
+      "a_share": "A 股财报造假样本让应计信号噪声大，但整体方向仍可用；需要季度财报宽表。",
+      "pitfall": "需要 T+1 lag 财报披露日；过去几年 A 股财报质量数据补得晚，历史回测要小心 forward-looking。",
+      "refs": ["Sloan 1996 AR"]
+    },
+    "earnings_momentum": {
+      "formula_latex": "F_t = \\text{净利润增速}_t - \\text{净利润增速}_{t-1}",
+      "formula_caption": "净利润环比增速的二阶差分 — 盈利加速度",
+      "intuition": "Novy-Marx 2013 — 盈利持续加速的公司有 post-earnings drift。",
+      "a_share": "在 A 股中可用业绩预告 (earnings_preview) 作为代理；比等财报快 10-30 天。",
+      "pitfall": "季报披露不整齐 — 必须用一致的 fiscal quarter 对齐，否则截面不可比。",
+      "refs": ["Novy-Marx 2013 JFE", "Bernard & Thomas 1989 JAR"]
+    },
+    "dividend_yield": {
+      "formula_latex": "F_t = \\frac{\\text{DPS}_t}{P_t}",
+      "formula_caption": "每股股息 / 股价",
+      "intuition": "高股息率股票长期跑赢 (Fama & French 1988) — 代表价值 + 低增长预期 + 管理层纪律。",
+      "a_share": "A 股股息率在 2023-2025 央企红利行情有效；之前并不显著。",
+      "pitfall": "需要 ex-dividend date 调整历史价；不然高股息股的价格序列有断层。",
+      "refs": ["Fama & French 1988 JFE"]
+    },
+    "str_salience": {
+      "formula_latex": "F_t = \\sum_{\\tau=t-N}^{t} s_\\tau \\cdot r_\\tau,\\quad s_\\tau = \\frac{|r_\\tau - \\mu_r|}{|r_\\tau - \\mu_r| + \\theta}",
+      "formula_caption": "Cosemans-Frehen 2021 凸显理论 — 凸显度加权收益",
+      "intuition": "投资者对极端收益日 (salient days) 过度反应 — 高 salience 股票被高估，低 salience 股票被低估。",
+      "a_share": "A 股题材股是凸显理论教科书场景 — 超卖反弹 / 超买回落都和 salience 有关。",
+      "pitfall": "θ 是自由度 — 论文建议用历史收益率标准差，但在 A 股高波动环境下需校准。",
+      "refs": ["Cosemans & Frehen 2021 JF"]
+    },
+    "network_scc": {
+      "formula_latex": "F_t = \\frac{1}{N-1}\\sum_{j \\neq i} \\operatorname{corr}_{20}(r_i, r_j)",
+      "formula_caption": "Spatial Centrality Coefficient — 与股票池其他股票 20 日相关的均值",
+      "intuition": "高 SCC = 这支股票与市场整体相关性高 = 更多 systematic 暴露。低 SCC = 特质 alpha 多。",
+      "a_share": "A 股的 SCC 反映\"这股票是否跟大盘\"— 题材股低 SCC、指数股高 SCC。",
+      "pitfall": "计算量大 — 每日每股都要算 N-1 个 corr。实际可用 PCA/因子模型代理。",
+      "refs": ["QuantsPlaybook-网络中心度因子"]
+    },
+    "apm_overnight": {
+      "formula_latex": "F_t = \\operatorname{mean}_{N}\\!\\left(\\frac{\\text{open}_t}{\\text{close}_{t-1}} - 1\\right)",
+      "formula_caption": "APM 隔夜收益代理 — 过去 N 日隔夜收益均值",
+      "intuition": "Barardehi et al. 2021 — 隔夜收益包含 informed flow 信息 (机构一般尾盘/隔夜交易)；持续正隔夜收益 = 机构持续买入。",
+      "a_share": "A 股的隔夜收益包含 9:15 集合竞价 → open 的跳空，机构味道更浓。",
+      "pitfall": "除权除息日 overnight 收益需要前复权调整；不然有 spurious gaps。",
+      "refs": ["Barardehi et al. 2021", "QuantsPlaybook-APM 因子模型"]
+    },
+    "idiosyncratic_volatility": {
+      "formula_latex": "F_t = -\\operatorname{std}_N(\\epsilon_t),\\ r_t - r_{f,t} = \\beta_t (r_{m,t} - r_{f,t}) + \\epsilon_t",
+      "formula_caption": "IVOL — 市场模型残差的标准差取负",
+      "intuition": "Ang et al. 2006 — 高特质波动股票长期跑输。机制：彩票偏好让 IVOL 高的股票被过度追捧。",
+      "a_share": "A 股 IVOL 异象在小盘股组尤其显著；大盘蓝筹里效应接近零。",
+      "pitfall": "需要市场收益序列 — 用沪深 300 vs 中证全指结果会不同。",
+      "refs": ["Ang et al. 2006 JF"]
+    },
+    "industry_momentum": {
+      "formula_latex": "F_{i,t} = \\operatorname{mean}_{\\text{ind}(i)}(r_{j, t-21:t-126})",
+      "formula_caption": "行业过去 6 月平均收益 (跳 1 月)",
+      "intuition": "Moskowitz-Grinblatt 1999 — 行业动量在美股显著。机制：信息在行业内传导有延迟。",
+      "a_share": "A 股行业 rotation 明显 (年度板块轮动)；但行业动量因子整体信号弱于个股动量。",
+      "pitfall": "行业分类选择 (申万一级 vs 中信一级) 结果不同；科创板 / 北交所行业归属不稳。",
+      "refs": ["Moskowitz & Grinblatt 1999 JF"]
+    },
+    "relative_turnover": {
+      "formula_latex": "F_t = \\frac{\\operatorname{mean}_5(\\text{turnover}_t)}{\\operatorname{mean}_{60}(\\text{turnover}_t)}",
+      "formula_caption": "短期 (5d) 换手率相对长期 (60d) 均值",
+      "intuition": "关注度代理 — 最近换手率突增 = 资金开始流入；但超过某阈值就是过热。",
+      "a_share": "A 股散户集中涌入信号 — 和龙虎榜事件高度相关。",
+      "pitfall": "和 turnover_acceleration 高度重合；不要双重上池。",
+      "refs": ["Gervais et al. 2001 JF"]
+    },
+    "cfo_accrual_quality": {
+      "formula_latex": "F_t = -\\frac{\\sigma(\\Delta \\text{WC})}{\\sigma(\\text{CFO})}",
+      "formula_caption": "Dechow-Dichev 2002 — 应计质量 (working capital 变化的波动度 / 经营现金流波动度)",
+      "intuition": "Dechow & Dichev — 应计与现金流对应越稳定，盈利质量越高。",
+      "a_share": "需要多期 working capital / CFO 宽表；A 股财报披露滞后让这个因子很难实时用。",
+      "pitfall": "长窗口 (5年) 计算，样本不足的股票无信号；新股直接出局。",
+      "refs": ["Dechow & Dichev 2002 AR"]
+    },
+    "insider_buying_proxy": {
+      "formula_latex": "F_t = \\mathbb{1}\\{\\text{大股东增持公告}_{t}\\} \\cdot \\text{amount}_t",
+      "formula_caption": "大股东增持金额代理 (事件驱动类)",
+      "intuition": "Ikenberry et al. 1995 / Seyhun 1986 — insider 增持是最直接的内部信息信号。",
+      "a_share": "A 股有\"股东增持公告\"公开披露；但大股东增持常伴随价格未来的 overhang，需要分类。",
+      "pitfall": "增持公告日 T vs 实际增持日 T' 不同 — 信号泄露；应该用增持完成公告作为信号日。",
+      "refs": ["Seyhun 1986 JFE"]
+    },
+    "high_52w_ratio": {
+      "formula_latex": "F_t = \\frac{P_t}{\\max_{s \\in [t-252, t]} P_s}",
+      "formula_caption": "当前价距 52 周高点的比例",
+      "intuition": "George & Hwang 2004 — 接近 52 周高的股票有 anchor 突破效应；远离 52 周高的股票有 anchor 支撑回归。",
+      "a_share": "A 股散户对 52 周高锚定反应强烈 — v16 权重因子之一。",
+      "pitfall": "高比例股票本身就有 momentum 暴露 — 容易和 momentum_6m 共线。",
+      "refs": ["George & Hwang 2004 JF"]
+    },
+    "return_skewness_20d": {
+      "formula_latex": "F_t = -\\operatorname{skew}_{20}(r_t)",
+      "formula_caption": "20 日收益偏度取负",
+      "intuition": "Boyer et al. 2010 — 散户偏好正偏收益 (彩票股)，导致其被高估。取负后高偏度对应看空。",
+      "a_share": "A 股题材股的正偏度极端情况多，这个因子在题材股上效应强。",
+      "pitfall": "偏度对极端值敏感 — 一字涨停/跌停会扭曲偏度；需 winsorize。",
+      "refs": ["Boyer et al. 2010 RFS", "Bali et al. 2011 JFE"]
+    },
+    "beta_factor": {
+      "formula_latex": "F_t = -\\frac{\\operatorname{cov}_{60}(r_t, r_{m,t})}{\\operatorname{var}_{60}(r_{m,t})}",
+      "formula_caption": "60 日 Beta 取负 (低 beta = 高因子值)",
+      "intuition": "Frazzini & Pedersen 2014 — BAB (Betting against Beta) 异象；低 beta 股票长期跑赢风险调整后。",
+      "a_share": "A 股 BAB 异象比美股弱；但在 2018/2022 熊市里低 beta 组合明显防御。",
+      "pitfall": "Beta 窗口选择 (60 vs 250) 结果不同；冷门股票 beta 不稳。",
+      "refs": ["Frazzini & Pedersen 2014 JFE"]
+    },
+    "max_ret_1m": {
+      "formula_latex": "F_t = -\\max_{\\tau \\in [t-20, t]} r_\\tau",
+      "formula_caption": "过去 1 月最大单日涨幅取负",
+      "intuition": "Bali et al. 2011 — MAX effect。散户追彩票股 (极端上涨日) 导致其被高估。",
+      "a_share": "A 股题材股的 MAX effect 格外强 — 超跌题材股 + 消息面爆炒是典型情形。",
+      "pitfall": "和 return_skewness_20d 高度相关。",
+      "refs": ["Bali et al. 2011 JFE"]
+    },
+    "turnover_acceleration": {
+      "formula_latex": "F_t = \\frac{\\operatorname{mean}_5(\\text{turnover})}{\\operatorname{mean}_{20}(\\text{turnover})}",
+      "formula_caption": "换手率加速比",
+      "intuition": "短期换手率突然加速 = 资金开始关注；> 1 表示加速。",
+      "a_share": "A 股散户涌入信号 — v16 权重因子。",
+      "pitfall": "阈值因子在 > 1 附近 knee 明显 — 截面标准化后才能用。",
+      "refs": ["开源证券-换手率因子系列"]
+    },
+    "bollinger_pct": {
+      "formula_latex": "F_t = -\\!\\left(\\frac{P_t - \\text{lower}_t}{\\text{upper}_t - \\text{lower}_t} - 0.5\\right)",
+      "formula_caption": "Bollinger 带内位置偏离中线 — 低位置高分",
+      "intuition": "Bollinger 带下沿 = 超卖；上沿 = 超买。散户主导市场有均值回归倾向。",
+      "a_share": "在 A 股震荡市有效；趋势市里 Bollinger 信号失效。",
+      "pitfall": "Bollinger 带宽是波动率的函数，低波股的带宽窄 → 信号敏感；需要 regime 区分。",
+      "refs": ["Bollinger 1983 原始研究"]
+    },
+    "volume_surge": {
+      "formula_latex": "F_t = \\operatorname{mean}_5\\!\\left(r_t \\cdot \\frac{V_t}{\\operatorname{mean}_{20}(V_t)}\\right)",
+      "formula_caption": "放量上涨强度 — 收益乘以相对成交量，5 日均",
+      "intuition": "放量上涨 = 机构吸筹信号；量缩下跌 = 机构出货信号。",
+      "a_share": "A 股机构行为的典型量价特征；在主板蓝筹上更稳。",
+      "pitfall": "volume 用复权与否要一致；不然除权日造成异常值。",
+      "refs": ["Campbell et al. 1993 QJE"]
+    },
+    "bid_ask_spread_proxy": {
+      "formula_latex": "F_t = -\\operatorname{mean}_{20}\\!\\left(\\frac{\\text{high}_t - \\text{low}_t}{(\\text{high}_t + \\text{low}_t)/2}\\right)",
+      "formula_caption": "Corwin-Schultz 简化买卖价差 — HL spread 取负",
+      "intuition": "Corwin & Schultz 2012 — 用 high-low spread 估计买卖价差 (交易成本)；低 spread = 流动性好。",
+      "a_share": "集合竞价机制让 A 股的 bid-ask spread 信号不如美股 tick-level 强；代理性一般。",
+      "pitfall": "涨跌停限制让 HL spread 在极端日被截断；需要剔除涨跌停日。",
+      "refs": ["Corwin & Schultz 2012 JF"]
+    },
+    "price_anchor_dist": {
+      "formula_latex": "F_t = -\\min(P_t \\bmod 1,\\ 1 - P_t \\bmod 1)",
+      "formula_caption": "价格距最近整数价的距离取负 — 距整数近抛压大",
+      "intuition": "A 股散户对 5/10/20 等整数价有心理锚 — 接近整数时阻力/支撑集中。",
+      "a_share": "A 股独有行为金融因子 — 美股无此效应 (价格精度 0.01)。",
+      "pitfall": "整数锚只在低价股 (< 50 元) 明显；高价股 (ST 等名股) 效应弱。",
+      "refs": ["方正证券-A 股整数锚定研究"]
+    },
+    "close_minus_open_volume": {
+      "formula_latex": "F_t = \\operatorname{mean}_N\\!\\left(\\frac{(\\text{close}_t - \\text{open}_t) \\cdot V_t}{\\text{mean}(V)}\\right)",
+      "formula_caption": "日内方向 × 成交量，N 日均 — 主力净买入代理",
+      "intuition": "(close - open) > 0 + 高成交量 = 日内买盘主导。持续正值 = 主力持续吸筹。",
+      "a_share": "A 股机构日内偏尾盘操作 — close > open 是机构抢筹信号；散户偏开盘追涨。",
+      "pitfall": "单日噪声大，需要滚动平均；但滚动窗口过长信号变钝。",
+      "refs": ["QuantsPlaybook 系列"]
+    },
+    "win_rate_trend": {
+      "formula_latex": "F_t = \\operatorname{mean}_5(\\mathbb{1}\\{r_t > 0\\}) - \\operatorname{mean}_{60}(\\mathbb{1}\\{r_t > 0\\})",
+      "formula_caption": "短期胜率 - 长期胜率",
+      "intuition": "短期胜率上升 = 资金持续流入；下降 = 撤离。和量无关，纯方向性信号。",
+      "a_share": "A 股的胜率趋势对风格切换敏感 — 小盘转大盘时胜率快速下降。",
+      "pitfall": "short/long 窗口比例敏感；5/60 是经验值。",
+      "refs": ["开源证券-胜率因子研究"]
+    },
+    "overnight_return": {
+      "formula_latex": "F_t = \\operatorname{mean}_N\\!\\left(\\frac{\\text{open}_t}{\\text{close}_{t-1}} - 1\\right)",
+      "formula_caption": "N 日平均隔夜收益",
+      "intuition": "Lou et al. 2019 — 隔夜收益包含信息流入 (overnight news)；持续正隔夜 = informed buying。",
+      "a_share": "A 股的 9:15 集合竞价吸收隔夜消息 — 隔夜收益包含次日信息。",
+      "pitfall": "除权除息日 overnight 异常；必须前复权。",
+      "refs": ["Lou et al. 2019 JFQA"]
+    },
+    "sharpe_20d": {
+      "formula_latex": "F_t = \\frac{\\operatorname{mean}_{20}(r_t)}{\\operatorname{std}_{20}(r_t)}",
+      "formula_caption": "20 日 Sharpe — 平均收益 / 标准差",
+      "intuition": "风险调整后动量；不同于 low_vol (纯方差) 和动量 (纯方向)。",
+      "a_share": "A 股中短期 Sharpe 因子和 enhanced_momentum 高度相关。",
+      "pitfall": "短窗口 Sharpe 方差大；至少要月度再使用。",
+      "refs": ["Sharpe 1994 原始理论"]
+    },
+    "up_down_volume_ratio": {
+      "formula_latex": "F_t = \\frac{\\sum_{\\tau: r_\\tau > 0} V_\\tau}{\\sum_{\\tau: r_\\tau < 0} V_\\tau}",
+      "formula_caption": "上涨日成交量 / 下跌日成交量，N 日累计",
+      "intuition": "主力吸筹：上涨放量、下跌缩量 → 高比率。主力出货：上涨缩量、下跌放量 → 低比率。",
+      "a_share": "A 股量价关系的经典指标；机构吸筹信号之一。",
+      "pitfall": "零除零 (平盘日) 的处理要规范。",
+      "refs": ["Dorn et al. 2011"]
+    },
+    "ret_autocorr_1d": {
+      "formula_latex": "F_t = -\\operatorname{corr}_{20}(r_t, r_{t-1})",
+      "formula_caption": "20 日 lag-1 自相关取负",
+      "intuition": "负自相关 = 快速均值回归；正自相关 = 动量延续。A 股大部分股票 lag-1 自相关为负 (反转)。",
+      "a_share": "A 股散户对前日收益过度反应 — 短期自相关常负。",
+      "pitfall": "单只股票 20 日自相关噪声大；截面排序比点估计可靠。",
+      "refs": ["Lehmann 1990 QJE"]
+    },
+    "momentum_3m_skip1m": {
+      "formula_latex": "F_t = P_{t-21} / P_{t-63} - 1",
+      "formula_caption": "3 月跳 1 月动量",
+      "intuition": "中短期动量；比 6M 版本更敏感于最近行情。",
+      "a_share": "A 股中短期常是反转 — 3M 动量可能需要取负方向。",
+      "pitfall": "窗口选择是自由度 — 不要凭 IS 最优选。",
+      "refs": ["Jegadeesh & Titman 1993 JF"]
+    },
+    "vol_asymmetry": {
+      "formula_latex": "F_t = \\frac{\\operatorname{std}_{\\{r < 0\\}}(r_t)}{\\operatorname{std}_{\\{r > 0\\}}(r_t)}",
+      "formula_caption": "下跌日波动率 / 上涨日波动率",
+      "intuition": "高比值 = 下跌剧烈 = 尾部风险；低比值 = 上涨更波动 = 正偏。",
+      "a_share": "A 股的 vol asymmetry 在题材股上显著 — 下跌流动性枯竭导致崩盘。",
+      "pitfall": "样本中至少要求 5 个上涨日 + 5 个下跌日才稳。",
+      "refs": ["Black 1976 — 杠杆效应"]
+    },
+    "earnings_window_proxy": {
+      "formula_latex": "F_t = \\mathbb{1}\\{t \\in \\text{季末月最后 20 日}\\} \\cdot \\frac{P_t - \\operatorname{MA}_{20}(P_t)}{\\operatorname{MA}_{20}(P_t)}",
+      "formula_caption": "季末窗口的 MA 偏离度",
+      "intuition": "A 股季报前后 (3/6/9/12 月最后 20 日) 成交量和价格异动 — 代理财报披露效应。",
+      "a_share": "A 股季报披露有明确截止日 — 季末最后 20 日异动最强。",
+      "pitfall": "日历因子信号稀；其余时间为零。",
+      "refs": ["田利辉 2014 — A 股 PEAD"]
+    },
+    "return_zscore_20d": {
+      "formula_latex": "F_t = -\\frac{r_t - \\operatorname{mean}_{20}(r_t)}{\\operatorname{std}_{20}(r_t)}",
+      "formula_caption": "当日收益 z-score 取负",
+      "intuition": "当日收益远高于近期均值 = 追高 = 反转信号。",
+      "a_share": "A 股短期反转典型信号之一；和 reversal_1m 互补。",
+      "pitfall": "窗口内至少 10 个有效收益样本，否则 std 不稳。",
+      "refs": ["Lehmann 1990 QJE"]
+    },
+    "avg_intraday_range": {
+      "formula_latex": "F_t = -\\operatorname{mean}_{N}\\!\\left(\\frac{\\text{high}_t - \\text{low}_t}{P_t}\\right)",
+      "formula_caption": "日内振幅均值取负",
+      "intuition": "高振幅 = 散户主导 + 高风险；低振幅 = 机构稳定持有或流动性不足。",
+      "a_share": "A 股题材股振幅大，蓝筹股振幅小；这个因子也选出了一定的 size 暴露。",
+      "pitfall": "需要和 size 中性化对比。",
+      "refs": ["Campbell et al. 2001"]
+    },
+    "volume_concentration": {
+      "formula_latex": "F_t = -\\frac{\\max_{\\tau \\in N}(V_\\tau)}{\\sum_{\\tau \\in N} V_\\tau}",
+      "formula_caption": "单日最大成交量 / 总成交量",
+      "intuition": "高集中度 = 事件驱动 / 消息刺激一次性涌入 → 不持续；低集中度 = 稳定持续吸筹 → 机构行为。",
+      "a_share": "A 股题材股的量能集中度明显 — 消息日放量后迅速萎缩。",
+      "pitfall": "窗口短 (N=10) 信号不稳；N=60 是经验值。",
+      "refs": ["Chordia et al. 2007"]
+    },
+    "vol_regime": {
+      "formula_latex": "F_t = \\frac{\\operatorname{std}_{20}(r_t)}{\\operatorname{std}_{120}(r_t)}",
+      "formula_caption": "短期波动率 / 长期波动率",
+      "intuition": "Vol compression (< 1) 后往往有方向性突破；vol expansion (> 1) 代表不稳定。",
+      "a_share": "A 股 vol regime 在重要政策发布前后切换显著 — 两会、美联储议息前的 compression 常见。",
+      "pitfall": "方向不明确 — vol compression 可能是积聚也可能是死水；需要配合趋势信号。",
+      "refs": ["Bekaert et al. 2013"]
+    },
+    "price_momentum_quality": {
+      "formula_latex": "F_t = \\frac{r_t^N}{\\operatorname{std}_N(r_t)}",
+      "formula_caption": "短期 Sharpe 代理 — 窗口收益 / 窗口波动",
+      "intuition": "稳定上涨 (高分) = 机构有序建仓；剧烈震荡上涨 (低分) = 散户追涨。",
+      "a_share": "高分股票在 A 股机构占比高的板块 (白马、高股息) 尤其明显。",
+      "pitfall": "和 sharpe_20d 几乎重合；二选一即可。",
+      "refs": ["QuantsPlaybook"]
+    },
+    "win_rate_60d": {
+      "formula_latex": "F_t = -\\operatorname{mean}_{60}(\\mathbb{1}\\{r_t > 0\\})",
+      "formula_caption": "60 日胜率取负 — 高胜率看空 (超买)",
+      "intuition": "持续上涨 = 散户追涨 = 超买。低胜率 = 超卖 = 反弹机会。",
+      "a_share": "A 股均值回归强 — 60 日胜率反转在散户活跃股上效应显著。v16 因子之一。",
+      "pitfall": "和 reversal 高度相关；注意共线性。",
+      "refs": ["De Bondt & Thaler 1985"]
+    },
+    "stock_max_drawdown_60d": {
+      "formula_latex": "F_t = -\\max_{\\tau \\in [t-60, t]}\\!\\left(\\frac{\\max_{s \\leq \\tau}(P_s) - P_\\tau}{\\max_{s \\leq \\tau}(P_s)}\\right)",
+      "formula_caption": "60 日最大回撤取负 — 回撤小得高分",
+      "intuition": "风险筛选因子 — 近期回撤小的股票更稳定。",
+      "a_share": "和 low_vol 高度相关。",
+      "pitfall": "避坑型因子 — 单独用信号弱，配合其他因子使用。",
+      "refs": ["Magdon-Ismail & Atiya 2004"]
+    },
+    "vol_scaled_reversal": {
+      "formula_latex": "F_t = -\\frac{P_t / P_{t-5} - 1}{\\operatorname{std}_{20}(r_t)}",
+      "formula_caption": "5 日收益 / 20 日波动，取负",
+      "intuition": "风险调整后的短期反转 — 比纯 5 日收益反转更公平 (高波股不受惩罚)。",
+      "a_share": "A 股短期反转的一种 refinement；和 reversal_5d 相关但不完全重合。",
+      "pitfall": "分母 std 接近零时因子爆炸 — 需要 floor。",
+      "refs": ["Lehmann 1990"]
+    },
+    "rsi_factor": {
+      "formula_latex": "F_t = -(\\text{RSI}_t - 50),\\ \\text{RSI} = 100 - \\frac{100}{1 + \\text{avg\\_up}/\\text{avg\\_down}}",
+      "formula_caption": "RSI - 50 取负 — 超卖高分",
+      "intuition": "经典技术指标 — RSI < 30 超卖，> 70 超买；用在横截面选超卖。",
+      "a_share": "A 股散户追涨杀跌放大 RSI 极端值；可用但信号弱于专业 factors。",
+      "pitfall": "RSI 在强趋势里长期 > 70 或 < 30；单独使用会踏空趋势。",
+      "refs": ["Wilder 1978"]
+    },
+    "chaikin_money_flow": {
+      "formula_latex": "F_t = \\frac{\\sum_{\\tau \\in N} \\text{CLV}_\\tau \\cdot V_\\tau}{\\sum_{\\tau \\in N} V_\\tau},\\ \\text{CLV} = \\frac{2C - H - L}{H - L}",
+      "formula_caption": "Chaikin Money Flow — 收盘位置加权的资金流",
+      "intuition": "CMF > 0 = 收盘偏高 + 放量 = 资金净流入；CMF < 0 = 收盘偏低 + 放量 = 净流出。",
+      "a_share": "和 close_minus_open_volume 类似，但更标准化 (CLV 在 [-1, 1])。",
+      "pitfall": "涨跌停一字板 (H=L) 造成除零；需要 floor。",
+      "refs": ["Chaikin 1986"]
+    },
+    "price_distance_from_ma": {
+      "formula_latex": "F_t = -\\frac{P_t - \\operatorname{MA}_{60}(P_t)}{\\operatorname{MA}_{60}(P_t)}",
+      "formula_caption": "价格相对 60 日均线的偏离取负",
+      "intuition": "正偏 = 高于均线 = 均值回归压力；负偏 = 低于均线 = 反弹动能。",
+      "a_share": "长窗口 MA 偏离在 A 股震荡市有效；趋势市里 contrarian 被打脸。",
+      "pitfall": "和 bollinger_pct 信号相关；不要双重使用。",
+      "refs": ["经典技术分析"]
+    },
+    "intraday_direction_efficiency": {
+      "formula_latex": "F_t = \\operatorname{mean}_N\\!\\left(\\frac{C_t - O_t}{H_t - L_t}\\right)",
+      "formula_caption": "日内 (close-open)/(high-low) 均值",
+      "intuition": "持续正值 = 收盘靠近最高 = 日内趋势向上 = 机构吸筹信号。",
+      "a_share": "A 股机构偏尾盘交易，(close-open) 方向信号比欧美更纯净。",
+      "pitfall": "涨跌停日 (high=low) 除零；需剔除。",
+      "refs": ["Kaufman 1995 — 效率比率"]
+    },
+    "turnover_trend": {
+      "formula_latex": "F_t = -\\frac{\\operatorname{mean}_{5}(\\text{turnover}) - \\operatorname{mean}_{20}(\\text{turnover})}{\\operatorname{std}_{20}(\\text{turnover})}",
+      "formula_caption": "换手率趋势 z-score 取负 — 换手率上升看空",
+      "intuition": "换手率突增常伴随散户涌入 — 接下来的反转信号。",
+      "a_share": "和 relative_turnover、turnover_acceleration 相关；共线性注意。",
+      "pitfall": "同族换手率因子太多 — 建议选其中 1 个。",
+      "refs": ["开源证券-换手率因子系列"]
+    },
+    "reversal_12m_skip3m": {
+      "formula_latex": "F_t = -\\!\\left(P_{t-63} / P_{t-252} - 1\\right)",
+      "formula_caption": "跳过最近 3 月的长期反转",
+      "intuition": "De Bondt & Thaler — 长期赢家变输家；3 月缓冲是为了避开中短期动量延续。",
+      "a_share": "A 股长期反转弱于美股；偶尔在牛熊切换年份显著。",
+      "pitfall": "长窗口 252 日要求股票至少上市 1 年 — 新股直接剔除。",
+      "refs": ["De Bondt & Thaler 1985"]
+    },
+    "vwap_deviation": {
+      "formula_latex": "F_t = -\\frac{P_t - \\text{VWAP}_{N,t}}{\\text{VWAP}_{N,t}}",
+      "formula_caption": "价格相对 VWAP 偏离取负",
+      "intuition": "VWAP 是机构的成本基础；价格远高于 VWAP → 机构浮盈 → 抛压大。",
+      "a_share": "A 股机构 VWAP 执行常见 — 偏离度是机构盈亏压力的代理。",
+      "pitfall": "VWAP 需要分钟数据才准确；日频 VWAP 用 amount/volume 代理有偏。",
+      "refs": ["Berkowitz et al. 1988"]
+    },
+    "retail_open_trap": {
+      "formula_latex": "F_t = -\\operatorname{mean}_N\\!\\left(\\mathbb{1}\\{r_{\\text{open-to-close}, t} < 0\\} \\cdot r_{\\text{overnight}, t}\\right)",
+      "formula_caption": "高开低走陷阱 — 隔夜涨但日内跌的惩罚",
+      "intuition": "Barber & Odean 2008 — 散户在开盘追涨高开股票，机构利用集合竞价卖出 → 高开低走。",
+      "a_share": "A 股开盘追涨陷阱明显 — 散户开盘 9:30 买入后容易被套。",
+      "pitfall": "需要 open / close 数据都干净；涨跌停开盘要特殊处理。",
+      "refs": ["Barber & Odean 2008 JF", "方正证券-A 股开盘陷阱"]
+    }
+  }
+}
