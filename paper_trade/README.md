@@ -1,11 +1,20 @@
-# Paper-Trade — DSR #30 主板 rescaled BB+PV ensemble
+# Paper-Trade — DSR #30 BB-only 主板 rescaled
 
-> Spec v2 — 2026-04-21 起基础设施就绪，等待 go-live。
+> Spec v3 — 2026-04-22 切换 BB-only, PV/Insider 腿已证伪 (v2/v3 过渡见 `journal/paper_trade_spec_v3_bb_only_20260422.md`)
 
 ## 这是什么
 
-DSR #30 (BB 主板 rescaled × 0.5 + PV 主板 rescaled × 0.5) 的纸面交易流水。
-2018-2025 回测：ann 18.1%, Sharpe 1.50, MDD -21.6%, corr(bt, live) 0.9993 (smoke test, 1.91 bps / day drift)。
+DSR #30 BB-only 主板 rescaled 的纸面交易流水 (单腿 LONG-only 事件驱动).
+2018-2025 回测: ann **16.0%**, Sharpe **0.84**, MDD **-29.7%**, PSR 0.996, CI_low 0.20.
+单样本 4/5 + 生产级 3/4 (WF ✅ / regime 2-of-3 ✅ / trade-level win 69.7% + top5 9.4% ✅, 仅 single-sample CI_low 未过).
+Smoke test strict-match vs BB backtest parquet: mean abs delta **1.77 bps / 日**, corr **0.9994**
+(`python scripts/paper_trade_smoke_test.py --mode strict --legs bb`).
+
+**为什么 BB-only, 不是 ensemble?**
+- PV 腿 8-yr ann 2.1%, SR 0.16, 单腿 1/5 → 已死
+- Insider 腿 (DSR #31, akshare ggcg 数据可用) 8-yr ann 5.83%, SR 0.30, 单腿 0/5 → 已证伪
+- BB+PV 50/50 ensemble 2/5, 3-way ensemble 2/5 — 都严格劣于 BB-only 4/5
+- BB 最近两年 SR (2024=1.27, 2025=1.62) 是历史最强 — 无衰减信号
 
 交易逻辑 = 事件驱动。每日 EOD 跑一次：
 1. 拉 BB/PV 当日事件 → `generate_daily_signal`
@@ -57,8 +66,12 @@ python scripts/paper_trade_monthly_review.py --month 2026-04
 | `initial_capital_pct_of_total` | 占总资金比例，phase1=5% / phase2=15% / phase3=50% |
 | `legs_enabled.bb`, `legs_enabled.pv` | 分腿开关，单腿失效时可独立关闭 |
 | `unit_weights.bb/pv` | 单事件目标权重 (BB≈0.1323, PV≈0.0305) — rescale 自回测 gross ratio |
-| `ensemble_mix` | 两腿合并系数，默认 0.5/0.5 |
+| `ensemble_mix` | 两腿合并系数 (v2=0.5/0.5, v3=1.0/0.0 BB-only) |
 | `hold_days`, `post_offset`, `cost_rate` | 交易机械参数 |
+
+`legs_enabled` + `ensemble_mix` 都是 **pre-reg 锁定**参数: 由 `scripts/paper_trade_daily.py`
+启动时读入, 传给 `generate_daily_signal(legs_enabled=...)` 和 `EventPaperTrader(ensemble_mix=...)`.
+改任何一个 → 必须升 spec 版本 + 写新 pre-reg 文档.
 
 ## Kill switch (spec v2 §5)
 
@@ -94,7 +107,10 @@ pytest tests/test_event_signal.py \
        tests/test_event_kill_switch.py \
        tests/test_paper_trade_daily.py -v
 
-# 8 年 strict-match smoke test (实盘语义 vs 回测 parquet)
-python scripts/paper_trade_smoke_test.py --mode strict
+# 8 年 strict-match smoke test (spec v3 默认 BB-only)
+python scripts/paper_trade_smoke_test.py --mode strict --legs bb
 # 期望: mean abs daily delta < 10 bps, corr > 0.99
+# 最近实测: 1.77 bps / 日, corr 0.9994 (2026-04-22)
+
+# v2 regression (ensemble): python scripts/paper_trade_smoke_test.py --legs ensemble
 ```

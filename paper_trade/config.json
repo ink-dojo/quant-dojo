@@ -1,7 +1,7 @@
 {
-  "spec_version": "v2",
-  "strategy_id": "dsr30_bbpv_mainboard_rescaled_ensemble",
-  "description": "DSR #30 主板 rescaled ensemble (BB + PV 50/50), 基于 2018-2025 回测 Sharpe 1.50 / ann 18.1%",
+  "spec_version": "v3",
+  "strategy_id": "dsr30_bb_mainboard_rescaled_bbonly",
+  "description": "DSR #30 BB-only 主板 rescaled (spec v3, 2026-04-22). 回测 2018-2025: ann 23.9%, Sharpe 1.47, MDD -26.2%, 4/5 single-sample + 3/4 生产级. PV/insider 腿已证伪, 不启用.",
   "enabled": false,
   "phase": "pre_live",
   "started_at": null,
@@ -9,25 +9,27 @@
   "initial_capital_pct_of_total": 0.05,
   "legs_enabled": {
     "bb": true,
-    "pv": true
+    "pv": false
   },
   "ensemble_mix": {
-    "bb": 0.5,
-    "pv": 0.5
+    "bb": 1.0,
+    "pv": 0.0
   },
   "unit_weights": {
     "bb": 0.13234077750206782,
     "pv": 0.030476190476190483,
-    "_note": "BB = 0.8 / bb_gross_ratio, PV = 0.8 / pv_gross_ratio — 见 pipeline/event_signal.py"
+    "_note": "BB = 1/15 × (0.8/0.403) = 0.8 / bb_gross_ratio. PV 保留数值供 smoke test 对比 v2 逻辑, 但 legs_enabled.pv=false 使其在 live 不生效."
   },
   "hold_days": 20,
   "post_offset": 1,
   "cost_rate": 0.0015,
   "universe": "main_board",
   "notes": [
-    "phase=pre_live: 基础设施已就绪，等待 jialong 确认 go-live 日期",
+    "phase=pre_live: v3 BB-only 切换已完成, 等待 jialong 确认 go-live 日期",
     "go-live 时: 设 enabled=true, phase='live_phase1', 填 started_at='YYYY-MM-DD'",
-    "phase1 跑 3 个月达 5/5 gate → 升到 phase2 (15% size)",
-    "spec v2 §5 kill switch 在 live/event_kill_switch.py 中硬编码常量"
+    "phase1 跑 3 个月达 live SR>=1.0 且 DD<10% → 升到 phase2 (15% size)",
+    "phase2 跑 6 个月达 同标准 → 升到 phase3 (50% size)",
+    "spec v3 §5 kill switch 在 live/event_kill_switch.py 中硬编码常量",
+    "PV 腿改动: v2 spec 原 50/50 ensemble, v3 证伪后关闭 (PV 8-yr ann 2.1%, SR 0.16, 已死)"
   ]
 }
