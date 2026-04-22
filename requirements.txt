@@ -36,3 +36,7 @@ loguru>=0.7
 # Dashboard
 fastapi>=0.110.0
 uvicorn>=0.27.0
+
+# NLP / PDF (空间 C Tier 1: MD&A drift factor)
+jieba>=0.42            # 中文分词
+pdfplumber>=0.11       # 年报 PDF 文字抽取
