@@ -454,7 +454,7 @@ export interface FactorDetail {
 export interface FactorDetailsFile {
   generated_at: string;
   note?: string;
-  details: Record<string, FactorDetail>;
+  factors: Record<string, FactorDetail>;
 }
 
 export interface FactorLinenoFile {

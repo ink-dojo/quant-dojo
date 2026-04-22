@@ -8,6 +8,7 @@ import { fmtNum } from "@/lib/formatters";
 import { FACTOR_CATEGORIES, type FactorCategory } from "@/lib/constants";
 import type {
   CategoriesFile,
+  FactorDetailsFile,
   FactorIndex,
   HeroFactorsFile,
 } from "@/lib/types";
@@ -15,14 +16,22 @@ import type {
 const CATEGORY_KEYS = Object.keys(FACTOR_CATEGORIES) as FactorCategory[];
 
 export default async function ResearchPage() {
-  const [index, heroes, cats] = await Promise.all([
+  const [index, heroes, cats, details] = await Promise.all([
     readData<FactorIndex>("factors/index.json"),
     readData<HeroFactorsFile>("factors/hero.json"),
     readDataOrNull<CategoriesFile>("categories.json"),
+    readDataOrNull<FactorDetailsFile>("factors/details.json"),
   ]);
 
   const coreHeroes = heroes.factors.filter((f) => f.tier === "core");
   const expHeroes = heroes.factors.filter((f) => f.tier === "experimental");
+
+  const intros: Record<string, string> = {};
+  if (details?.factors) {
+    for (const [name, d] of Object.entries(details.factors)) {
+      if (d.intuition) intros[name] = d.intuition;
+    }
+  }
 
   return (
     <>
@@ -136,6 +145,7 @@ export default async function ResearchPage() {
         <FactorLibrary
           index={index}
           heroSlugs={new Set(heroes.factors.map((h) => h.name))}
+          intros={intros}
         />
       </section>
     </>
