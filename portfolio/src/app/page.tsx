@@ -64,39 +64,56 @@ export default async function Home() {
         </h1>
         <div className="mt-8 max-w-3xl space-y-4 text-[var(--text-secondary)] leading-relaxed">
           <p className="text-lg">
-            一个 A 股量化研究工作台。{index.total} 个 alpha 因子、四代策略迭代、
-            一套写在{" "}
-            <code className="font-mono text-sm text-[var(--text-primary)]">
-              CLAUDE.md
-            </code>{" "}
-            里的 admission gate —— 这是骨架。但真正的主线，是
-            <span className="text-[var(--text-primary)]"> 纪律</span>
-            ：什么样的策略配得上&ldquo;生产门面&rdquo;四个字。
+            我是 jialong，在做 A 股量化研究。
+            这个站点是我的工作台，不是作品集 ——
+            每天在上面记账、复盘、把决策和证据绑在一起，
+            顺便留给面试官做参考。
           </p>
           <p>
-            下面这张图是整个项目的答案。三条曲线都活在同一份数据上，
-            结局却完全不同。{face && (
+            我只在乎一件事：把&ldquo;为什么否决一个策略&rdquo;和
+            &ldquo;为什么选中一个策略&rdquo;摆在同一页。
+            admission gate 写死在{" "}
+            <code className="font-mono text-sm text-[var(--text-primary)]">
+              CLAUDE.md
+            </code>
+            ，数据跑完按 gate 盖章，不改门槛迁就成绩。
+          </p>
+          <p>
+            到 2026-04 为止 ——
+            {" "}<span className="text-[var(--text-primary)]">{index.total} 个因子</span>
+            扫过横截面、8 个进核心库；
+            多因子策略迭代到{" "}
+            {face && (
+              <span className="text-[var(--green)] font-semibold">{face.id}</span>
+            )}
+            （当前 face）；
+            {rejected && (
               <>
-                <span className="text-[var(--green)] font-semibold">
-                  {face.id}
-                </span>
-                {" "}走得最稳，是当前生产门面；
+                {" "}<span className="text-[var(--red)] font-semibold">{rejected.id}</span>
+                {" "}被自己的 walk-forward 否决；
+              </>
+            )}
+            {" "}31 个 event-driven trials 走完 5 闸门评审，
+            DSR #30 回购 drift 是目前唯一 4/5 候选。
+          </p>
+          <p className="text-sm text-[var(--text-tertiary)]">
+            下面三条 equity 曲线跑在同一份数据上，三个结果：
+            {face && (
+              <>
+                {" "}<span className="text-[var(--green)] font-semibold">{face.id}</span>
+                {" "}当前 face；
               </>
             )}
             {rejected && (
               <>
-                <span className="text-[var(--red)] font-semibold">
-                  {rejected.id}
-                </span>
-                {" "}被我们自己的 walk-forward 否决；
+                {" "}<span className="text-[var(--red)] font-semibold">{rejected.id}</span>
+                {" "}被 walk-forward 否决；
               </>
             )}
             {candidate && (
               <>
-                <span className="text-[var(--gold)] font-semibold">
-                  {candidate.id}
-                </span>
-                {" "}总收益最高，但不上 live。
+                {" "}<span className="text-[var(--gold)] font-semibold">{candidate.id}</span>
+                {" "}总收益最高，没上 live。
               </>
             )}
           </p>
