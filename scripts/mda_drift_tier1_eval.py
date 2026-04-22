@@ -102,6 +102,10 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--full", action="store_true", help="全 A 股 × 2018-2025 IC 评估")
     p.add_argument("--no-download", action="store_true", help="不下载 PDF, 只读现有缓存")
     p.add_argument("--out-path", default=str(DEFAULT_DRIFT_PATH), help="factor 宽表输出 parquet 路径")
+    p.add_argument(
+        "--delete-pdf-after-tokens", action="store_true",
+        help="抽完 tokens 立即删 PDF (磁盘节流, full 跑推荐开)"
+    )
     return p.parse_args()
 
 
@@ -109,28 +113,50 @@ def resolve_universe(mode: str) -> list[str]:
     """根据模式选股票子集.
 
     smoke: 5 家知名大盘蓝筹 (数据最 clean)
-    subset: 500 家随机抽样 (seed=42)
-    full: utils.listing_metadata 的非 ST A 股
+    subset: 500 家随机抽样 (seed=42), 从 2018-01-01 已上市且非 ST 的集合中抽
+    full: 2018-01-01 已上市且非 ST 的全 A 股
+
+    universe 原则:
+        - 上市 >= 2018-01-01 (评估区间起点前) → 确保有相邻年年报可比
+        - 非 ST / *ST (名字过滤, listing_metadata 无专门列)
+        - 非退市 (universe_alive_during 默认)
+        - 非北交所 (板 = "北交所" 的代码 8 开头, 年报结构与沪深不同, 暂不收)
     """
     if mode == "smoke":
         return ["000001", "600036", "600519", "000858", "601318"]  # 平安/招商/茅台/五粮/平安
 
-    from utils.listing_metadata import load_listing_metadata
-    meta = load_listing_metadata()
-    # 排除 ST 和创业板/科创板最新上市
-    live = meta.loc[~meta["is_st"]].copy()
-    symbols = live["symbol"].astype(str).tolist()
-    symbols = [s for s in symbols if len(s) == 6]
+    from utils.listing_metadata import load_listing_metadata, universe_alive_during
+    meta = load_listing_metadata().set_index("symbol")
+    # 在 2018 ~ 今 任一时刻存活的所有 A 股 (已处理上市/退市)
+    alive = universe_alive_during("2018-01-01", "2026-12-31", require_local_data=False)
+    # 进一步过滤: 非 ST / *ST / 非北交所 / 2018-01-01 前已上市
+    cutoff = pd.Timestamp("2018-01-01")
+    keep: list[str] = []
+    for s in alive:
+        if s not in meta.index:
+            continue
+        row = meta.loc[s]
+        name = str(row.get("name", ""))
+        if "ST" in name or "*ST" in name or "退" in name:
+            continue
+        if str(row.get("exchange", "")) == "BJ":
+            continue  # 北交所年报格式与沪深差异大, 本 pre-reg 不覆盖
+        ld = row.get("list_date")
+        if pd.isna(ld) or ld > cutoff:
+            continue  # 2018 后上市, 跨年样本不足
+        if len(s) != 6:
+            continue
+        keep.append(s)
 
     if mode == "subset":
         import numpy as np
         rng = np.random.default_rng(42)
-        k = min(500, len(symbols))
-        return sorted(rng.choice(symbols, size=k, replace=False).tolist())
-    return sorted(symbols)
+        k = min(500, len(keep))
+        return sorted(rng.choice(keep, size=k, replace=False).tolist())
+    return sorted(keep)
 
 
-def run(mode: str, download: bool, out_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+def run(mode: str, download: bool, out_path: Path, delete_pdf_after_tokens: bool) -> tuple[pd.DataFrame, pd.DataFrame]:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     start_year = 2022 if mode == "smoke" else LOCKED_EVAL_START_YEAR
     end_year = 2024 if mode == "smoke" else LOCKED_EVAL_END_YEAR
@@ -139,6 +165,7 @@ def run(mode: str, download: bool, out_path: Path) -> tuple[pd.DataFrame, pd.Dat
     print(f"[pre-reg] mode={mode} universe_n={len(symbols)} years={start_year}..{end_year}")
     print(f"[pre-reg] DriftConfig = {LOCKED_CONFIG.as_dict()}")
     print(f"[pre-reg] Kill: IC < {KILL_IC_LOWER} → stop; IC > {TIER2_IC_UPPER} → paper-trade")
+    print(f"[pre-reg] delete_pdf_after_tokens = {delete_pdf_after_tokens}")
 
     factor_wide, diag = compute_mda_drift_factor(
         symbols=symbols,
@@ -147,6 +174,7 @@ def run(mode: str, download: bool, out_path: Path) -> tuple[pd.DataFrame, pd.Dat
         config=LOCKED_CONFIG,
         download=download,
         show_progress=True,
+        delete_pdf_after_tokens=delete_pdf_after_tokens,
     )
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -167,7 +195,12 @@ def run(mode: str, download: bool, out_path: Path) -> tuple[pd.DataFrame, pd.Dat
 def main() -> int:
     args = parse_args()
     mode = "smoke" if args.smoke else ("subset" if args.subset else "full")
-    factor_wide, diag = run(mode=mode, download=not args.no_download, out_path=Path(args.out_path))
+    factor_wide, diag = run(
+        mode=mode,
+        download=not args.no_download,
+        out_path=Path(args.out_path),
+        delete_pdf_after_tokens=args.delete_pdf_after_tokens,
+    )
 
     # smoke 模式只验证 pipeline, 不做 IC. 非 smoke 模式的 IC 评估在后续 journal 脚本完成
     # (这里不做, 保持 pre-reg 的唯一职责 = 产出 factor 宽表 + diagnostics)
