@@ -1,0 +1,33 @@
+{
+  "spec_version": "v2",
+  "strategy_id": "dsr30_bbpv_mainboard_rescaled_ensemble",
+  "description": "DSR #30 主板 rescaled ensemble (BB + PV 50/50), 基于 2018-2025 回测 Sharpe 1.50 / ann 18.1%",
+  "enabled": false,
+  "phase": "pre_live",
+  "started_at": null,
+  "initial_capital_cny": 1000000,
+  "initial_capital_pct_of_total": 0.05,
+  "legs_enabled": {
+    "bb": true,
+    "pv": true
+  },
+  "ensemble_mix": {
+    "bb": 0.5,
+    "pv": 0.5
+  },
+  "unit_weights": {
+    "bb": 0.13234077750206782,
+    "pv": 0.030476190476190483,
+    "_note": "BB = 0.8 / bb_gross_ratio, PV = 0.8 / pv_gross_ratio — 见 pipeline/event_signal.py"
+  },
+  "hold_days": 20,
+  "post_offset": 1,
+  "cost_rate": 0.0015,
+  "universe": "main_board",
+  "notes": [
+    "phase=pre_live: 基础设施已就绪，等待 jialong 确认 go-live 日期",
+    "go-live 时: 设 enabled=true, phase='live_phase1', 填 started_at='YYYY-MM-DD'",
+    "phase1 跑 3 个月达 5/5 gate → 升到 phase2 (15% size)",
+    "spec v2 §5 kill switch 在 live/event_kill_switch.py 中硬编码常量"
+  ]
+}
