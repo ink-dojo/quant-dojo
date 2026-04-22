@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-22T01:03:07+00:00",
+  "generated_at": "2026-04-22T04:26:23+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "bb50e82af630f35b7dc535ce0a81bb83bd702f34",
-    "short": "bb50e82a",
-    "subject": "docs: TODO + ROADMAP 加入空间 C 三层 plan"
+    "sha": "c2298960e44dfcb58de14ec90eafb6b7d50a12db",
+    "short": "c2298960",
+    "subject": "docs: W17 journal — DSR #31 证伪 + paper-trade spec v3 切换"
   },
   "face": {
     "research": "v9",

@@ -1,0 +1,15 @@
+/node_modules
+/.next
+/.vercel
+/src
+/public
+/scripts
+/package.json
+/package-lock.json
+/next.config.mjs
+/tsconfig.json
+/postcss.config.mjs
+/tailwind.config.ts
+/next-env.d.ts
+/README.md
+.DS_Store
