@@ -3,20 +3,34 @@ MD&A drift factor — 端到端 pipeline.
 
 给定一组 symbols 和年份区间, 返回 drift_score 的年度宽表 (date × symbol).
 复用:
-    data_loader.list_annual_reports / batch_download_pdfs  (PDF 原文)
+    data_loader.list_annual_reports / download_annual_report  (PDF 原文)
     text_processor.pdf_to_text / extract_mda_section / tokenize_chinese  (→ tokens)
     similarity.compute_pairwise_drift  (→ 因子值)
 
 缓存策略:
     data/raw/annual_reports/{symbol}_{year}.pdf             — PDF 原文 (data_loader 管)
     data/processed/mda_tokens/{symbol}_{year}.parquet       — 分词 tokens (本模块管)
+    data/processed/mda_drift_manifest.parquet               — publish_date 映射 (增量)
     data/processed/mda_drift_scores.parquet                 — 最终宽表 (本模块管)
+
+流水线架构 (2026-04-22 重构为 per-symbol stream):
+    对每个 symbol:
+        1. list_annual_reports   → refs
+        2. for each ref:
+             download_annual_report → pdf
+             process_single_pdf_to_tokens → tokens parquet
+             if delete_pdf_after_tokens: unlink pdf
+        3. symbol 的 manifest 增量 flush
+    所有 symbol 处理完:
+        4. 装载 tokens 长面板, compute_pairwise_drift → 宽表
+
+    峰值磁盘占用 ≈ 单份 PDF (~5MB), 而非全量 (N × 5MB).
+    中断可恢复: tokens 和 manifest 都是增量写磁盘.
 
 factor 值 publish 日期:
     对每个 (symbol, fiscal_year), 因子在**年报发布日 (publish_date)** 起可用,
     统一以 fiscal_year+1 的年报发布日为 factor 值 as_of 日期, 保证无未来函数.
-    粗略估计: 发布日 ~ fiscal_year+1 的 4 月底前. Tier 1 的输出用 fiscal_year
-    索引, 在下游回测时再做 lag → 真实交易日 mapping.
+    manifest.parquet 持久化 publish_date, IC 评估脚本读取它做 lag.
 """
 from __future__ import annotations
 
@@ -29,7 +43,9 @@ from tqdm import tqdm
 from research.factors.mda_drift.data_loader import (
     AnnualReportRef,
     DEFAULT_CACHE_DIR as PDF_CACHE_DIR,
+    DEFAULT_RATE_LIMIT_S,
     batch_download_pdfs,
+    download_annual_report,
     list_annual_reports,
 )
 from research.factors.mda_drift.similarity import (
@@ -179,38 +195,96 @@ def compute_mda_drift_factor(
     if end_year < start_year + 1:
         raise ValueError(f"end_year 必须 >= start_year+1, got {start_year}..{end_year}")
 
-    config = config or DriftConfig()
-    all_refs: list[AnnualReportRef] = []
-    diagnostics_rows: list[dict] = []
+    import time
 
-    # Step 1: 列 PDF
-    iterator = tqdm(symbols, desc="listing annual reports") if show_progress else symbols
+    config = config or DriftConfig()
+    diagnostics_rows: list[dict] = []
+    token_rows: list[dict] = []
+    manifest_accum: list[dict] = []
+
+    pdf_cache_dir.mkdir(parents=True, exist_ok=True)
+    tokens_cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # per-symbol stream: 对每家公司 list → download → extract → (delete) 一气呵成
+    # 优点: 峰值磁盘 ~ 单份 PDF (5MB), 中断可恢复 (tokens/manifest 增量落盘)
+    iterator = tqdm(symbols, desc="symbols") if show_progress else symbols
     for sym in iterator:
         try:
             refs = list_annual_reports(sym, start_year, end_year)
-            all_refs.extend(refs)
         except Exception as e:
             logger.warning("list_annual_reports failed for %s: %r", sym, e)
             diagnostics_rows.append(
                 {"symbol": sym, "fiscal_year": -1, "status": "list_failed", "error": repr(e)}
             )
+            continue
 
-    # Step 1b: 保存 publish_date manifest 供后续 IC 评估 (symbol → 发布日映射)
-    # IC lag 关键, 没 manifest 就没法把年频因子映射到可交易日
-    if all_refs:
-        manifest_rows = [
-            {
-                "symbol": r.symbol,
-                "fiscal_year": r.fiscal_year,
-                "publish_date": r.publish_date,
-                "title": r.title,
-                "pdf_url": r.pdf_url,
-            }
-            for r in all_refs
-        ]
-        manifest_df = pd.DataFrame(manifest_rows)
+        for ref in refs:
+            manifest_accum.append({
+                "symbol": ref.symbol,
+                "fiscal_year": ref.fiscal_year,
+                "publish_date": ref.publish_date,
+                "title": ref.title,
+                "pdf_url": ref.pdf_url,
+            })
+            pdf_path = pdf_cache_dir / f"{ref.symbol}_{ref.fiscal_year}.pdf"
+
+            # tokens 已缓存 → 跳过 PDF 下载/抽取
+            tokens_path = _tokens_cache_path(tokens_cache_dir, ref.symbol, ref.fiscal_year)
+            if tokens_path.exists():
+                diag = process_single_pdf_to_tokens(
+                    symbol=ref.symbol,
+                    fiscal_year=ref.fiscal_year,
+                    pdf_path=pdf_path,
+                    tokens_cache_dir=tokens_cache_dir,
+                )
+                token_rows.append(diag)
+                diagnostics_rows.append(diag)
+                continue
+
+            # 需要 PDF: 下载 (或校验已缓存)
+            if download and not pdf_path.exists():
+                try:
+                    download_annual_report(ref, cache_dir=pdf_cache_dir)
+                    time.sleep(DEFAULT_RATE_LIMIT_S)  # cninfo rate-limit
+                except Exception as e:
+                    logger.warning("download failed %s_%s: %r", ref.symbol, ref.fiscal_year, e)
+                    diagnostics_rows.append({
+                        "symbol": ref.symbol, "fiscal_year": ref.fiscal_year,
+                        "status": "download_failed", "error": repr(e),
+                    })
+                    continue
+
+            if not pdf_path.exists():
+                diagnostics_rows.append({
+                    "symbol": ref.symbol, "fiscal_year": ref.fiscal_year,
+                    "status": "missing", "pdf_path": str(pdf_path),
+                })
+                continue
+
+            diag = process_single_pdf_to_tokens(
+                symbol=ref.symbol,
+                fiscal_year=ref.fiscal_year,
+                pdf_path=pdf_path,
+                tokens_cache_dir=tokens_cache_dir,
+            )
+            token_rows.append(diag)
+            diagnostics_rows.append(diag)
+
+            if (
+                delete_pdf_after_tokens
+                and diag["status"] in ("ok", "cached")
+                and diag["token_count"] > 0
+                and pdf_path.exists()
+            ):
+                try:
+                    pdf_path.unlink()
+                except OSError as e:
+                    logger.warning("删 PDF 失败 %s: %r", pdf_path, e)
+
+    # manifest 增量 flush (所有 symbol 跑完后一次写, 简单可靠)
+    if manifest_accum:
+        manifest_df = pd.DataFrame(manifest_accum)
         DEFAULT_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
-        # 增量合并: 已有 manifest 保留历史条目 (累积 pan-universe)
         if DEFAULT_MANIFEST_PATH.exists():
             try:
                 old = pd.read_parquet(DEFAULT_MANIFEST_PATH)
@@ -223,56 +297,7 @@ def compute_mda_drift_factor(
         manifest_df.to_parquet(DEFAULT_MANIFEST_PATH)
         logger.info("manifest 已更新: %s (%d 条)", DEFAULT_MANIFEST_PATH, len(manifest_df))
 
-    # Step 2: 下载 PDF (可选)
-    if download and all_refs:
-        manifest = batch_download_pdfs(all_refs, cache_dir=pdf_cache_dir, show_progress=show_progress)
-    else:
-        # 只读现有缓存
-        manifest = pd.DataFrame([
-            {
-                "symbol": r.symbol,
-                "fiscal_year": r.fiscal_year,
-                "publish_date": r.publish_date,
-                "pdf_url": r.pdf_url,
-                "file_path": str(pdf_cache_dir / f"{r.symbol}_{r.fiscal_year}.pdf"),
-                "status": "cached" if (pdf_cache_dir / f"{r.symbol}_{r.fiscal_year}.pdf").exists() else "missing",
-                "retry_count": 0,
-            }
-            for r in all_refs
-        ])
-
-    # Step 3: PDF → tokens
-    ok_mask = manifest["status"].isin(["ok", "cached"])
-    pending = manifest.loc[ok_mask]
-    iterator2 = (
-        tqdm(pending.to_dict("records"), desc="extracting MD&A tokens")
-        if show_progress else pending.to_dict("records")
-    )
-    token_rows: list[dict] = []
-    for rec in iterator2:
-        pdf_path = Path(rec["file_path"])
-        diag = process_single_pdf_to_tokens(
-            symbol=rec["symbol"],
-            fiscal_year=int(rec["fiscal_year"]),
-            pdf_path=pdf_path,
-            tokens_cache_dir=tokens_cache_dir,
-        )
-        token_rows.append(diag)
-        diagnostics_rows.append(diag)
-        # 磁盘节流: 成功抽出 tokens 后删除 PDF, 保留 tokens parquet
-        # 注意: "cached" 说明之前就抽过, tokens 已在磁盘; 仍可删 PDF
-        if (
-            delete_pdf_after_tokens
-            and diag["status"] in ("ok", "cached")
-            and diag["token_count"] > 0
-            and pdf_path.exists()
-        ):
-            try:
-                pdf_path.unlink()
-            except OSError as e:
-                logger.warning("删 PDF 失败 %s: %r", pdf_path, e)
-
-    # Step 4: 装载 tokens + 算 drift
+    # 最终: 装载 tokens + 算 drift
     panel_rows: list[dict] = []
     for diag in token_rows:
         if diag["status"] in ("ok", "cached") and diag["token_count"] > 0:
