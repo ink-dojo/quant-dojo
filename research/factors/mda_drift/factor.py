@@ -44,6 +44,7 @@ from research.factors.mda_drift.text_processor import (
 
 DEFAULT_TOKENS_DIR = Path("data/processed/mda_tokens")
 DEFAULT_DRIFT_PATH = Path("data/processed/mda_drift_scores.parquet")
+DEFAULT_MANIFEST_PATH = Path("data/processed/mda_drift_manifest.parquet")
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +194,34 @@ def compute_mda_drift_factor(
             diagnostics_rows.append(
                 {"symbol": sym, "fiscal_year": -1, "status": "list_failed", "error": repr(e)}
             )
+
+    # Step 1b: 保存 publish_date manifest 供后续 IC 评估 (symbol → 发布日映射)
+    # IC lag 关键, 没 manifest 就没法把年频因子映射到可交易日
+    if all_refs:
+        manifest_rows = [
+            {
+                "symbol": r.symbol,
+                "fiscal_year": r.fiscal_year,
+                "publish_date": r.publish_date,
+                "title": r.title,
+                "pdf_url": r.pdf_url,
+            }
+            for r in all_refs
+        ]
+        manifest_df = pd.DataFrame(manifest_rows)
+        DEFAULT_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+        # 增量合并: 已有 manifest 保留历史条目 (累积 pan-universe)
+        if DEFAULT_MANIFEST_PATH.exists():
+            try:
+                old = pd.read_parquet(DEFAULT_MANIFEST_PATH)
+                manifest_df = pd.concat([old, manifest_df], ignore_index=True)
+                manifest_df = manifest_df.drop_duplicates(
+                    subset=["symbol", "fiscal_year"], keep="last"
+                )
+            except Exception as e:
+                logger.warning("merge old manifest failed, overwrite: %r", e)
+        manifest_df.to_parquet(DEFAULT_MANIFEST_PATH)
+        logger.info("manifest 已更新: %s (%d 条)", DEFAULT_MANIFEST_PATH, len(manifest_df))
 
     # Step 2: 下载 PDF (可选)
     if download and all_refs:
