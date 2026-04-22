@@ -127,22 +127,20 @@ Issue 主线: #25
 - [x] Pre-reg runner `scripts/mda_drift_tier1_eval.py` (锁定参数)
 - [x] 端到端验证 (000001 × 2022/2023, drift ≈ 0.87)
 
-### Tier 1b — 全 A 股评估 (下一 Issue, 1-2 周)
-- [ ] 全 A 股 ~5000 × 8 年 PDF 下载 (`--full`, 预计 1-2 天)
-- [ ] MD&A 段抽取覆盖率审计 (要求 > 90% 才算 pipeline 健康)
-- [ ] Spearman rank IC 月频评估 (锁定参数, 2018-2025)
-- [ ] 分 pre-2023 / post-2023 看 IC 衰减 (> 50% 标注 regime shift)
-- [ ] Top 20 drift 公司行业集中度 HHI 审计
-- [ ] 结果回流到 `journal/mda_drift_tier1_result_YYYYMMDD.md` + Kill 决策
+### Tier 1b — subset 500 × 2018-2025 评估 (Issue #28, 2026-04-22 完成)
+- [x] subset 500 × 8 年 PDF 下载 (ProcessPool w=4, 3h37m 跑完, 3612 ok + 127 cached)
+- [x] MD&A 段抽取覆盖率 99.8% (> 90% 门槛)
+- [x] Spearman rank IC 月频评估 (n_months=12, IC=0.0036)
+- [x] pre-2023 IC -0.0004 vs post-2023 0.0075 (方向翻转, 注册制后微正)
+- [x] 🔴 **KILL**: IC 0.0036 << 0.015 门槛. 详见 `journal/mda_drift_tier1_result_20260422.md`
 
 ### Tier 2 — LLM hedging 增量 (条件: Tier 1 IC ∈ [0.015, 0.025])
-- [ ] LLM 评分 MD&A "hedging 语言密度"
-- [ ] 相对 TF-IDF drift 的增量 IC / ICIR
-- [ ] 成本预算 $300, 样本 1000 家 × 2 年
+- 🔴 **SKIPPED**: Tier 1 已 KILL, 条件不满足 (IC 0.0036 < 0.015).
 
-### Tier 3 — 跨文档 conditional reasoning (条件: Tier 1/2 任何一层 work)
-- [ ] 定义: 政策文件 + 行业动向 + 管理层表态 的三元组 reasoning
-- [ ] 仅做 forward 样本外 IC, 不回测 (避免 LLM cutoff 泄漏)
+### Tier 3 — 跨文档 conditional reasoning (pre-reg: Tier 1/2 任何一层 work 才进)
+- 原 pre-reg 条件未满足; 但 KILL 判读允许 "空间 C 转 Tier 3" 作为唯一后续路径.
+- [ ] 重新设计 pre-reg: 政策文件 + 行业动向 + 管理层表态 三元组 reasoning
+- [ ] 先做样本外 forward IC (避免 LLM cutoff 泄漏), 不回测
 - [ ] 成本预算 $1500
 
 ---

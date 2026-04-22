@@ -244,10 +244,12 @@ def main() -> int:
 
     factor_wide = pd.read_parquet(args.drift_path)
     manifest = pd.read_parquet(args.manifest_path)
+    # publish_date 在 manifest 里是 str (YYYY-MM-DD), 统一转 Timestamp
+    manifest["publish_date"] = pd.to_datetime(manifest["publish_date"])
     print(f"[load] factor_wide shape={factor_wide.shape}  manifest rows={len(manifest)}")
 
     symbols = list(factor_wide.columns)
-    start = str(manifest["publish_date"].min().date() - pd.Timedelta(days=5))[:10]
+    start = str((manifest["publish_date"].min() - pd.Timedelta(days=5)).date())
     # 要覆盖 publish_date + 20 交易日, 取到 2026 年底
     end = "2026-12-31"
     prices = load_adj_price_wide(symbols=symbols, start=start, end=end)
