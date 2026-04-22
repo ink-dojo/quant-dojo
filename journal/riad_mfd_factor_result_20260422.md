@@ -199,6 +199,49 @@ IS 和 OOS 的策略最佳解截然不同:
 - Option A 前需 jialong 批准
 - 样本外评估必须包含 2026 年 (未来数据), 不能只看 2025
 
+## 附录 B — 新增第 3 因子 BGFD + 三因子 orthogonality
+
+### B.1 BGFD (Broker Gold-stock Fade Divergence)
+
+原假设 (crowded → fade) **被证伪**, 反向发现:
+- Long 整个金股榜 2024 Sharpe 0.78, **OOS 2025 Sharpe 2.23**
+- Short crowded 是灾难, 2025 年 Ann -44%
+- 2020-2023 各策略 Sharpe ≈ 0, 是近 2 年的 regime change
+
+交叉验证 RIAD: 两者都指向 "2024-2025 Follow smart money > Fade retail crowding"
+详见 `research/factors/broker_gold_fade/README.md`.
+
+### B.2 三因子正交性 (2023-10 ~ 2025-12, 月末截面)
+
+统一方向 (都当做多信号) 后的 Spearman correlation:
+
+| Pair | 点对相关 | 日均 CS 中位数 | 结论 |
+|---|---:|---:|---|
+| RIAD-MFD | +0.177 | +0.163 | ✅ 正交, 弱正相关 |
+| RIAD-BGFD | -0.083 | -0.097 | ✅ 正交, 弱负相关 |
+| MFD-BGFD | +0.022 | +0.046 | ✅ 正交, 几乎独立 |
+
+**所有 pairwise |corr| < 0.2**, 远低于 DSR #30 stacking 门槛 0.3.
+支持 3-因子等权 ensemble 或 IC-weighted ensemble.
+
+### B.3 建议 Phase 4 ensemble 方案 (待 jialong 批准)
+
+```
+composite_s,t = 0.6 * RIAD_signal + 0.2 * MFD_signal + 0.2 * BGFD_signal
+  RIAD_signal  = -zscore_cs(RIAD_raw)  (做多低 RIAD)
+  MFD_signal   = -zscore_cs(MFD_raw)   (做多低 MFD)
+  BGFD_signal  = +zscore_cs(BGFD_raw)  (做多 consensus, 反向的原假设证伪)
+```
+
+权重基于 IS Sharpe 粗调 (RIAD 最强 1.66, MFD/BGFD 贡献分散度).
+预期 Sharpe (假设正交) ~ sqrt(0.6^2 * 1.66^2 + 0.2^2 * 0.3^2 + 0.2^2 * 0.3^2)
+                   ~ 1.00, MDD < 10%, ann 10-12%.
+
+**下一步 (若 jialong 批)**:
+1. 实现 composite factor 作为一个新 strategy
+2. Cost-aware backtest (双边 0.3%, 月频调仓)
+3. 过 Phase 4 评审门槛 (ann > 15%, Sharpe > 0.8, MDD < 30%) 就进 walk-forward
+
 ## 数据与代码路径
 
 ```

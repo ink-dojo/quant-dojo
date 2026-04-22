@@ -145,3 +145,38 @@ Issue 主线: #25
 - [ ] 仅做 forward 样本外 IC, 不回测 (避免 LLM cutoff 泄漏)
 - [ ] 成本预算 $1500
 
+---
+
+## 差异化因子轨道 (2026-04-22 开题, Issue #33)
+
+> 背景: Phase 3+4 终结后用户要求挖掘 2025 年差异化 cross-sectional alpha.
+> 策略: 选 A 股独有数据源 (tushare 新下载), 每个因子必须 size + industry 中性化,
+>       cost-aware backtest, orthogonality 过 DSR stacking 门槛 (|corr| < 0.3).
+
+### ✅ 已完成 (2026-04-22 首轮)
+
+- [x] **RIAD** (散户-机构关注度背离)
+      FULL IC=-0.070, size+ind IC=-0.056, OOS 2025 IC=-0.043
+      Q2Q3_minus_Q5 FULL Sharpe 1.66, MDD -4.79%
+      发现分层倒 U 形 + 震荡/牛 regime shift
+- [x] **MFD** (资金流 elg-sm 背离) — 反转因子 IC=-0.020, 单独不过门槛
+- [x] **BGFD** (券商金股共识度) — 原 fade 假设证伪, Long consensus OOS 2025 Sharpe 2.23
+- [x] 三因子 orthogonality: RIAD-MFD 0.18 / RIAD-BGFD -0.08 / MFD-BGFD 0.02 → 全部正交
+- [x] 详细报告: `journal/riad_mfd_factor_result_20260422.md`
+
+### ⏳ 待决策 (jialong)
+
+- [ ] Option A — 推进 RIAD 单独到 paper-trade
+      - 剩余: walk-forward (滚动 6mo refit), 融券 universe filter, regime-aware gate
+- [ ] Option B — 实现 3-因子 composite (等权或 IC-weighted ensemble)
+      - 预期 Sharpe ~1.0, MDD < 10%, ann 10-12%
+- [ ] Option C — 继续挖 #4~#6 因子 (LULR 连板反转 / THCC 筹码集中度 / Survey Burst)
+      扩展 orthogonality 组合到 5+ 因子
+- [ ] FMD (Foreign-Margin Divergence) — northbound 2025 仅 5 行, 等 tushare 补齐
+
+### 红线
+
+- 不基于 2024 IS / 2025 OOS 结果回头调 RIAD/MFD/BGFD 参数
+- 任何 Option A-C 进 paper-trade 前必须过 DSR n_trials (当前 31, +3 → 34) bootstrap CI_low ≥ 0.5
+- 只报真实数字, 不 round up; 合成 Sharpe 预估基于单因子相加, 不在假设正交前 over-claim
+
