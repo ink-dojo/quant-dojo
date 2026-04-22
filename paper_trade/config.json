@@ -1,10 +1,10 @@
 {
   "spec_version": "v3",
   "strategy_id": "dsr30_bb_mainboard_rescaled_bbonly",
-  "description": "DSR #30 BB-only 主板 rescaled (spec v3, 2026-04-22). 回测 2018-2025: ann 23.9%, Sharpe 1.47, MDD -26.2%, 4/5 single-sample + 3/4 生产级. PV/insider 腿已证伪, 不启用.",
-  "enabled": false,
-  "phase": "pre_live",
-  "started_at": null,
+  "description": "DSR #30 BB-only 主板 rescaled (spec v3, 2026-04-22). 回测 2018-2025: ann 15.99%, Sharpe 0.84, MDD -29.68%, 4/5 single-sample + 3/4 生产级. PV/insider 腿已证伪, 不启用.",
+  "enabled": true,
+  "phase": "live_phase1",
+  "started_at": "2026-04-17",
   "initial_capital_cny": 1000000,
   "initial_capital_pct_of_total": 0.05,
   "legs_enabled": {

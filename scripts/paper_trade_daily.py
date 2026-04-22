@@ -100,10 +100,15 @@ def _write_daily_report(path: Path, as_of: pd.Timestamp,
     active = trader.active_positions_df()
     open_entries = trader.open_entries
 
+    # Header reflects current config (v3 BB-only or v2 ensemble)
+    cfg = _load_config()
+    legs_on = [k for k, v in cfg.get("legs_enabled", {}).items() if v]
+    legs_label = " + ".join(legs_on).upper() or "NONE"
+    spec_ver = cfg.get("spec_version", "?")
     lines = [
         f"# Paper-Trade Daily Report — {today}",
         "",
-        f"_DSR #30 主板 rescaled (BB+PV 50/50), spec v2_",
+        f"_{cfg.get('strategy_id', 'paper-trade')} — legs={legs_label}, spec {spec_ver}_",
         "",
         "## 当日 PnL",
         "",
@@ -162,8 +167,8 @@ def _write_daily_report(path: Path, as_of: pd.Timestamp,
 
 
 def _push_alert(kill: KillReport, alert_file: Path) -> None:
-    """Spec v2 §9: alert push stub. Writes to alerts.log; real impl would
-    push to Slack/email. Print to stderr so daemon picks it up."""
+    """Spec v3 §9: alert push. stderr 行 + alerts.log 持久化 + macOS 本地通知
+    (osascript display notification). Slack/邮件若未来配置可在这里接入."""
     if kill.action == KillAction.OK:
         return
     line = (f"[{kill.as_of}] {kill.action.value.upper()} — "
@@ -172,6 +177,110 @@ def _push_alert(kill: KillReport, alert_file: Path) -> None:
     alert_file.parent.mkdir(parents=True, exist_ok=True)
     with open(alert_file, "a", encoding="utf-8") as f:
         f.write(line + "\n")
+    # macOS 本地通知 (darwin); 其他 OS 跳过
+    try:
+        import platform, shlex, subprocess
+        if platform.system() == "Darwin":
+            title = f"Paper-trade {kill.action.value.upper()}"
+            body = "; ".join(kill.reasons)[:120] or str(kill.as_of)
+            script = (f'display notification {shlex.quote(body)} '
+                      f'with title {shlex.quote(title)}')
+            subprocess.run(["osascript", "-e", script], check=False,
+                            capture_output=True, timeout=5)
+    except Exception as e:
+        logger.warning("macOS notification failed: %s", e)
+
+
+def _write_portfolio_state(state_path: Path, trader: EventPaperTrader,
+                            summary: dict, kill: KillReport,
+                            cfg: dict, as_of: pd.Timestamp) -> None:
+    """Write portfolio/public/data/paper_trade/state.json — 供可视化页面消费.
+
+    包含: 最近 90 日 NAV 曲线 + 全量 NAV / 活仓 / 当日 trades / kill 状态 /
+    phase / started_at / last run 时间. 设计为 self-contained, 页面无需再算任何指标.
+    """
+    nav = trader.nav_series()
+    nav_records = [{"date": idx.strftime("%Y-%m-%d"), "nav": float(v)}
+                   for idx, v in nav.items()]
+
+    active = trader.active_positions_df()
+    positions = []
+    if not active.empty:
+        for _, r in active.iterrows():
+            positions.append({
+                "symbol": str(r["symbol"]),
+                "shares": int(r["shares"]) if r["shares"] == r["shares"] else 0,
+                "cost_price": float(r["cost_price"]),
+                "current_price": float(r["current_price"]),
+                "pnl_pct": float(r["pnl_pct"]),
+            })
+
+    today_str = as_of.strftime("%Y-%m-%d")
+    today_trades = [t for t in trader.trades if t["date"] == today_str]
+
+    # NAV derived metrics — 让页面直接显示, 不重算
+    init_cap = trader.initial_capital
+    last_nav = float(nav.iloc[-1]) if len(nav) else init_cap
+    cum_ret = last_nav / init_cap - 1 if init_cap > 0 else 0.0
+    pnl_today = 0.0
+    if len(nav) >= 2:
+        pnl_today = float(nav.iloc[-1] - nav.iloc[-2])
+
+    open_entries = [e.to_dict() for e in trader.open_entries]
+
+    state = {
+        "spec_version": cfg.get("spec_version", "v3"),
+        "strategy_id": cfg.get("strategy_id"),
+        "phase": cfg.get("phase"),
+        "started_at": cfg.get("started_at"),
+        "enabled": cfg.get("enabled", False),
+        "initial_capital": init_cap,
+        "initial_capital_pct_of_total": cfg.get("initial_capital_pct_of_total"),
+        "legs_enabled": cfg.get("legs_enabled"),
+        "ensemble_mix": cfg.get("ensemble_mix"),
+        "last_run_ts": pd.Timestamp.now(tz="Asia/Shanghai").isoformat(),
+        "last_trading_day": today_str,
+        "nav_series": nav_records,
+        "last_nav": last_nav,
+        "cum_return": cum_ret,
+        "pnl_today": pnl_today,
+        "daily_summary": {
+            "n_buys": int(summary.get("n_buys", 0)),
+            "n_sells": int(summary.get("n_sells", 0)),
+            "turnover": float(summary.get("turnover", 0.0)),
+            "gross_weight": float(summary.get("gross_weight", 0.0)),
+            "cash_after": float(summary.get("cash_after", 0.0)),
+            "nav_after": float(summary.get("nav_after", last_nav)),
+            "skipped_buys": summary.get("skipped_buys", []),
+            "dropped_no_price": summary.get("dropped_no_price", []),
+            "duplicate_skipped": summary.get("duplicate_skipped", []),
+        },
+        "today_trades": [
+            {"symbol": str(t["symbol"]),
+             "action": str(t["action"]),
+             "shares": int(t["shares"]),
+             "price": float(t["price"]),
+             "cost": float(t["cost"])}
+            for t in today_trades
+        ],
+        "positions": positions,
+        "open_entries_count": len(open_entries),
+        "open_entries": open_entries,
+        "kill": {
+            "action": kill.action.value,
+            "position_scale": kill.position_scale(),
+            "rolling_sr_30d": kill.rolling_sr_30d,
+            "live_sharpe": kill.live_sharpe,
+            "cum_drawdown": kill.cum_drawdown,
+            "monthly_mdd": kill.monthly_mdd,
+            "running_days": kill.running_days,
+            "reasons": list(kill.reasons),
+            "warnings": list(kill.warnings),
+        },
+    }
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(json.dumps(state, indent=2, ensure_ascii=False,
+                                      default=float), encoding="utf-8")
 
 
 def run_daily(as_of: pd.Timestamp | None = None,
@@ -207,7 +316,16 @@ def run_daily(as_of: pd.Timestamp | None = None,
                                     start="2018-01-01",
                                     end=today_str)
     if as_of not in prices_df.index:
-        raise ValueError(f"{today_str} is not a trading day in price data")
+        # 非交易日 (周末 / 中国节日 / 数据尚未就绪) — 优雅退出, 不污染 cron 日志
+        logger.info("%s 不是交易日 (可能周末/节日/数据未就绪), skip", today_str)
+        return {
+            "date": today_str,
+            "skipped": True,
+            "reason": "not_a_trading_day",
+            "kill_action": "ok",
+            "kill_reasons": [],
+            "n_signal_entries": 0,
+        }
     trading_days = prices_df.index
 
     # Load config (spec v3: BB-only via legs_enabled.pv=false)
@@ -258,11 +376,13 @@ def run_daily(as_of: pd.Timestamp | None = None,
     orders_path = PAPER_TRADE_DIR / f"orders_{date_compact}.csv"
     report_path = PAPER_TRADE_DIR / f"daily_report_{date_compact}.md"
     alerts_path = PAPER_TRADE_DIR / "alerts.log"
+    state_path = PROJECT_ROOT / "portfolio" / "public" / "data" / "paper_trade" / "state.json"
 
     if not dry_run:
         _write_orders_csv(orders_path, trader, as_of, summary)
         _write_daily_report(report_path, as_of, summary, kill, trader)
         _push_alert(kill, alerts_path)
+        _write_portfolio_state(state_path, trader, summary, kill, cfg, as_of)
 
     trader.close()
     if dryrun_ctx is not None:
@@ -294,6 +414,8 @@ def main():
     print("\n=== Paper-trade daily result ===")
     print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
 
+    if out.get("skipped"):
+        return 0  # 非交易日, 正常无事
     # 任何非 OK 都应让 cron 报警; HALVE / DO_NOT_UPGRADE / WARN 也要上浮
     return 0 if out["kill_action"] == "ok" else 1
 
