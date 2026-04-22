@@ -325,7 +325,7 @@ def download_daily_basic(pro, symbols, workers=3):
         futs = {pool.submit(_fetch, sym): sym for sym in symbols}
         for fut in as_completed(futs):
             done += 1
-            _progress(done, len(symbols), list(futs.keys())[list(futs.values()).index(list(futs.values())[0])] if done == 1 else "")
+            _progress(done, len(symbols), futs[fut])
     print()
     log.info("每日行情指标 完成")
 
