@@ -162,14 +162,23 @@ Issue 主线: #25
 - [x] 三因子 orthogonality: RIAD-MFD 0.18 / RIAD-BGFD -0.08 / MFD-BGFD 0.02 → 全部正交
 - [x] 详细报告: `journal/riad_mfd_factor_result_20260422.md`
 
-### ⏳ 待决策 (jialong)
+### ✅ Option C 已完成 (2026-04-22 扩展)
 
-- [ ] Option A — 推进 RIAD 单独到 paper-trade
-      - 剩余: walk-forward (滚动 6mo refit), 融券 universe filter, regime-aware gate
-- [ ] Option B — 实现 3-因子 composite (等权或 IC-weighted ensemble)
-      - 预期 Sharpe ~1.0, MDD < 10%, ann 10-12%
-- [ ] Option C — 继续挖 #4~#6 因子 (LULR 连板反转 / THCC 筹码集中度 / Survey Burst)
-      扩展 orthogonality 组合到 5+ 因子
+- [x] **LULR** (Limit-Up Ladder Reversal) — FULL Sharpe -1.57, 2024+ regime 有效, 但成本 drag 过高
+- [x] **THCC** (Top-Holder Concentration Change) — **反向有效**: 机构加仓反而 bearish
+      OOS 2025 thcc_inst Sharpe -1.71 (反向 +1.71), 启示 smart money follow 仅对实时信号有效
+- [x] **SB** (Survey Burst) — null effect (OOS IC +0.001), 说明 spike ≠ level
+- [x] 6-因子 orthogonality: 全部 |corr| < 0.3, BGFD/THCC 最独立 (|corr| < 0.1)
+- [x] 详细报告 journal 附录 C: `journal/riad_mfd_factor_result_20260422.md`
+
+### ⏳ 待决策 (jialong, 2026-04-22 最终)
+
+**唯一过 IC 门槛 (> 0.03) 的是 RIAD**. 结论:
+
+- [ ] **Option A 仍是最优** — RIAD 单独 + walk-forward + 融券 filter + DSR n_trials 34
+- [ ] Option B/C — 合成不增益 (弱因子稀释强因子, IC-weighted ≈ RIAD 单独)
+- [ ] BGFD / LULR 作为 universe filter (入榜 ∩ RIAD 打分 / 避雷池)
+- [ ] THCC 反向 (做空机构加仓, 做多机构撤离) 作为补充因子候选 (下轮 pre-reg)
 - [ ] FMD (Foreign-Margin Divergence) — northbound 2025 仅 5 行, 等 tushare 补齐
 
 ### 红线

@@ -270,6 +270,103 @@ composite_s,t = 0.6 * RIAD_signal + 0.2 * MFD_signal + 0.2 * BGFD_signal
 2. Cost-aware backtest (双边 0.3%, 月频调仓)
 3. 过 Phase 4 评审门槛 (ann > 15%, Sharpe > 0.8, MDD < 30%) 就进 walk-forward
 
+## 附录 C — Option C 补充 #4-#6 因子 (2026-04-22 凌晨)
+
+基于 jialong 选择 Option C 继续扩展到 6-factor 组合.
+
+### C.1 LULR (Limit-Up Ladder Reversal)
+
+基于 tushare.limit_list 的连板高度 + 炸板次数 + 封板类型.
+
+5 日事件驱动 LS (1449 events, 双边 0.3%):
+
+| Segment | ls_net Sharpe | short_only Sharpe | long_only Sharpe |
+|---|---:|---:|---:|
+| FULL 2019-2025 | -1.57 | -0.58 | -1.18 |
+| **IS 2019-2023** | **-2.56** | -1.49 | -1.38 |
+| **IS 2024** | **+0.87** | **+1.60** | -1.38 |
+| **OOS 2025** | +0.63 | +0.58 | -0.08 |
+
+Regime shift: 2019-2023 连板反转不成立 (甚至反向), 2024+ 开始有效.
+但 FULL 负 Sharpe + 成本 drag 高 (0.6% per event), **不可直接实盘**.
+价值: 作为 regime indicator.
+
+### C.2 THCC (Top-Holder Concentration Change)
+
+基于 top10_floatholders 季度环比. 两变体:
+
+| 变体 | FULL Sharpe | IS 2018-2024 | OOS 2025 |
+|---|---:|---:|---:|
+| thcc_all (前 10 大合计) | -0.37 | -0.35 | -0.76 |
+| thcc_inst (机构口径) | -0.75 | -0.54 | **-1.71** |
+
+**反直觉**: 机构加仓多的股票季报公告后反而跑输 (OOS 2025 Sharpe -1.71).
+
+可能真因:
+1. Window dressing — 季末装饰持仓, 次季度回撤
+2. end_date 到 ann_date 1-1.5 月已消化信息, 公告日追买=追高
+3. 逆向: 做空机构加仓, 做多机构撤离, OOS 反向 Sharpe +1.71
+
+关键区分: **'smart money follow' 假设仅对实时/前瞻信号有效**:
+- RIAD 机构调研 (实时) ✅
+- BGFD 月度券商推荐 (实时) ✅
+- THCC 季报披露 (滞后 1.5 月) ❌ 不适用
+
+### C.3 SB (Survey Burst)
+
+与 RIAD 的 inst_attn leg 区别: SB 用**时序 spike** (7d / 91d median), 非绝对水平.
+
+| Segment | IC | HAC t |
+|---|---:|---:|
+| FULL 2024-2025 | -0.007 | -0.94 |
+| IS 2024 | -0.009 | -0.83 |
+| OOS 2025 | +0.001 | +0.13 |
+
+**Null effect** — 短期调研激增对 20d fwd 收益无预测力.
+深度洞察: '机构绝对关注水平' (RIAD inst leg) 有 alpha, '短期关注激增' 无 alpha.
+说明市场对 'event-driven 调研爆发' 已快速 price in, 但对'持续关注'迟钝.
+
+### C.4 6-Factor Orthogonality Matrix (2024-01 ~ 2025-12, 月末)
+
+```
+         RIAD   MFD   BGFD  LULR  THCC    SB
+RIAD    1.000  0.185 -0.085  0.095 -0.003  0.200
+MFD     0.185  1.000  0.022  0.270 -0.022 -0.002
+BGFD   -0.085  0.022  1.000 -0.054 -0.041 -0.004
+LULR    0.095  0.270 -0.054  1.000 -0.037 -0.084
+THCC   -0.003 -0.022 -0.041 -0.037  1.000  0.015
+SB      0.200 -0.002 -0.004 -0.084  0.015  1.000
+```
+
+**全部 |corr| < 0.3 = DSR #30 stacking 门槛**.
+最独立: BGFD/THCC (对整谱 |corr| < 0.1).
+
+### C.5 6-因子合成的可行性判断
+
+正交 ≠ 有 alpha. IC 汇总:
+
+| 因子 | |IC| | HAC t | 门槛 (>0.03) |
+|---|---:|---:|---|
+| RIAD | 0.070 | -5.16 | ✅ |
+| MFD | 0.020 | -4.28 | ❌ |
+| THCC (反向) | 0.008 | +0.76 | ❌ |
+| BGFD | 0.020 | n/a | ❌ |
+| LULR | n/a (event-driven) | n/a | ❌ |
+| SB | 0.007 | -0.94 | ❌ |
+
+IC-weighted ensemble RIAD 权重 ≈ 0.7, 合成 ≈ RIAD 单独 (已在主文证明).
+**现实结论**: Option A (RIAD 单独 paper-trade) 仍优于 Option B/C 合成.
+
+## 最终建议给 jialong (2026-04-22 凌晨)
+
+1. **Option A** 仍是最优路径 — RIAD 单独 + walk-forward + 融券 filter
+2. 6 因子里只有 RIAD 过门槛, 其余 5 个有研究价值 (regime indicator / 反向发现) 但单独不可交易
+3. BGFD / LULR 可作为 **Universe filter**:
+   - BGFD 入榜 ∩ RIAD 打分 → "机构观点可验证" universe
+   - LULR 未入榜 → 排除情绪末端股 (避雷池)
+4. THCC 反向是一个**未来研究方向** — look-ahead 问题证明 'follow smart money' 只对实时信号有效
+5. SB null effect 进一步巩固 RIAD 的独特性 (level > spike)
+
 ## 数据与代码路径
 
 ```
