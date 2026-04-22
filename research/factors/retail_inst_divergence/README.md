@@ -63,8 +63,18 @@ python -m research.factors.retail_inst_divergence.neutralize_eval
 
 ## 下一步 (等 jialong 决)
 
-- [ ] 行业中性化 (除 size 外, 控制风格)
-- [ ] Long-only Q1 回测带双边 0.3% 成本
-- [ ] Walk-forward 滚动 6 mo / refit 12 mo
-- [ ] DSR (Deflated Sharpe) 纳入 n_trials = 32, 看 CI_low 是否过 0.5
-- [ ] paper-trade pre-reg spec (参考 DSR #30 BB-only)
+- [x] 行业中性化 (除 size 外, 控制风格) — 见 `industry_eval.py` FULL IC=-0.056
+- [x] Long-only Q1 回测带双边 0.3% 成本 — 见 `cost_aware_ls.py`
+- [x] Walk-forward 3-fold blocked CV — 见 `walk_forward.py`, mean OOS Sharpe 0.78
+- [x] DSR (Deflated Sharpe) 纳入 n_trials = 44 — 见 `dsr_ci.py`
+- [x] 融券 universe filter — 见 `tradable_universe.py`, OOS Sharpe 变负 -0.34
+- [x] Regime gate (HS300 +3%) — 见 `regime_gate.py`, Sharpe 1.58 vs baseline 1.64 持平
+- [x] 和 DSR #30 BB-only corr — `corr_vs_dsr30.py`, Pearson -0.04, 合成 Sharpe 2.12
+- [x] paper-trade pre-reg spec — `journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`
+
+## 最终结论 (2026-04-22)
+
+RIAD 单独 **不过** 5-gate 4/4 (最好 2/4). 但作为 DSR #30 BB-only 的 diversifier
+过 3/4 (Sharpe 1.87, PSR 0.998, CI_low +0.91, DSR 0.920 差 0.03).
+
+**推荐路径**: Paper-trade spec v4 (RIAD + DSR30 合成 50/50), 不是 RIAD 单独.
