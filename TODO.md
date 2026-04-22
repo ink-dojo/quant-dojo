@@ -137,11 +137,19 @@ Issue 主线: #25
 ### Tier 2 — LLM hedging 增量 (条件: Tier 1 IC ∈ [0.015, 0.025])
 - 🔴 **SKIPPED**: Tier 1 已 KILL, 条件不满足 (IC 0.0036 < 0.015).
 
-### Tier 3 — 跨文档 conditional reasoning (pre-reg: Tier 1/2 任何一层 work 才进)
-- 原 pre-reg 条件未满足; 但 KILL 判读允许 "空间 C 转 Tier 3" 作为唯一后续路径.
-- [ ] 重新设计 pre-reg: 政策文件 + 行业动向 + 管理层表态 三元组 reasoning
-- [ ] 先做样本外 forward IC (避免 LLM cutoff 泄漏), 不回测
-- [ ] 成本预算 $1500
+### Tier 1.5 — LLM drift (2024 cross-section mini-IC, 2026-04-22 完成)
+- [x] Pilot v1 (10 份 level 打分) 通过分布 sanity
+- [x] Pilot v2 (10 对 drift + 脱敏 + placebo swap) — tone_drift 对称性最好 (0.20)
+- [x] Mini-IC (482 对 2024 cross-section, 429 valid) — 5 维度 pooled IC + order group diag
+- [x] Bootstrap CI (1000 resamples): 所有维度 CI 跨 0. Transparency 最接近显著 (%>0=95.3%)
+- [x] 🔴 **Borderline KILL**: pooled IC 过 0.04 但 CI 不显著, 3 月数据 regime 单一, 不扩全量. 详见 `journal/mda_llm_drift_mini_ic_20260422.md`
+
+### Tier 3 — 换数据源 (原 pre-reg 失效, 需重新设计)
+- A 股年报 MD&A 无论 TF-IDF 还是 LLM 处理都 marginal → 换数据源:
+- [ ] 投资者互动平台 (irm.cninfo.com.cn) 情感 drift — 散户问题激增 + 公司回答 evasive 评分
+- [ ] 政策 → 受益方 reasoning (top-down forward, 2026-04+ cutoff 后干净样本)
+- [ ] 新能源行业 sandbox 作为启动,若信号强再跨行业
+- [ ] 预算: 初期 $80 (Haiku 4.5 for bottom-up 投资者互动), 若通过再扩至 $500+
 
 ---
 
