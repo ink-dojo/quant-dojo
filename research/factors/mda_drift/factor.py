@@ -171,34 +171,23 @@ def _process_symbol(
     tokens_cache_dir: Path,
     download: bool,
     delete_pdf_after_tokens: bool,
-    rate_limit_lock,
-    last_request_time: list,
 ) -> dict:
     """
     一家公司完整流水 (用于并发 worker): list → for each ref: download → extract → (del pdf).
 
-    rate_limit_lock + last_request_time 实现全局 token-bucket 限速: 所有线程共享
-    最近一次 cninfo 请求时间戳, 新请求前保证至少 DEFAULT_RATE_LIMIT_S 间隔.
-    这样 max_workers 增加并不会击穿 cninfo rate limit.
+    实测 pdfplumber + jieba 都是 pure Python + GIL-holding, 所以用 ProcessPool
+    而不是 ThreadPool. 每个 worker 一个独立 Python 进程, CPU 真并行.
+
+    cninfo rate-limit: worker 内 download 和 extract 交替 (extract ~10s),
+    即使 4 worker 同时下载瞬时 QPS=4, 平均 QPS ~0.4, 远低于 2 QPS 限速,
+    不需要跨进程全局锁.
 
     返回: {'manifest': [...], 'token_rows': [...], 'diagnostics_rows': [...]}
     """
-    import time
-
     manifest_local: list[dict] = []
     token_rows_local: list[dict] = []
     diagnostics_local: list[dict] = []
 
-    def _rate_limited_sleep():
-        with rate_limit_lock:
-            now = time.monotonic()
-            wait = DEFAULT_RATE_LIMIT_S - (now - last_request_time[0])
-            if wait > 0:
-                time.sleep(wait)
-            last_request_time[0] = time.monotonic()
-
-    # list_annual_reports 本身是 cninfo 请求, 也要受 rate limit 保护
-    _rate_limited_sleep()
     try:
         refs = list_annual_reports(sym, start_year, end_year)
     except Exception as e:
@@ -230,7 +219,6 @@ def _process_symbol(
             continue
 
         if download and not pdf_path.exists():
-            _rate_limited_sleep()
             try:
                 download_annual_report(ref, cache_dir=pdf_cache_dir)
             except Exception as e:
@@ -305,8 +293,7 @@ def compute_mda_drift_factor(
     if end_year < start_year + 1:
         raise ValueError(f"end_year 必须 >= start_year+1, got {start_year}..{end_year}")
 
-    import threading
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import ProcessPoolExecutor, as_completed
 
     config = config or DriftConfig()
     diagnostics_rows: list[dict] = []
@@ -316,15 +303,10 @@ def compute_mda_drift_factor(
     pdf_cache_dir.mkdir(parents=True, exist_ok=True)
     tokens_cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # 全局 cninfo rate-limit: 所有线程共享一把锁 + 一个最近请求时间戳
-    rate_limit_lock = threading.Lock()
-    last_request_time = [0.0]  # mutable 容器, 列表首元素
-
     worker_args = dict(
         start_year=start_year, end_year=end_year,
         pdf_cache_dir=pdf_cache_dir, tokens_cache_dir=tokens_cache_dir,
         download=download, delete_pdf_after_tokens=delete_pdf_after_tokens,
-        rate_limit_lock=rate_limit_lock, last_request_time=last_request_time,
     )
 
     if max_workers <= 1:
@@ -335,9 +317,9 @@ def compute_mda_drift_factor(
             token_rows.extend(result["token_rows"])
             diagnostics_rows.extend(result["diagnostics_rows"])
     else:
-        # per-symbol 并发: list→download→extract→tokenize 在同一 worker 内串行,
-        # 所以一家公司的年报不会被切到不同线程 (减少 IO 乱序)
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        # ProcessPool 而非 ThreadPool: pdfplumber + jieba 都 CPU-bound + GIL-holding,
+        # ThreadPool 实测不提速 (113s/symbol, 跟串行一样). ProcessPool 真并行.
+        with ProcessPoolExecutor(max_workers=max_workers) as pool:
             futures = {pool.submit(_process_symbol, sym, **worker_args): sym
                        for sym in symbols}
             pbar = tqdm(total=len(futures), desc=f"symbols (w={max_workers})") if show_progress else None
