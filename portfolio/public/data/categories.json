@@ -1,0 +1,210 @@
+{
+  "generated_at": "2026-04-21",
+  "note": "7 大因子类别的经济直觉、A 股特性、典型因子、常见陷阱。供 /research/category/[cat] 页面使用。",
+  "categories": {
+    "technical": {
+      "key": "technical",
+      "label_zh": "技术因子",
+      "label_en": "Technical / Statistical",
+      "one_liner": "纯价格—波动率—动量的统计变换。A 股截面的第一条防线。",
+      "intuition": "技术因子假设历史价格本身就含有未来收益信息。在有效市场上这是伪命题；在 A 股这种 70% 散户成交的市场里，价格行为里的行为模式 (追涨杀跌 / 损失厌恶 / 锚定效应) 会留下可统计的痕迹。",
+      "a_share_specifics": [
+        "A 股的动量效应弱于美股、反转效应强于美股 — 散户高频交易放大短期反转",
+        "低波异象 (Ang 2006) 在 A 股依然显著，是为数不多与美股一致的技术因子",
+        "6M+ 的中期动量叠加跳 1 月的 reversal guard 才能避免短期反转噪音",
+        "2015 熔断和 2021 小盘股热潮都会让纯动量因子在 regime 切换时失效"
+      ],
+      "representative_factors": [
+        { "name": "low_vol_20d", "why": "覆盖度全库第一；IC=0.067 ICIR=0.338 FM t=2.83 三项俱显著" },
+        { "name": "enhanced_momentum", "why": "风险调整动量，reversal_1m 的进化版；v7 权重 0.25" },
+        { "name": "momentum_6m_skip1m", "why": "标准 Jegadeesh-Titman 12-1 动量，跳过最近 1 月抗反转" },
+        { "name": "reversal_1m", "why": "A 股短期反转锚；IC=0.051 ICIR=0.314" }
+      ],
+      "common_pitfalls": [
+        "动量因子在牛熊切换当月通常贡献最大单日回撤 — 必须配 regime 过滤",
+        "低波因子在股灾急涨反弹阶段会错过涨幅，回测里看不出来但实盘痛苦",
+        "过度调参 (例如把 20d 改成 22d) 就是典型 overfitting，WF OOS 会立刻失效"
+      ],
+      "references": [
+        "Jegadeesh & Titman 1993 JF — 跨截面动量异象",
+        "Ang et al. 2006 JF — 低波动异象",
+        "开源证券-QuantsPlaybook 动量因子系列"
+      ]
+    },
+    "fundamental": {
+      "key": "fundamental",
+      "label_zh": "基本面",
+      "label_en": "Fundamental",
+      "one_liner": "价值、盈利质量、盈利动量。中长期 alpha 的骨架。",
+      "intuition": "基本面因子假设价格最终向盈利/账面值回归。在机构主导市场 (美股) 这是主流；A 股机构占比偏低，基本面因子的信号强度取决于你能多快整合新财报 (盈利动量) 或等得起多长的均值回归 (价值)。",
+      "a_share_specifics": [
+        "A 股 BP/EP 价值因子在 2017-2020 白马行情有效，2021 起被小盘/题材吃掉",
+        "财报披露滞后 — 一季报截至 4/30、半年报 8/31、三季报 10/31、年报 4/30，信号更新频率低",
+        "盈利动量 (earnings acceleration) 在 A 股需要用 T+1 可用的预告/快报代理",
+        "ROE 在 A 股因财务造假存在而噪声大，单独作为因子 IC 往往接近零"
+      ],
+      "representative_factors": [
+        { "name": "bp_factor", "why": "经典 Fama-French 价值代理；IC=0.042 ICIR=0.277" },
+        { "name": "ep_factor", "why": "盈利收益率 1/PE；IC 单独显著但 FM t 不稳" },
+        { "name": "roe_factor", "why": "诚实证伪案例 — 用 PB/PE 比代理 ROE，IC≈0 FM 不显著" },
+        { "name": "earnings_momentum", "why": "盈利动量；需要净利润环比增速宽表" }
+      ],
+      "common_pitfalls": [
+        "用当日值计算 BP/EP — 财报披露日之前不可用，必须 T+1 lag",
+        "ROE 代理 PB/PE 时，PE<=0 或 PB<=0 要设 NaN，否则质量因子变成垃圾",
+        "盈利动量吃财报业绩预告/快报 (earnings_preview)，要区分强/弱预告和正式财报"
+      ],
+      "references": [
+        "Fama & French 1992 JF — BP 价值因子",
+        "Novy-Marx 2013 JFE — 盈利质量溢价",
+        "Sloan 1996 AR — 应计异象"
+      ]
+    },
+    "microstructure": {
+      "key": "microstructure",
+      "label_zh": "微观结构",
+      "label_en": "Microstructure",
+      "one_liner": "日内高频信号在日频上的映射 — 高开低走、上下影线、量价背离。",
+      "intuition": "微观结构因子利用日内 OHLC 和成交量分布捕捉信息不对称和资金博弈痕迹。不需要高频数据，但对数据清洁度极敏感 (涨停一字板、停牌、闪崩等都会污染)。",
+      "a_share_specifics": [
+        "A 股有 10% 涨跌停限制，一字板日需要特殊处理 — 否则上下影线因子全是噪声",
+        "集合竞价 + 开盘跳空频繁，使 open vs close 分离能显著增信号",
+        "北向资金不对称性 — 机构在尾盘偏多，散户在早盘追涨",
+        "停牌复牌前后的量价信号失真 — 必须剔除复牌首日"
+      ],
+      "representative_factors": [
+        { "name": "shadow_lower", "why": "下影线，买盘支撑代理；v16 权重因子" },
+        { "name": "shadow_upper", "why": "上影线，卖压代理" },
+        { "name": "price_volume_divergence", "why": "价量背离；v16 权重因子" },
+        { "name": "amplitude_hidden", "why": "振幅切割 — 高价日振幅 V_high" },
+        { "name": "w_reversal", "why": "W 因子 — 按成交额高低拆分累计收益" }
+      ],
+      "common_pitfalls": [
+        "不剔除涨停 → 上影线全是 0，因子泄露",
+        "不剔除停牌 → 复牌首日极端值污染",
+        "滚动窗口内 NaN 比例过高 — 20d 窗口至少要求 15 个有效交易日"
+      ],
+      "references": [
+        "开源证券-市场微观结构系列 (上下影线 / 振幅切割 / W 因子)",
+        "东吴证券-技术分析遇上选股因子",
+        "Amihud & Mendelson 1986 JFE — 买卖价差因子"
+      ]
+    },
+    "behavioral": {
+      "key": "behavioral",
+      "label_zh": "行为金融",
+      "label_en": "Behavioral Finance",
+      "one_liner": "损失厌恶、处置效应、凸显理论 — A 股散户主导的独特优势空间。",
+      "intuition": "行为金融因子假设市场参与者在系统性偏差下决策 — 这些偏差在 A 股 70% 散户成交量的市场里远比美股强。行为因子在 A 股的 ICIR 通常高于美股版本。",
+      "a_share_specifics": [
+        "处置效应 (Disposition Effect) 在 A 股比美股强 2-3 倍 — 散户惜售亏损股、急抛盈利股",
+        "凸显理论 (Salience) 在题材股上特别有效 — 散户对极端涨幅的过度反应",
+        "球队硬币 (Team Coin) — 低波看动量 + 高波看反转，全库 ICIR 最高",
+        "羊群效应 — 龙虎榜、游资标的、社交媒体热度都可作为行为因子"
+      ],
+      "representative_factors": [
+        { "name": "team_coin", "why": "全库 ICIR 第一 (0.45) + FM t 第一 (5.08) ；低波看动量高波反转" },
+        { "name": "cgo", "why": "处置效应 CGO — 换手率加权成本 vs 现价" },
+        { "name": "str_salience", "why": "凸显理论 — 关注度加权收益" },
+        { "name": "relative_turnover", "why": "短期换手率相对长期均值 — 关注度代理" }
+      ],
+      "common_pitfalls": [
+        "行为因子常和 size/momentum 高度相关 — 必须行业中性 + 市值中性再评估",
+        "CGO 需要换手率加权，不能简单用过去 N 天均价 — 忽视会使 IC 减半",
+        "凸显理论在低流动性股上爆发但在蓝筹股接近零 — 股票池过滤关键"
+      ],
+      "references": [
+        "Cosemans & Frehen 2021 JF — 凸显理论 (STR)",
+        "Moskowitz 2021 JF — 动量反转球队硬币模型",
+        "Frazzini 2006 JF — 处置效应 CGO 因子",
+        "国信证券-行为金融系列"
+      ]
+    },
+    "chip": {
+      "key": "chip",
+      "label_zh": "筹码",
+      "label_en": "Chip Distribution",
+      "one_liner": "换手率加权的持仓成本分布 — 中国特色的技术派量化。",
+      "intuition": "筹码因子用换手率作为\"筹码交换频率\"的代理，估计当前持仓者的平均成本 (ARC)、成本离散度 (VRC) 等。在 A 股这种散户主导市场里，筹码套牢区是真实的心理阻力位。",
+      "a_share_specifics": [
+        "ARC (Average Relative Cost) — 平均持仓成本，大于现价表示主体浮亏",
+        "VRC (Variance Relative Cost) — 筹码离散度，低离散 = 筹码集中 = 主力控盘",
+        "换手率用 turnover_rate (可用) vs 流通股 (难) 两种算法，差异显著",
+        "只在日频数据上起作用 — 分钟级筹码是另一套模型"
+      ],
+      "representative_factors": [
+        { "name": "chip_arc", "why": "平均相对成本；ARC>0 表示平均浮盈" },
+        { "name": "chip_vrc", "why": "成本离散度；低 VRC = 筹码集中" }
+      ],
+      "common_pitfalls": [
+        "需要复权价 + 换手率联合，任何一个缺失都会导致筹码失真",
+        "新股上市 60 天内筹码未稳定，要过滤",
+        "停牌期间换手率为零，筹码分布直接卡死 — 要 forward fill"
+      ],
+      "references": [
+        "QuantsPlaybook-筹码因子系列 (ARC/VRC/SRC/KRC)",
+        "方正证券-筹码理论与量化实现"
+      ]
+    },
+    "liquidity": {
+      "key": "liquidity",
+      "label_zh": "流动性",
+      "label_en": "Liquidity",
+      "one_liner": "单位成交的价格冲击 — 小盘流动性溢价在 A 股长期显著。",
+      "intuition": "流动性因子衡量\"交易一单位成交额对价格的冲击\"。流动性差的股票需要更高预期收益作为补偿 (Amihud 2002)。在 A 股，微盘股流动性溢价是近 5 年最稳定的 alpha 源之一。",
+      "a_share_specifics": [
+        "Amihud 非流动性在 A 股所有市值组里都显著，但微盘组最强",
+        "买卖价差在 A 股交易所集中竞价模式下不如美股含信息量",
+        "换手率可作为流动性反代理 — 高换手 = 高流动性 = 低预期收益",
+        "2021 小盘热潮让流动性溢价暴涨，2024-2025 随着微盘 ETF 普及有所衰减"
+      ],
+      "representative_factors": [
+        { "name": "amihud_illiquidity", "why": "Amihud 2002 经典非流动性；v16 权重因子" },
+        { "name": "bid_ask_spread_proxy", "why": "Corwin-Schultz 简化版，high-low 估计价差" }
+      ],
+      "common_pitfalls": [
+        "流动性因子和 size 高度相关 — 必须做市值中性分析是否残余 alpha",
+        "ST 股、退市风险股的流动性异常不等于 alpha — 需要事前过滤",
+        "打新申购期的股票流动性假象 — 过滤上市 20 天内"
+      ],
+      "references": [
+        "Amihud 2002 JFM — 非流动性溢价",
+        "Corwin & Schultz 2012 JF — HL 价差估计",
+        "Fong et al. 2017 RAS — A 股流动性测度对比"
+      ]
+    },
+    "extended": {
+      "key": "extended",
+      "label_zh": "扩展因子",
+      "label_en": "Extended / Experimental",
+      "one_liner": "34 个自研 + 教材 + 实验因子的大杂烩 — 尚未稳定归类。",
+      "intuition": "extended 类别是所有不便归入前 6 类的因子集合。它覆盖 IVOL/MAX effect 等特质风险因子、RSI/Bollinger 等经典技术指标、换手率加速/胜率趋势等行为代理，以及 A 股专属的整数锚定、开盘陷阱等实验因子。这个类别里 34 个因子中绝大多数 verdict 为空 — 待回测验证。",
+      "a_share_specifics": [
+        "IVOL (特质波动率) 异象在 A 股弱于美股，但在小盘股组合里仍显著",
+        "MAX effect (Bali 2011) 在 A 股的彩票股 (ST、次新、题材) 上特别强",
+        "价格锚定因子 — A 股散户对整数价位 (5/10/20 元) 有心理阻力",
+        "隔夜收益 / 日内反转分离 — A 股的隔夜信息流入显著"
+      ],
+      "representative_factors": [
+        { "name": "high_52w_ratio", "why": "52 周高点锚定效应；v16 权重因子" },
+        { "name": "turnover_acceleration", "why": "换手率加速；v16 权重因子" },
+        { "name": "win_rate_60d", "why": "60 日胜率反转；v16 权重因子" },
+        { "name": "idiosyncratic_volatility", "why": "特质波动率；IVOL 异象" },
+        { "name": "max_ret_1m", "why": "最大单日收益；彩票效应" },
+        { "name": "industry_momentum", "why": "行业动量；跨截面的行业 rotation alpha" },
+        { "name": "beta_factor", "why": "低 beta 异象；Frazzini-Pedersen" }
+      ],
+      "common_pitfalls": [
+        "这个类别 34 个因子里 90% 以上尚未完整 IC 回测 — 直接用危险",
+        "IVOL/MAX 都需要市场收益序列 — 若用沪深300 和用中证全指结果会不同",
+        "整数锚定、开盘陷阱等行为因子需要小样本分组验证，不能整体截面评估"
+      ],
+      "references": [
+        "Ang et al. 2006 JF — IVOL 异象",
+        "Bali et al. 2011 JFE — MAX effect 彩票股",
+        "Frazzini & Pedersen 2014 JFE — Betting against Beta",
+        "开源证券 / 方正证券 / 国信证券 A 股行为因子系列"
+      ]
+    }
+  }
+}

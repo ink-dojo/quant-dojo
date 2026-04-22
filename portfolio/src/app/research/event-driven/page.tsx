@@ -2,9 +2,9 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EquityChart } from "@/components/viz/EquityChart";
 import { MetricGrid } from "@/components/viz/MetricGrid";
-import { readData } from "@/lib/data";
+import { readData, readDataOrNull } from "@/lib/data";
 import { fmtNum, fmtPct } from "@/lib/formatters";
-import type { EquityCurveFile } from "@/lib/types";
+import type { DSRStrategiesFile, EquityCurveFile } from "@/lib/types";
 
 interface Trial {
   id: number;
@@ -124,12 +124,13 @@ interface WFStressFile {
 }
 
 export default async function EventDrivenPage() {
-  const [trials, eq30, eq33, eqEns, wf] = await Promise.all([
+  const [trials, eq30, eq33, eqEns, wf, catalog] = await Promise.all([
     readData<TrialsFile>("event_driven/trials.json"),
     readData<EquityCurveFile>("event_driven/equity_dsr30_bb.json"),
     readData<EquityCurveFile>("event_driven/equity_dsr33_lhb_decline.json"),
     readData<EquityCurveFile>("event_driven/equity_dsr30_33_ensemble.json"),
     readData<WFStressFile>("event_driven/wf_stress.json"),
+    readDataOrNull<DSRStrategiesFile>("event_driven/strategies.json"),
   ]);
 
   const byStatus = {
@@ -182,6 +183,46 @@ export default async function EventDrivenPage() {
           </p>
         </div>
       </section>
+
+      {catalog && catalog.strategies.length > 0 && (
+        <section className="max-w-content mx-auto px-6 pb-16">
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
+            Strategy Catalog · 逐条深度页
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-3xl">
+            每条事件驱动策略独立一页 — 事件定义 / 股票池 / 持有窗口 / 5-gate / 失败模式 / 衰减证据 / paper-trade 协议。
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {catalog.strategies.map((s) => (
+              <Link
+                key={s.id}
+                href={`/research/event-driven/${s.id}`}
+                className="group block p-4 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 hover:bg-[var(--bg-surface)] hover:border-[var(--border)] transition-all"
+              >
+                <div className="flex items-baseline justify-between gap-2 mb-1">
+                  <span className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--blue)]">
+                    {s.name_en}
+                  </span>
+                  <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)] shrink-0">
+                    {s.gates_5.n_pass}/5
+                  </span>
+                </div>
+                <div className="text-[10px] font-mono text-[var(--text-tertiary)] mb-2">
+                  {s.id} · {s.name_zh}
+                </div>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  {s.tagline}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-3 text-[10px] font-mono text-[var(--text-tertiary)]">
+                  <span>SR={fmtNum(s.metrics_8yr.sharpe, 2)}</span>
+                  <span>MDD={fmtPct(s.metrics_8yr.max_drawdown, 1)}</span>
+                  <span>24m={fmtNum(s.recent_24m_sharpe, 2)}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="max-w-content mx-auto px-6 pb-16">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-1">

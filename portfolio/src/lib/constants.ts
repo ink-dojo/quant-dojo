@@ -12,6 +12,7 @@ export const NAV_ITEMS = [
   { href: "/live", label: "Live", zh: "实盘" },
   { href: "/infrastructure", label: "Infra", zh: "工程" },
   { href: "/journey", label: "Journey", zh: "历程" },
+  { href: "/glossary", label: "Glossary", zh: "术语" },
 ] as const;
 
 export const FACTOR_CATEGORIES = {

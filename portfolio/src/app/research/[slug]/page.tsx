@@ -11,90 +11,111 @@ import { QuintileChart } from "@/components/viz/QuintileChart";
 import { FormulaDisplay } from "@/components/viz/FormulaDisplay";
 import { readData, readDataOrNull } from "@/lib/data";
 import { fmtNum, fmtPct } from "@/lib/formatters";
+import { FACTOR_CATEGORIES } from "@/lib/constants";
 import type {
+  FactorDetailsFile,
+  FactorIndex,
+  FactorIndexItem,
+  FactorLinenoFile,
   HeroDetailFile,
   HeroFactor,
   HeroFactorsFile,
 } from "@/lib/types";
-
-/**
- * Hardcoded LaTeX for the 8 hero factors. Python source code has the math
- * inline as comments — copying it here keeps the page self-contained and
- * avoids building a .py → LaTeX extractor for 8 fixed cases.
- */
-const FORMULAS: Record<string, { latex: string; caption?: string }> = {
-  enhanced_momentum: {
-    latex:
-      "F_t = \\text{rank}\\!\\left(\\frac{P_{t-21}}{P_{t-252}} - 1\\right) \\times \\text{sign}(\\text{IC}_{60d})",
-    caption: "11-month momentum skipping the most recent month (reversal guard), rank-standardized",
-  },
-  bp_factor: {
-    latex: "F_t = \\frac{\\text{Book Value}_t}{\\text{Market Cap}_t} = \\frac{1}{PB_t}",
-    caption: "Book-to-price = inverse of price-to-book ratio",
-  },
-  low_vol_20d: {
-    latex:
-      "F_t = -\\,\\sigma\\!\\left(\\frac{r_{t-19}, \\ldots, r_t}{\\sqrt{20}}\\right)",
-    caption: "Negative 20-day realized volatility (low-vol anomaly, higher is safer)",
-  },
-  roe_factor: {
-    latex: "F_t = \\text{ROE}_t = \\frac{1/PE_t}{1/PB_t} = \\frac{PB_t}{PE_t}",
-    caption: "Proxied ROE from PB/PE ratios — noisy proxy, honest failure case",
-  },
-  team_coin: {
-    latex:
-      "F_t = \\text{turnover}_t \\cdot \\sqrt{\\mathbb{E}[r_t^2]} \\cdot \\frac{|r_t^{20}|}{\\sigma_t^{60}}",
-    caption: "Retail coordination proxy: turnover × realized vol × directional persistence",
-  },
-  cgo: {
-    latex:
-      "F_t = \\frac{P_t - \\bar{P}_t^{RP}}{P_t}, \\quad \\bar{P}_t^{RP} = \\sum_{\\tau} w_\\tau P_\\tau",
-    caption: "Capital Gains Overhang — price gap vs turnover-weighted reference price",
-  },
-  amihud_illiquidity: {
-    latex: "F_t = \\frac{1}{N}\\sum_{i=1}^{N} \\frac{|r_{t-i}|}{V_{t-i}}",
-    caption: "Amihud (2002) illiquidity — average |return| / dollar volume",
-  },
-  momentum_6m_skip1m: {
-    latex: "F_t = \\frac{P_{t-21}}{P_{t-126}} - 1",
-    caption: "6-month momentum, skip most-recent month to dodge short-term reversal",
-  },
-};
 
 interface PageParams {
   params: { slug: string };
 }
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  const heroes = await readData<HeroFactorsFile>("factors/hero.json");
-  return heroes.factors.map((h) => ({ slug: h.name }));
+  const index = await readData<FactorIndex>("factors/index.json");
+  return index.factors.map((f) => ({ slug: f.name }));
 }
 
 export async function generateMetadata({
   params,
 }: PageParams): Promise<Metadata> {
-  const heroes = await readData<HeroFactorsFile>("factors/hero.json");
+  const [heroes, index] = await Promise.all([
+    readData<HeroFactorsFile>("factors/hero.json"),
+    readData<FactorIndex>("factors/index.json"),
+  ]);
   const hero = heroes.factors.find((h) => h.name === params.slug);
-  if (!hero) return { title: "Factor not found" };
+  if (hero) {
+    return {
+      title: `${hero.title_en} · QuantDojo`,
+      description: hero.pitch,
+    };
+  }
+  const item = index.factors.find((f) => f.name === params.slug);
+  if (!item) return { title: "Factor not found" };
   return {
-    title: `${hero.title_en} · QuantDojo`,
-    description: hero.pitch,
+    title: `${item.name} · QuantDojo`,
+    description: item.docstring.slice(0, 160),
   };
 }
 
-export default async function HeroDetailPage({ params }: PageParams) {
-  const [heroes, detail] = await Promise.all([
+export default async function FactorDetailPage({ params }: PageParams) {
+  const [heroes, index, details, lineno, heroDetail] = await Promise.all([
     readData<HeroFactorsFile>("factors/hero.json"),
+    readData<FactorIndex>("factors/index.json"),
+    readDataOrNull<FactorDetailsFile>("factors/details.json"),
+    readDataOrNull<FactorLinenoFile>("factors/lineno.json"),
     readDataOrNull<HeroDetailFile>("factors/hero_detail.json"),
   ]);
 
-  const heroIdx = heroes.factors.findIndex((h) => h.name === params.slug);
-  if (heroIdx < 0) notFound();
-  const hero = heroes.factors[heroIdx]!;
-  const prev = heroIdx > 0 ? heroes.factors[heroIdx - 1] : null;
-  const next = heroIdx < heroes.factors.length - 1 ? heroes.factors[heroIdx + 1] : null;
+  const slug = params.slug;
+  const hero = heroes.factors.find((h) => h.name === slug) ?? null;
+  const item = index.factors.find((f) => f.name === slug) ?? null;
 
-  const entry = detail?.factors?.[hero.name];
+  if (!hero && !item) notFound();
+
+  const detail = details?.details?.[slug];
+  const lineNumber = lineno?.lineno?.[slug] ?? hero?.lineno ?? null;
+
+  const sortedIdx = [...index.factors].sort((a, b) => a.name.localeCompare(b.name));
+  const pos = sortedIdx.findIndex((f) => f.name === slug);
+  const prev = pos > 0 ? sortedIdx[pos - 1] : null;
+  const next = pos < sortedIdx.length - 1 ? sortedIdx[pos + 1] : null;
+
+  if (hero) {
+    return (
+      <HeroFactorView
+        hero={hero}
+        heroDetail={heroDetail}
+        detail={detail ?? null}
+        lineNumber={lineNumber}
+        prev={prev}
+        next={next}
+      />
+    );
+  }
+
+  return (
+    <LibraryFactorView
+      item={item!}
+      detail={detail ?? null}
+      lineNumber={lineNumber}
+      prev={prev}
+      next={next}
+    />
+  );
+}
+
+function HeroFactorView({
+  hero,
+  heroDetail,
+  detail,
+  lineNumber,
+  prev,
+  next,
+}: {
+  hero: HeroFactor;
+  heroDetail: HeroDetailFile | null;
+  detail: FactorDetailsFile["details"][string] | null;
+  lineNumber: number | null;
+  prev: FactorIndexItem | null;
+  next: FactorIndexItem | null;
+}) {
+  const entry = heroDetail?.factors?.[hero.name];
   const hasDeepData =
     entry !== undefined &&
     !("error" in entry && entry.error) &&
@@ -105,7 +126,6 @@ export default async function HeroDetailPage({ params }: PageParams) {
   const monthly = entry?.ic?.monthly ?? [];
   const decay = entry?.decay;
   const quintile = entry?.quintile;
-  const formula = FORMULAS[hero.name];
 
   return (
     <>
@@ -124,29 +144,30 @@ export default async function HeroDetailPage({ params }: PageParams) {
       <section className="max-w-content mx-auto px-6 pb-12">
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <CategoryBadge category={hero.category} />
+          <Link
+            href={`/research/category/${hero.category}`}
+            className="text-[10px] font-mono text-[var(--text-tertiary)] hover:text-[var(--blue)]"
+          >
+            → category overview
+          </Link>
           <span className="font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
             {hero.tier}
           </span>
           {hero.verdict && (
             <span
               className="font-mono px-2 py-0.5 rounded"
-              style={{
-                color: "var(--green)",
-                background: "rgba(34,197,94,0.1)",
-              }}
+              style={{ color: "var(--green)", background: "rgba(34,197,94,0.1)" }}
             >
               {hero.verdict}
             </span>
           )}
-          {hero.in_v7 && (
-            <span className="font-mono text-[var(--purple)]">in v7</span>
+          {hero.in_v7 && <span className="font-mono text-[var(--purple)]">in v7</span>}
+          {hero.in_v16 && <span className="font-mono text-[var(--blue)]">in v16</span>}
+          {lineNumber !== null && (
+            <span className="font-mono text-[var(--text-tertiary)] ml-auto">
+              utils/alpha_factors.py:{lineNumber}
+            </span>
           )}
-          {hero.in_v16 && (
-            <span className="font-mono text-[var(--blue)]">in v16</span>
-          )}
-          <span className="font-mono text-[var(--text-tertiary)] ml-auto">
-            utils/alpha_factors.py:{hero.lineno}
-          </span>
         </div>
       </section>
 
@@ -158,14 +179,18 @@ export default async function HeroDetailPage({ params }: PageParams) {
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
             {hero.docstring}
           </p>
-          {formula && (
+          {detail?.formula_latex && (
             <>
               <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] pt-4">
                 Formula
               </h2>
-              <FormulaDisplay latex={formula.latex} caption={formula.caption} />
+              <FormulaDisplay
+                latex={detail.formula_latex}
+                caption={detail.formula_caption ?? undefined}
+              />
             </>
           )}
+          {detail && <EncyclopediaBlocks detail={detail} />}
         </div>
         <div className="shrink-0 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
           <GaugeRing
@@ -180,7 +205,7 @@ export default async function HeroDetailPage({ params }: PageParams) {
       {hasDeepData && icSummary && (
         <section className="max-w-content mx-auto px-6 pb-12">
           <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-4">
-            IC Summary · {detail?.window.analysis_start} → {detail?.window.analysis_end}
+            IC Summary · {heroDetail?.window.analysis_start} → {heroDetail?.window.analysis_end}
           </h2>
           <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
             <MetricGrid
@@ -270,8 +295,7 @@ export default async function HeroDetailPage({ params }: PageParams) {
                 {
                   label: "LS Ann Return",
                   value: fmtPct(quintile.ls_stats.ann_return ?? null, 1),
-                  tone:
-                    (quintile.ls_stats.ann_return ?? 0) > 0 ? "good" : "bad",
+                  tone: (quintile.ls_stats.ann_return ?? 0) > 0 ? "good" : "bad",
                 },
                 {
                   label: "LS Sharpe",
@@ -312,46 +336,239 @@ export default async function HeroDetailPage({ params }: PageParams) {
         </section>
       )}
 
-      <section className="max-w-content mx-auto px-6 pb-24">
-        <div className="flex justify-between items-center gap-4 pt-8 border-t border-[var(--border-soft)]">
-          {prev ? (
-            <Link
-              href={`/research/${prev.name}`}
-              className="group flex flex-col gap-1 min-w-0"
-            >
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-                ← Prev
-              </span>
-              <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--blue)] truncate">
-                {prev.title_en}
-              </span>
-            </Link>
-          ) : (
-            <span />
-          )}
+      <FactorNav prev={prev} next={next} />
+    </>
+  );
+}
+
+function LibraryFactorView({
+  item,
+  detail,
+  lineNumber,
+  prev,
+  next,
+}: {
+  item: FactorIndexItem;
+  detail: FactorDetailsFile["details"][string] | null;
+  lineNumber: number | null;
+  prev: FactorIndexItem | null;
+  next: FactorIndexItem | null;
+}) {
+  const catLabel = FACTOR_CATEGORIES[item.category]?.label ?? item.category;
+  const subtitle = detail?.intuition
+    ? `${item.name} · ${catLabel}`
+    : `${item.name} · ${catLabel}`;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Research · Full Library"
+        title={item.name}
+        subtitle={subtitle}
+        description={item.docstring.split("\n")[0] ?? item.docstring}
+        crumbs={[
+          { label: "Home", href: "/" },
+          { label: "Research", href: "/research" },
+          { label: item.name },
+        ]}
+      />
+
+      <section className="max-w-content mx-auto px-6 pb-8">
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <CategoryBadge category={item.category} />
           <Link
-            href="/research"
-            className="text-xs font-mono text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0"
+            href={`/research/category/${item.category}`}
+            className="text-[10px] font-mono text-[var(--text-tertiary)] hover:text-[var(--blue)]"
           >
-            All factors →
+            → category overview
           </Link>
-          {next ? (
-            <Link
-              href={`/research/${next.name}`}
-              className="group flex flex-col items-end gap-1 min-w-0"
-            >
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-                Next →
-              </span>
-              <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--blue)] truncate">
-                {next.title_en}
-              </span>
-            </Link>
-          ) : (
-            <span />
+          {item.verdict && (
+            <span className="font-mono text-[var(--text-tertiary)]">{item.verdict}</span>
+          )}
+          {item.in_v7 && <span className="font-mono text-[var(--purple)]">in v7</span>}
+          {item.in_v16 && <span className="font-mono text-[var(--blue)]">in v16</span>}
+          {lineNumber !== null && (
+            <span className="font-mono text-[var(--text-tertiary)] ml-auto">
+              utils/alpha_factors.py:{lineNumber}
+            </span>
           )}
         </div>
       </section>
+
+      <section className="max-w-content mx-auto px-6 pb-10">
+        <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
+          <MetricGrid
+            metrics={[
+              {
+                label: "IC Mean",
+                value: fmtNum(item.ic_mean, 4),
+                tone:
+                  item.ic_mean !== null && Math.abs(item.ic_mean) >= 0.03
+                    ? "good"
+                    : "neutral",
+              },
+              {
+                label: "ICIR",
+                value: fmtNum(item.icir, 3),
+                tone:
+                  item.icir !== null && Math.abs(item.icir) >= 0.3 ? "good" : "warn",
+              },
+              {
+                label: "FM t-stat",
+                value: fmtNum(item.fm_t_stat, 2),
+                tone:
+                  item.fm_t_stat !== null && Math.abs(item.fm_t_stat) >= 2
+                    ? "good"
+                    : "warn",
+              },
+              {
+                label: "Coverage",
+                value: `${item.coverage_score}/4`,
+                tone: item.coverage_score >= 3 ? "good" : "neutral",
+              },
+            ]}
+          />
+        </div>
+      </section>
+
+      <section className="max-w-content mx-auto px-6 pb-10 space-y-6">
+        <div>
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
+            Docstring
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
+            {item.docstring}
+          </p>
+        </div>
+
+        {detail?.formula_latex && (
+          <div>
+            <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
+              Formula
+            </h2>
+            <FormulaDisplay
+              latex={detail.formula_latex}
+              caption={detail.formula_caption ?? undefined}
+            />
+          </div>
+        )}
+
+        {detail ? (
+          <EncyclopediaBlocks detail={detail} />
+        ) : (
+          <div className="rounded-lg border border-dashed border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
+            <p className="text-xs font-mono text-[var(--text-tertiary)]">
+              encyclopedia entry not yet written · factors/details.json does not contain {item.name}
+            </p>
+          </div>
+        )}
+      </section>
+
+      <FactorNav prev={prev} next={next} />
     </>
+  );
+}
+
+function EncyclopediaBlocks({
+  detail,
+}: {
+  detail: FactorDetailsFile["details"][string];
+}) {
+  return (
+    <div className="space-y-6">
+      {detail.intuition && (
+        <div>
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
+            Intuition · 直觉
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            {detail.intuition}
+          </p>
+        </div>
+      )}
+      {detail.a_share && (
+        <div>
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
+            A-Share Context · A 股特点
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            {detail.a_share}
+          </p>
+        </div>
+      )}
+      {detail.pitfall && (
+        <div>
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
+            Pitfall · 坑点
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            {detail.pitfall}
+          </p>
+        </div>
+      )}
+      {detail.refs && detail.refs.length > 0 && (
+        <div>
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
+            References
+          </h2>
+          <ul className="text-sm text-[var(--text-secondary)] leading-relaxed list-disc pl-5 space-y-1">
+            {detail.refs.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FactorNav({
+  prev,
+  next,
+}: {
+  prev: FactorIndexItem | null;
+  next: FactorIndexItem | null;
+}) {
+  return (
+    <section className="max-w-content mx-auto px-6 pb-24">
+      <div className="flex justify-between items-center gap-4 pt-8 border-t border-[var(--border-soft)]">
+        {prev ? (
+          <Link
+            href={`/research/${prev.name}`}
+            className="group flex flex-col gap-1 min-w-0"
+          >
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+              ← Prev
+            </span>
+            <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--blue)] truncate">
+              {prev.name}
+            </span>
+          </Link>
+        ) : (
+          <span />
+        )}
+        <Link
+          href="/research"
+          className="text-xs font-mono text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0"
+        >
+          All factors →
+        </Link>
+        {next ? (
+          <Link
+            href={`/research/${next.name}`}
+            className="group flex flex-col items-end gap-1 min-w-0"
+          >
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+              Next →
+            </span>
+            <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--blue)] truncate">
+              {next.name}
+            </span>
+          </Link>
+        ) : (
+          <span />
+        )}
+      </div>
+    </section>
   );
 }

@@ -1,0 +1,201 @@
+{
+  "generated_at": "2026-04-21",
+  "note": "事件驱动策略目录。每条覆盖事件定义、股票池过滤、UNIT、窗口、5-gate、WF stress、decay、状态。",
+  "strategies": [
+    {
+      "id": "dsr30_bb_main_rescaled",
+      "name_en": "DSR #30 — Buyback Drift (Main Board, Rescaled)",
+      "name_zh": "DSR #30 · 主板回购后漂移 (rescaled)",
+      "status": "paper_trade_candidate",
+      "status_note": "2026-04-21 paper_trade_spec_v2 指定为单独 paper-trade 候选；5% 规模 3 mo fast-check 待启动",
+      "category": "corporate-action",
+      "tagline": "公司回购公告 T+1 ~ T+20 主板股票 drift；quant-dojo 目前最接近实盘的候选",
+      "event_source": "_all_buyback.parquet (tushare)",
+      "universe_filter": "board == 主板 (剔除创业板/科创板/北交所)",
+      "hold_window": "T+1 ~ T+20 交易日",
+      "direction": "LONG",
+      "sizing": { "unit": "1/15 × 1.985", "gross_cap": 1.0 },
+      "theory": "Ikenberry et al. 1995 JFE 发现美股回购后 2 年 drift；A 股主板回购公告的管理层信号在 2017-2025 样本上持续有效。主板样本因流动性好、监管严格，drift 噪声最小。",
+      "metrics_8yr": {
+        "n_obs": 1942,
+        "ann_return": 0.16,
+        "sharpe": 0.95,
+        "max_drawdown": -0.2968,
+        "psr": 0.9957,
+        "sharpe_ci_low": 0.198,
+        "sharpe_ci_high": 1.497
+      },
+      "recent_24m_sharpe": 1.34,
+      "gates_5": {
+        "ann_ge_15pct": true,
+        "sharpe_ge_08": true,
+        "mdd_gt_neg30pct": true,
+        "psr_ge_95pct": true,
+        "ci_low_ge_05": false,
+        "n_pass": 4
+      },
+      "highlights": [
+        "8 年样本 Sharpe 0.95，4/5 gate pass (CI_low 0.20 < 0.5 唯一 fail)",
+        "最近 24 月 (2024-2025) Sharpe 1.34 — 无 alpha 衰减信号",
+        "去掉 DSR #33 LHB contrarian 后 ensemble 历史 SR 2.65 变 0.83，单腿更诚实",
+        "paper_trade_spec_v2_20260421.md 已预注册，待启动 5% 规模"
+      ],
+      "failure_modes": [
+        "2022 熔断期间 MDD 扩大到 -29.68% — 临近 -30% 门",
+        "CI_low 0.20 说明长期样本下 Sharpe 的真实估计有很大不确定性",
+        "回购信号容易被套利 ETF 吃掉 — 未来 3-5 年需监控"
+      ],
+      "decay_evidence": "journal/dsr30_decay_check_20260421.md — 最近 24 月 SR 1.34 是历史最强两年，无衰减",
+      "equity_file": "equity_dsr30_bb.json",
+      "paper_trade_spec": "journal/paper_trade_spec_v2_20260421.md",
+      "refs": [
+        "Ikenberry et al. 1995 JFE — 美股回购 drift",
+        "田利辉 2014 — A 股回购效应"
+      ]
+    },
+    {
+      "id": "dsr33_lhb_decline",
+      "name_en": "DSR #33 — LHB Contrarian (Decline)",
+      "name_zh": "DSR #33 · 龙虎榜跌幅 contrarian",
+      "status": "retired",
+      "status_note": "2026-04-21 decay check 确认 alpha 已被量化私募吃掉；最近 24 月 SR -1.86 主动亏钱；不 paper-trade",
+      "category": "retail-behavioral",
+      "tagline": "龙虎榜大幅跌幅股次日反弹 — 经典散户恐慌 contrarian，已被量化挖透",
+      "event_source": "_all_topxlist.parquet (tushare 龙虎榜)",
+      "universe_filter": "龙虎榜日涨跌幅 < -threshold (decline tail)",
+      "hold_window": "T+1 ~ T+5",
+      "direction": "LONG",
+      "sizing": { "unit": "1/? rescale", "gross_cap": 1.0 },
+      "theory": "Barberis-Thaler 过度反应假说；龙虎榜大跌触发散户踩踏式卖出，次日反弹。早期 2018-2022 有效。",
+      "metrics_8yr": {
+        "n_obs": 1942,
+        "ann_return": 0.7219,
+        "sharpe": 3.309,
+        "max_drawdown": -0.5586,
+        "psr": 1.0,
+        "sharpe_ci_low": 1.306,
+        "sharpe_ci_high": 5.517
+      },
+      "recent_24m_sharpe": -1.86,
+      "gates_5": {
+        "ann_ge_15pct": true,
+        "sharpe_ge_08": true,
+        "mdd_gt_neg30pct": false,
+        "psr_ge_95pct": true,
+        "ci_low_ge_05": true,
+        "n_pass": 4
+      },
+      "highlights": [
+        "8 年 IS Sharpe 3.31 看似神策略，MDD -55.86% 超红线即已告警",
+        "最近 24 月 SR -1.86 — 典型 crowded alpha 信号，信息优势被吃光",
+        "和 DSR #30 相关 0.37，原本 ensemble 很美；去掉后 ensemble SR 退回单腿水平"
+      ],
+      "failure_modes": [
+        "crowded alpha — 量化私募用同样的公开数据和同样的模式捞走了利润",
+        "8yr IS 3.31 是典型\"早年红利全在\"陷阱；最近 24 月才是真信号",
+        "MDD -56% 本就超 admission gate，ensemble 里被 #30 掩护通过"
+      ],
+      "decay_evidence": "journal/dsr30_decay_check_20260421.md — #33 最近 24 月 SR -1.86，ensemble 同期 SR -0.45",
+      "equity_file": "equity_dsr33_lhb_decline.json",
+      "refs": [
+        "Barber & Odean 2008 JF — 散户过度反应",
+        "Xiong et al. 2015 — A 股 LHB 套利"
+      ]
+    },
+    {
+      "id": "dsr37_lockup_rebound",
+      "name_en": "DSR #37 — Lockup Expiry Rebound",
+      "name_zh": "DSR #37 · 解禁后反弹",
+      "status": "failed",
+      "status_note": "2026-04-21 postmortem — 解禁日 T+1~T+20 反弹假设在长历史样本上 FAIL，信号不稳",
+      "category": "corporate-action",
+      "tagline": "限售股解禁日后股价反弹假说 — 回测证伪",
+      "event_source": "_all_share_float.parquet (限售解禁)",
+      "universe_filter": "解禁市值 > 某阈值",
+      "hold_window": "T+1 ~ T+20",
+      "direction": "LONG",
+      "sizing": { "unit": "1/N", "gross_cap": 1.0 },
+      "theory": "假设解禁日前的 overhang 压力释放后反弹；实际上解禁日往往伴随长期累积卖压，反弹并不系统性出现。",
+      "metrics_8yr": {
+        "n_obs": 1942,
+        "ann_return": -0.05,
+        "sharpe": -0.4,
+        "max_drawdown": -0.35,
+        "psr": 0.1,
+        "sharpe_ci_low": -1.2,
+        "sharpe_ci_high": null
+      },
+      "recent_24m_sharpe": null,
+      "gates_5": {
+        "ann_ge_15pct": false,
+        "sharpe_ge_08": false,
+        "mdd_gt_neg30pct": false,
+        "psr_ge_95pct": false,
+        "ci_low_ge_05": false,
+        "n_pass": 1
+      },
+      "highlights": [
+        "SR -0.4 — 解禁后反弹假说直接被证伪",
+        "对比 Lockup expiry SHORT (id=14) sharpe 0.42 — 做空反而稍微有点东西",
+        "journal/dsr37_postmortem_20260421.md 记录失败原因"
+      ],
+      "failure_modes": [
+        "解禁造成的实际卖压 > overhang 释放效应，方向错了",
+        "解禁股东结构 (战投/员工/大股东) 决定了卖压方向，单一规则无法覆盖"
+      ],
+      "decay_evidence": "journal/dsr37_postmortem_20260421.md",
+      "equity_file": null,
+      "refs": [
+        "Brav 2004 — 美股 lockup expiration",
+        "A 股限售解禁相关研究"
+      ]
+    },
+    {
+      "id": "dsr_pv_main",
+      "name_en": "PV-only (Main Board)",
+      "name_zh": "业绩预告 drift (主板)",
+      "status": "component",
+      "status_note": "作为 DSR #30 ensemble 的 PV 腿使用；单独 Sharpe 0.48 弱于 BB 但提供多样性",
+      "category": "corporate-action",
+      "tagline": "业绩预告 (earnings_preview) 后 T+1~T+20 drift，主板样本",
+      "event_source": "_all_earnings_preview.parquet",
+      "universe_filter": "board == 主板",
+      "hold_window": "T+1 ~ T+20",
+      "direction": "LONG",
+      "sizing": { "unit": "1/? × 2.286", "gross_cap": 1.0 },
+      "theory": "PEAD (post-earnings announcement drift) — Bernard-Thomas 1989 最初发现；A 股业绩预告比正式财报更早 10-30 天，信号更干净。",
+      "metrics_8yr": {
+        "n_obs": 1942,
+        "ann_return": 0.066,
+        "sharpe": 0.48,
+        "max_drawdown": null,
+        "psr": null,
+        "sharpe_ci_low": null,
+        "sharpe_ci_high": null
+      },
+      "recent_24m_sharpe": null,
+      "gates_5": { "ann_ge_15pct": false, "sharpe_ge_08": false, "mdd_gt_neg30pct": null, "psr_ge_95pct": null, "ci_low_ge_05": null, "n_pass": 0 },
+      "highlights": [
+        "单腿 Sharpe 0.48 弱于 BB 的 0.95 — 但和 BB 相关性低，提供多样性",
+        "是 DSR #30 ensemble 的 PV 成分腿 (50/50 等权)",
+        "未来考虑 BB-only 版本时要独立 pre-reg"
+      ],
+      "failure_modes": [
+        "预告口径不统一 — 强预告 (扭亏/预增 50%+) vs 弱预告差异大",
+        "预告公布日期不整齐，季末集中披露造成截面不均衡"
+      ],
+      "decay_evidence": "dsr30_decay_check 里作为 ensemble 成分验证",
+      "equity_file": null,
+      "refs": [
+        "Bernard & Thomas 1989 JAR — PEAD 原始",
+        "田利辉 2014 — A 股 PEAD"
+      ]
+    }
+  ],
+  "trials_summary": {
+    "total_trials": 34,
+    "pass_4_of_5": 2,
+    "pass_5_of_5_ensemble": 1,
+    "note": "Phase 3 共跑 34 个事件驱动 trials，仅 DSR #30 (BB) + DSR #33 (LHB) 通过 4/5；ensemble 过 5/5 但 #33 已死，只能 paper-trade #30。详见 trials.json。"
+  }
+}

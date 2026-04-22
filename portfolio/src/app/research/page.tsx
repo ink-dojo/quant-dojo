@@ -3,17 +3,22 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { CategoryBadge } from "@/components/cards/CategoryBadge";
 import { GaugeRing } from "@/components/viz/GaugeRing";
 import { FactorLibrary } from "@/components/research/FactorLibrary";
-import { readData } from "@/lib/data";
+import { readData, readDataOrNull } from "@/lib/data";
 import { fmtNum } from "@/lib/formatters";
+import { FACTOR_CATEGORIES, type FactorCategory } from "@/lib/constants";
 import type {
+  CategoriesFile,
   FactorIndex,
   HeroFactorsFile,
 } from "@/lib/types";
 
+const CATEGORY_KEYS = Object.keys(FACTOR_CATEGORIES) as FactorCategory[];
+
 export default async function ResearchPage() {
-  const [index, heroes] = await Promise.all([
+  const [index, heroes, cats] = await Promise.all([
     readData<FactorIndex>("factors/index.json"),
     readData<HeroFactorsFile>("factors/hero.json"),
+    readDataOrNull<CategoriesFile>("categories.json"),
   ]);
 
   const coreHeroes = heroes.factors.filter((f) => f.tier === "core");
@@ -50,6 +55,44 @@ export default async function ResearchPage() {
           </p>
         </Link>
       </section>
+
+      {cats && (
+        <section className="max-w-content mx-auto px-6 pb-16">
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
+            Categories · 因子分类
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] mb-6">
+            7 大类别 — 每类都附经济直觉、A 股特点、代表因子、常见陷阱。点击进入类别总览。
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {CATEGORY_KEYS.map((key) => {
+              const meta = cats.categories[key];
+              const count = index.by_category_counts[key] ?? 0;
+              if (!meta) return null;
+              return (
+                <Link
+                  key={key}
+                  href={`/research/category/${key}`}
+                  className="group block p-4 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 hover:bg-[var(--bg-surface)] hover:border-[var(--border)] transition-all"
+                >
+                  <div className="flex items-baseline justify-between gap-2 mb-2">
+                    <CategoryBadge category={key} />
+                    <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
+                      {count} factors
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--blue)] mb-1">
+                    {meta.label_zh} · {meta.label_en}
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    {meta.one_liner}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="max-w-content mx-auto px-6 pb-16">
         <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
