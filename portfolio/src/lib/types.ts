@@ -463,3 +463,89 @@ export interface FactorLinenoFile {
   note?: string;
   lineno: Record<string, number>;
 }
+
+// Event-driven paper-trade state (scripts/paper_trade_daily.py writes this).
+// Drives /live/paper-trade route.
+export interface PaperTradeNavPoint {
+  date: string;
+  nav: number;
+}
+
+export interface PaperTradePosition {
+  symbol: string;
+  shares: number;
+  cost_price: number;
+  current_price: number;
+  pnl_pct: number;
+}
+
+export interface PaperTradeTrade {
+  symbol: string;
+  action: "buy" | "sell" | string;
+  shares: number;
+  price: number;
+  cost: number;
+}
+
+export interface PaperTradeOpenEntry {
+  symbol: string;
+  leg: "bb" | "pv" | string;
+  entry_date: string;
+  exit_date: string;
+  unit_weight: number;
+  signal: number;
+  entry_price: number;
+}
+
+export interface PaperTradeKill {
+  action:
+    | "ok"
+    | "warn"
+    | "halve"
+    | "cool_off"
+    | "do_not_upgrade"
+    | "halt"
+    | string;
+  position_scale: number;
+  rolling_sr_30d: number | null;
+  live_sharpe: number | null;
+  cum_drawdown: number | null;
+  monthly_mdd: number | null;
+  running_days: number;
+  reasons: string[];
+  warnings: string[];
+}
+
+export interface PaperTradeState {
+  spec_version: string;
+  strategy_id: string | null;
+  phase: string | null;
+  started_at: string | null;
+  enabled: boolean;
+  initial_capital: number;
+  initial_capital_pct_of_total: number | null;
+  legs_enabled: Record<string, boolean> | null;
+  ensemble_mix: Record<string, number> | null;
+  last_run_ts: string;
+  last_trading_day: string;
+  nav_series: PaperTradeNavPoint[];
+  last_nav: number;
+  cum_return: number;
+  pnl_today: number;
+  daily_summary: {
+    n_buys: number;
+    n_sells: number;
+    turnover: number;
+    gross_weight: number;
+    cash_after: number;
+    nav_after: number;
+    skipped_buys: string[];
+    dropped_no_price: string[];
+    duplicate_skipped: string[];
+  };
+  today_trades: PaperTradeTrade[];
+  positions: PaperTradePosition[];
+  open_entries_count: number;
+  open_entries: PaperTradeOpenEntry[];
+  kill: PaperTradeKill;
+}

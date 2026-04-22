@@ -61,6 +61,14 @@ live/dashboard/
 live/factor_research/
 live/strategy_state.json
 
+# DSR #30 event-driven paper-trade 运行时产出 (ledger 是 SQLite 二进制, 日报/订单
+# 可从 ledger regenerate; 只保留 config.json + README.md 入库)
+paper_trade/portfolio/
+paper_trade/daily_report_*.md
+paper_trade/orders_*.csv
+paper_trade/monthly_review_*.md
+paper_trade/alerts.log
+
 # 自动生成的策略定义（由 quant_dojo generate 产出）
 strategies/generated/
 !strategies/generated/__init__.py

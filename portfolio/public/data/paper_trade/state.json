@@ -1,0 +1,56 @@
+{
+  "spec_version": "v3",
+  "strategy_id": "dsr30_bb_mainboard_rescaled_bbonly",
+  "phase": "live_phase1",
+  "started_at": "2026-04-17",
+  "enabled": true,
+  "initial_capital": 1000000.0,
+  "initial_capital_pct_of_total": 0.05,
+  "legs_enabled": {
+    "bb": true,
+    "pv": false
+  },
+  "ensemble_mix": {
+    "bb": 1.0,
+    "pv": 0.0
+  },
+  "last_run_ts": "2026-04-22T12:33:37.496482+08:00",
+  "last_trading_day": "2026-04-17",
+  "nav_series": [
+    {
+      "date": "2026-04-17",
+      "nav": 1000000.0
+    }
+  ],
+  "last_nav": 1000000.0,
+  "cum_return": 0.0,
+  "pnl_today": 0.0,
+  "daily_summary": {
+    "n_buys": 0,
+    "n_sells": 0,
+    "turnover": 0.0,
+    "gross_weight": 0.0,
+    "cash_after": 1000000.0,
+    "nav_after": 1000000.0,
+    "skipped_buys": [],
+    "dropped_no_price": [],
+    "duplicate_skipped": []
+  },
+  "today_trades": [],
+  "positions": [],
+  "open_entries_count": 0,
+  "open_entries": [],
+  "kill": {
+    "action": "ok",
+    "position_scale": 1.0,
+    "rolling_sr_30d": null,
+    "live_sharpe": null,
+    "cum_drawdown": null,
+    "monthly_mdd": null,
+    "running_days": 1,
+    "reasons": [
+      "insufficient history"
+    ],
+    "warnings": []
+  }
+}

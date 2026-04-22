@@ -7,8 +7,12 @@
 ## 项目简介
 
 A 股量化研究项目，目标是做出真正盈利的系统化策略。
-三人团队：jialong（金融逻辑/因子设计）、xingyu（代码实现/框架）。
-当前阶段：Phase 3（因子研究），详见 ROADMAP.md。
+团队：jialong（金融逻辑/因子设计）、xingyu（代码实现/框架）。
+
+当前阶段：Phase 3 + 4 已终结（2026-04-18，31 个 event-driven trials 跑完），
+唯一 4/5 候选是 DSR #30（回购 drift，BB 主板 rescaled），CI_low 0.20 差一档。
+下一步：paper trade DSR #30 校准实盘 vs 回测差异，然后决定继续挖因子还是进 Phase 8。
+详见 ROADMAP.md 与 `journal/paper_trade_spec_v3_bb_only_20260422.md`。
 
 ---
 
