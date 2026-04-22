@@ -155,6 +155,7 @@ def compute_mda_drift_factor(
     config: DriftConfig | None = None,
     download: bool = True,
     show_progress: bool = True,
+    delete_pdf_after_tokens: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     端到端 pipeline: symbols × [start_year, end_year] → drift_score 宽表.
@@ -164,6 +165,10 @@ def compute_mda_drift_factor(
         start_year/end_year: 财年区间, 必须 end_year >= start_year + 1 (至少 2 年)
         download: True 则用 data_loader 自动爬 + 下载 PDF; False 则只读现有缓存
         config: TF-IDF 超参, 默认见 DriftConfig
+        delete_pdf_after_tokens: True 则每份 PDF 成功抽出 tokens 后立即删除 PDF,
+            用于磁盘受限的全 A 股跑 (每份年报 PDF 3-5 MB, tokens parquet 只 ~50 KB,
+            40000 份 PDF ~ 120 GB vs tokens ~ 2 GB). 默认 False 保留 PDF 便于后续
+            重新抽取 / 调试.
 
     返回:
         (factor_wide, diagnostics)
@@ -216,14 +221,27 @@ def compute_mda_drift_factor(
     )
     token_rows: list[dict] = []
     for rec in iterator2:
+        pdf_path = Path(rec["file_path"])
         diag = process_single_pdf_to_tokens(
             symbol=rec["symbol"],
             fiscal_year=int(rec["fiscal_year"]),
-            pdf_path=Path(rec["file_path"]),
+            pdf_path=pdf_path,
             tokens_cache_dir=tokens_cache_dir,
         )
         token_rows.append(diag)
         diagnostics_rows.append(diag)
+        # 磁盘节流: 成功抽出 tokens 后删除 PDF, 保留 tokens parquet
+        # 注意: "cached" 说明之前就抽过, tokens 已在磁盘; 仍可删 PDF
+        if (
+            delete_pdf_after_tokens
+            and diag["status"] in ("ok", "cached")
+            and diag["token_count"] > 0
+            and pdf_path.exists()
+        ):
+            try:
+                pdf_path.unlink()
+            except OSError as e:
+                logger.warning("删 PDF 失败 %s: %r", pdf_path, e)
 
     # Step 4: 装载 tokens + 算 drift
     panel_rows: list[dict] = []
