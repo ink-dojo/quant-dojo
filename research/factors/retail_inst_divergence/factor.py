@@ -79,12 +79,18 @@ def load_retail_hot_daily(start: str, end: str) -> pd.DataFrame:
                     continue
                 if date_i < start_i or date_i > end_i:
                     continue
-                df = pd.read_parquet(f, columns=["trade_date", "ts_code", "rank"])
+                try:
+                    df = pd.read_parquet(f)
+                except Exception as e:  # 损坏的 parquet 跳过
+                    log.debug("skip corrupt %s: %s", f.name, e)
+                    continue
+                if "ts_code" not in df.columns or "rank" not in df.columns or df.empty:
+                    continue
                 df = df[_is_a_share(df["ts_code"])]
                 if df.empty:
                     continue
                 top_n = len(df)
-                df = df.copy()
+                df = df.loc[:, ["trade_date", "ts_code", "rank"]].copy()
                 df["retail_score"] = (top_n - df["rank"].astype(float) + 1.0) / top_n
                 df["source"] = name
                 records.append(df[["trade_date", "ts_code", "retail_score", "source"]])
@@ -99,7 +105,9 @@ def load_retail_hot_daily(start: str, end: str) -> pd.DataFrame:
         .max()
         .reset_index()
     )
-    agg["trade_date"] = pd.to_datetime(agg["trade_date"].astype(str), format="%Y%m%d")
+    agg["trade_date"] = pd.to_datetime(
+        agg["trade_date"].astype(str).str.strip(), format="%Y%m%d"
+    )
     return agg
 
 
