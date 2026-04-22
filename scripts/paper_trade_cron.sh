@@ -2,10 +2,10 @@
 # DSR #30 paper-trade EOD wrapper, 由 launchd 每工作日本地 09:30 触发 (上海 21:30 收盘后).
 #
 # 顺序:
-#   1. daily_update.sh 刷价格数据到最新交易日 (用 PAPER_TRADE_TUSHARE_TOKEN,
-#      120 积分 daily+adj_factor 够用). 失败不 abort.
-#   2. paper_trade_daily.py 生成今天的 signal + trade + state.json + 日报.
-#   3. 若 state.json 有变化, 自动 commit + push 到 main, 触发 Vercel 重新部署
+#   1. 刷价格数据 (tushare 120 积分 / daily + adj_factor). 失败不 abort.
+#   2. 刷回购事件 parquet (akshare stock_repurchase_em, 免 token). 失败不 abort.
+#   3. paper_trade_daily.py — 生成今天的 signal + trade + state.json + 日报.
+#   4. state.json 有变化则 git commit + push main, 触发 Vercel 重部署
 #      https://quantdojo.vercel.app/live/paper-trade 页面. 失败不影响 cron 成功.
 #
 # 日志: logs/paper_trade_cron.log
@@ -37,16 +37,20 @@ fi
   echo "[$(date '+%Y-%m-%d %H:%M:%S %z')] paper-trade cron start"
   echo "  TUSHARE_TOKEN prefix: ${TUSHARE_TOKEN:0:8}... (paper-trade 专用)"
 
-  echo "--- step 1: 刷价格数据 (直接调 pipeline.cli, 避免 daily_update.sh 重新 source .env) ---"
+  echo "--- step 1: 刷价格数据 (tushare 120 积分 / daily + adj_factor) ---"
   "$PYTHON" -m pipeline.cli data update --source tushare || \
-      echo "[warn] data update failed; 继续使用已有数据"
+      echo "[warn] price update failed; 继续使用已有价格"
 
-  echo "--- step 2: paper_trade_daily.py ---"
+  echo "--- step 2: 刷回购事件 (akshare stock_repurchase_em, 免 token) ---"
+  "$PYTHON" "$REPO_DIR/scripts/refresh_buyback_events.py" || \
+      echo "[warn] buyback refresh failed; 继续使用已有 parquet"
+
+  echo "--- step 3: paper_trade_daily.py ---"
   "$PYTHON" "$REPO_DIR/scripts/paper_trade_daily.py"
   EXIT=$?
   echo "paper_trade_daily exit=$EXIT"
 
-  echo "--- step 3: auto-commit state.json → Vercel redeploy ---"
+  echo "--- step 4: auto-commit state.json → Vercel redeploy ---"
   STATE_JSON="$REPO_DIR/portfolio/public/data/paper_trade/state.json"
   if [ -f "$STATE_JSON" ] && git -C "$REPO_DIR" diff --quiet -- "$STATE_JSON"; then
       echo "  state.json 未变化, 跳过 push"
