@@ -1,5 +1,8 @@
 # quant-dojo
 
+[![English](https://img.shields.io/badge/lang-English-2563EB?style=for-the-badge)](./README.md)
+[![中文](https://img.shields.io/badge/lang-中文-DC2626?style=for-the-badge)](./README.zh-CN.md)
+
 Systematic research and execution stack for the **A-share equity market**.
 Built around a discipline of pre-registration, walk-forward validation, and
 multi-layer risk control — every strategy must pass the same admission gate
