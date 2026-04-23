@@ -105,11 +105,13 @@ def compute_factor_ic_summary(
     end: str,
     fwd_days: int = 20,
     sample_cadence: int = 5,
+    min_stocks: int = 30,
 ) -> dict:
     """
     在指定区间上计算因子的 IC summary.
 
     price: wide df with ts_code columns (6-digit → ts_code mapping already applied).
+    min_stocks: 每日截面最少股票数 (事件 factor 可降到 3-5).
     """
     # 对齐价格 columns 到 ts_code
     fwd = price.shift(-fwd_days) / price - 1.0
@@ -127,7 +129,10 @@ def compute_factor_ic_summary(
         f_row = fac.loc[d].dropna()
         r_row = ret.loc[d].dropna()
         common = f_row.index.intersection(r_row.index)
-        if len(common) < 30:
+        if len(common) < min_stocks:
+            continue
+        # 事件 factor 在同一截面可能所有 value 相同, 跳过 constant
+        if f_row[common].nunique() < 2:
             continue
         corr = f_row[common].corr(r_row[common], method="spearman")
         if pd.notna(corr):
