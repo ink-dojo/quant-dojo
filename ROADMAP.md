@@ -270,8 +270,10 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
       发现 regime shift: 震荡市 short 端 alpha 强, 牛市 long 端强
 - [x] **MFD** (MoneyFlow Divergence) — 反转因子 IC=-0.020, 单独不过门槛
 - [ ] **FMD** (Foreign-Margin Divergence) — 设计完成, northbound 2025 数据缺失, 待修
-- [ ] RIAD walk-forward + regime-aware gate + 融券 universe filter → paper-trade 决策
-      (详见 `journal/riad_mfd_factor_result_20260422.md`)
+- [x] RIAD walk-forward (3-fold blocked CV) + regime-aware gate + 融券 universe filter 完成
+      RIAD 单独 2/4 (DSR/bootstrap 不过), RIAD × DSR#30 BB-only corr=-0.04 → 合成 1.87 SR, 3/4 通过
+      paper_trade_spec_v4 (RIAD + DSR#30 BB-only 双腿 50/50) 已写, 待 jialong 批准 (2026-04-23)
+      (详见 `journal/riad_mfd_factor_result_20260422.md`, `journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`)
 - [ ] **Tier 2** — LLM hedging 密度增量（条件: Tier 1 IC ∈ [0.015, 0.025]）
 - [ ] **Tier 3** — 跨文档 conditional reasoning（条件: Tier 1/2 任一 work）
 
