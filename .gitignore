@@ -21,6 +21,7 @@ data/raw/
 data/processed/*
 # 事件日历等手维护的源数据, 单独入库
 !data/processed/stress_dates.json
+!data/processed/spec_v3_representative_positions.json
 *.csv
 *.parquet
 *.h5
