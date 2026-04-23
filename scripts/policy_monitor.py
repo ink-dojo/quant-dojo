@@ -1,6 +1,7 @@
 """
-政府政策监控 — 8 个部委增量抓取
-商务部 / 证监会 / 国家能源局 / 财政部 / 央行 / 工信部 / 发改委 / 交通运输部
+政府政策监控 — 12 个部委增量抓取
+商务部 / 工信部 / 证监会 / 国家能源局 / 财政部 / 央行
+发改委 / 交通运输部 / 国务院 / 生态环境部 / 市场监管总局 / 金融监管总局
 
 用法:
     python scripts/policy_monitor.py          # 抓取所有来源
@@ -33,7 +34,6 @@ _HEADERS = {
 # 各部委配置
 # ─────────────────────────────────────────────
 
-# 商务部 / 工信部 共用同款 CMS 配置
 _CMS_SOURCES = {
     "商务部": {
         "base": "http://www.mofcom.gov.cn",
@@ -50,7 +50,6 @@ _CMS_SOURCES = {
             "pageSize": "20",
         },
         "referer": "http://www.mofcom.gov.cn/zwgk/zcfb/index.html",
-        # 列表项: <a href="PATH" title="TITLE">...</a><span>[DATE]</span>
         "pattern": r'href="(/zwgk/zcfb/art/[^"]+)"\s+title="([^"]+)"[^>]*>[^<]+</a><span>\[(\d{4}-\d{2}-\d{2})\]</span>',
     },
     "工信部": {
@@ -68,29 +67,47 @@ _CMS_SOURCES = {
             "pageSize": "20",
         },
         "referer": "https://www.miit.gov.cn/zwgk/zcwj/wjfb/tz/index.html",
-        # 工信部 HTML 结构: <a href="PATH" ... title="TITLE">...<span...>DATE</span>
         "pattern": r'href="(/zwgk/[^"]+\.html)"\s[^>]*title="([^"]+)"[\s\S]{0,200}?(\d{4}-\d{2}-\d{2})',
+    },
+    "市场监管总局": {
+        "base": "https://www.samr.gov.cn",
+        "api": "https://www.samr.gov.cn/api-gateway/jpaas-publish-server/front/page/build/unit",
+        "params": {
+            "parseType": "bulidstatic",
+            "webId": "29e9522dc89d4e088a953d8cede72f4c",
+            "tplSetId": "5c30fb89ae5e48b9aefe3cdf49853830",
+            "pageType": "column",
+            "tagId": "内容区域",
+            "editType": "null",
+            "pageId": "39cd9de1f309431483ef3008309f39ca",
+            "pageNo": "1",
+            "pageSize": "20",
+        },
+        "referer": "https://www.samr.gov.cn/xw/zj/index.html",
+        # 标题和日期分别在相邻的 li 里
+        "pattern": r'<a href="(/xw/[^"]+\.html)"[^>]*title="([^"]+)"[^>]*>[^<]+</a></li>\s*'
+                   r'<li class="nav04Left02_contenttime">(\d{4}-\d{2}-\d{2})</li>',
     },
 }
 
-# 证监会：首页静态 HTML
+# 证监会
 _CSRC_HOME = "https://www.csrc.gov.cn/"
 _CSRC_BASE = "https://www.csrc.gov.cn"
 _CSRC_SECTIONS = {"c100028", "c106311"}
 
-# 国家能源局：首页静态，日期在 URL 路径里
+# 国家能源局
 _NEA_HOME = "http://www.nea.gov.cn/"
 _NEA_BASE = "http://www.nea.gov.cn"
 
-# 财政部：静态列表，日期在 URL 里 (t20260409_...)
+# 财政部
 _MOF_LIST = "http://www.mof.gov.cn/zhengwuxinxi/zhengcefabu/"
 _MOF_BASE = "http://www.mof.gov.cn"
 
-# 央行：规范性文件静态列表，日期在 URL 路径开头 (2026041715...)
+# 央行
 _PBOC_LIST = "http://www.pbc.gov.cn/tiaofasi/144941/3581332/index.html"
 _PBOC_BASE = "http://www.pbc.gov.cn"
 
-# 发改委：Elasticsearch API，siteCode=bm04000fgk
+# 发改委 Elasticsearch API
 _NDRC_API = (
     "https://fwfx.ndrc.gov.cn/api/query"
     "?qt=&tab=all&page=1&pageSize=20&siteCode=bm04000fgk"
@@ -99,9 +116,26 @@ _NDRC_API = (
 )
 _NDRC_REFERER = "https://fwfx.ndrc.gov.cn/"
 
-# 交通运输部：xxgk 子域政策列表，日期在 URL 里 (tYYYYMMDD_...)
+# 交通运输部 政策规章列表
 _MOT_LIST = "https://xxgk.mot.gov.cn/zhengce/?gk=5"
 _MOT_REFERER = "https://www.mot.gov.cn/"
+
+# 国务院 最新政策 JSON (TRS CMS 静态导出)
+_GOV_JSON = "https://www.gov.cn/zhengce/zuixin/ZUIXINZHENGCE.json"
+_GOV_REFERER = "https://www.gov.cn/zhengce/zuixin/index.htm"
+
+# 生态环境部 标准规范列表
+_MEE_LIST = "https://www.mee.gov.cn/ywgz/fgbz/bz/index.shtml"
+_MEE_BASE = "https://www.mee.gov.cn/ywgz/fgbz/bz/"
+_MEE_REFERER = "https://www.mee.gov.cn/"
+
+# 金融监管总局 监管动态 (itemId=915)
+_NFRA_API = (
+    "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild"
+    "?itemId=915&pageIndex=1&pageSize=20&tabKey=1"
+)
+_NFRA_BASE = "https://www.nfra.gov.cn/cn/view/pages/ItemDetail.html"
+_NFRA_REFERER = "https://www.nfra.gov.cn/"
 
 
 # ─────────────────────────────────────────────
@@ -158,7 +192,7 @@ def _clean_title(raw: str) -> str:
 
 
 # ─────────────────────────────────────────────
-# 商务部 / 工信部（同款 CMS）
+# 商务部 / 工信部 / 市场监管总局（同款 jpaas CMS）
 # ─────────────────────────────────────────────
 
 def scrape_cms(name: str) -> list[dict]:
@@ -226,12 +260,11 @@ def scrape_csrc(conn: sqlite3.Connection) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 国家能源局（日期在 URL 路径里）
+# 国家能源局
 # ─────────────────────────────────────────────
 
 def scrape_nea() -> list[dict]:
     html = _fetch(_NEA_HOME)
-    # URL 格式（相对路径，无前导斜杠）: 20260415/7efcf85.../c.html
     items = re.findall(
         r'href="(?:http://www\.nea\.gov\.cn/)?(\d{8})/([^"]+)/c\.html"[^>]*>([^<]{5,80})</a>',
         html,
@@ -251,12 +284,11 @@ def scrape_nea() -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 财政部（日期在 URL 里: t20260409_...）
+# 财政部
 # ─────────────────────────────────────────────
 
 def scrape_mof() -> list[dict]:
     html = _fetch(_MOF_LIST)
-    # 财政部多子域名: jjs.mof.gov.cn / gss.mof.gov.cn / nys.mof.gov.cn ...
     items = re.findall(
         r'href="(https?://[a-z]+\.mof\.gov\.cn/[^"]+/t(\d{4})(\d{2})(\d{2})_[^"]+\.htm)"'
         r'[^>]*>([^<]{5,80})</a>',
@@ -275,12 +307,11 @@ def scrape_mof() -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 央行（规范性文件，日期在 URL 路径开头）
+# 央行
 # ─────────────────────────────────────────────
 
 def scrape_pboc() -> list[dict]:
     html = _fetch(_PBOC_LIST)
-    # URL 格式: /tiaofasi/144941/3581332/2026041715444050196/index.html
     items = re.findall(
         r'href="(/tiaofasi/[^"]+/(\d{8})\d+/index\.html)"[^>]*>([^<]{5,80})</a>',
         html,
@@ -300,7 +331,7 @@ def scrape_pboc() -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 发改委（Elasticsearch 全文搜索 API）
+# 发改委（Elasticsearch API）
 # ─────────────────────────────────────────────
 
 def scrape_ndrc() -> list[dict]:
@@ -322,12 +353,11 @@ def scrape_ndrc() -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 交通运输部（政策规章列表，日期在 URL 里）
+# 交通运输部（政策规章，日期在 URL 里）
 # ─────────────────────────────────────────────
 
 def scrape_mot() -> list[dict]:
     html = _fetch(_MOT_LIST, extra_headers={"Referer": _MOT_REFERER})
-    # URL 格式: https://xxgk.mot.gov.cn/gz/202604/t20260410_4203400.html
     items = re.findall(
         r'href="(https://xxgk\.mot\.gov\.cn/gz/\d{6}/t(\d{8})_\d+\.html)"'
         r'[^>]*>\s*([^<]{5,80})\s*</a>',
@@ -347,6 +377,77 @@ def scrape_mot() -> list[dict]:
 
 
 # ─────────────────────────────────────────────
+# 国务院（TRS CMS 静态导出 JSON，最新政策）
+# ─────────────────────────────────────────────
+
+def scrape_gov() -> list[dict]:
+    raw = _fetch(_GOV_JSON, extra_headers={"Referer": _GOV_REFERER})
+    items = json.loads(raw)
+    seen: set[str] = set()
+    results: list[dict] = []
+    for item in items:
+        url = item.get("URL", "").strip()
+        title = _clean_title(item.get("TITLE", ""))
+        pub_date = item.get("DOCRELPUBTIME", "")
+        if not url or not title or url in seen:
+            continue
+        seen.add(url)
+        results.append({"source": "国务院", "title": title, "url": url, "pub_date": pub_date})
+    print(f"[国务院] 抓到 {len(results)} 条")
+    return results
+
+
+# ─────────────────────────────────────────────
+# 生态环境部（环境标准规范列表，日期在 URL 里）
+# ─────────────────────────────────────────────
+
+def scrape_mee() -> list[dict]:
+    html = _fetch(_MEE_LIST, extra_headers={"Referer": _MEE_REFERER})
+    # URL 格式: ./bzwb/SECTION/SUBSECTION/202601/t20260129_XXXXXX.shtml
+    items = re.findall(
+        r'href="\./([^"]{5,120}/t(\d{8})_\d+\.shtml)"[^>]*>\s*([^<]{5,80})\s*</a>',
+        html,
+    )
+    seen: set[str] = set()
+    results: list[dict] = []
+    for path, date8, title in items:
+        url = _MEE_BASE + path
+        title = _clean_title(title)
+        if not title or url in seen:
+            continue
+        seen.add(url)
+        pub_date = f"{date8[:4]}-{date8[4:6]}-{date8[6:8]}"
+        results.append({"source": "生态环境部", "title": title, "url": url, "pub_date": pub_date})
+    print(f"[生态环境部] 抓到 {len(results)} 条")
+    return results
+
+
+# ─────────────────────────────────────────────
+# 金融监管总局（监管动态，cbircweb API）
+# ─────────────────────────────────────────────
+
+def scrape_nfra() -> list[dict]:
+    raw = _fetch(_NFRA_API, extra_headers={"Referer": _NFRA_REFERER})
+    resp = json.loads(raw)
+    rows = resp.get("data", {}).get("rows", [])
+    seen: set[str] = set()
+    results: list[dict] = []
+    for row in rows:
+        doc_id = row.get("docId")
+        title = _clean_title(row.get("docTitle", ""))
+        pub_date = row.get("publishDate", "")[:10]
+        if not doc_id or not title:
+            continue
+        url = f"{_NFRA_BASE}?docId={doc_id}&itemId=915"
+        if url in seen:
+            continue
+        seen.add(url)
+        results.append({"source": "金融监管总局", "title": title, "url": url, "pub_date": pub_date})
+    print(f"[金融监管总局] 抓到 {len(results)} 条")
+    return results
+
+
+# ─────────────────────────────────────────────
 # 展示
 # ─────────────────────────────────────────────
 
@@ -355,12 +456,12 @@ def _print_latest(conn: sqlite3.Connection, n: int = 20) -> None:
         "SELECT source, pub_date, title FROM policies "
         "ORDER BY pub_date DESC, id DESC LIMIT ?", (n,)
     ).fetchall()
-    print(f"\n{'─'*72}")
+    print(f"\n{'─'*76}")
     print(f"{'来源':<8}  {'日期':<12}  {'标题'}")
-    print(f"{'─'*72}")
+    print(f"{'─'*76}")
     for source, date, title in rows:
-        print(f"[{source:<6}]  {(date or '?'):<10}  {title[:44]}")
-    print(f"{'─'*72}")
+        print(f"[{source:<7}]  {(date or '?'):<10}  {title[:44]}")
+    print(f"{'─'*76}")
 
 
 # ─────────────────────────────────────────────
@@ -370,17 +471,21 @@ def _print_latest(conn: sqlite3.Connection, n: int = 20) -> None:
 _ALL_SCRAPERS = {
     "商务部":     lambda conn: scrape_cms("商务部"),
     "工信部":     lambda conn: scrape_cms("工信部"),
+    "市场监管总局": lambda conn: scrape_cms("市场监管总局"),
     "证监会":     scrape_csrc,
     "国家能源局": lambda conn: scrape_nea(),
     "财政部":     lambda conn: scrape_mof(),
     "央行":       lambda conn: scrape_pboc(),
     "发改委":     lambda conn: scrape_ndrc(),
     "交通运输部": lambda conn: scrape_mot(),
+    "国务院":     lambda conn: scrape_gov(),
+    "生态环境部": lambda conn: scrape_mee(),
+    "金融监管总局": lambda conn: scrape_nfra(),
 }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="政府政策监控（8 部委）")
+    parser = argparse.ArgumentParser(description="政府政策监控（12 部委）")
     parser.add_argument("--list",   action="store_true", help="只展示数据库最新记录")
     parser.add_argument("--source", type=str, help=f"只抓指定来源: {list(_ALL_SCRAPERS)}")
     args = parser.parse_args()
