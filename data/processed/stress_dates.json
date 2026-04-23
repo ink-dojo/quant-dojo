@@ -1,0 +1,93 @@
+{
+  "description": "A 股历史极端事件日历, 用于 scripts/stress_test.py",
+  "version": 1,
+  "updated": "2026-04-23",
+  "events": [
+    {
+      "name": "2015-06 股灾一",
+      "start_date": "2015-06-15",
+      "end_date": "2015-07-08",
+      "benchmark_return": -0.318,
+      "category": "crash",
+      "description": "杠杆牛第一轮崩盘, HS300 累计 -31.8%, 融资盘强平踩踏"
+    },
+    {
+      "name": "2015-08 股灾二 (千股跌停)",
+      "start_date": "2015-08-18",
+      "end_date": "2015-08-26",
+      "benchmark_return": -0.264,
+      "category": "crash",
+      "description": "人民币汇改 + 救市退出预期, 连续 5 个交易日千股跌停, 08-24 单日 -8.7%, 08-26 单日 -7.6%"
+    },
+    {
+      "name": "2016-01 熔断",
+      "start_date": "2016-01-04",
+      "end_date": "2016-01-08",
+      "benchmark_return": -0.141,
+      "category": "crash",
+      "description": "熔断机制首日 01-04 / 01-07 两次触发二级熔断, 01-04 单日 -7.0%, 01-07 单日 -7.2%"
+    },
+    {
+      "name": "2018-02 vix 震 (美股连锁)",
+      "start_date": "2018-02-05",
+      "end_date": "2018-02-09",
+      "benchmark_return": -0.089,
+      "category": "drawdown",
+      "description": "美股短波动率产品爆仓引发全球风险资产抛售, 2018-02-09 单日 -4.1%"
+    },
+    {
+      "name": "2018-10 贸易战",
+      "start_date": "2018-10-08",
+      "end_date": "2018-10-19",
+      "benchmark_return": -0.075,
+      "category": "drawdown",
+      "description": "中美贸易战升级 + 民企股权质押踩踏"
+    },
+    {
+      "name": "2020-02-03 疫情首日",
+      "start_date": "2020-02-03",
+      "end_date": "2020-02-03",
+      "benchmark_return": -0.078,
+      "category": "single_day",
+      "description": "武汉封城 + 春节后首个交易日, 3188 只跌停, HS300 单日 -7.9%"
+    },
+    {
+      "name": "2022-04 上海封城",
+      "start_date": "2022-04-11",
+      "end_date": "2022-04-29",
+      "benchmark_return": -0.102,
+      "category": "drawdown",
+      "description": "上海封控 + 俄乌外溢, 4 月累计 HS300 -10.2%"
+    },
+    {
+      "name": "2024-02 雪球敲入",
+      "start_date": "2024-01-29",
+      "end_date": "2024-02-05",
+      "benchmark_return": -0.089,
+      "category": "crash",
+      "description": "雪球集中敲入 + 小微盘流动性危机, 中证 1000 单周 -9.9%, 2024-02-05 单日 -6.2%"
+    },
+    {
+      "name": "2024-09-24 政策反转 (up stress)",
+      "start_date": "2024-09-24",
+      "end_date": "2024-10-08",
+      "benchmark_return": 0.272,
+      "category": "rally",
+      "description": "9/24 一揽子政策 + 节后开门大涨, HS300 连续 6 日累计 +27.2%, 测试做空 / 短端腿的尾部"
+    },
+    {
+      "name": "2025-04 关税 II (2025)",
+      "start_date": "2025-04-03",
+      "end_date": "2025-04-08",
+      "benchmark_return": -0.075,
+      "category": "drawdown",
+      "description": "Trump 2.0 关税升级 + 港股引爆, 2025-04-07 单日 -7.1%"
+    }
+  ],
+  "hard_gates": {
+    "single_day_loss_pct": 0.08,
+    "single_week_loss_pct": 0.15,
+    "cumulative_max_dd_pct": 0.25,
+    "rationale": "触发任一即 fail, 不上线 live 或回到 spec 调整"
+  }
+}

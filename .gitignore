@@ -18,7 +18,9 @@ env/
 
 # Data (本地数据不入库)
 data/raw/
-data/processed/
+data/processed/*
+# 事件日历等手维护的源数据, 单独入库
+!data/processed/stress_dates.json
 *.csv
 *.parquet
 *.h5
