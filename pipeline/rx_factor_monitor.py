@@ -62,6 +62,7 @@ class FactorSpec:
     sample_cadence_days: int = 5                # 评估采样间隔 (防 IC 强相关)
     earliest_start: str = "2023-10-01"          # 数据起点 (RIAD 受 stk_surv 限制)
     neutralize: bool = True                     # 是否 size+ind 中性化
+    min_stocks: int = 30                        # cross-section IC 每日最少股数 (事件 factor 调低 3-5)
     notes: str = ""
     tags: list[str] = field(default_factory=list)
 
@@ -218,6 +219,7 @@ def rx_factor_health_report(
             fw, price, effective_start, end_date,
             fwd_days=spec.fwd_days,
             sample_cadence=spec.sample_cadence_days,
+            min_stocks=spec.min_stocks,
         )
         report[spec.name] = {
             "display": spec.display,
@@ -331,6 +333,16 @@ def _build_sb(start: str, end: str) -> pd.DataFrame:
     return compute_sb_factor(long, cal)
 
 
+def _build_srr(start: str, end: str) -> pd.DataFrame:
+    from research.factors.suspend_reopen_reversal.factor import compute_factor
+    return compute_factor(start, end)
+
+
+def _build_mchg(start: str, end: str) -> pd.DataFrame:
+    from research.factors.management_change.factor import compute_factor
+    return compute_factor(start, end)
+
+
 RX_REGISTRY: list[FactorSpec] = [
     FactorSpec(
         name="RIAD",
@@ -392,6 +404,28 @@ RX_REGISTRY: list[FactorSpec] = [
         earliest_start="2024-01-01",
         tags=["attention", "event"],
         notes="null effect, 短期 spike 无 alpha",
+    ),
+    FactorSpec(
+        name="SRR",
+        display="停复牌反转 (log1p duration, hold 5d)",
+        build_fn=_build_srr,
+        sign=-1,
+        fwd_days=5,
+        sample_cadence_days=1,
+        earliest_start="2022-01-01",
+        min_stocks=3,
+        tags=["event", "suspend"],
+        notes="IS 2022-24 +IC, OOS 2025 -IC 符号翻转, 单独 dead",
+    ),
+    FactorSpec(
+        name="MCHG",
+        display="高管变动事件 (董事长/总经理/CFO/财务总监)",
+        build_fn=_build_mchg,
+        sign=-1,
+        fwd_days=20,
+        earliest_start="2022-01-01",
+        tags=["event", "governance"],
+        notes="IS 负 OOS 正 regime 翻转, 和 SRR 共同证实 2024/25 structural shift",
     ),
 ]
 
