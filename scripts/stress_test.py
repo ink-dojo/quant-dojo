@@ -450,6 +450,34 @@ def write_journal(
 # CLI
 # ─────────────────────────────────────────────────────────────
 
+def _scale_sweep(weights: dict, events: list, gates: dict,
+                 price_wide, hs300) -> None:
+    """
+    打印不同仓位系数 (0.5~1.0) 下的门槛通过情况.
+    帮助确定"最小需要缩到多少仓才能全部通过".
+    """
+    print("\n=== Vol-scaling sweep (缩仓通过分析) ===")
+    print(f"{'scale':>6}  {'失败数':>6}  失败事件")
+    for scale in [1.0, 0.9, 0.8, 0.7, 0.6, 0.5]:
+        # scale 的含义: 把每只股收益乘以 scale (等价于 scale 仓位 + (1-scale) 现金)
+        # 实现: 修改 gates 阈值反向等效
+        scaled_gates = {
+            "single_day_loss_pct": gates.get("single_day_loss_pct", 0.08) / scale,
+            "single_week_loss_pct": gates.get("single_week_loss_pct", 0.15) / scale,
+            "cumulative_max_dd_pct": gates.get("cumulative_max_dd_pct", 0.25) / scale,
+        }
+        results = []
+        for ev in events:
+            try:
+                results.append(replay_portfolio_in_event(weights, ev, price_wide, hs300))
+            except ValueError:
+                pass
+        ok, fails = check_hard_gates(results, scaled_gates)
+        fail_names = "; ".join(f.split("]")[0].lstrip("[") for f in fails)[:60]
+        marker = "✅" if ok else "❌"
+        print(f"{scale:>6.0%}  {marker} {len(fails):>4}  {fail_names}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Phase 8 Tier 1.3 Stress Test")
     parser.add_argument("--aum", type=float, default=10_000_000,
@@ -460,6 +488,10 @@ def main():
                         help="journal 输出目录")
     parser.add_argument("--no-journal", action="store_true",
                         help="只跑不写 journal (用于开发时快速验证)")
+    parser.add_argument("--label", type=str, default=None,
+                        help="可选标签, 追加到 journal 文件名 (e.g. 'spec_v3_repr')")
+    parser.add_argument("--sweep", action="store_true",
+                        help="打印缩仓扫描: 多大仓位系数可通过所有门槛")
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -504,8 +536,9 @@ def main():
     summary.to_parquet(parquet_path)
     log.info(f"per-event 面板已写: {parquet_path}")
 
+    label_suffix = f"_{args.label}" if args.label else ""
     if not args.no_journal:
-        journal_path = Path(args.output) / f"stress_test_results_{today}.md"
+        journal_path = Path(args.output) / f"stress_test_results_{today}{label_suffix}.md"
         write_journal(summary, gate_pass, failures, weights, args.aum, journal_path)
 
     # 6. 终端摘要
@@ -519,6 +552,11 @@ def main():
     for f in failures:
         print(f"  - {f}")
     print()
+
+    if args.sweep and not gate_pass:
+        _scale_sweep(weights, events, gates, price_wide, hs300)
+        print()
+
     return 0 if gate_pass else 1
 
 
