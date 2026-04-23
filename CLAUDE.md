@@ -133,6 +133,18 @@ grep -r "关键词" utils/ strategies/ agents/
 
 ---
 
+## Tushare 数据访问（必读一次）
+
+调用 tushare 之前**必读** `journal/tushare_access_guide_20260423.md`。一句话摘要：
+
+- 两个 token、两个 endpoint：**官方 725c (56 chars) 只有基础权限** vs **jiaoch 10000-pt 38a0 (60 chars) 全权限**。**交叉用一定失败**。
+- 研究用的高权限接口 (`daily_basic` / `moneyflow` / `top_list` / `repurchase` / `fina_indicator` / `moneyflow_hsgt` / 龙虎榜 / 北向 / 两融 / 财务三表 ...) **必须**走 jiaoch：`pro._DataApi__http_url = "http://jiaoch.site"`。
+- jiaoch 是**按周租**的共享账号，当前租期 **2026-04-19 ~ 2026-04-25**。到期前续租；"10000 积分"本身**不过期**，过期的是租用的 token。
+- 历史 ≈ 2.5 GB 已全量下到 SSD (`/Volumes/Crucial X10/quant-dojo-data/tushare/` 通过符号链接挂到 `data/raw/tushare/`)。做研究先读 parquet，**别动 live API**。
+- 开工前三项自检：(1) SSD 挂上 (`ls /Volumes/Crucial\ X10`) (2) `.env` 里 `TUSHARE_TOKEN` 是 60 字节（jiaoch）不是 56 字节（官方基础）(3) 租期还没到。任一不满足就先修再写代码。
+
+---
+
 ## 数据质量门（每次 load 数据后必查）
 
 ```python
