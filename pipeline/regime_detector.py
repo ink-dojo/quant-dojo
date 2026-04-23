@@ -78,10 +78,15 @@ class RegimeReport:
 #   }
 
 REGIME_THRESHOLDS: dict = {
-    # TODO(jialong): 跑完 regime_boundary_analysis.py 后填入. 在此之前模块返回 UNKNOWN.
-    "vol_ratio_threshold": None,  # 例: 1.30
-    "ret_6m_threshold": None,     # 例: -0.05
-    "primary_feature": None,      # 例: "hs300_vol_ratio" 或 "hs300_ret_6m"
+    # 2026-04-23 jialong 分析后填入 (regime_boundary_analysis.py 产出)
+    # 结论: Scenario D (因子分散), 无统一 regime shift. 阈值对应 "极端高波+极端熊" 的防御 gate.
+    # 数据基础: 2023-10 ~ 2025-12 的月度因子 IC + HS300 macro 面板 (27 months)
+    # 在观察到的 27 个月内, AND 条件从未同时满足 — gate 仅作 tail-risk 防护.
+    "vol_ratio_threshold": 1.40,   # vol_60d/vol_250d > 1.40: 9/24 政策反转峰值 1.69 触发
+    "ret_6m_threshold": -0.10,     # HS300 6M return < -10%: 2023-10 型深度熊市 (-11.3%)
+    "primary_feature": "hs300_vol_ratio",  # 最强分离信号 (9/24 事件 vol_ratio 1.47 → 1.69)
+    # 注: 最大 lag 相关性 0.34 (弱联动), Scenario D 下 gate 设为 tail-risk only.
+    # macro lag: hs300_ret_6m leads agg_IC by 3 months, pearson=-0.34 (n=24).
 }
 
 
