@@ -93,7 +93,9 @@ _CMS_SOURCES = {
 # 证监会
 _CSRC_HOME = "https://www.csrc.gov.cn/"
 _CSRC_BASE = "https://www.csrc.gov.cn"
-_CSRC_SECTIONS = {"c100028", "c106311"}
+# c101953=证监会令, c101954=证监会公告, c101981=征求意见
+# 去掉 c100028(要闻混杂会见) 和 c106311(纯会见新闻)
+_CSRC_SECTIONS = {"c101953", "c101954", "c101981"}
 
 # 国家能源局
 _NEA_HOME = "http://www.nea.gov.cn/"
@@ -130,9 +132,12 @@ _MEE_BASE = "https://www.mee.gov.cn/ywgz/fgbz/bz/"
 _MEE_REFERER = "https://www.mee.gov.cn/"
 
 # 金融监管总局 监管动态 (itemId=915)
-_NFRA_API = (
+# 916=政策解读（每发政策必有）, 926=政策法规（正式规章）
+# 去掉 915（监管动态含大量会见/调研噪音）
+_NFRA_ITEM_IDS = [916, 926]
+_NFRA_API_TPL = (
     "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild"
-    "?itemId=915&pageIndex=1&pageSize=20&tabKey=1"
+    "?itemId={item_id}&pageIndex=1&pageSize=20&tabKey=1"
 )
 _NFRA_BASE = "https://www.nfra.gov.cn/cn/view/pages/ItemDetail.html"
 _NFRA_REFERER = "https://www.nfra.gov.cn/"
@@ -263,6 +268,14 @@ def scrape_csrc(conn: sqlite3.Connection) -> list[dict]:
 # 国家能源局
 # ─────────────────────────────────────────────
 
+_NEA_POLICY_KW = re.compile(
+    r"关于|通知|公告|意见|办法|规定|条例|规划|方案|标准|报告|数据|统计|批复|决定|指导|指南|导则"
+)
+_NEA_NOISE_KW = re.compile(
+    r"监管办|能源办|监管局党组|调研|参观|座谈|慰问|走访|会见|扶贫|党建|支部|巡视|整改进展"
+    r"|华东|华中|华南|东北|西北|西南|新疆|甘肃|贵州|浙江|河南|云南|宁夏"
+)
+
 def scrape_nea() -> list[dict]:
     html = _fetch(_NEA_HOME)
     items = re.findall(
@@ -272,9 +285,14 @@ def scrape_nea() -> list[dict]:
     seen: set[str] = set()
     results: list[dict] = []
     for date8, path, title in items:
-        url = f"{_NEA_BASE}/{date8}/{path}/c.html"
         title = _clean_title(title)
-        if not title or url in seen:
+        if not title:
+            continue
+        # 只保留政策类，过滤地方分办工作动态
+        if _NEA_NOISE_KW.search(title) or not _NEA_POLICY_KW.search(title):
+            continue
+        url = f"{_NEA_BASE}/{date8}/{path}/c.html"
+        if url in seen:
             continue
         seen.add(url)
         pub_date = f"{date8[:4]}-{date8[4:6]}-{date8[6:8]}"
@@ -427,22 +445,23 @@ def scrape_mee() -> list[dict]:
 # ─────────────────────────────────────────────
 
 def scrape_nfra() -> list[dict]:
-    raw = _fetch(_NFRA_API, extra_headers={"Referer": _NFRA_REFERER})
-    resp = json.loads(raw)
-    rows = resp.get("data", {}).get("rows", [])
     seen: set[str] = set()
     results: list[dict] = []
-    for row in rows:
-        doc_id = row.get("docId")
-        title = _clean_title(row.get("docTitle", ""))
-        pub_date = row.get("publishDate", "")[:10]
-        if not doc_id or not title:
-            continue
-        url = f"{_NFRA_BASE}?docId={doc_id}&itemId=915"
-        if url in seen:
-            continue
-        seen.add(url)
-        results.append({"source": "金融监管总局", "title": title, "url": url, "pub_date": pub_date})
+    for item_id in _NFRA_ITEM_IDS:
+        api_url = _NFRA_API_TPL.format(item_id=item_id)
+        raw = _fetch(api_url, extra_headers={"Referer": _NFRA_REFERER})
+        rows = json.loads(raw).get("data", {}).get("rows", [])
+        for row in rows:
+            doc_id = row.get("docId")
+            title = _clean_title(row.get("docTitle", ""))
+            pub_date = row.get("publishDate", "")[:10]
+            if not doc_id or not title:
+                continue
+            url = f"{_NFRA_BASE}?docId={doc_id}&itemId={item_id}"
+            if url in seen:
+                continue
+            seen.add(url)
+            results.append({"source": "金融监管总局", "title": title, "url": url, "pub_date": pub_date})
     print(f"[金融监管总局] 抓到 {len(results)} 条")
     return results
 

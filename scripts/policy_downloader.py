@@ -110,9 +110,11 @@ _CONTENT_PATTERNS = [
 ]
 
 # ── NFRA 专用：通过 cbircweb API 拿 PDF，pypdf 提取正文 ──────────────────────
-_NFRA_LIST_API = (
+# 916=政策解读, 926=政策法规（与 policy_monitor.py 保持一致）
+_NFRA_ITEM_IDS = [916, 926]
+_NFRA_LIST_API_TPL = (
     "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild"
-    "?itemId=915&pageIndex=1&pageSize=100&tabKey=1"
+    "?itemId={item_id}&pageIndex=1&pageSize=100&tabKey=1"
 )
 _NFRA_PDF_BASE = "https://www.nfra.gov.cn"
 _NFRA_REFERER  = "https://www.nfra.gov.cn/cn/view/pages/ItemDetail.html"
@@ -124,17 +126,19 @@ def _ensure_nfra_map():
         return
     headers = dict(_HEADERS)
     headers["Referer"] = _NFRA_REFERER
-    req = urllib.request.Request(_NFRA_LIST_API, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            data = json.loads(r.read())
-        for row in data.get("data", {}).get("rows", []):
-            doc_id = str(row.get("docId", ""))
-            pdf    = row.get("pdfFileUrl", "")
-            if doc_id and pdf:
-                _nfra_pdf_map[doc_id] = pdf
-    except Exception:
-        pass
+    for item_id in _NFRA_ITEM_IDS:
+        url = _NFRA_LIST_API_TPL.format(item_id=item_id)
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                data = json.loads(r.read())
+            for row in data.get("data", {}).get("rows", []):
+                doc_id = str(row.get("docId", ""))
+                pdf    = row.get("pdfFileUrl", "")
+                if doc_id and pdf:
+                    _nfra_pdf_map[doc_id] = pdf
+        except Exception:
+            pass
 
 def fetch_nfra_pdf(detail_url: str) -> str:
     """从 NFRA 详情页 URL 提取 docId，下载 PDF，返回纯文本。"""
