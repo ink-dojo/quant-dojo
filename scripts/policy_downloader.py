@@ -21,12 +21,16 @@
 import argparse
 import csv
 import html
+import io
+import json
 import re
 import sqlite3
 import time
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+
+from pypdf import PdfReader
 
 # ── 路径 ─────────────────────────────────────────────────────────────────────
 SSD_ROOT   = Path("/Volumes/Crucial X10/quant-dojo-data/policy_monitor")
@@ -105,6 +109,55 @@ _CONTENT_PATTERNS = [
     re.compile(r'<div[^>]+class="p_content"[^>]*>(.*?)</div>', re.S | re.I),
 ]
 
+# ── NFRA 专用：通过 cbircweb API 拿 PDF，pypdf 提取正文 ──────────────────────
+_NFRA_LIST_API = (
+    "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild"
+    "?itemId=915&pageIndex=1&pageSize=100&tabKey=1"
+)
+_NFRA_PDF_BASE = "https://www.nfra.gov.cn"
+_NFRA_REFERER  = "https://www.nfra.gov.cn/cn/view/pages/ItemDetail.html"
+
+_nfra_pdf_map: dict[str, str] = {}  # docId → pdfFileUrl（懒加载）
+
+def _ensure_nfra_map():
+    if _nfra_pdf_map:
+        return
+    headers = dict(_HEADERS)
+    headers["Referer"] = _NFRA_REFERER
+    req = urllib.request.Request(_NFRA_LIST_API, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read())
+        for row in data.get("data", {}).get("rows", []):
+            doc_id = str(row.get("docId", ""))
+            pdf    = row.get("pdfFileUrl", "")
+            if doc_id and pdf:
+                _nfra_pdf_map[doc_id] = pdf
+    except Exception:
+        pass
+
+def fetch_nfra_pdf(detail_url: str) -> str:
+    """从 NFRA 详情页 URL 提取 docId，下载 PDF，返回纯文本。"""
+    _ensure_nfra_map()
+    m = re.search(r"docId=(\d+)", detail_url)
+    if not m:
+        return ""
+    doc_id = m.group(1)
+    pdf_path = _nfra_pdf_map.get(doc_id)
+    if not pdf_path:
+        return ""
+    pdf_url = _NFRA_PDF_BASE + pdf_path
+    headers = dict(_HEADERS)
+    headers["Referer"] = _NFRA_REFERER
+    try:
+        req = urllib.request.Request(pdf_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=20) as r:
+            pdf_bytes = r.read()
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
+    except Exception:
+        return ""
+
 def extract_content(raw_html: str, title: str, url: str, pub_date: str) -> str:
     text = ""
     for pat in _CONTENT_PATTERNS:
@@ -121,8 +174,7 @@ def extract_content(raw_html: str, title: str, url: str, pub_date: str) -> str:
         lines = [l.strip() for l in text.splitlines() if len(l.strip()) > 15]
         text = "\n".join(lines)
 
-    header = f"标题：{title}\n来源：{url}\n日期：{pub_date}\n{'─'*60}\n\n"
-    return header + text
+    return text
 
 # ── 主流程 ────────────────────────────────────────────────────────────────────
 def build_csv(rows: list[dict]):
@@ -175,22 +227,33 @@ def main():
         word_count = 0
         dl_time    = ""
 
-        if fpath.exists():
-            # 已下载，读字数
+        # NFRA 是 Angular SPA，正文在 PDF 里；已有的旧文件若含模板标记则强制重下
+        nfra_bad = (
+            source == "金融监管总局"
+            and fpath.exists()
+            and "{{data." in fpath.read_text(encoding="utf-8", errors="replace")
+        )
+
+        if fpath.exists() and not nfra_bad:
             word_count = len(fpath.read_text(encoding="utf-8", errors="replace"))
             dl_time    = datetime.fromtimestamp(fpath.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
             skipped += 1
         elif not args.csv_only and url:
-            html_raw = fetch(url, referer=url)
-            if html_raw:
-                content    = extract_content(html_raw, title, url, pub_date)
+            if source == "金融监管总局":
+                body = fetch_nfra_pdf(url)
+            else:
+                html_raw = fetch(url, referer=url)
+                body = extract_content(html_raw, title, url, pub_date) if html_raw else ""
+
+            if body:
+                header  = f"标题：{title}\n来源：{url}\n日期：{pub_date}\n{'─'*60}\n\n"
+                content = header + body
                 fpath.write_text(content, encoding="utf-8")
                 word_count = len(content)
                 dl_time    = datetime.now().strftime("%Y-%m-%d %H:%M")
                 downloaded += 1
             else:
                 failed += 1
-            # 礼貌延迟（每 5 条打一次进度）
             time.sleep(0.4)
         else:
             failed += 1
