@@ -1,7 +1,8 @@
-"""Tests for pipeline/live_vs_backtest.py daily divergence (Issue #41)."""
+"""Tests for pipeline/live_vs_backtest.py daily divergence."""
 from __future__ import annotations
 
 import csv
+import dataclasses
 import json
 from pathlib import Path
 from typing import Optional
@@ -13,6 +14,7 @@ import pytest
 
 from pipeline.live_vs_backtest import (
     DivergenceAlert,
+    DivergenceLevel,
     check_and_alert,
     compute_divergence_zscore,
     daily_pnl_divergence,
@@ -143,8 +145,8 @@ def test_alert_is_helpers():
 
 def test_alert_immutable():
     """frozen dataclass."""
-    alert = DivergenceAlert(0.5, "ok", 0.0005, 0.001, 30, "2026-04-23")
-    with pytest.raises((AttributeError, Exception)):
+    alert = DivergenceAlert(0.5, DivergenceLevel.OK, 0.0005, 0.001, 30, "2026-04-23")
+    with pytest.raises(dataclasses.FrozenInstanceError):
         alert.zscore = 999.0  # type: ignore[misc]
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scripts/daily_live_vs_backtest_check.py — Tier 1.4 daily cron 入口 (Issue #41)
+scripts/daily_live_vs_backtest_check.py — daily cron 入口
 
 每日收盘后跑一次 (建议 16:00, A 股 15:00 收盘 + 1h buffer):
     1. 算 live nav vs backtest equity 的最新一日 z-score 偏差
@@ -131,7 +131,7 @@ def main() -> int:
 
     # 输出可读摘要
     print(f"asof_date    : {alert.asof_date or '(N/A)'}")
-    print(f"alert_level  : {alert.alert_level}")
+    print(f"alert_level  : {alert.alert_level.value}")
     print(f"zscore       : {alert.zscore:.3f}")
     print(f"daily_delta  : {alert.daily_delta:+.4%}")
     print(f"hist_std     : {alert.historical_std:.4%}")

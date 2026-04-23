@@ -231,8 +231,7 @@ def evaluate(
             reason = trig.get("reason", "external trigger (no reason)")
             try:
                 ext_action = KillAction(str(action_raw).lower())
-            except (ValueError, AttributeError):
-                # 无效 action, 记 warning 但不当作触发
+            except ValueError:
                 warnings.append(f"[external] 无效 action '{action_raw}': {reason}")
                 continue
             if ext_action == KillAction.OK:

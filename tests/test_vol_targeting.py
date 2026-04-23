@@ -1,6 +1,7 @@
 """Tests for pipeline/vol_targeting.py."""
 from __future__ import annotations
 
+import dataclasses
 import math
 
 import numpy as np
@@ -8,12 +9,12 @@ import pandas as pd
 import pytest
 
 from pipeline.vol_targeting import (
-    TRADING_DAYS_PER_YEAR,
     VolTargetReport,
     apply_vol_target_to_positions,
     compute_vol_scale,
     compute_vol_scale_series,
 )
+from utils.metrics import TRADING_DAYS as TRADING_DAYS_PER_YEAR
 
 
 def _make_synthetic_nav(
@@ -248,5 +249,5 @@ def test_report_immutable():
     """VolTargetReport 应是 frozen dataclass."""
     nav = _make_synthetic_nav(annual_vol=0.12)
     report = compute_vol_scale(nav)
-    with pytest.raises((AttributeError, Exception)):  # frozen dataclass FrozenInstanceError
+    with pytest.raises(dataclasses.FrozenInstanceError):
         report.scale = 999.0  # type: ignore[misc]
