@@ -33,15 +33,20 @@ import pandas as pd
 from tqdm import tqdm
 
 from research.factors.mda_drift.factor import DEFAULT_MANIFEST_PATH
+from research.factors.mda_drift.outlook_extractor import extract_outlook_section
 from utils.local_data_loader import load_adj_price_wide
 from utils.factor_analysis import ic_summary
 from utils.mda_anonymize import anonymize_mda
 
 TOKENS_DIR = Path("data/processed/mda_tokens")
 OUT_SCORES = Path("data/processed/mda_llm_drift_scores_2024.parquet")
+OUT_SCORES_OUTLOOK = Path("data/processed/mda_llm_outlook_drift_scores_2024.parquet")
 OUT_JOURNAL = Path("journal/mda_llm_drift_mini_ic_20260422.md")
+OUT_JOURNAL_OUTLOOK = Path("journal/mda_llm_outlook_drift_mini_ic_20260422.md")
 
-MAX_EXCERPT_CHARS = 5000  # 两份合计 10k, 加 prompt 框架 ~12k, 通过 claude CLI 长度限制
+# 全文模式: 前 5000 字; outlook 模式: 整段展望 (median 2700 字, 天然 7k prompt 总长)
+MAX_EXCERPT_CHARS = 5000
+USE_OUTLOOK = False  # 通过 CLI flag 切换
 FWD_DAYS = 20
 COST_BPS = 30
 DIMS = ["specificity_drift", "hedging_drift", "tone_drift",
@@ -91,22 +96,37 @@ PROMPT_TEMPLATE = """你是一位只能基于所给文本做判断的研究助�
 """
 
 
-def load_mda_text(symbol: str, fiscal_year: int) -> str:
+def load_mda_text(symbol: str, fiscal_year: int, use_outlook: bool = False) -> str:
+    """返回 full MD&A 或 outlook 段."""
     path = TOKENS_DIR / f"{symbol}_{fiscal_year}.parquet"
     df = pd.read_parquet(path)
-    return " ".join(df["token"].tolist())
+    full = " ".join(df["token"].tolist())
+    if use_outlook:
+        section = extract_outlook_section(full)
+        return section if section else full[int(len(full)*0.67):]  # fallback
+    return full
 
 
-def _call_claude_json(prompt: str, timeout: int = 180) -> dict:
-    """subprocess claude -p 直接调, 自己 parse JSON (比 LLMClient 灵活)."""
+def _call_claude_json(prompt: str, timeout: int = 180, max_retries: int = 2) -> dict:
+    """subprocess claude -p 直接调, 自己 parse JSON.
+    returncode=1 重试 (多进程并发下 claude CLI 偶发 spurious fail)."""
     json_prompt = prompt + "\n\n请严格返回合法 JSON, 不要任何 markdown 代码块或前后文字."
-    try:
-        result = subprocess.run(
-            ["claude", "-p", json_prompt],
-            capture_output=True, text=True, timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        return {"_error": "timeout"}
+    for attempt in range(max_retries + 1):
+        try:
+            result = subprocess.run(
+                ["claude", "-p", json_prompt],
+                capture_output=True, text=True, timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            if attempt < max_retries:
+                time.sleep(2 * (attempt + 1))
+                continue
+            return {"_error": "timeout"}
+        if result.returncode == 0:
+            break
+        if attempt < max_retries:
+            time.sleep(2 * (attempt + 1))  # backoff 2s, 4s
+            continue
     if result.returncode != 0:
         return {"_error": f"returncode={result.returncode}", "_stderr": result.stderr[:200]}
     raw = result.stdout.strip()
@@ -136,14 +156,14 @@ def score_one_pair(args: tuple) -> dict:
     """
     Worker 函数 (可 pickle 传 ProcessPool).
 
-    args = (symbol, year_curr, order)  # order ∈ {'fwd', 'swap'}
+    args = (symbol, year_curr, order, use_outlook)  # order ∈ {'fwd', 'swap'}
     """
-    symbol, year_curr, order = args
+    symbol, year_curr, order, use_outlook = args
     year_prev = year_curr - 1
     t0 = time.time()
     try:
-        text_curr = load_mda_text(symbol, year_curr)[:MAX_EXCERPT_CHARS]
-        text_prev = load_mda_text(symbol, year_prev)[:MAX_EXCERPT_CHARS]
+        text_curr = load_mda_text(symbol, year_curr, use_outlook)[:MAX_EXCERPT_CHARS]
+        text_prev = load_mda_text(symbol, year_prev, use_outlook)[:MAX_EXCERPT_CHARS]
     except Exception as e:
         return {"symbol": symbol, "year_curr": year_curr, "order": order,
                 "_error": f"load_failed: {e!r}"}
@@ -190,7 +210,7 @@ def phase1_score(max_workers: int = 4, limit: int | None = None) -> pd.DataFrame
     print(f"[phase1] {len(pairs)} pairs to score (max_workers={max_workers})")
 
     rng = random.Random(42)
-    tasks = [(sym, yr, rng.choice(["fwd", "swap"])) for sym, yr in pairs]
+    tasks = [(sym, yr, rng.choice(["fwd", "swap"]), USE_OUTLOOK) for sym, yr in pairs]
 
     # 增量恢复: 只跳过**成功**的 (有 tone_drift), failed 的要重跑
     done_ok = set()
@@ -436,11 +456,20 @@ def write_report(result: dict, scores_df: pd.DataFrame) -> None:
 
 def main() -> int:
     import argparse
+    global USE_OUTLOOK, OUT_SCORES, OUT_JOURNAL
     p = argparse.ArgumentParser()
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--limit", type=int, default=None, help="只跑前 N 对 (调试)")
     p.add_argument("--skip-score", action="store_true", help="跳过 phase1, 只用已缓存 scores")
+    p.add_argument("--use-outlook", action="store_true",
+                   help="只用 MD&A 的'未来发展展望'段 (median 2700 字 vs 全文 24k), 信噪比更高")
     args = p.parse_args()
+
+    if args.use_outlook:
+        USE_OUTLOOK = True
+        OUT_SCORES = OUT_SCORES_OUTLOOK
+        OUT_JOURNAL = OUT_JOURNAL_OUTLOOK
+        print(f"[mode] use outlook section. output → {OUT_SCORES}")
 
     if not args.skip_score:
         scores_df = phase1_score(max_workers=args.workers, limit=args.limit)
