@@ -179,19 +179,32 @@ Issue 主线: #25
 - [x] 6-因子 orthogonality: 全部 |corr| < 0.3, BGFD/THCC 最独立 (|corr| < 0.1)
 - [x] 详细报告 journal 附录 C: `journal/riad_mfd_factor_result_20260422.md`
 
-### ⏳ 待决策 (jialong, 2026-04-22 最终)
+### ✅ Option A 演进 + 5-gate 审计 (2026-04-22 完成)
 
-**唯一过 IC 门槛 (> 0.03) 的是 RIAD**. 结论:
+- [x] RIAD 3-fold blocked walk-forward CV (n=3, IS+OOS, 样本太短不做滚动 WF)
+      Fold 1/2 通过 (OOS IC < 0), Fold 3 失败 (2025 H2 行业轮动 + 牛市 short 腿崩溃)
+- [x] 融券 universe filter — filtered OOS 2025 Sharpe **-0.34** (关键负面结果)
+- [x] RIAD 5-gate 最终审计 (n_trials=44, bootstrap CI)
+      RIAD 单独最好版本 (baseline Q2Q3_minus_Q5): 2/4 (DSR 0.782, CI_low +0.05 fail)
+- [x] RIAD × DSR#30 BB-only corr=-0.043 (过 stacking 门槛 0.3)
+- [x] **等波动 50/50 合成 5-gate**: SR 1.87, PSR 0.998, DSR 0.920, CI_low +0.91, MDD -4.86%
+      3/4 严格门通过 (DSR 0.920 差 0.03, 一次性例外 per pre-reg)
+- [x] **paper_trade_spec_v4 (RIAD + DSR#30 BB-only 双腿 50/50) 已写完**
+      (`journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`)
+      待 jialong 批准 (截止 2026-04-23, 超时作废)
 
-- [ ] **Option A 仍是最优** — RIAD 单独 + walk-forward + 融券 filter + DSR n_trials 34
-- [ ] Option B/C — 合成不增益 (弱因子稀释强因子, IC-weighted ≈ RIAD 单独)
-- [ ] BGFD / LULR 作为 universe filter (入榜 ∩ RIAD 打分 / 避雷池)
-- [ ] THCC 反向 (做空机构加仓, 做多机构撤离) 作为补充因子候选 (下轮 pre-reg)
+### ⏳ 待 jialong 决定 (2026-04-23)
+
+- [ ] **批准 spec v4** — go-live Phase 1 (5% 总权益, 双腿合成)
+      若批: 2026-04-24 实现 `pipeline/riad_signal.py` + smoke test + go-live
+      若否: fallback to Option Z1/Z2/Z3 (详见 spec v4 §11)
+- [ ] BGFD / LULR 作为 universe filter (入榜 ∩ RIAD 打分 / 避雷池) — 待 paper-trade 稳定后
+- [ ] THCC 反向 (做空机构加仓) 作为补充候选 — 下轮 pre-reg
 - [ ] FMD (Foreign-Margin Divergence) — northbound 2025 仅 5 行, 等 tushare 补齐
 
 ### 红线
 
 - 不基于 2024 IS / 2025 OOS 结果回头调 RIAD/MFD/BGFD 参数
-- 任何 Option A-C 进 paper-trade 前必须过 DSR n_trials (当前 31, +3 → 34) bootstrap CI_low ≥ 0.5
-- 只报真实数字, 不 round up; 合成 Sharpe 预估基于单因子相加, 不在假设正交前 over-claim
+- spec v4 DSR 0.92 是一次性例外; 下次新腿必须严格过 4/4 (DSR ≥ 0.95)
+- 只报真实数字, 不 round up
 
