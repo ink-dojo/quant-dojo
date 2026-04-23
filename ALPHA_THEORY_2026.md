@@ -26,6 +26,7 @@
 | v17 (Sprint 1 集成) | 只做 2022-2025 短窗口 | 未做长历史 |
 | v18 (Sprint 2 集成) | 只做 2025 OOS 一年 | 真 pb 下 Δ SR +0.054, 已否决 |
 | **DSR #30 (BB+PV 主板 rescaled)** | 8-yr single-sample 4/5 gate | **CI_low 0.20 fail 为唯一 miss, 2024-2025 SR 1.34** |
+| **spec v4: RIAD + DSR#30 BB-only 双腿 50/50** | 完整 5-gate (n_trials=44) | **SR 1.87, CI_low +0.91; DSR 0.920 (差 0.03, 一次性例外); 待 jialong 批准** |
 
 ### 0.3 诊断
 
@@ -204,7 +205,8 @@
 - 3 个月 live 验证给你**校准先验**, 让未来所有 backtest 可信度 × 10
 
 **怎么做**:
-- 按 spec v2 执行 5% 规模
+- 按 spec v4 (RIAD + DSR#30 BB-only 双腿 50/50) 执行 5% 规模
+  (`journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`, 待 jialong 批准)
 - daily pipeline 在现有 `scripts/` 拼接
 - live SR < 0.5 立即降规模
 
