@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import csv
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -258,3 +259,304 @@ def render_markdown_report(div: dict) -> str:
         )
     lines.append("")
     return "\n".join(lines)
+
+
+# ══════════════════════════════════════════════════════════════
+# Tier 1.4 — Daily PnL Divergence (Issue #41)
+# ══════════════════════════════════════════════════════════════
+# 把 compute_divergence 输出的 daily_delta 转成 z-score, 触发 alert + kill 联动.
+#
+# Z-score 定义: |latest_daily_delta| / std(historical_daily_deltas)
+#   - z < warn_zscore  → ok      (正常噪声)
+#   - z ∈ [warn, crit) → warn    (留意, 不动作)
+#   - z ≥ critical     → critical (alert + 写 state file + 触发 kill HALVE)
+#
+# 默认: warn_zscore=2.0, critical_zscore=3.0
+# false positive 期望: 正态分布下 |z|>2 概率 4.6%, |z|>3 概率 0.27%
+
+DEFAULT_DIVERGENCE_STATE_FILE = Path(__file__).parent.parent / "live" / "tracking_divergence_state.json"
+
+
+@dataclass(frozen=True)
+class DivergenceAlert:
+    """
+    Live vs Backtest 偏差告警结果.
+
+    suggested_kill_action: critical 时设为 'halve', 由 caller 传给
+    live.event_kill_switch.evaluate(external_triggers=[...]) 联动.
+    """
+
+    zscore: float
+    alert_level: str                         # "ok" | "warn" | "critical" | "insufficient_data"
+    daily_delta: float                       # 最新一日 (live - bt) 偏差
+    historical_std: float                    # 历史日偏差 std (剔除最新一日)
+    n_observations: int                      # 历史样本数
+    asof_date: str                           # 最新一日日期 YYYY-MM-DD
+    fallback_reason: Optional[str] = None    # 若 alert_level=insufficient_data, 说明原因
+    summary: dict = field(default_factory=dict)  # compute_divergence 的完整 summary
+
+    def is_warn(self) -> bool:
+        return self.alert_level == "warn"
+
+    def is_critical(self) -> bool:
+        return self.alert_level == "critical"
+
+    def to_kill_trigger(self) -> Optional[dict]:
+        """
+        给 event_kill_switch.evaluate(external_triggers=[...]) 用的 dict.
+        critical → halve; 其他 → None (不触发).
+        """
+        if self.is_critical():
+            return {
+                "action": "halve",
+                "reason": (
+                    f"tracking divergence z={self.zscore:.2f} ≥ 3σ "
+                    f"(daily_delta={self.daily_delta:+.4%}, σ={self.historical_std:.4%}) "
+                    f"on {self.asof_date}"
+                ),
+            }
+        return None
+
+    def to_dict(self) -> dict:
+        return {
+            "zscore": self.zscore,
+            "alert_level": self.alert_level,
+            "daily_delta": self.daily_delta,
+            "historical_std": self.historical_std,
+            "n_observations": self.n_observations,
+            "asof_date": self.asof_date,
+            "fallback_reason": self.fallback_reason,
+            "kill_trigger": self.to_kill_trigger(),
+        }
+
+
+def compute_divergence_zscore(
+    daily_delta: list[float],
+    dates: list[str],
+    lookback_days: int = 30,
+    warn_zscore: float = 2.0,
+    critical_zscore: float = 3.0,
+    min_observations: int = 10,
+) -> DivergenceAlert:
+    """
+    纯函数: 拿 daily_delta 序列, 算最新一日的 z-score 与告警等级.
+
+    Args:
+        daily_delta: 每日 (live_ret - bt_ret) 序列, 来自 compute_divergence["daily_delta"]
+        dates: 对应日期序列 (与 daily_delta 等长), 用于标 asof_date
+        lookback_days: 用最近 N 日做历史 σ 估计 (默认 30)
+        warn_zscore / critical_zscore: 阈值 (默认 2.0 / 3.0)
+        min_observations: 历史样本最少 N 个, 不够 → insufficient_data
+
+    Returns:
+        DivergenceAlert. 数据不足时 alert_level='insufficient_data'.
+    """
+    n_total = len(daily_delta)
+    if n_total != len(dates):
+        raise ValueError(f"daily_delta ({n_total}) 与 dates ({len(dates)}) 长度不一致")
+
+    if n_total < min_observations + 1:
+        return DivergenceAlert(
+            zscore=0.0,
+            alert_level="insufficient_data",
+            daily_delta=daily_delta[-1] if n_total > 0 else 0.0,
+            historical_std=0.0,
+            n_observations=max(n_total - 1, 0),
+            asof_date=dates[-1] if n_total > 0 else "",
+            fallback_reason=(
+                f"总样本 {n_total} < min_observations + 1 ({min_observations + 1}), "
+                f"历史 σ 估计不可信"
+            ),
+        )
+
+    # 历史窗口: 最近 lookback_days 但**不**含最新一日
+    history = daily_delta[-(lookback_days + 1):-1] if lookback_days + 1 <= n_total else daily_delta[:-1]
+    latest = daily_delta[-1]
+    n_hist = len(history)
+
+    # 算 σ (ddof=1, sample std)
+    if n_hist < 2:
+        return DivergenceAlert(
+            zscore=0.0,
+            alert_level="insufficient_data",
+            daily_delta=latest,
+            historical_std=0.0,
+            n_observations=n_hist,
+            asof_date=dates[-1],
+            fallback_reason=f"历史样本 {n_hist} < 2, 无法算 σ",
+        )
+
+    mean_hist = sum(history) / n_hist
+    var_hist = sum((x - mean_hist) ** 2 for x in history) / (n_hist - 1)
+    std_hist = var_hist ** 0.5
+
+    if std_hist < 1e-10:
+        # 历史全平 → 任何偏差都是无穷大. 视为 insufficient.
+        return DivergenceAlert(
+            zscore=0.0,
+            alert_level="insufficient_data",
+            daily_delta=latest,
+            historical_std=std_hist,
+            n_observations=n_hist,
+            asof_date=dates[-1],
+            fallback_reason=f"历史 σ ≈ 0 ({std_hist:.2e}), 无法计算 z-score",
+        )
+
+    zscore = abs(latest - mean_hist) / std_hist
+
+    if zscore >= critical_zscore:
+        alert_level = "critical"
+    elif zscore >= warn_zscore:
+        alert_level = "warn"
+    else:
+        alert_level = "ok"
+
+    return DivergenceAlert(
+        zscore=zscore,
+        alert_level=alert_level,
+        daily_delta=latest,
+        historical_std=std_hist,
+        n_observations=n_hist,
+        asof_date=dates[-1],
+    )
+
+
+def daily_pnl_divergence(
+    live_nav_path: Path,
+    backtest_run_path: Path,
+    lookback_days: int = 30,
+    warn_zscore: float = 2.0,
+    critical_zscore: float = 3.0,
+    min_observations: int = 10,
+) -> DivergenceAlert:
+    """
+    高层 API: 从 live nav 文件 + backtest run JSON, 计算最新一日的 z-score 偏差告警.
+
+    包装 compute_divergence + compute_divergence_zscore.
+    """
+    div = compute_divergence(live_nav_path, backtest_run_path)
+    if div.get("status") != "ok":
+        return DivergenceAlert(
+            zscore=0.0,
+            alert_level="insufficient_data",
+            daily_delta=0.0,
+            historical_std=0.0,
+            n_observations=0,
+            asof_date="",
+            fallback_reason=f"compute_divergence status={div.get('status')}: {div.get('reason', '')}",
+        )
+
+    alert = compute_divergence_zscore(
+        daily_delta=div["daily_delta"],
+        dates=div["dates"],
+        lookback_days=lookback_days,
+        warn_zscore=warn_zscore,
+        critical_zscore=critical_zscore,
+        min_observations=min_observations,
+    )
+    # 把 summary 塞回去
+    return DivergenceAlert(
+        zscore=alert.zscore,
+        alert_level=alert.alert_level,
+        daily_delta=alert.daily_delta,
+        historical_std=alert.historical_std,
+        n_observations=alert.n_observations,
+        asof_date=alert.asof_date,
+        fallback_reason=alert.fallback_reason,
+        summary=div.get("summary", {}),
+    )
+
+
+def check_and_alert(
+    live_nav_path: Path,
+    backtest_run_path: Path,
+    state_file: Optional[Path] = DEFAULT_DIVERGENCE_STATE_FILE,
+    notify: bool = True,
+    lookback_days: int = 30,
+    warn_zscore: float = 2.0,
+    critical_zscore: float = 3.0,
+) -> DivergenceAlert:
+    """
+    每日 cron 入口: 算 divergence, 必要时发 alert + 写 state file.
+
+    State file 用途: 给 active_strategy.py / event_kill_switch.py 在下一次调仓时
+    读取, 判断是否需要 halve. 持久化保证 cron 与策略执行解耦.
+
+    Args:
+        live_nav_path: live/portfolio/nav.csv
+        backtest_run_path: 对应回测 run JSON 路径
+        state_file: 写入 alert state 的 JSON 路径. None = 不写
+        notify: 是否调 alert_notifier 发告警
+        lookback_days/warn_zscore/critical_zscore: 见 compute_divergence_zscore
+
+    Returns:
+        DivergenceAlert.
+    """
+    alert = daily_pnl_divergence(
+        live_nav_path=live_nav_path,
+        backtest_run_path=backtest_run_path,
+        lookback_days=lookback_days,
+        warn_zscore=warn_zscore,
+        critical_zscore=critical_zscore,
+    )
+
+    if notify:
+        # 延迟 import 避免循环依赖
+        try:
+            from pipeline.alert_notifier import AlertLevel, send_alert
+        except ImportError:
+            send_alert = None  # type: ignore[assignment]
+
+        if send_alert is not None:
+            if alert.is_critical():
+                send_alert(
+                    level=AlertLevel.CRITICAL,
+                    title=f"Live vs Backtest 偏差 {alert.zscore:.2f}σ — CRITICAL",
+                    body=(
+                        f"日偏差 {alert.daily_delta:+.4%}, 历史 σ {alert.historical_std:.4%}, "
+                        f"基于 {alert.n_observations} 日样本. 触发 kill switch HALVE."
+                    ),
+                    source="LiveVsBacktest",
+                    date=alert.asof_date,
+                )
+            elif alert.is_warn():
+                send_alert(
+                    level=AlertLevel.WARNING,
+                    title=f"Live vs Backtest 偏差 {alert.zscore:.2f}σ — WARN",
+                    body=(
+                        f"日偏差 {alert.daily_delta:+.4%}, 历史 σ {alert.historical_std:.4%}. "
+                        f"暂不动作, 持续 monitor."
+                    ),
+                    source="LiveVsBacktest",
+                    date=alert.asof_date,
+                )
+
+    if state_file is not None:
+        state = {
+            **alert.to_dict(),
+            "updated_at": datetime.now().isoformat(),
+            "live_nav_path": str(live_nav_path),
+            "backtest_run_path": str(backtest_run_path),
+        }
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(state_file, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2, default=str)
+
+    return alert
+
+
+def load_divergence_state(
+    state_file: Path = DEFAULT_DIVERGENCE_STATE_FILE,
+) -> Optional[dict]:
+    """
+    给 event_kill_switch / active_strategy 读 cron 写下的 state.
+    返回 None = 文件不存在 (从未跑过 check_and_alert).
+    """
+    if not state_file.exists():
+        return None
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
