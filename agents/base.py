@@ -32,6 +32,7 @@ class LLMClient:
         self,
         ollama_base_url: str | None = None,
         ollama_model: str | None = None,
+        claude_model: str | None = None,
     ):
         self.ollama_base_url = ollama_base_url or os.environ.get(
             "OLLAMA_BASE_URL", "http://localhost:11434"
@@ -39,6 +40,9 @@ class LLMClient:
         self.ollama_model = ollama_model or os.environ.get(
             "OLLAMA_MODEL", "qwen2.5:7b"
         )
+        # claude -p 默认继承 session 的 Opus, 贵 15×. 这里默认 haiku 避免烧钱.
+        # 明确要高质量时, 调用方传 claude_model="opus" 或 "sonnet".
+        self.claude_model = claude_model or os.environ.get("CLAUDE_CLI_MODEL", "haiku")
         self._backend = self._detect_backend()
 
     def _detect_backend(self) -> str:
@@ -107,10 +111,10 @@ class LLMClient:
         return self._parse_json(raw)
 
     def _call_claude(self, prompt: str) -> str:
-        """通过 claude -p 子进程调用"""
+        """通过 claude -p 子进程调用. 显式传 --model 防止继承 session 的 Opus (贵 15x)."""
         try:
             result = subprocess.run(
-                ["claude", "-p", prompt],
+                ["claude", "-p", "--model", self.claude_model, prompt],
                 capture_output=True,
                 text=True,
                 timeout=int(os.environ.get("CLAUDE_CLI_TIMEOUT", "120")),

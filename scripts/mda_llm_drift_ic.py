@@ -47,6 +47,10 @@ OUT_JOURNAL_OUTLOOK = Path("journal/mda_llm_outlook_drift_mini_ic_20260422.md")
 # 全文模式: 前 5000 字; outlook 模式: 整段展望 (median 2700 字, 天然 7k prompt 总长)
 MAX_EXCERPT_CHARS = 5000
 USE_OUTLOOK = False  # 通过 CLI flag 切换
+
+# 硬锁 Haiku 4.5 — 不能默认继承 session model (否则跑 Opus, 贵 15x).
+# 切模型要改这里 + 改 CLI flag. 参考 rules.md [2026-04-22] llm-cost-model.
+LLM_MODEL = "haiku"
 FWD_DAYS = 20
 COST_BPS = 30
 DIMS = ["specificity_drift", "hedging_drift", "tone_drift",
@@ -109,12 +113,13 @@ def load_mda_text(symbol: str, fiscal_year: int, use_outlook: bool = False) -> s
 
 def _call_claude_json(prompt: str, timeout: int = 180, max_retries: int = 2) -> dict:
     """subprocess claude -p 直接调, 自己 parse JSON.
-    returncode=1 重试 (多进程并发下 claude CLI 偶发 spurious fail)."""
+    returncode=1 重试 (多进程并发下 claude CLI 偶发 spurious fail).
+    强制 --model haiku: 不继承 session 的 Opus 避免 15x 成本."""
     json_prompt = prompt + "\n\n请严格返回合法 JSON, 不要任何 markdown 代码块或前后文字."
     for attempt in range(max_retries + 1):
         try:
             result = subprocess.run(
-                ["claude", "-p", json_prompt],
+                ["claude", "-p", "--model", LLM_MODEL, json_prompt],
                 capture_output=True, text=True, timeout=timeout,
             )
         except subprocess.TimeoutExpired:
