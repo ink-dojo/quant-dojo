@@ -19,9 +19,11 @@ live_vs_backtest.py — 实盘模拟 vs 回测对比工具
 from __future__ import annotations
 
 import csv
+import dataclasses
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -262,65 +264,57 @@ def render_markdown_report(div: dict) -> str:
 
 
 # ══════════════════════════════════════════════════════════════
-# Tier 1.4 — Daily PnL Divergence (Issue #41)
+# Daily PnL Divergence — z-score gate
 # ══════════════════════════════════════════════════════════════
-# 把 compute_divergence 输出的 daily_delta 转成 z-score, 触发 alert + kill 联动.
-#
-# Z-score 定义: |latest_daily_delta| / std(historical_daily_deltas)
-#   - z < warn_zscore  → ok      (正常噪声)
-#   - z ∈ [warn, crit) → warn    (留意, 不动作)
-#   - z ≥ critical     → critical (alert + 写 state file + 触发 kill HALVE)
-#
-# 默认: warn_zscore=2.0, critical_zscore=3.0
-# false positive 期望: 正态分布下 |z|>2 概率 4.6%, |z|>3 概率 0.27%
+# Z-score = |latest_daily_delta - hist_mean| / std(historical_daily_deltas).
+# 正态分布下 |z|>2 概率 4.6%, |z|>3 概率 0.27% (false positive 上界).
 
 DEFAULT_DIVERGENCE_STATE_FILE = Path(__file__).parent.parent / "live" / "tracking_divergence_state.json"
 
 
+class DivergenceLevel(str, Enum):
+    OK = "ok"
+    WARN = "warn"                     # 留意, 不动作
+    CRITICAL = "critical"             # 触发 kill switch HALVE
+    INSUFFICIENT_DATA = "insufficient_data"  # 样本不足, 不下结论
+
+
 @dataclass(frozen=True)
 class DivergenceAlert:
-    """
-    Live vs Backtest 偏差告警结果.
-
-    suggested_kill_action: critical 时设为 'halve', 由 caller 传给
-    live.event_kill_switch.evaluate(external_triggers=[...]) 联动.
-    """
+    """Live vs Backtest 偏差告警结果."""
 
     zscore: float
-    alert_level: str                         # "ok" | "warn" | "critical" | "insufficient_data"
+    alert_level: DivergenceLevel
     daily_delta: float                       # 最新一日 (live - bt) 偏差
     historical_std: float                    # 历史日偏差 std (剔除最新一日)
     n_observations: int                      # 历史样本数
     asof_date: str                           # 最新一日日期 YYYY-MM-DD
-    fallback_reason: Optional[str] = None    # 若 alert_level=insufficient_data, 说明原因
-    summary: dict = field(default_factory=dict)  # compute_divergence 的完整 summary
+    fallback_reason: Optional[str] = None
+    summary: dict = field(default_factory=dict)  # compute_divergence 完整 summary
 
     def is_warn(self) -> bool:
-        return self.alert_level == "warn"
+        return self.alert_level == DivergenceLevel.WARN
 
     def is_critical(self) -> bool:
-        return self.alert_level == "critical"
+        return self.alert_level == DivergenceLevel.CRITICAL
 
     def to_kill_trigger(self) -> Optional[dict]:
-        """
-        给 event_kill_switch.evaluate(external_triggers=[...]) 用的 dict.
-        critical → halve; 其他 → None (不触发).
-        """
-        if self.is_critical():
-            return {
-                "action": "halve",
-                "reason": (
-                    f"tracking divergence z={self.zscore:.2f} ≥ 3σ "
-                    f"(daily_delta={self.daily_delta:+.4%}, σ={self.historical_std:.4%}) "
-                    f"on {self.asof_date}"
-                ),
-            }
-        return None
+        """critical → halve trigger dict; 其他 → None."""
+        if not self.is_critical():
+            return None
+        return {
+            "action": "halve",
+            "reason": (
+                f"tracking divergence z={self.zscore:.2f} ≥ 3σ "
+                f"(daily_delta={self.daily_delta:+.4%}, σ={self.historical_std:.4%}) "
+                f"on {self.asof_date}"
+            ),
+        }
 
     def to_dict(self) -> dict:
         return {
             "zscore": self.zscore,
-            "alert_level": self.alert_level,
+            "alert_level": self.alert_level.value,
             "daily_delta": self.daily_delta,
             "historical_std": self.historical_std,
             "n_observations": self.n_observations,
@@ -358,7 +352,7 @@ def compute_divergence_zscore(
     if n_total < min_observations + 1:
         return DivergenceAlert(
             zscore=0.0,
-            alert_level="insufficient_data",
+            alert_level=DivergenceLevel.INSUFFICIENT_DATA,
             daily_delta=daily_delta[-1] if n_total > 0 else 0.0,
             historical_std=0.0,
             n_observations=max(n_total - 1, 0),
@@ -369,16 +363,16 @@ def compute_divergence_zscore(
             ),
         )
 
-    # 历史窗口: 最近 lookback_days 但**不**含最新一日
-    history = daily_delta[-(lookback_days + 1):-1] if lookback_days + 1 <= n_total else daily_delta[:-1]
+    # 历史窗口: 最近 lookback_days 但**不**含最新一日. Python slice 自带 clamp,
+    # lookback_days+1 > n_total 时会退化为 daily_delta[:-1], 不需手动判断.
+    history = daily_delta[-(lookback_days + 1):-1]
     latest = daily_delta[-1]
     n_hist = len(history)
 
-    # 算 σ (ddof=1, sample std)
     if n_hist < 2:
         return DivergenceAlert(
             zscore=0.0,
-            alert_level="insufficient_data",
+            alert_level=DivergenceLevel.INSUFFICIENT_DATA,
             daily_delta=latest,
             historical_std=0.0,
             n_observations=n_hist,
@@ -391,10 +385,9 @@ def compute_divergence_zscore(
     std_hist = var_hist ** 0.5
 
     if std_hist < 1e-10:
-        # 历史全平 → 任何偏差都是无穷大. 视为 insufficient.
         return DivergenceAlert(
             zscore=0.0,
-            alert_level="insufficient_data",
+            alert_level=DivergenceLevel.INSUFFICIENT_DATA,
             daily_delta=latest,
             historical_std=std_hist,
             n_observations=n_hist,
@@ -405,11 +398,11 @@ def compute_divergence_zscore(
     zscore = abs(latest - mean_hist) / std_hist
 
     if zscore >= critical_zscore:
-        alert_level = "critical"
+        alert_level = DivergenceLevel.CRITICAL
     elif zscore >= warn_zscore:
-        alert_level = "warn"
+        alert_level = DivergenceLevel.WARN
     else:
-        alert_level = "ok"
+        alert_level = DivergenceLevel.OK
 
     return DivergenceAlert(
         zscore=zscore,
@@ -438,7 +431,7 @@ def daily_pnl_divergence(
     if div.get("status") != "ok":
         return DivergenceAlert(
             zscore=0.0,
-            alert_level="insufficient_data",
+            alert_level=DivergenceLevel.INSUFFICIENT_DATA,
             daily_delta=0.0,
             historical_std=0.0,
             n_observations=0,
@@ -454,17 +447,7 @@ def daily_pnl_divergence(
         critical_zscore=critical_zscore,
         min_observations=min_observations,
     )
-    # 把 summary 塞回去
-    return DivergenceAlert(
-        zscore=alert.zscore,
-        alert_level=alert.alert_level,
-        daily_delta=alert.daily_delta,
-        historical_std=alert.historical_std,
-        n_observations=alert.n_observations,
-        asof_date=alert.asof_date,
-        fallback_reason=alert.fallback_reason,
-        summary=div.get("summary", {}),
-    )
+    return dataclasses.replace(alert, summary=div.get("summary", {}))
 
 
 def check_and_alert(
@@ -501,31 +484,31 @@ def check_and_alert(
     )
 
     if notify:
-        # 延迟 import 避免循环依赖
         try:
             from pipeline.alert_notifier import AlertLevel, send_alert
         except ImportError:
             send_alert = None  # type: ignore[assignment]
 
         if send_alert is not None:
-            if alert.is_critical():
+            _ALERT_DISPATCH = {
+                DivergenceLevel.CRITICAL: (
+                    AlertLevel.CRITICAL, "CRITICAL",
+                    f"基于 {alert.n_observations} 日样本. 触发 kill switch HALVE.",
+                ),
+                DivergenceLevel.WARN: (
+                    AlertLevel.WARNING, "WARN",
+                    "暂不动作, 持续 monitor.",
+                ),
+            }
+            dispatch = _ALERT_DISPATCH.get(alert.alert_level)
+            if dispatch is not None:
+                level, label, suffix = dispatch
                 send_alert(
-                    level=AlertLevel.CRITICAL,
-                    title=f"Live vs Backtest 偏差 {alert.zscore:.2f}σ — CRITICAL",
+                    level=level,
+                    title=f"Live vs Backtest 偏差 {alert.zscore:.2f}σ — {label}",
                     body=(
-                        f"日偏差 {alert.daily_delta:+.4%}, 历史 σ {alert.historical_std:.4%}, "
-                        f"基于 {alert.n_observations} 日样本. 触发 kill switch HALVE."
-                    ),
-                    source="LiveVsBacktest",
-                    date=alert.asof_date,
-                )
-            elif alert.is_warn():
-                send_alert(
-                    level=AlertLevel.WARNING,
-                    title=f"Live vs Backtest 偏差 {alert.zscore:.2f}σ — WARN",
-                    body=(
-                        f"日偏差 {alert.daily_delta:+.4%}, 历史 σ {alert.historical_std:.4%}. "
-                        f"暂不动作, 持续 monitor."
+                        f"日偏差 {alert.daily_delta:+.4%}, "
+                        f"历史 σ {alert.historical_std:.4%}. {suffix}"
                     ),
                     source="LiveVsBacktest",
                     date=alert.asof_date,
