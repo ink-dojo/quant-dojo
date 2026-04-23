@@ -120,6 +120,7 @@ def evaluate(
     as_of: str | date | pd.Timestamp | None = None,
     n_positions_today: int | None = None,
     turnover_today: float | None = None,
+    external_triggers: list[dict] | None = None,
 ) -> KillReport:
     """
     Evaluate DSR #30 kill switches.
@@ -129,9 +130,13 @@ def evaluate(
         as_of: day to evaluate (default = nav.index[-1]).
         n_positions_today: current holdings count (for soft warn).
         turnover_today: today's turnover / NAV (for soft warn).
+        external_triggers: 外部模块传入的额外触发器, 与 NAV-based 触发器合并取最严重.
+            每个 trigger 是 {"action": "halve"|"halt"|"cool_off"|..., "reason": "..."}.
+            典型来源: pipeline/live_vs_backtest.py::check_and_alert 在 z-score≥3σ 时
+            返回的 to_kill_trigger() dict (Issue #41 tracking_divergence).
 
     Returns:
-        KillReport with the most severe action.
+        KillReport with the most severe action across all triggers.
     """
     if len(nav) == 0:
         return KillReport(as_of="", action=KillAction.OK, reasons=["empty nav"])
@@ -216,6 +221,24 @@ def evaluate(
         warnings.append(f"当日 turnover {turnover_today:.1%} > {TURNOVER_SOFT_WARN:.0%}")
     if n_positions_today is not None and n_positions_today < MIN_POSITIONS_SOFT:
         warnings.append(f"当日持仓只数 {n_positions_today} < {MIN_POSITIONS_SOFT}")
+
+    # ----- 外部触发器 (e.g. tracking divergence from live_vs_backtest) -----
+    if external_triggers:
+        for trig in external_triggers:
+            if not isinstance(trig, dict):
+                continue
+            action_raw = trig.get("action", "")
+            reason = trig.get("reason", "external trigger (no reason)")
+            try:
+                ext_action = KillAction(str(action_raw).lower())
+            except (ValueError, AttributeError):
+                # 无效 action, 记 warning 但不当作触发
+                warnings.append(f"[external] 无效 action '{action_raw}': {reason}")
+                continue
+            if ext_action == KillAction.OK:
+                continue
+            actions.append(ext_action)
+            reasons.append(f"[external] {reason}")
 
     # Pick most severe action
     severity = {
