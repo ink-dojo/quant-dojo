@@ -104,7 +104,7 @@ export default async function ValidationPage() {
   const series = [
     v9Curve && {
       id: "v9",
-      label: "v9 · 生产门面",
+      label: "v9 · research face",
       color: "var(--green)",
       curve: v9Curve,
     },
@@ -127,9 +127,10 @@ export default async function ValidationPage() {
   return (
     <>
       <PageHeader
-        title="诚实证伪 · Honest Failure"
-        subtitle="Walk-forward · admission gate · IS vs OOS"
-        description="本站最重要的一页：不是展示&ldquo;我们最好的策略&rdquo;，而是&ldquo;我们否决过哪些、为什么&rdquo;。v10 被 WF 否决，v16 还在候选栅栏外 — 纪律比任何一张亮眼回测都重要。"
+        eyebrow="Validation · 否决档案"
+        title="Post-mortems — 否决过的路"
+        subtitle="Walk-forward · admission gate · IS vs OOS · pre-reg red lines"
+        description={`展示我否决了什么, 为什么否决. 比起「最好的策略」这页更说明方法论 — v10 被 WF 否决 · v16 过不了红线 · MD&A drift IC 不够 · BGFD fade 假设反向 · v4 RIAD 合成 spec 最终放弃. 每条都有具体数字和红线.`}
         crumbs={[{ label: "Home", href: "/" }, { label: "Validation" }]}
       />
 
@@ -350,9 +351,9 @@ export default async function ValidationPage() {
         </div>
       </section>
 
-      <section className="max-w-content mx-auto px-6 pb-24">
+      <section className="max-w-content mx-auto px-6 pb-16">
         <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
-          为什么 v16 不能直接上 production
+          为什么 v16 不能 promote 到 live
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
           v16 是 2026-04-14 因子挖掘会话生成的 11 个候选里按
@@ -391,12 +392,98 @@ export default async function ValidationPage() {
             body="v16 的回测区间是 2022-01 → 2025-12 全 IS。连 2025 OOS 检验都没做过，更谈不上通过。"
           />
           <div className="text-xs font-mono text-[var(--text-tertiary)] pt-2 border-t border-[var(--gold)]/25">
-            下一步 → 对 top 3 候选（不只是 v16）跑 scripts/walk_forward.py ·
-            <span className="ml-1">看 11 个候选对比：/strategy/candidates</span>
+            下一步 → 对 top 3 候选 (不只是 v16) 跑 scripts/walk_forward.py ·
+            <span className="ml-1">看 11 个候选对比 /strategy/candidates</span>
           </div>
         </div>
       </section>
+
+      <section className="max-w-content mx-auto px-6 pb-24">
+        <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
+          Week 6 · 更多否决
+        </h2>
+        <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
+          Multi-factor 线外的拒绝 — 差异化因子探索 + 事件驱动 + spec 层决策.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <RejectionCard
+            date="2026-04-22"
+            tag="Factor research"
+            title="MD&A drift (Tier 1b) KILL"
+            body="subset 500 × 8 年 PDF 跑完 MD&A 段余弦距离 vs 20d fwd return. Spearman rank IC 0.0036 << 0.015 pre-reg 门槛. 方向符号存在 (post-2023 +0.0075), 但幅度不足.
+                  决策: 不再 Tier 2 (LLM hedging 增量). 数据源本身 marginal, 换方向."
+            color="red"
+          />
+          <RejectionCard
+            date="2026-04-22"
+            tag="Factor research"
+            title="BGFD fade 假设反向"
+            body="原假设: 券商金股榜过度集中 → fade. 实测: Long consensus OOS 2025 Sharpe +2.23, Short crowded 2025 Ann -44%.
+                  启示: 2024-2025 是 follow smart money 的 regime, 不是 fade retail crowd."
+            color="gold"
+          />
+          <RejectionCard
+            date="2026-04-22"
+            tag="Factor research"
+            title="MFD 反转假设证伪"
+            body="原假设: elg (超大单) 净流入 → bullish 反转. 实测: IC -0.020 (方向反了), 单独不过门槛.
+                  启示: 2025 量化化程度上升后, elg 更可能是 informed selling 伪装, 跟单散户接盘."
+            color="gold"
+          />
+          <RejectionCard
+            date="2026-04-23"
+            tag="Paper-trade spec"
+            title="spec v4 (RIAD + DSR#30 合成) 否决"
+            body="合成 4/5 pass (SR 1.87 · DSR 0.920) 是用 baseline (不可执行) 版本算的. Filtered universe (真实融券约束) 下 RIAD OOS 2025 Sharpe -0.59, WF Fold 3 -1.56. DSR 0.920 < 0.95 红线.
+                  决策: 继续跑 v3 BB-only 单腿, RIAD 放 shadow mode 跑 6 个月再评估."
+            color="red"
+          />
+        </div>
+      </section>
     </>
+  );
+}
+
+function RejectionCard({
+  date,
+  tag,
+  title,
+  body,
+  color,
+}: {
+  date: string;
+  tag: string;
+  title: string;
+  body: string;
+  color: "red" | "gold";
+}) {
+  const colorVar = color === "gold" ? "var(--gold)" : "var(--red)";
+  return (
+    <article
+      className="rounded-lg border p-5"
+      style={{
+        borderColor: `color-mix(in srgb, ${colorVar} 30%, transparent)`,
+        background: `color-mix(in srgb, ${colorVar} 4%, transparent)`,
+      }}
+    >
+      <div className="flex items-baseline gap-3 mb-2">
+        <span
+          className="text-[10px] font-mono uppercase tracking-[0.15em]"
+          style={{ color: colorVar }}
+        >
+          {tag}
+        </span>
+        <span className="text-[10px] font-mono text-[var(--text-tertiary)] ml-auto">
+          {date}
+        </span>
+      </div>
+      <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+        {title}
+      </h3>
+      <p className="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
+        {body}
+      </p>
+    </article>
   );
 }
 
