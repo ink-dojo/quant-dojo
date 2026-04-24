@@ -79,13 +79,13 @@ export default async function CandidatesPage() {
             {review.n_candidates} 个挑最高&rdquo;的选择偏差。
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <HonestStatCard
+            <ReviewStatCard
               tag="选择偏差修正"
               headline={`${fmtPct(selectedReview.dsr, 1)} DSR`}
               body={`v16 的 sharpe 0.740 在多重检验修正后仍有 ${fmtPct(selectedReview.dsr, 0)} 概率显著 > 0。`}
               tone="gold"
             />
-            <HonestStatCard
+            <ReviewStatCard
               tag="Admission gate"
               headline={
                 selectedReview.gate.all_pass
@@ -100,7 +100,7 @@ export default async function CandidatesPage() {
               ].join(" · ")}. 回撤 ${fmtPct(selectedReview.max_drawdown, 1)} 超 30% 红线。`}
               tone={selectedReview.gate.all_pass ? "green" : "red"}
             />
-            <HonestStatCard
+            <ReviewStatCard
               tag="Bootstrap 95% CI"
               headline={`[${fmtNum(selectedReview.sharpe_ci_low, 2)}, ${fmtNum(selectedReview.sharpe_ci_high, 2)}]`}
               body="Stationary block resample 保留日收益自相关。CI 下沿若 < 0.8 意味着 &ldquo;sharpe 过门槛&rdquo; 不稳健。"
@@ -182,7 +182,7 @@ export default async function CandidatesPage() {
           />
           <Takeaway
             title="下一步 — 跑 walk-forward"
-            body="把 top 3 候选（不只是 v16）喂给 scripts/walk_forward.py 跑 17 个滚动窗口，看中位 sharpe 和稳定性。只有在 WF 下表现稳定的才有资格叫 production。此外所有候选都没过回撤红线，说明 admission gate 的瓶颈不是因子，而是风险管理。"
+            body="把 top 3 候选（不只是 v16）喂给 scripts/walk_forward.py 跑 17 个滚动窗口，看中位 sharpe 和稳定性。只有在 WF 下表现稳定的才有资格进入 paper-trade review。此外所有候选都没过回撤红线，说明 admission gate 的瓶颈不是因子，而是风险管理。"
           />
         </div>
         <div className="mt-6 text-xs text-[var(--text-tertiary)]">
@@ -204,7 +204,7 @@ export default async function CandidatesPage() {
   );
 }
 
-function HonestStatCard({
+function ReviewStatCard({
   tag,
   headline,
   body,

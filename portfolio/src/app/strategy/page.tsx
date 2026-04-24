@@ -2,6 +2,12 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricGrid } from "@/components/viz/MetricGrid";
 import { EquityChart } from "@/components/viz/EquityChart";
+import {
+  DisclosurePanel,
+  EvidenceCard,
+  SectionLabel,
+  TextLink,
+} from "@/components/layout/Primitives";
 import { readData, readDataOrNull } from "@/lib/data";
 import { fmtPct, fmtNum } from "@/lib/formatters";
 import type {
@@ -97,47 +103,36 @@ export default async function StrategyPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Strategy · Week 4-5"
-        title="Multi-factor research · v7 → v25"
-        subtitle="ICIR-weighted face + mining round experiments + regime gating"
-        description="Multi-factor 这条线从 Week 4 的 5 因子手工基线 v7 起步, 到 Week 5 的 ICIR 学习权重 v9 + 止损试错 v10 + 因子挖掘 v11-v21 + regime gating v22-v25 结束. 真正上 paper-trade 的是独立的 event-driven 线 (见 /live); 这页的价值是 5 次假设 / 5 次验证 / 5 次否决的研究记录."
+        eyebrow="Strategy"
+        title="Multi-factor line"
+        subtitle="Research versions only · paper-trade lives under /live"
+        description="This page tracks versioned research artifacts. It does not imply that a version is running unless the live page says so."
         crumbs={[{ label: "Home", href: "/" }, { label: "Strategy" }]}
       />
 
       <section className="max-w-content mx-auto px-6 pb-10">
-        <div className="max-w-3xl space-y-4 text-[var(--text-secondary)] leading-relaxed">
-          <p>
-            主线不是任何单一版本的 sharpe, 而是
-            <span className="text-[var(--text-primary)]"> 纪律</span>
-            : 什么样的策略配得上走进 paper-trade 这四个字.
-          </p>
-          <p>
-            v7 是 5 因子手工等权基线. v9 切换到 ICIR 学习权重, 在 17 个滚动 WF 窗口中位 sharpe 0.53 · OOS 较 v7 +18%, 成为
-            <Link
-              href="#v9"
-              className="text-[var(--green)] font-semibold hover:underline"
-            >
-              research face
-            </Link>
-            . v10 试图叠加组合止损, IS 回撤看似缓解, 但 WF
-            {" "}
-            <Link
-              href="/validation"
-              className="text-[var(--red)] hover:underline"
-            >
-              证伪并否决
-            </Link>
-            . v16 是 Week 5 因子挖掘 session 从 11 个候选里按 sharpe 挑出的&ldquo;赢家&rdquo;
-            — 选拔过程和 v10 的陷阱是同一类,
-            {" "}
-            <Link
-              href="#v16"
-              className="text-[var(--gold)] hover:underline"
-            >
-              仍是 candidate, 不上 live
-            </Link>
-            .
-          </p>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <EvidenceCard
+            tone="green"
+            label="Research face"
+            value={face?.id ?? "—"}
+            detail="WF-validated benchmark for this line"
+            href={face ? `#${face.id}` : undefined}
+          />
+          <EvidenceCard
+            tone="red"
+            label="Rejected"
+            value={rejected?.id ?? "—"}
+            detail="Stop-loss layer failed OOS behavior"
+            href="/validation"
+          />
+          <EvidenceCard
+            tone="gold"
+            label="Candidate"
+            value={candidate?.id ?? "—"}
+            detail="Visible for audit; not promoted"
+            href={candidate ? `#${candidate.id}` : undefined}
+          />
         </div>
       </section>
 
@@ -151,143 +146,92 @@ export default async function StrategyPage() {
       )}
 
       <section className="max-w-content mx-auto px-6 pb-10">
-        <Link
-          href="/strategy/multi-factor"
-          className="block rounded-lg border border-[var(--blue)]/35 bg-[var(--blue)]/[0.05] p-5 hover:bg-[var(--blue)]/[0.08] transition-colors"
+        <DisclosurePanel
+          tone="blue"
+          title="Version timeline"
+          summary="Open the full v7 → v25 evolution only when you need chronology."
         >
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--blue)]">
-              Timeline · v7 → v25
-            </span>
-            <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
-              5 次假设 / 验证 / 否决 — 包括 v10 止损灾难和 v16 挖掘陷阱
-            </span>
-          </div>
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
-            完整演化时间线 + 逐版本深度页
-          </h3>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-            每一版本记录动机 / 方法 / 结果 / 教训 / 触发下一版本的问题 —
-            包含被证伪的诚实故事.
-            <span className="text-[var(--blue)] ml-1">进入时间线 →</span>
+          <p>
+            The timeline records motivation, method, result, lesson, and the
+            next trigger for every version.
           </p>
-        </Link>
+          <div className="mt-3">
+            <TextLink href="/strategy/multi-factor">Open multi-factor timeline</TextLink>
+          </div>
+        </DisclosurePanel>
       </section>
 
       {series.length > 0 && (
         <section className="max-w-content mx-auto px-6 pb-16">
-          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-1">
-            Equity Overlay · 四条曲线同一坐标
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
-            2022-01 → 2025-12 回测期。
-            <span className="text-[var(--green)]">v9 实线</span> 是 research face (WF 验证过);
-            <span className="text-[var(--red)]">v10 虚线</span> 被 admission gate 否决；
-            <span className="text-[var(--gold)]">v16 虚线</span> 是挖掘候选（注意它总回报最高，但回撤深度 -43%）。
-          </p>
-          <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-4">
-            <EquityChart series={series} height={380} />
-          </div>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <ReadingHint
-              color="var(--green)"
-              title="v9 最关键的地方是平的部分"
-              body="2023 风格切换期间小幅回落但未彻底破位，走平后继续上行 — 这是 WF 权重学习的贡献。"
-            />
-            <ReadingHint
-              color="var(--red)"
-              title="v10 的止损在 2022 年打断了动量"
-              body="止损只有在有 regime 信号时才能救人。单纯用固定阈值，反而在反弹前清了仓。"
-            />
-            <ReadingHint
-              color="var(--gold)"
-              title="v16 总收益 +117% 最亮眼"
-              body="但回撤 -43% 违反 CLAUDE.md 红线；sharpe 0.73 未达 0.8 门槛。这正是 overfitting 的样子。"
-            />
-          </div>
+          <DisclosurePanel
+            tone="neutral"
+            title="Equity overlay"
+            summary="Open the chart after reading the status labels; high return does not equal approval."
+          >
+            <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)]/40 p-4">
+              <EquityChart series={series} height={380} />
+            </div>
+          </DisclosurePanel>
         </section>
       )}
 
       <section className="max-w-content mx-auto px-6 pb-16">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-          Admission Gate · 纪律
-        </h2>
-        <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-3xl leading-relaxed">
-          写在 <code className="font-mono text-xs text-[var(--text-primary)]">CLAUDE.md</code>
-          {" "}里的、每个新策略必须过的 4 条线。没过，不能叫 production。
-        </p>
-        <div className="overflow-x-auto rounded-lg border border-[var(--border-soft)]">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)] border-b border-[var(--border-soft)]">
-                <th className="text-left px-4 py-3 font-normal">Gate</th>
-                <th className="text-left px-4 py-3 font-normal">门槛</th>
-                <th className="text-right px-4 py-3 font-normal">v9 · face</th>
-                <th className="text-right px-4 py-3 font-normal">v10 · rejected</th>
-                <th className="text-right px-4 py-3 font-normal">v16 · candidate</th>
-              </tr>
-            </thead>
-            <tbody className="font-mono">
-              <GateRow
-                label="年化"
-                threshold="> 15%"
-                v9={face?.metrics?.annualized_return ?? null}
-                v10={rejected?.metrics?.annualized_return ?? null}
-                v16={candidate?.metrics?.annualized_return ?? null}
-                format="pct"
-                pass={(v) => (v ?? 0) >= 0.15}
-              />
-              <GateRow
-                label="Sharpe"
-                threshold="> 0.8"
-                v9={face?.metrics?.sharpe ?? null}
-                v10={rejected?.metrics?.sharpe ?? null}
-                v16={candidate?.metrics?.sharpe ?? null}
-                format="num"
-                pass={(v) => (v ?? 0) >= 0.8}
-              />
-              <GateRow
-                label="最大回撤"
-                threshold="> -30%"
-                v9={face?.metrics?.max_drawdown ?? null}
-                v10={rejected?.metrics?.max_drawdown ?? null}
-                v16={candidate?.metrics?.max_drawdown ?? null}
-                format="pct"
-                pass={(v) => (v ?? 0) > -0.3}
-              />
-              <tr className="border-t border-[var(--border-soft)]">
-                <td className="px-4 py-3 text-[var(--text-primary)]">WF 已验证</td>
-                <td className="px-4 py-3 text-[var(--text-tertiary)]">required</td>
-                <td className="px-4 py-3 text-right text-[var(--green)]">
-                  ✓ 中位 0.53
-                </td>
-                <td className="px-4 py-3 text-right text-[var(--red)]">
-                  ✗ 中位 0.46
-                </td>
-                <td className="px-4 py-3 text-right text-[var(--red)]">
-                  ✗ 未跑
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-3 text-xs text-[var(--text-tertiary)] leading-relaxed max-w-3xl">
-          v9 是唯一四条都过的版本. v16 年化最高但回撤和 sharpe 两条未过、WF 未跑,
-          所以它挂 <em>candidate</em> 而不是 face.
-          注: v9 的 metrics 在两处展示 — 这里是 admission gate 评估的 IS+OOS 整段口径 (年化 12.9%),
-          <Link href="/validation" className="text-[var(--blue)] hover:underline">/validation</Link>{" "}
-          页列的是 walk-forward 滚动窗口的 OOS 口径 (年化 +18.7%).
-          数字差异反映的是评估区间不同, 不是数据错配.
-        </p>
+        <DisclosurePanel
+          tone="green"
+          title="Admission gate table"
+          summary="Open the gate matrix for exact metric-by-metric comparison."
+        >
+          <div className="overflow-x-auto rounded-lg border border-[var(--border-soft)]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border-soft)] text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                  <th className="px-4 py-3 text-left font-normal">Gate</th>
+                  <th className="px-4 py-3 text-left font-normal">Threshold</th>
+                  <th className="px-4 py-3 text-right font-normal">Face</th>
+                  <th className="px-4 py-3 text-right font-normal">Rejected</th>
+                  <th className="px-4 py-3 text-right font-normal">Candidate</th>
+                </tr>
+              </thead>
+              <tbody className="font-mono">
+                <GateRow
+                  label="Annual"
+                  threshold="> 15%"
+                  v9={face?.metrics?.annualized_return ?? null}
+                  v10={rejected?.metrics?.annualized_return ?? null}
+                  v16={candidate?.metrics?.annualized_return ?? null}
+                  format="pct"
+                  pass={(v) => (v ?? 0) >= 0.15}
+                />
+                <GateRow
+                  label="Sharpe"
+                  threshold="> 0.8"
+                  v9={face?.metrics?.sharpe ?? null}
+                  v10={rejected?.metrics?.sharpe ?? null}
+                  v16={candidate?.metrics?.sharpe ?? null}
+                  format="num"
+                  pass={(v) => (v ?? 0) >= 0.8}
+                />
+                <GateRow
+                  label="Max DD"
+                  threshold="> -30%"
+                  v9={face?.metrics?.max_drawdown ?? null}
+                  v10={rejected?.metrics?.max_drawdown ?? null}
+                  v16={candidate?.metrics?.max_drawdown ?? null}
+                  format="pct"
+                  pass={(v) => (v ?? 0) > -0.3}
+                />
+              </tbody>
+            </table>
+          </div>
+        </DisclosurePanel>
       </section>
 
       <section id="versions" className="max-w-content mx-auto px-6 pb-16">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-          Version Cards · 按时间
-        </h2>
-        <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-3xl">
-          每张卡片包含状态、同期指标、因子组成、被否决或被搁置的原因。
-        </p>
+        <SectionLabel
+          eyebrow="Version cards"
+          title="Open source artifacts, ordered by version"
+          body="Each card carries status, metrics, factors, and gate notes."
+        />
         <ol className="relative border-l border-[var(--border-soft)] ml-2 space-y-6">
           {versionsFile.versions.map((v) => (
             <VersionCard key={v.id} version={v} />

@@ -27,7 +27,7 @@ const STATUS_TONE: Record<string, string> = {
 
 const STATUS_LABEL_ZH: Record<string, string> = {
   paper_trade_candidate: "paper-trade 候选",
-  active: "实盘中",
+  active: "paper running",
   component: "ensemble 成分",
   retired: "已退役",
   failed: "已证伪",
@@ -275,7 +275,7 @@ export default async function DSRDetailPage({ params }: PageParams) {
       )}
 
       {s.paper_trade_spec && (
-        <Section title="Paper Trade Spec · 实盘协议">
+        <Section title="Paper Trade Spec">
           <p className="text-sm font-mono text-[var(--text-secondary)]">{s.paper_trade_spec}</p>
         </Section>
       )}
