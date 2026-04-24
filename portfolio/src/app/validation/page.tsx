@@ -6,6 +6,7 @@ import {
   EvidenceCard,
   SectionLabel,
 } from "@/components/layout/Primitives";
+import { Lang } from "@/components/layout/LanguageText";
 import { readData, readDataOrNull } from "@/lib/data";
 import { fmtPct, fmtNum } from "@/lib/formatters";
 import type {
@@ -133,9 +134,9 @@ export default async function ValidationPage() {
     <>
       <PageHeader
         eyebrow="Validation"
-        title="Rejection files"
-        subtitle="Gate failures · OOS breaks · non-executable specs"
-        description="Rejected work stays visible, but the default view is an index. Open a case for exact metrics and source notes."
+        title={<Lang zh="否决档案" en="Rejection files" />}
+        subtitle={<Lang zh="Gate 失败 · OOS 断裂 · 不可执行 spec" en="Gate failures · OOS breaks · non-executable specs" />}
+        description={<Lang zh="被否决的工作保留可见，但默认视图只是索引。展开 case 查看精确指标和来源说明。" en="Rejected work stays visible, but the default view is an index. Open a case for exact metrics and source notes." />}
         crumbs={[{ label: "Home", href: "/" }, { label: "Validation" }]}
       />
 
@@ -145,46 +146,46 @@ export default async function ValidationPage() {
             tone="red"
             label="v10"
             value="OOS break"
-            detail="Stop-loss layer reduced IS drawdown and damaged OOS."
+            detail={<Lang zh="止损层降低了 IS 回撤，但破坏了 OOS。" en="Stop-loss layer reduced IS drawdown and damaged OOS." />}
           />
           <EvidenceCard
             tone="gold"
             label="v16"
             value="-43% DD"
-            detail="High IS return, but failed drawdown and WF requirements."
+            detail={<Lang zh="IS 收益高，但回撤和 WF 要求未过。" en="High IS return, but failed drawdown and WF requirements." />}
           />
           <EvidenceCard
             tone="red"
             label="RIAD combo"
-            value="Blocked"
-            detail="Baseline result did not survive executable constraints."
+            value={<Lang zh="已阻塞" en="Blocked" />}
+            detail={<Lang zh="Baseline 结果没有经受住可执行约束。" en="Baseline result did not survive executable constraints." />}
           />
           <EvidenceCard
             tone="red"
             label="MD&A drift"
             value="IC 0.0036"
-            detail="Below pre-registered threshold; Tier 2 skipped."
+            detail={<Lang zh="低于预注册门槛；跳过 Tier 2。" en="Below pre-registered threshold; Tier 2 skipped." />}
           />
         </div>
       </section>
 
       <section className="max-w-content mx-auto px-6 pb-12">
         <SectionLabel
-          eyebrow="Gate matrix"
-          title="Strategy gate comparison"
-          body="Open for exact values. This is supporting evidence, not page furniture."
+          eyebrow={<Lang zh="Gate 矩阵" en="Gate matrix" />}
+          title={<Lang zh="策略 gate 对比" en="Strategy gate comparison" />}
+          body={<Lang zh="需要精确值时再展开。它是支持证据，不是页面装饰。" en="Open for exact values. This is supporting evidence, not page furniture." />}
         />
         <DisclosurePanel
           tone="neutral"
           title="Admission gate — v9 / v10 / v16"
-          summary="v10 fails OOS; v16 is blocked by drawdown and missing WF."
+          summary={<Lang zh="v10 OOS 失败；v16 被回撤和缺失 WF 拦住。" en="v10 fails OOS; v16 is blocked by drawdown and missing WF." />}
         >
           <div className="overflow-x-auto rounded-lg border border-[var(--border-soft)]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-soft)] text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
-                  <th className="px-4 py-3 text-left font-normal">Metric</th>
-                  <th className="px-4 py-3 text-left font-normal">Threshold</th>
+                  <th className="px-4 py-3 text-left font-normal"><Lang zh="指标" en="Metric" /></th>
+                  <th className="px-4 py-3 text-left font-normal"><Lang zh="门槛" en="Threshold" /></th>
                   <th className="px-4 py-3 text-left font-normal text-[var(--green)]">v9</th>
                   <th className="px-4 py-3 text-left font-normal text-[var(--red)]">v10</th>
                   <th className="px-4 py-3 text-left font-normal text-[var(--gold)]">v16</th>
@@ -212,8 +213,8 @@ export default async function ValidationPage() {
         <section className="max-w-content mx-auto px-6 pb-16">
           <DisclosurePanel
             tone="blue"
-            title="Equity overlay and metric cards"
-            summary="Open only if you need chart-level comparison."
+            title={<Lang zh="净值对比和指标卡" en="Equity overlay and metric cards" />}
+            summary={<Lang zh="只有需要图表级对比时再打开。" en="Open only if you need chart-level comparison." />}
           >
             <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)]/40 p-4">
               <EquityChart series={series} height={360} />
@@ -251,15 +252,15 @@ export default async function ValidationPage() {
       <section className="max-w-content mx-auto px-6 pb-16">
         <DisclosurePanel
           tone="blue"
-          title="Walk-forward table"
-          summary="17 rolling windows; median Sharpe is the comparison anchor."
+          title={<Lang zh="Walk-forward 表" en="Walk-forward table" />}
+          summary={<Lang zh="17 个滚动窗口；中位 Sharpe 是对比锚点。" en="17 rolling windows; median Sharpe is the comparison anchor." />}
         >
           <div className="overflow-x-auto rounded-lg border border-[var(--border-soft)]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-soft)] text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
-                  <th className="px-4 py-3 text-left font-normal">Version</th>
-                  <th className="px-4 py-3 text-left font-normal">Design</th>
+                  <th className="px-4 py-3 text-left font-normal"><Lang zh="版本" en="Version" /></th>
+                  <th className="px-4 py-3 text-left font-normal"><Lang zh="设计" en="Design" /></th>
                   <th className="px-4 py-3 text-right font-normal">Windows</th>
                   <th className="px-4 py-3 text-right font-normal">Mean</th>
                   <th className="px-4 py-3 text-right font-normal">Median</th>
@@ -288,8 +289,8 @@ export default async function ValidationPage() {
       <section className="max-w-content mx-auto px-6 pb-16">
         <DisclosurePanel
           tone="red"
-          title="Case: v10 stop-loss failed OOS"
-          summary="The layer improved in-sample drawdown and cut away out-of-sample upside."
+          title={<Lang zh="Case：v10 止损层 OOS 失败" en="Case: v10 stop-loss failed OOS" />}
+          summary={<Lang zh="它改善了样本内回撤，但砍掉了样本外收益。" en="The layer improved in-sample drawdown and cut away out-of-sample upside." />}
         >
           <div className="space-y-4">
           <ReasonRow
@@ -326,8 +327,8 @@ export default async function ValidationPage() {
       <section className="max-w-content mx-auto px-6 pb-16">
         <DisclosurePanel
           tone="gold"
-          title="Case: v16 remains candidate"
-          summary="Best in one mining session, but drawdown breached the gate and WF was missing."
+          title={<Lang zh="Case：v16 仍是候选" en="Case: v16 remains candidate" />}
+          summary={<Lang zh="一次挖掘会话里的 best，但回撤破线且缺少 WF。" en="Best in one mining session, but drawdown breached the gate and WF was missing." />}
         >
           <div className="space-y-4">
           <ReasonRow

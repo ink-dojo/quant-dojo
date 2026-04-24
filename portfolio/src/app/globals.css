@@ -39,6 +39,11 @@ html {
   scroll-behavior: smooth;
 }
 
+html[data-lang="zh"] .lang-en,
+html[data-lang="en"] .lang-zh {
+  display: none;
+}
+
 body {
   background: var(--bg-base);
   color: var(--text-primary);

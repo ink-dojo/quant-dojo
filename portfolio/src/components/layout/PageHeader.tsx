@@ -1,10 +1,10 @@
 import { Breadcrumb, type Crumb } from "./Breadcrumb";
 
 interface Props {
-  eyebrow?: string;
-  title: string;
-  subtitle?: string;
-  description?: string;
+  eyebrow?: React.ReactNode;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  description?: React.ReactNode;
   crumbs?: Crumb[];
   actions?: React.ReactNode;
 }

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, SITE } from "@/lib/constants";
+import { LanguageToggle } from "./LanguageToggle";
+import { Lang } from "./LanguageText";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -19,7 +21,7 @@ export function Navbar() {
               {SITE.title}
             </p>
             <p className="hidden sm:block text-[10px] text-[var(--text-tertiary)] font-mono">
-              research ledger
+              <Lang zh="研究账本" en="research ledger" />
             </p>
           </div>
         </Link>
@@ -37,14 +39,12 @@ export function Navbar() {
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/60"
                 }`}
               >
-                <span>{item.label}</span>
-                <span className="hidden lg:inline ml-1.5 text-[10px] text-[var(--text-tertiary)]">
-                  {item.zh}
-                </span>
+                <Lang zh={item.zh} en={item.label} />
               </Link>
             );
           })}
         </div>
+        <LanguageToggle />
       </div>
     </nav>
   );
