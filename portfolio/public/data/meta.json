@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-24T01:43:38+00:00",
+  "generated_at": "2026-04-24T01:51:46+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "2f6a4b73e8ef23de309068aae14d860c9bb006f3",
-    "short": "2f6a4b73",
-    "subject": "fix(vercel): ignoreCommand exit codes 反了, portfolio 改动 2+ 天没 deploy"
+    "sha": "81263df6c602e132db5abe53f2ba36b53c38b6a0",
+    "short": "81263df6",
+    "subject": "fix(portfolio): prebuild hook 回溯覆盖 — 把 Week 改动内置进 export_data.py"
   },
   "face": {
     "research": "v9",
