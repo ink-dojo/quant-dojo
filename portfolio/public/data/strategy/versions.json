@@ -3,9 +3,9 @@
   "production_face": "v9",
   "research_face": "v9",
   "candidate": "v25",
-  "declared_active": "v16",
-  "declared_note": "升级到 v16：因子挖掘会话精选（9因子）low_vol_20d/team_coin/shadow_lower/amihud_illiq/price_vol_divergence/high_52w/turnover_accel/mom_6m_skip1m/win_rate_60d | 22.37%年化/0.730 Sharpe",
-  "face_note": "v9 是实际经过 walk-forward 验证的生产门面（中位 Sharpe 0.53、OOS +18%）。strategy_state.json 在 2026-04-14 声明 v16 为 active，但 v16 仅 1 次 IS 回测、回撤 -43% 超红线、sharpe 0.73 未达门槛、尚未生成任何 live 信号 — 仍为 candidate。",
+  "declared_active": null,
+  "declared_note": null,
+  "face_note": "v9 是走过 walk-forward 17 窗口的 research face (中位 Sharpe 0.53 · OOS 较 v7 +18%). v16 是 Week 5 挖掘 session 里 sharpe 最高的候选, 但回撤 -43% 超红线、WF 未跑, 未 promote. 实际 paper-trade 跑的是独立的 event-driven BB-only (见 /live/paper-trade), 不是 multi-factor 这条线.",
   "versions": [
     {
       "id": "v7",
@@ -13,7 +13,7 @@
       "name_zh": "5 因子等权基线",
       "tagline": "通过 admission 的第一版 — 手工权重、等权合成",
       "status": "legacy",
-      "era_start": "2026-Q1",
+      "era_start": "Week 5 · 2026-04-13",
       "factors": [
         "team_coin",
         "low_vol_20d",
@@ -28,11 +28,11 @@
     },
     {
       "id": "v9",
-      "name_en": "ICIR-Weighted Production Face",
-      "name_zh": "ICIR 学习权重 · 生产门面",
-      "tagline": "手工权重 → 数据驱动。WF 中位 sharpe 0.53、OOS 较 v7 +18%，四代里唯一通过完整验证的门面",
+      "name_en": "ICIR-Weighted Research Face",
+      "name_zh": "ICIR 学习权重 · research face",
+      "tagline": "手工权重 → 数据驱动. WF 中位 sharpe 0.53 · OOS 较 v7 +18% · 多因子线里唯一通过完整 WF 验证的版本",
       "status": "production",
-      "era_start": "2026-Q2",
+      "era_start": "Week 5 · 2026-04-13 ~ 04-17",
       "factors": [
         "team_coin",
         "low_vol_20d",
@@ -67,7 +67,7 @@
       "name_zh": "ICIR 权重 + 组合止损（已否决）",
       "tagline": "止损层破坏 OOS 泛化 — 诚实证伪案例",
       "status": "rejected",
-      "era_start": "2026-Q2",
+      "era_start": "Week 5 · 2026-04-13 ~ 04-17",
       "factors": [
         "team_coin",
         "low_vol_20d",
@@ -103,7 +103,7 @@
       "name_zh": "9 因子挖掘候选（pending WF）",
       "tagline": "2026-04-14 因子挖掘会话从 v11-v21 共 12 个候选中挑出；IS sharpe 0.80、回撤 -43% 红线未过",
       "status": "candidate",
-      "era_start": "2026-Q2",
+      "era_start": "Week 5 · 2026-04-13 ~ 04-17",
       "factors": [
         "low_vol_20d",
         "team_coin",
@@ -165,7 +165,7 @@
       "name_zh": "v16 + HS300 熊市门控止损",
       "tagline": "2026-04-17 回撤治理：HS300<MA120 时启用半仓止损，MDD 从 -43% 收到 -26%；sharpe 仅退 0.03",
       "status": "candidate",
-      "era_start": "2026-Q2",
+      "era_start": "Week 5 · 2026-04-13 ~ 04-17",
       "factors": [
         "low_vol_20d",
         "team_coin",
