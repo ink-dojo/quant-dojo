@@ -34,8 +34,10 @@ export default async function CandidatesPage() {
   return (
     <>
       <PageHeader
-        title="因子挖掘会话 · 11 个候选"
-        subtitle={`Factor Mining Session · ${file.session_date}`}
+        eyebrow={`Week 5 · ${file.session_date}`}
+        title="Mining round · 11 个候选按 sharpe 排序"
+        subtitle="同一份数据跑 11 个 variant, 挑 best-in-sample = 选择偏差. DSR 负责记账."
+        description="Week 5 的一次因子挖掘 session: 9 因子不同替换组合跑 11 个 multi-factor variant, 全在同一份 IS 上. 按 sharpe 排序, 前 3 名差距 0.01 级别 — deflated sharpe + walk-forward 才是真正能区分 alpha 和噪声的工具."
         crumbs={[
           { label: "Home", href: "/" },
           { label: "Strategy", href: "/strategy" },

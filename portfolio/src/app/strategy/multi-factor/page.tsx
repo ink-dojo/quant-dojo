@@ -52,10 +52,10 @@ export default async function MultiFactorTimelinePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Strategy · Multi-Factor · Evolution"
-        title="v7 → v25 演化时间线"
-        subtitle={`${timeline.eras.length} 个时代 · ${totalVersions} 个版本`}
-        description="每个版本都记录动机 / 方法 / 结果 / 下一版本的起因 — 包括成功、失败、和诚实证伪。"
+        eyebrow="Strategy · Multi-Factor · Timeline"
+        title="v7 → v25 实验线"
+        subtitle={`${timeline.eras.length} 个研究阶段 · ${totalVersions} 个版本 · Week 4-5`}
+        description="每个版本记录动机 / 方法 / 结果 / 下一版本的起因 — 包括被证伪的路. Week 5 的 v11-v25 整条挖掘 session 只用了 3 天, 并不是长期迭代."
         crumbs={[
           { label: "Home", href: "/" },
           { label: "Strategy", href: "/strategy" },
@@ -66,14 +66,16 @@ export default async function MultiFactorTimelinePage() {
       <section className="max-w-content mx-auto px-6 pb-12">
         <div className="max-w-3xl text-[var(--text-secondary)] leading-relaxed space-y-3">
           <p>
-            多因子路线从 2026-Q1 的 5 因子等权基线 v7 起步，经过 ICIR 加权 v9、
-            止损灾难 v10、因子挖掘沙盒 v11-v16、外生 regime 门控 v22-v25，
-            最终在 v25 处达到 saturation，转向事件驱动。
+            Multi-factor 线 Week 4 起步 (5 因子等权基线 v7), ICIR 加权拿到 research face (v9),
+            止损试验 v10 被 WF 否决, 因子挖掘沙盒 v11-v16 碰到 best-in-sample 陷阱,
+            regime 门控 v22-v25 把 MDD 收回到门槛内但 sharpe 仍差 0.03.
+            Week 6 开始转向事件驱动 (见 /research/event-driven).
           </p>
           <p>
-            这条线最有价值的不是某个 production face, 而是<span className="text-[var(--text-primary)]">六次被证伪的教训</span>：
-            止损无 regime 信号就是 OOS killer (v10), IS 2022-2025 挑最佳 = data snooping (v16),
-            分散/正交不能降 systematic risk (v22/v24)。
+            这条线真正有价值的不是某个版本的 sharpe, 而是
+            <span className="text-[var(--text-primary)]">几次被证伪的教训</span>:
+            止损无 regime 信号就是 OOS killer (v10), 从挖掘候选里挑 best-in-sample = data snooping (v16),
+            分散 / 正交不能降 systematic risk (v22/v24).
           </p>
         </div>
       </section>
