@@ -1,108 +1,108 @@
 {
-  "generated_at": "2026-04-23",
+  "generated_at": "2026-04-24",
   "project_started_at": "2026-03-13",
   "current_week": 6,
-  "current_date": "2026-04-23",
-  "source": "ROADMAP.md + git history",
+  "current_date": "2026-04-24",
+  "source": "ROADMAP.md + git history (week overlay)",
   "phases": [
     {
       "id": "phase-0",
       "label": "Phase 0",
-      "week_range": "Week 1",
-      "date_range": "2026-03-13 → 03-17",
       "title": "环境搭建",
       "status": "done",
       "checks_total": 4,
       "checks_done": 4,
-      "progress": 1.0
+      "progress": 1.0,
+      "week_range": "Week 1",
+      "date_range": "2026-03-13 → 03-17"
     },
     {
       "id": "phase-1",
       "label": "Phase 1",
-      "week_range": "Week 1-2",
-      "date_range": "2026-03-18 → 03-26",
-      "title": "基础建设 · 数据 / 统计 / utils",
+      "title": "基础建设",
       "status": "done",
       "checks_total": 10,
       "checks_done": 10,
-      "progress": 1.0
+      "progress": 1.0,
+      "week_range": "Week 1-2",
+      "date_range": "2026-03-18 → 03-26"
     },
     {
       "id": "phase-2",
       "label": "Phase 2",
-      "week_range": "Week 2-3",
-      "date_range": "2026-03-27 → 04-02",
-      "title": "回测体系 · BacktestEngine + 绩效评估",
+      "title": "回测体系",
       "status": "done",
       "checks_total": 5,
       "checks_done": 5,
-      "progress": 1.0
+      "progress": 1.0,
+      "week_range": "Week 2-3",
+      "date_range": "2026-03-27 → 04-02"
     },
     {
       "id": "phase-3",
       "label": "Phase 3",
-      "week_range": "Week 3-4",
-      "date_range": "2026-04-03 → 04-09",
-      "title": "因子研究 · IC / ICIR / 分层 / 衰减",
+      "title": "因子研究  完成",
       "status": "done",
       "checks_total": 8,
       "checks_done": 8,
-      "progress": 1.0
+      "progress": 1.0,
+      "week_range": "Week 3-4",
+      "date_range": "2026-04-03 → 04-09"
     },
     {
       "id": "phase-4",
       "label": "Phase 4",
-      "week_range": "Week 4-5",
-      "date_range": "2026-04-10 → 04-16",
-      "title": "策略打磨 · Multi-factor session (v7 → v25)",
+      "title": "策略打磨  完成",
       "status": "done",
       "checks_total": 9,
       "checks_done": 9,
-      "progress": 1.0
+      "progress": 1.0,
+      "week_range": "Week 4-5",
+      "date_range": "2026-04-10 → 04-16"
     },
     {
       "id": "phase-5",
       "label": "Phase 5",
-      "week_range": "Week 5-6",
-      "date_range": "2026-04-14 → 04-21",
-      "title": "模拟盘基础设施 · ledger / snapshot / kill switch",
+      "title": "模拟实盘基础设施  完成",
       "status": "done",
       "checks_total": 17,
       "checks_done": 17,
-      "progress": 1.0
+      "progress": 1.0,
+      "week_range": "Week 5-6",
+      "date_range": "2026-04-14 → 04-21"
     },
     {
       "id": "phase-6",
       "label": "Phase 6",
-      "week_range": "Week 6",
-      "date_range": "2026-04-16 → ongoing",
-      "title": "Control Plane · 统一 CLI + portfolio 展示",
-      "status": "running",
+      "title": "Control Plane（CLI 统一执行 + Dashboard 统一展示）",
+      "status": "planned",
       "checks_total": 10,
       "checks_done": 9,
-      "progress": 0.9
+      "progress": 0.9,
+      "week_range": "Week 6",
+      "date_range": "2026-04-16 → ongoing"
     },
     {
       "id": "phase-7",
       "label": "Phase 7",
-      "week_range": "Week 6",
-      "date_range": "2026-04-21 → ongoing",
-      "title": "Agentic Research · 研究助理 + 人工门禁",
-      "status": "running",
+      "title": "Agentic Research（AI 研究助理 → 有门禁的操作员）",
+      "status": "planned",
       "checks_total": 7,
       "checks_done": 7,
-      "progress": 1.0
+      "progress": 1.0,
+      "week_range": "Week 6",
+      "date_range": "2026-04-21 → ongoing"
     },
     {
       "id": "phase-8",
       "label": "Phase 8",
-      "week_range": "未开始",
-      "date_range": "planned",
-      "title": "Real-money readiness · 合规 / 风控 / 券商 API",
+      "title": "Agentic Execution / Real-Money Readiness（远期）",
       "status": "planned",
       "checks_total": 5,
       "checks_done": 0,
-      "progress": 0.0
+      "progress": 0.0,
+      "week_range": "未开始",
+      "date_range": "planned"
     }
   ]
 }

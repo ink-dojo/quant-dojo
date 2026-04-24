@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-23T02:48:41+00:00",
+  "generated_at": "2026-04-24T01:43:38+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "21211b3239018c902522c45a244096f1fde306ac",
-    "short": "21211b32",
-    "subject": "docs: 同步 spec v4 决策结果到四份核心文档"
+    "sha": "2f6a4b73e8ef23de309068aae14d860c9bb006f3",
+    "short": "2f6a4b73",
+    "subject": "fix(vercel): ignoreCommand exit codes 反了, portfolio 改动 2+ 天没 deploy"
   },
   "face": {
     "research": "v9",
