@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricGrid } from "@/components/viz/MetricGrid";
 import { readDataOrNull } from "@/lib/data";
 import { fmtNum, fmtPct } from "@/lib/formatters";
+import { projectWeek } from "@/lib/constants";
 import type { PaperTradeState } from "@/lib/types";
 import { NavCurve } from "./NavCurve";
 
@@ -48,6 +49,7 @@ export default async function PaperTradePage() {
   const kill = state.kill;
   const killTone = KILL_TONE[kill.action] ?? "neutral";
   const phaseLabel = PHASE_LABEL[state.phase ?? ""] ?? state.phase ?? "—";
+  const { week, dateStr } = projectWeek();
 
   const pnlToneValue = state.pnl_today;
   const pnlTone: "good" | "bad" | "neutral" =
@@ -59,10 +61,10 @@ export default async function PaperTradePage() {
   return (
     <>
       <PageHeader
-        eyebrow={`Live · 实盘 · ${state.spec_version.toUpperCase()}`}
-        title="DSR #30 BB-only Paper Trade"
+        eyebrow={`Week ${week} · ${dateStr} · spec ${state.spec_version.toUpperCase()} · Day ${kill.running_days}`}
+        title="DSR #30 BB-only · 模拟盘"
         subtitle={`${phaseLabel} · started ${state.started_at ?? "—"} · last run ${state.last_run_ts.slice(0, 10)}`}
-        description="DSR #30 主板 rescaled BB-only (spec v3). 每交易日 EOD 生成信号→下单→风控→产出报告. 本页显示最新 state snapshot, 直接读 paper_trade/state.json."
+        description="DSR #30 主板 rescaled BB-only (spec v3). 每交易日 EOD 生成 signal → 下单 → 风控 → 产出报告. 本页直接读 paper_trade/state.json, 不做加工."
         crumbs={[
           { label: "Home", href: "/" },
           { label: "Live", href: "/live" },
@@ -136,7 +138,7 @@ export default async function PaperTradePage() {
                     : fmtNum(kill.rolling_sr_30d, 2),
               },
               {
-                label: "Kill",
+                label: "Risk",
                 value: kill.action.toUpperCase(),
                 tone: killTone,
                 hint: `scale × ${kill.position_scale.toFixed(1)}`,
@@ -167,7 +169,7 @@ export default async function PaperTradePage() {
             }`}
           >
             <h2 className="text-sm font-mono uppercase tracking-[0.2em] mb-3 text-[var(--text-tertiary)]">
-              Kill switch · {kill.action.toUpperCase()}
+              Risk status · {kill.action.toUpperCase()}
             </h2>
             {kill.reasons.length > 0 && (
               <div className="mb-3">
