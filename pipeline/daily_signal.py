@@ -150,6 +150,8 @@ def run_daily_pipeline(
     # IC 计算用涨跌幅字段的真实日收益（已复权的 forward return）
     try:
         _pct_wide = load_price_wide(symbols, start, end, field="pct_change") / 100
+        if _pct_wide.empty:
+            raise ValueError("pct_change 字段不可用")
         ret_wide = _pct_wide.shift(-1)  # forward return
     except Exception:
         # 降级：用 close.pct_change()（原逻辑）

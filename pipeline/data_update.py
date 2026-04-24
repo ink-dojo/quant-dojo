@@ -314,6 +314,11 @@ def run_update(
                 raise ImportError(
                     "baostock 模块未安装，请运行: pip install baostock"
                 )
+        except ProviderError as e:
+            if dry_run:
+                logger.warning("baostock 初始化失败（%s），dry_run 模式下跳过", e)
+            else:
+                raise
 
     # 统一截止日期格式
     if end_date is None:

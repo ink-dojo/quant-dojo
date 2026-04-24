@@ -23,7 +23,7 @@
 
 ## 单元测试
 
-- ✅ `python -m pytest tests/ -q` 502 passed, 0 failed
+- ✅ `python -m pytest tests/ -q` 676 passed, 0 failed
 - ✅ 无回归：`tests/test_phase5_regression.py` 全绿
 - ✅ 无回归：`tests/test_control_plane.py` 全绿
 - ✅ 无回归：`tests/test_risk_gate.py` 全绿
@@ -32,7 +32,7 @@
 
 - ✅ `python -m quant_dojo status` — 不崩溃，`days_stale=None` 时显示 `[?] 延迟 未知`
 - ✅ `python -m quant_dojo doctor` — 不崩溃，显示诊断信息
-- ✅ `python -m quant_dojo update --dry-run` — baostock 未安装时优雅跳过，日志提示
+- ✅ `python -m quant_dojo update --dry-run` — baostock 未安装或网络不通时优雅跳过，日志提示
 
 ## 回测链路
 
