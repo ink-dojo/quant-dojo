@@ -4,14 +4,14 @@
   "eras": [
     {
       "id": "era-baseline",
-      "era_label": "Baseline · 2026-Q1",
+      "era_label": "Baseline · Week 4",
       "theme": "5 因子手工等权 — 从零到过 admission gate",
       "versions": [
         {
           "id": "v7",
           "name_en": "5-Factor Baseline",
           "name_zh": "5 因子等权基线",
-          "date": "2026-Q1",
+          "date": "Week 4 · 2026-04-03",
           "status": "legacy",
           "motivation": "先用经典因子跑出一版能过 admission 的策略，验证全流程 (因子构建 → 行业中性 → 组合 → 回测 → gate check) 可用。",
           "method": "team_coin + low_vol_20d + cgo + enhanced_momentum + bp_factor；5 因子 z-score 等权合成；申万一级行业中性化；月度调仓。",
@@ -26,13 +26,13 @@
     },
     {
       "id": "era-icir-weighted",
-      "era_label": "ICIR 加权 · 2026-Q2 早期",
+      "era_label": "ICIR 加权 · Week 5 (2026-04-13)",
       "theme": "数据驱动权重，验证方法论升级的样本外红利",
       "versions": [
         {
           "id": "v9",
-          "name_en": "ICIR-Weighted Production Face",
-          "name_zh": "ICIR 学习权重 · 生产门面",
+          "name_en": "ICIR-Weighted Research Face",
+          "name_zh": "ICIR 学习权重 · research face",
           "date": "2026-04-13",
           "status": "production",
           "motivation": "v7 手工等权可能没吃完样本信息 — 用过去 N 期 ICIR 加权能否持续跑赢？",
@@ -48,7 +48,7 @@
     },
     {
       "id": "era-stoploss-disaster",
-      "era_label": "止损层尝试 · 诚实证伪",
+      "era_label": "止损层试验 · Week 5 (诚实证伪)",
       "theme": "叠加止损的两个反例 — 不是所有\"改善\"都是真改善",
       "versions": [
         {
@@ -71,7 +71,7 @@
     },
     {
       "id": "era-factor-mining",
-      "era_label": "因子挖掘会话 · v11-v21",
+      "era_label": "因子挖掘 session · Week 5 (2026-04-14)",
       "theme": "2026-04-14 一次会话扫了 11 个变体，重蹈 v10 覆辙",
       "versions": [
         {
@@ -109,7 +109,7 @@
     },
     {
       "id": "era-regime-gate",
-      "era_label": "外生 regime 门控 · v22-v25",
+      "era_label": "Regime 门控 · Week 5 (2026-04-17)",
       "theme": "2026-04-17 用 HS300 MA120 作为外生 regime 信号，尝试救 v16 的回撤",
       "versions": [
         {
@@ -165,7 +165,7 @@
     },
     {
       "id": "era-pivot-event-driven",
-      "era_label": "转事件驱动 · Phase 3-4",
+      "era_label": "转事件驱动 · Week 6",
       "theme": "多因子 saturation 后，把精力投给事件驱动 + paper-trade DSR #30",
       "versions": [
         {

@@ -266,13 +266,11 @@ export interface LiveRunSummary {
 
 export interface LiveDashboard {
   generated_at: string;
-  declared_active: string | null;
-  declared_note: string | null;
-  state_updated_at: string | null;
   production_face: string;
   candidate: string;
-  last_signal_strategy: string | null;
+  note?: string;
   signal_dates: string[];
+  signal_dates_note?: string;
   snapshot_dates: string[];
   recent_runs: LiveRunSummary[];
 }
@@ -287,12 +285,17 @@ export interface Phase {
   checks_total: number;
   checks_done: number;
   progress: number | null;
+  week_range?: string;
+  date_range?: string;
 }
 
 export interface JourneyFile {
   generated_at: string;
   source: string;
   phases: Phase[];
+  project_started_at?: string;
+  current_week?: number;
+  current_date?: string;
 }
 
 export interface CategoryRepFactor {

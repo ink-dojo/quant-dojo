@@ -1,17 +1,10 @@
 {
   "generated_at": "2026-04-23",
-  "declared_active": "v16",
-  "declared_note": "升级到 v16：因子挖掘会话精选（9因子）low_vol_20d/team_coin/shadow_lower/amihud_illiq/price_vol_divergence/high_52w/turnover_accel/mom_6m_skip1m/win_rate_60d | 22.37%年化/0.730 Sharpe",
-  "state_updated_at": "2026-04-14T04:00:00",
   "production_face": "v9",
   "candidate": "v25",
-  "last_signal_strategy": "v10",
-  "signal_dates": [
-    "2026-04-10",
-    "2026-04-09",
-    "2026-04-07",
-    "2026-03-20"
-  ],
+  "note": "v9 是 walk-forward 验证过的 research face。v25 是 Week 5 mining round + regime gating 的候选，未过 admission gate。实际 paper-trade 跑的是独立的 event-driven BB-only (spec v3), 见 /live/paper-trade.",
+  "signal_dates": [],
+  "signal_dates_note": "Paper-trade 从 2026-04-17 (Week 6 Day 1) 启动; signal 每交易日 EOD 生成. 尚未沉淀到 portfolio 可读路径.",
   "snapshot_dates": [],
   "recent_runs": [
     {
