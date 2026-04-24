@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-24T01:51:46+00:00",
+  "generated_at": "2026-04-24T01:58:49+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "81263df6c602e132db5abe53f2ba36b53c38b6a0",
-    "short": "81263df6",
-    "subject": "fix(portfolio): prebuild hook 回溯覆盖 — 把 Week 改动内置进 export_data.py"
+    "sha": "1c7c641e0bb30c44ab24371d8ef8a1c83fdcbf5b",
+    "short": "1c7c641e",
+    "subject": "chore: 刷新 portfolio 数据 (post-commit auto-regen)"
   },
   "face": {
     "research": "v9",

@@ -7,7 +7,7 @@ import type { GlossaryFile, GlossaryTerm } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Glossary · QuantDojo",
-  description: "量化面试常问术语速查 — IC / ICIR / PSR / DSR / Walk-Forward / Admission Gate。",
+  description: "本站术语参考: IC / ICIR / PSR / DSR / Walk-Forward / Admission Gate. 公式 + 直觉 + A 股典型取值.",
 };
 
 const CATEGORY_ORDER = [
@@ -50,9 +50,9 @@ export default async function GlossaryPage() {
     <>
       <PageHeader
         eyebrow="Glossary · 术语"
-        title="量化面试速查"
-        subtitle={`${file.terms.length} 个核心术语 · ${orderedCats.length} 类`}
-        description="IC · ICIR · PSR · DSR · Walk-Forward · Admission Gate — 每条都附公式、直觉、典型取值、坑点。面试随时速查。"
+        title="术语参考"
+        subtitle={`${file.terms.length} 个术语 · ${orderedCats.length} 类`}
+        description="本站用到的统计 / 量化概念: IC · ICIR · PSR · DSR · Walk-Forward · Admission Gate. 每条给公式 + 直觉 + A 股典型取值 + 常见陷阱, 碰到不确定时回来查."
         crumbs={[{ label: "Home", href: "/" }, { label: "Glossary" }]}
       />
 

@@ -82,7 +82,7 @@ export default async function JourneyPage() {
         eyebrow={`Week ${week} · ${dateStr}`}
         title="6 周 · 9 phase · 48 个因子被筛掉"
         subtitle={`Project started ${SITE.started_at} · today ${dateStr} · Day ${(week - 1) * 7 + 1}+`}
-        description="按周看这个项目做了什么、学到什么、踩了什么坑. ROADMAP.md 里的 phase 编号是研究里程碑, 不是周数 — 下面每个 phase 都标了实际日期区间, 你可以看到有的 phase 压缩在几天里完成, 有的横跨一周以上."
+        description="按周线时间轴看项目从 0 到当前的 scope / rejection / output. ROADMAP.md 里的 phase 编号是研究里程碑, 不是周数; 下面每个 phase 标的是实际日期区间, 有的 phase 压缩在几天内完成, 有的横跨一周以上."
         crumbs={[{ label: "Home", href: "/" }, { label: "Journey" }]}
       />
 
