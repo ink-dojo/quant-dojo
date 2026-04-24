@@ -65,7 +65,7 @@ export default async function LivePage() {
       <section className="max-w-content mx-auto px-6 pb-12">
         <div className="flex items-baseline justify-between gap-3 mb-2">
           <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-            Production face (research) · {dashboard.production_face}
+            Multi-factor research face · {dashboard.production_face}
           </h2>
           <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
             multi-factor — 未进 live

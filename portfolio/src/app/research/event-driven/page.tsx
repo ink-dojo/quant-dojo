@@ -486,9 +486,9 @@ export default async function EventDrivenPage() {
             <span className="text-xs text-[var(--text-tertiary)]">必须诚实披露</span>
           </div>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3">
-            5/5 production gate 通过, 但 ensemble
+            5/5 admission gate 通过, 但 ensemble
             <span className="text-[var(--text-primary)]"> 年度收益随时间单调衰减</span> —
-            2018 年 SR +6.43 到 2024 年 SR -0.31。
+            2018 年 SR +6.43 到 2024 年 SR -0.31.
             可能原因: 龙虎榜数据披露规则 2020+ 有调整 / 私募席位行为改变 / 北向资金主导流动性后席位净买入的信号强度稀释。
             这是为什么下一步必须 paper-trade 验证而不是直接推规模。
           </p>
