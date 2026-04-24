@@ -4,5 +4,5 @@
   "outputDirectory": "portfolio/out",
   "installCommand": "echo skip-root-install",
   "framework": null,
-  "ignoreCommand": "bash -lc 'git diff --quiet HEAD~1 HEAD -- portfolio/ utils/alpha_factors.py ROADMAP.md journal/ live/ && exit 1 || exit 0'"
+  "ignoreCommand": "bash -lc 'git diff --quiet HEAD~1 HEAD -- portfolio/ utils/alpha_factors.py ROADMAP.md journal/ live/ && exit 0 || exit 1'"
 }
