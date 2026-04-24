@@ -36,10 +36,10 @@ export default async function ResearchPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Research · 研究"
+        eyebrow="Research · Week 3-6"
         title="Alpha Factor Library"
-        subtitle={`${index.total} 因子 · ${index.with_ic_stats} 带 IC 统计 · ${heroes.factors.length} 深度研究`}
-        description="From textbook factors to behavioral-finance experiments. Every factor tested with IC, ICIR, Fama-MacBeth t-stat; quintile backtests and decay analysis for the 8 hero cases."
+        subtitle={`${index.total} 因子 · ${index.with_ic_stats} 带 IC 统计 · ${heroes.factors.length} 带深度分析`}
+        description={`66 factor 扫 IC 三件套 (IC / ICIR / Fama-MacBeth t-stat), 18 个过 t-stat 门, 8 个做分层 / 衰减 / 中性化深度分析. 48 个被筛掉 — 那些也留在库里作 ablation 对照.`}
         crumbs={[{ label: "Home", href: "/" }, { label: "Research" }]}
       />
 
@@ -50,9 +50,9 @@ export default async function ResearchPage() {
         >
           <div className="flex items-baseline gap-2 mb-1">
             <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--green)]">
-              Event-Driven · Phase 3 + 4
+              Event-driven · Week 4-6
             </span>
-            <span className="text-[10px] font-mono text-[var(--text-tertiary)]">21 tabulated trials</span>
+            <span className="text-[10px] font-mono text-[var(--text-tertiary)]">31 pre-reg trials</span>
           </div>
           <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
             50/50 ensemble of BB × LHB contrarian — 5/5 admission gate pass

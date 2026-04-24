@@ -88,7 +88,7 @@ const STACK = [
     ],
   },
   {
-    category: "Control Plane",
+    category: "Unified CLI",
     zh: "统一入口",
     color: "var(--gold)",
     rows: [
@@ -149,9 +149,9 @@ export default async function InfrastructurePage() {
     <>
       <PageHeader
         eyebrow="Infrastructure · 工程"
-        title="Research & Execution Stack"
-        subtitle="Data → Factors → Strategy → Live → Agents"
-        description="把整个仓库的分层画在一张图上。每一层都有一条&ldquo;不能改&rdquo;的接口（data loader 的 assertion、BacktestEngine 的签名、metrics 的计算），其余都可以自由实验。"
+        title="Repo 分层"
+        subtitle="Data → Factors → Backtest → Paper-trade → Agents"
+        description={`整个 quant-dojo repo 的结构画在一张图上. 每一层有一条「不能改」的接口 (data loader 的 assertion · BacktestEngine 的签名 · metrics 的计算), 其余都可以自由实验.`}
         crumbs={[{ label: "Home", href: "/" }, { label: "Infrastructure" }]}
       />
 
@@ -174,8 +174,8 @@ export default async function InfrastructurePage() {
               — 任何信号都能从 factor_snapshot 复原，bug 可以 bisect
             </li>
             <li>
-              <span className="font-mono text-[var(--blue)]">单一控制面</span>{" "}
-              — qd 命令作为所有运行的唯一入口，杜绝脚本漂移
+              <span className="font-mono text-[var(--blue)]">单一入口</span>{" "}
+              — qd 命令作为所有运行的唯一 entry, 杜绝脚本漂移
             </li>
             <li>
               <span className="font-mono text-[var(--blue)]">人类 admission gate</span>{" "}
@@ -232,7 +232,7 @@ export default async function InfrastructurePage() {
               <Dd>{meta.generated_at}</Dd>
               <Dt>Research face</Dt>
               <Dd>{meta.face.research}</Dd>
-              <Dt>Production face</Dt>
+              <Dt>Multi-factor line</Dt>
               <Dd>{meta.face.production}</Dd>
             </dl>
           </div>

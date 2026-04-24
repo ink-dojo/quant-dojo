@@ -266,7 +266,7 @@ export default async function EventDrivenPage() {
       <section className="max-w-content mx-auto px-6 pb-16">
         <div className="flex items-baseline gap-3 mb-1">
           <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-            Production-grade gate · {wf.production_verdict.n_pass}/5 PASS
+            Admission gate · {wf.production_verdict.n_pass}/5 PASS
           </h2>
           <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--green)]">
             WF · Regime · Cost · Trade
@@ -643,8 +643,8 @@ export default async function EventDrivenPage() {
             body="单因子 long-only alpha 普遍薄 & 方差大, 8 年样本不足以穿过 CI_low 0.5 gate。但 DSR #30 + #33 的正交失败模式支撑了 ensemble 层 5/5 — 说明 A 股 alpha 不是不存在, 只是需要多因子组合 & 风险互补才稳。"
           />
           <Takeaway
-            title="下一步 · paper-trade 启动 (2024 衰减已纳入预期)"
-            body="5/5 production gate (WF median SR 2.67 · regime 3/3 · cost 75bps 仍 +37% · win 54% · top5 6%) 支持 ensemble 进 paper-trade, 初始资金 10-15%。但 2023-2024 年度 SR 已跌到 -0.3 ~ 0.7 — 纪律线: 若 forward 6mo live SR < 0.5, 立即降规模并回研究阶段补充数据源 (北向资金 / 分钟频席位追踪)。不追求规模, 追求 live 曲线印证 WF 分布。"
+            title="下一步 · paper-trade 现状 (2024 衰减已纳入预期)"
+            body="5/5 admission gate (WF median SR 2.67 · regime 3/3 · cost 75bps 仍 +37% · win 54% · top5 6%) 支持 ensemble 进 paper-trade. 但实际 live 2026-04-17 起跑的是 DSR #30 BB-only 单腿 spec v3 (5% 初始规模), 不是 ensemble — LHB #33 腿尾部风险 (MDD -56%) 未对冲, 先保守. 纪律线: 若 forward 6mo live SR < 0.5, 立即降规模并回研究阶段补充数据源 (北向资金 / 分钟频席位追踪). 追求 live 曲线印证 WF 分布, 不追求规模."
           />
         </div>
         <div className="mt-6 text-xs text-[var(--text-tertiary)]">
