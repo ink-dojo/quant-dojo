@@ -14,8 +14,8 @@
     "bb": 1.0,
     "pv": 0.0
   },
-  "last_run_ts": "2026-04-23T21:32:21.863950+08:00",
-  "last_trading_day": "2026-04-23",
+  "last_run_ts": "2026-04-24T21:32:08.477393+08:00",
+  "last_trading_day": "2026-04-24",
   "nav_series": [
     {
       "date": "2026-04-17",
@@ -36,18 +36,22 @@
     {
       "date": "2026-04-23",
       "nav": 999801.6511244711
+    },
+    {
+      "date": "2026-04-24",
+      "nav": 997122.6566965692
     }
   ],
-  "last_nav": 999801.6511244711,
-  "cum_return": -0.00019834887552894198,
-  "pnl_today": -198.34887552889995,
+  "last_nav": 997122.6566965692,
+  "cum_return": -0.0028773433034308127,
+  "pnl_today": -2678.9944279019255,
   "daily_summary": {
     "n_buys": 1,
-    "n_sells": 0,
-    "turnover": 0.1322,
+    "n_sells": 1,
+    "turnover": 0.2625,
     "gross_weight": 0.1323,
-    "cash_after": 867569.07,
-    "nav_after": 999801.65,
+    "cash_after": 865185.55,
+    "nav_after": 997122.66,
     "skipped_buys": [],
     "dropped_no_price": [],
     "duplicate_skipped": []
@@ -55,41 +59,48 @@
   "today_trades": [
     {
       "symbol": "600557",
-      "action": "buy",
+      "action": "sell",
       "shares": 1172,
-      "price": 112.82643659209302,
-      "cost": 198.34887552889955
+      "price": 110.87578032985232,
+      "cost": 194.91962181988038
+    },
+    {
+      "symbol": "000650",
+      "action": "buy",
+      "shares": 1075,
+      "price": 122.73219642537305,
+      "cost": 197.90566673591405
     }
   ],
   "positions": [
     {
-      "symbol": "600557",
-      "shares": 1172,
-      "cost_price": 112.82643659209302,
-      "current_price": 112.82643659209302,
+      "symbol": "000650",
+      "shares": 1075,
+      "cost_price": 122.73219642537305,
+      "current_price": 122.73219642537305,
       "pnl_pct": 0.0
     }
   ],
   "open_entries_count": 1,
   "open_entries": [
     {
-      "symbol": "600557",
+      "symbol": "000650",
       "leg": "bb",
-      "entry_date": "2026-04-23",
+      "entry_date": "2026-04-24",
       "exit_date": "",
       "unit_weight": 0.13234077750206782,
-      "signal": 1.690232475162,
-      "entry_price": 112.82643659209302
+      "signal": 1.339344804265,
+      "entry_price": 122.73219642537305
     }
   ],
   "kill": {
     "action": "warn",
     "position_scale": 1.0,
     "rolling_sr_30d": null,
-    "live_sharpe": -7.937253933193772,
-    "cum_drawdown": -0.00019834887552894198,
-    "monthly_mdd": -0.00019834887552894198,
-    "running_days": 4,
+    "live_sharpe": -7.747947224149474,
+    "cum_drawdown": -0.0028773433034308127,
+    "monthly_mdd": -0.0028773433034308127,
+    "running_days": 5,
     "reasons": [],
     "warnings": [
       "当日持仓只数 1 < 3"
