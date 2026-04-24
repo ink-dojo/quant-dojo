@@ -64,18 +64,16 @@ export default async function Home() {
         </h1>
         <div className="mt-8 max-w-3xl space-y-4 text-[var(--text-secondary)] leading-relaxed">
           <p className="text-lg">
-            我是 jialong. {SITE.started_at} 开始认真学 A 股量化,
-            这个站是我的工作台 — 把每一条假设、每一次否决、每一份数据钉在同一个地方,
-            给未来的我和正在路上的同行查阅.
+            A 股系统化策略研究的公开工作台. 项目从 {SITE.started_at} 起, 每条假设、
+            每次否决、每份数据都在 repo 里可追溯.
           </p>
           <p>
-            核心纪律只有一条: 把&ldquo;为什么否决一个策略&rdquo;和
-            &ldquo;为什么选中一个策略&rdquo;摆在同一页.
-            Admission gate 写死在{" "}
+            核心纪律: 把&ldquo;为什么否决一个策略&rdquo;和&ldquo;为什么选中一个策略&rdquo;
+            摆在同一页. Admission gate 写死在{" "}
             <code className="font-mono text-sm text-[var(--text-primary)]">
               CLAUDE.md
             </code>
-            , 数据跑完按 gate 盖章, 不改门槛迁就成绩.
+            , 跑完按 gate 盖章, 不改门槛迁就成绩.
           </p>
           <p>
             本周状态 —
@@ -199,8 +197,8 @@ export default async function Home() {
                 Journey · 历程
               </Link>
               <span className="text-[var(--text-tertiary)]"> — </span>
-              按周看这 6 周做了什么 / 学到什么 / 踩了哪些坑.
-              这是社区友好的入口 (5 分钟).
+              按周线时间轴看项目从 0 到当前的 scope / rejection / output.
+              阅读顺序建议的起点.
             </div>
           </li>
           <li className="flex gap-4">
@@ -247,7 +245,7 @@ export default async function Home() {
                 Validation · 否决档案
               </Link>
               <span className="text-[var(--text-tertiary)]"> — </span>
-              踩过的坑 / post-mortem. v10 为什么 OOS 崩, v16 为什么不能 promote,
+              Post-mortems · 否决过的策略和假设. v10 为什么 OOS 崩, v16 为什么不能 promote,
               v4 RIAD 合成 spec 为什么最终放弃.
             </div>
           </li>
@@ -282,38 +280,29 @@ export default async function Home() {
 
       <section className="py-12 border-t border-[var(--border-soft)] max-w-3xl">
         <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-5">
-          About · How I learn
+          Methodology
         </p>
         <div className="space-y-4 text-sm text-[var(--text-secondary)] leading-relaxed">
           <p>
-            我 {SITE.author}, US CS 研究生在读, 将来想回深圳做系统化 A 股策略.
-            这个 repo 是我从 0 开始的公开学习实验 —
-            书 / 论文 / AI 工具 / 错误 / 修正 都记录在 git 里, 站点只是一个可视化入口.
-          </p>
-          <p>
-            方法论来源主要是三条:
+            方法论来源:
             <span className="text-[var(--text-primary)]"> Advances in Financial Machine Learning</span> (López de Prado)
-            教会我 deflated sharpe / walk-forward / regime split 的纪律;
-            <span className="text-[var(--text-primary)]"> 量化选股策略实战</span> (杨平) 给了我 A 股 specific 的因子池起点;
-            各种 Chinese academic papers 让我理解 A 股 T+1 / 涨跌停 / 北向 / 两融
-            这些与美股不同的市场结构.
+            — deflated sharpe / walk-forward / regime split 的纪律框架;
+            <span className="text-[var(--text-primary)]"> 量化选股策略实战</span> (杨平) — A 股 specific 因子池起点;
+            A 股微观结构 (T+1 / 涨跌停 / 北向 / 两融) 参考中文学术文献.
           </p>
           <p>
-            开发过程几乎全程用 Claude Code 做 pair programmer — 但每个 admission gate 由我手动签字,
-            AI 不能直接上线任何因子或权重. 这在{" "}
+            工程上用 Claude Code 作 pair programmer, 但 admission gate 全部由人工
+            手动签字 — AI 不能直接上线因子或权重. 红线写在{" "}
             <code className="font-mono text-xs text-[var(--text-primary)]">CLAUDE.md</code>{" "}
-            第一条红线里写死.
+            第一条.
           </p>
           <p>
-            如果你也在学量化, 直接打开{" "}
-            <Link href="/journey" className="text-[var(--blue)] hover:underline">
-              /journey
-            </Link>{" "}
-            看这 6 周的时间线, 或者{" "}
+            所有假设都先 pre-register, 跑完按 gate 盖章, 不改门槛迁就成绩. 被否决的
+            实验比通过的更值得看 — 进{" "}
             <Link href="/validation" className="text-[var(--red)] hover:underline">
               /validation
             </Link>{" "}
-            看我否决过的东西 — 这两页比任何一张亮眼的 equity 曲线都信息密度高.
+            看具体数据和红线.
           </p>
         </div>
       </section>
