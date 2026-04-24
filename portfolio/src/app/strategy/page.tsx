@@ -8,6 +8,7 @@ import {
   SectionLabel,
   TextLink,
 } from "@/components/layout/Primitives";
+import { Lang } from "@/components/layout/LanguageText";
 import { readData, readDataOrNull } from "@/lib/data";
 import { fmtPct, fmtNum } from "@/lib/formatters";
 import type {
@@ -104,9 +105,9 @@ export default async function StrategyPage() {
     <>
       <PageHeader
         eyebrow="Strategy"
-        title="Multi-factor line"
-        subtitle="Research versions only · paper-trade lives under /live"
-        description="This page tracks versioned research artifacts. It does not imply that a version is running unless the live page says so."
+        title={<Lang zh="多因子研究线" en="Multi-factor line" />}
+        subtitle={<Lang zh="这里只是研究版本 · 模拟盘状态以 /live 为准" en="Research versions only · paper-trade lives under /live" />}
+        description={<Lang zh="这页追踪版本化研究产物。除非 Live 页明确说明，否则任何版本都不代表正在运行。" en="This page tracks versioned research artifacts. It does not imply that a version is running unless the live page says so." />}
         crumbs={[{ label: "Home", href: "/" }, { label: "Strategy" }]}
       />
 
@@ -114,23 +115,23 @@ export default async function StrategyPage() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <EvidenceCard
             tone="green"
-            label="Research face"
+            label={<Lang zh="研究基线" en="Research face" />}
             value={face?.id ?? "—"}
-            detail="WF-validated benchmark for this line"
+            detail={<Lang zh="这条线的 WF 验证基准" en="WF-validated benchmark for this line" />}
             href={face ? `#${face.id}` : undefined}
           />
           <EvidenceCard
             tone="red"
-            label="Rejected"
+            label={<Lang zh="已否决" en="Rejected" />}
             value={rejected?.id ?? "—"}
-            detail="Stop-loss layer failed OOS behavior"
+            detail={<Lang zh="止损层在 OOS 表现失败" en="Stop-loss layer failed OOS behavior" />}
             href="/validation"
           />
           <EvidenceCard
             tone="gold"
-            label="Candidate"
+            label={<Lang zh="候选" en="Candidate" />}
             value={candidate?.id ?? "—"}
-            detail="Visible for audit; not promoted"
+            detail={<Lang zh="保留用于审计，未晋级" en="Visible for audit; not promoted" />}
             href={candidate ? `#${candidate.id}` : undefined}
           />
         </div>
@@ -148,15 +149,14 @@ export default async function StrategyPage() {
       <section className="max-w-content mx-auto px-6 pb-10">
         <DisclosurePanel
           tone="blue"
-          title="Version timeline"
-          summary="Open the full v7 → v25 evolution only when you need chronology."
+          title={<Lang zh="版本时间线" en="Version timeline" />}
+          summary={<Lang zh="需要看演化顺序时再打开完整 v7 → v25。" en="Open the full v7 → v25 evolution only when you need chronology." />}
         >
           <p>
-            The timeline records motivation, method, result, lesson, and the
-            next trigger for every version.
+            <Lang zh="时间线记录每个版本的动机、方法、结果、教训和下一步触发点。" en="The timeline records motivation, method, result, lesson, and the next trigger for every version." />
           </p>
           <div className="mt-3">
-            <TextLink href="/strategy/multi-factor">Open multi-factor timeline</TextLink>
+            <TextLink href="/strategy/multi-factor"><Lang zh="打开多因子时间线" en="Open multi-factor timeline" /></TextLink>
           </div>
         </DisclosurePanel>
       </section>
@@ -165,8 +165,8 @@ export default async function StrategyPage() {
         <section className="max-w-content mx-auto px-6 pb-16">
           <DisclosurePanel
             tone="neutral"
-            title="Equity overlay"
-            summary="Open the chart after reading the status labels; high return does not equal approval."
+            title={<Lang zh="净值对比" en="Equity overlay" />}
+            summary={<Lang zh="先看状态标签，再打开图表；高收益不等于批准。" en="Open the chart after reading the status labels; high return does not equal approval." />}
           >
             <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)]/40 p-4">
               <EquityChart series={series} height={380} />
@@ -178,18 +178,18 @@ export default async function StrategyPage() {
       <section className="max-w-content mx-auto px-6 pb-16">
         <DisclosurePanel
           tone="green"
-          title="Admission gate table"
-          summary="Open the gate matrix for exact metric-by-metric comparison."
+          title={<Lang zh="Admission gate 表" en="Admission gate table" />}
+          summary={<Lang zh="打开 gate 矩阵查看逐项指标对比。" en="Open the gate matrix for exact metric-by-metric comparison." />}
         >
           <div className="overflow-x-auto rounded-lg border border-[var(--border-soft)]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-soft)] text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
                   <th className="px-4 py-3 text-left font-normal">Gate</th>
-                  <th className="px-4 py-3 text-left font-normal">Threshold</th>
-                  <th className="px-4 py-3 text-right font-normal">Face</th>
-                  <th className="px-4 py-3 text-right font-normal">Rejected</th>
-                  <th className="px-4 py-3 text-right font-normal">Candidate</th>
+                  <th className="px-4 py-3 text-left font-normal"><Lang zh="门槛" en="Threshold" /></th>
+                  <th className="px-4 py-3 text-right font-normal"><Lang zh="基线" en="Face" /></th>
+                  <th className="px-4 py-3 text-right font-normal"><Lang zh="已否决" en="Rejected" /></th>
+                  <th className="px-4 py-3 text-right font-normal"><Lang zh="候选" en="Candidate" /></th>
                 </tr>
               </thead>
               <tbody className="font-mono">
@@ -228,9 +228,9 @@ export default async function StrategyPage() {
 
       <section id="versions" className="max-w-content mx-auto px-6 pb-16">
         <SectionLabel
-          eyebrow="Version cards"
-          title="Open source artifacts, ordered by version"
-          body="Each card carries status, metrics, factors, and gate notes."
+          eyebrow={<Lang zh="版本卡片" en="Version cards" />}
+          title={<Lang zh="按版本排序的研究产物" en="Open source artifacts, ordered by version" />}
+          body={<Lang zh="每张卡片包含状态、指标、因子和 gate 备注。" en="Each card carries status, metrics, factors, and gate notes." />}
         />
         <ol className="relative border-l border-[var(--border-soft)] ml-2 space-y-6">
           {versionsFile.versions.map((v) => (

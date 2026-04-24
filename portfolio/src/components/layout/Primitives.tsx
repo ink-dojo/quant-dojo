@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Lang } from "./LanguageText";
 
 type Tone = "green" | "red" | "gold" | "blue" | "neutral";
 
@@ -16,9 +17,9 @@ export function SectionLabel({
   body,
   action,
 }: {
-  eyebrow?: string;
-  title: string;
-  body?: string;
+  eyebrow?: React.ReactNode;
+  title: React.ReactNode;
+  body?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   return (
@@ -73,9 +74,9 @@ export function EvidenceCard({
   href,
 }: {
   tone?: Tone;
-  label: string;
-  value: string;
-  detail?: string;
+  label: React.ReactNode;
+  value: React.ReactNode;
+  detail?: React.ReactNode;
   href?: string;
 }) {
   const color = TONE_COLOR[tone];
@@ -97,7 +98,7 @@ export function EvidenceCard({
       )}
       {href && (
         <p className="mt-4 text-[11px] font-mono text-[var(--text-tertiary)] group-hover:text-[var(--blue)]">
-          Open detail
+          <Lang zh="查看详情" en="Open detail" />
         </p>
       )}
     </article>
@@ -112,8 +113,8 @@ export function DisclosurePanel({
   children,
 }: {
   tone?: Tone;
-  title: string;
-  summary: string;
+  title: React.ReactNode;
+  summary: React.ReactNode;
   children: React.ReactNode;
 }) {
   const color = TONE_COLOR[tone];
@@ -134,10 +135,10 @@ export function DisclosurePanel({
             </p>
           </div>
           <span className="shrink-0 text-[11px] font-mono text-[var(--text-tertiary)] group-open:hidden">
-            Expand
+            <Lang zh="展开" en="Expand" />
           </span>
           <span className="hidden shrink-0 text-[11px] font-mono text-[var(--text-tertiary)] group-open:inline">
-            Close
+            <Lang zh="收起" en="Close" />
           </span>
         </div>
       </summary>

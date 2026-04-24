@@ -10,6 +10,7 @@ import {
   StatusPill,
   TextLink,
 } from "@/components/layout/Primitives";
+import { Lang } from "@/components/layout/LanguageText";
 import type {
   EquityCurveFile,
   FactorIndex,
@@ -71,12 +72,16 @@ export default async function Home() {
         </div>
 
         <h1 className="max-w-4xl text-4xl font-semibold tracking-[-0.035em] text-[var(--text-primary)] md:text-6xl">
-          A research ledger for A-share strategies.
+          <Lang
+            zh="A 股策略研究账本。"
+            en="A research ledger for A-share strategies."
+          />
         </h1>
         <p className="mt-6 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] md:text-lg">
-          A-share strategy workbench with pre-registered tests, rejection records,
-          paper-trade state, and source-linked evidence. The default view shows
-          status; details stay one click away.
+          <Lang
+            zh="这里不是展示型首页，而是策略研究的索引：预注册测试、否决记录、模拟盘状态和可追溯证据。默认只看状态，需要细节再点开。"
+            en="A-share strategy workbench with pre-registered tests, rejection records, paper-trade state, and source-linked evidence. The default view shows status; details stay one click away."
+          />
         </p>
       </section>
 
@@ -84,38 +89,38 @@ export default async function Home() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <EvidenceCard
             tone={paper?.kill.action === "ok" ? "green" : paper ? "gold" : "neutral"}
-            label="Paper trade"
-            value={paper ? paper.strategy_id?.replace(/_/g, " ") ?? "active" : "No snapshot"}
+            label={<Lang zh="模拟盘" en="Paper trade" />}
+            value={paper ? paper.strategy_id?.replace(/_/g, " ") ?? "active" : <Lang zh="无快照" en="No snapshot" />}
             detail={
               paper
                 ? `spec ${paper.spec_version} · Day ${paper.kill.running_days} · risk ${paper.kill.action.toUpperCase()}`
-                : "Waiting for exported EOD state"
+                : <Lang zh="等待 EOD 状态导出" en="Waiting for exported EOD state" />
             }
             href="/live"
           />
           <EvidenceCard
             tone="blue"
-            label="Factor library"
-            value={`${index.total} scanned`}
-            detail={`${index.with_ic_stats} with IC stats · ${index.with_research_folder} research folders`}
+            label={<Lang zh="因子库" en="Factor library" />}
+            value={<Lang zh={`${index.total} 个已扫描`} en={`${index.total} scanned`} />}
+            detail={<Lang zh={`${index.with_ic_stats} 个有 IC 统计 · ${index.with_research_folder} 个研究目录`} en={`${index.with_ic_stats} with IC stats · ${index.with_research_folder} research folders`} />}
             href="/research"
           />
           <EvidenceCard
             tone="green"
-            label="Research face"
+            label={<Lang zh="研究基线" en="Research face" />}
             value={face?.id ?? versions.production_face}
             detail={
               face?.metrics
                 ? `Sharpe ${fmtNum(face.metrics.sharpe, 2)} · DD ${fmtPct(face.metrics.max_drawdown, 1)}`
-                : "WF-validated multi-factor line"
+                : <Lang zh="已过 walk-forward 的多因子线" en="WF-validated multi-factor line" />
             }
             href="/strategy"
           />
           <EvidenceCard
             tone="red"
-            label="Latest hard reject"
+            label={<Lang zh="最近硬否决" en="Latest hard reject" />}
             value="RIAD combo"
-            detail="Executable universe broke the baseline result; keep BB-only live."
+            detail={<Lang zh="可执行股票池破坏 baseline 结果；继续跑 BB-only。" en="Executable universe broke the baseline result; keep BB-only live." />}
             href="/validation"
           />
         </div>
@@ -123,61 +128,61 @@ export default async function Home() {
 
       <section className="pb-16">
         <SectionLabel
-          eyebrow="Current map"
-          title="What is running, what is research, what is blocked"
-          body="The site now separates operational state from research artifacts. Open the row if you need the reasoning or source path."
+          eyebrow={<Lang zh="当前地图" en="Current map" />}
+          title={<Lang zh="运行中、研究中、已阻塞" en="What is running, what is research, what is blocked" />}
+          body={<Lang zh="运行状态和研究产物分开呈现。需要理由或源文件时，展开对应条目。" en="The site separates operational state from research artifacts. Open the row if you need the reasoning or source path." />}
         />
         <div className="space-y-3">
           <DisclosurePanel
             tone="green"
-            title="Running: DSR #30 BB-only paper-trade"
+            title={<Lang zh="运行中：DSR #30 BB-only 模拟盘" en="Running: DSR #30 BB-only paper-trade" />}
             summary={
               paper
                 ? `NAV ${fmtNum(paper.last_nav, 0)} · Cum ${fmtPct(paper.cum_return, 2)} · ${paper.positions.length} positions`
-                : "No exported paper-trade snapshot found."
+                : <Lang zh="没有找到已导出的模拟盘快照。" en="No exported paper-trade snapshot found." />
             }
           >
             <p>
-              This is the only operational paper-trade line shown as running.
-              It uses spec v3 BB-only with 5% simulated capital. The live page
-              carries the ledger snapshot, kill switch state, positions, and
-              daily trade summary.
+              <Lang
+                zh="这是当前唯一标记为运行中的模拟盘线。它使用 spec v3 BB-only 和 5% 模拟资金；Live 页展示 ledger 快照、kill switch、持仓和每日交易摘要。"
+                en="This is the only operational paper-trade line shown as running. It uses spec v3 BB-only with 5% simulated capital. The live page carries the ledger snapshot, kill switch state, positions, and daily trade summary."
+              />
             </p>
             <div className="mt-3">
-              <TextLink href="/live">Open live state</TextLink>
+              <TextLink href="/live"><Lang zh="查看 Live 状态" en="Open live state" /></TextLink>
             </div>
           </DisclosurePanel>
 
           <DisclosurePanel
             tone="blue"
-            title="Research: factor library and multi-factor versions"
-            summary={`${index.total} factor candidates, ${index.with_ic_stats} with statistics, ${face?.id ?? "v9"} as the multi-factor research face.`}
+            title={<Lang zh="研究中：因子库和多因子版本" en="Research: factor library and multi-factor versions" />}
+            summary={<Lang zh={`${index.total} 个因子候选，${index.with_ic_stats} 个有统计，${face?.id ?? "v9"} 是多因子研究基线。`} en={`${index.total} factor candidates, ${index.with_ic_stats} with statistics, ${face?.id ?? "v9"} as the multi-factor research face.`} />}
           >
             <p>
-              Multi-factor versions are research artifacts unless explicitly
-              marked as paper-trade. The useful record is the sequence of
-              gates: v9 survives walk-forward, v10 fails OOS, and mining
-              candidates remain candidates until validated.
+              <Lang
+                zh="多因子版本默认都是研究产物，除非 Live 页明确标记为模拟盘。这里有价值的是 gate 序列：v9 通过 walk-forward，v10 OOS 失败，挖掘候选在验证前仍只是候选。"
+                en="Multi-factor versions are research artifacts unless explicitly marked as paper-trade. The useful record is the sequence of gates: v9 survives walk-forward, v10 fails OOS, and mining candidates remain candidates until validated."
+              />
             </p>
             <div className="mt-3 flex flex-wrap gap-3">
-              <TextLink href="/research">Open factor library</TextLink>
-              <TextLink href="/strategy">Open strategy versions</TextLink>
+              <TextLink href="/research"><Lang zh="查看因子库" en="Open factor library" /></TextLink>
+              <TextLink href="/strategy"><Lang zh="查看策略版本" en="Open strategy versions" /></TextLink>
             </div>
           </DisclosurePanel>
 
           <DisclosurePanel
             tone="red"
-            title="Blocked: RIAD + DSR #30 combo"
-            summary="Baseline backtest looked good; executable constraints did not."
+            title={<Lang zh="已阻塞：RIAD + DSR #30 组合" en="Blocked: RIAD + DSR #30 combo" />}
+            summary={<Lang zh="Baseline 回测好看，但可执行约束没有保住结果。" en="Baseline backtest looked good; executable constraints did not." />}
           >
             <p>
-              The combo is not presented as running. The issue is not the
-              headline Sharpe; it is the gap between baseline construction and
-              executable short/universe constraints. Validation keeps this as a
-              case file, not a promotion story.
+              <Lang
+                zh="这个组合不会被展示为运行中。问题不是 headline Sharpe，而是 baseline 构造和真实融券/股票池约束之间的差距。Validation 把它保留为 case file，而不是上线故事。"
+                en="The combo is not presented as running. The issue is not the headline Sharpe; it is the gap between baseline construction and executable short/universe constraints. Validation keeps this as a case file, not a promotion story."
+              />
             </p>
             <div className="mt-3">
-              <TextLink href="/validation">Open rejection file</TextLink>
+              <TextLink href="/validation"><Lang zh="查看否决档案" en="Open rejection file" /></TextLink>
             </div>
           </DisclosurePanel>
         </div>
@@ -186,14 +191,14 @@ export default async function Home() {
       {series.length > 0 && (
         <section className="pb-16">
           <SectionLabel
-            eyebrow="Optional detail"
-            title="Equity curves are supporting evidence"
-            body="Charts are useful after the status is clear. They are no longer the hero of the page."
+            eyebrow={<Lang zh="可选细节" en="Optional detail" />}
+            title={<Lang zh="净值曲线是证据，不是首页主角" en="Equity curves are supporting evidence" />}
+            body={<Lang zh="先看状态，再看图。图表默认折叠，避免把阅读路径变成数据墙。" en="Charts are useful after the status is clear. They are no longer the hero of the page." />}
           />
           <DisclosurePanel
             tone="neutral"
-            title="Open multi-factor equity overlay"
-            summary="v9 face, rejected stop-loss variant, and current candidate on one axis."
+            title={<Lang zh="打开多因子净值对比" en="Open multi-factor equity overlay" />}
+            summary={<Lang zh="v9 基线、被否决的止损版本、当前候选放在同一坐标。" en="v9 face, rejected stop-loss variant, and current candidate on one axis." />}
           >
             <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)]/40 p-4">
               <EquityChart series={series} height={380} />
@@ -203,21 +208,21 @@ export default async function Home() {
                 <MiniNote
                   tone="green"
                   label={`${face.id} · research face`}
-                  body="Walk-forward survived. This is a research benchmark, not the current paper-trade line."
+                  body={<Lang zh="通过 walk-forward。它是研究基准，不是当前模拟盘线。" en="Walk-forward survived. This is a research benchmark, not the current paper-trade line." />}
                 />
               )}
               {rejected && (
                 <MiniNote
                   tone="red"
                   label={`${rejected.id} · rejected`}
-                  body="The stop-loss layer improved one view of drawdown and damaged OOS behavior."
+                  body={<Lang zh="止损层改善了一个口径的回撤，但破坏了 OOS 表现。" en="The stop-loss layer improved one view of drawdown and damaged OOS behavior." />}
                 />
               )}
               {candidate && (
                 <MiniNote
                   tone="gold"
                   label={`${candidate.id} · candidate`}
-                  body="Kept visible because it is tempting, not because it is approved."
+                  body={<Lang zh="保留展示是因为它有诱惑力，不代表已批准。" en="Kept visible because it is tempting, not because it is approved." />}
                 />
               )}
             </div>
@@ -227,16 +232,16 @@ export default async function Home() {
 
       <section className="pb-20">
         <SectionLabel
-          eyebrow="Reading path"
-          title="Start broad. Open only what you need."
+          eyebrow={<Lang zh="阅读路径" en="Reading path" />}
+          title={<Lang zh="先看总览，需要再展开" en="Start broad. Open only what you need." />}
         />
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <PathCard href="/live" n="01" title="Live" body="Current paper-trade state, risk action, positions, and daily summary." />
-          <PathCard href="/validation" n="02" title="Validation" body="Case files for rejected strategies, killed factors, and blocked specs." />
-          <PathCard href="/research" n="03" title="Research" body="Factor library, category filter, and deep dives for selected factors." />
-          <PathCard href="/strategy" n="04" title="Strategy" body="Multi-factor versions, gates, candidates, and equity overlays." />
-          <PathCard href="/journey" n="05" title="Journey" body="Chronological project record with scope, output, and lessons." />
-          <PathCard href="/infrastructure" n="06" title="Infra" body="Actual repo layers, data export path, and build metadata." />
+          <PathCard href="/live" n="01" title="Live" body={<Lang zh="当前模拟盘状态、风控动作、持仓和每日摘要。" en="Current paper-trade state, risk action, positions, and daily summary." />} />
+          <PathCard href="/validation" n="02" title="Validation" body={<Lang zh="被否决策略、被杀因子、被阻塞 spec 的 case files。" en="Case files for rejected strategies, killed factors, and blocked specs." />} />
+          <PathCard href="/research" n="03" title="Research" body={<Lang zh="因子库、分类筛选和核心因子的深度页。" en="Factor library, category filter, and deep dives for selected factors." />} />
+          <PathCard href="/strategy" n="04" title="Strategy" body={<Lang zh="多因子版本、gate、候选和净值对比。" en="Multi-factor versions, gates, candidates, and equity overlays." />} />
+          <PathCard href="/journey" n="05" title="Journey" body={<Lang zh="按时间记录 scope、产出和教训。" en="Chronological project record with scope, output, and lessons." />} />
+          <PathCard href="/infrastructure" n="06" title="Infra" body={<Lang zh="真实 repo 分层、数据导出路径和构建信息。" en="Actual repo layers, data export path, and build metadata." />} />
         </div>
       </section>
 
@@ -259,8 +264,8 @@ function PathCard({
 }: {
   href: string;
   n: string;
-  title: string;
-  body: string;
+  title: React.ReactNode;
+  body: React.ReactNode;
 }) {
   return (
     <Link
@@ -283,7 +288,7 @@ function MiniNote({
 }: {
   tone: "green" | "red" | "gold";
   label: string;
-  body: string;
+  body: React.ReactNode;
 }) {
   const color =
     tone === "green" ? "var(--green)" : tone === "red" ? "var(--red)" : "var(--gold)";

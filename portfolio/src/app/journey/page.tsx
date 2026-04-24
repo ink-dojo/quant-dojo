@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Lang } from "@/components/layout/LanguageText";
 import { readData } from "@/lib/data";
 import { projectWeek, SITE } from "@/lib/constants";
 import type { JourneyFile, Phase } from "@/lib/types";
@@ -10,52 +11,121 @@ import type { JourneyFile, Phase } from "@/lib/types";
  */
 const PHASE_NARRATIVE: Record<
   string,
-  { scope?: string; rejection?: string; output?: string }
+  {
+    scope?: { zh: string; en: string };
+    rejection?: { zh: string; en: string };
+    output?: { zh: string; en: string };
+  }
 > = {
   "phase-0": {
-    scope: "团队分工 (jialong 负责金融逻辑, xingyu 负责代码框架), pip install -e, Tushare + akshare 双数据源接入, 跑通第一张 OHLCV 图.",
-    rejection: "早期 akshare 批量下载限流导致数据不完整, 后期切 parquet 缓存.",
-    output: "本地环境可拉数据、画图、跑简单计算.",
+    scope: {
+      zh: "团队分工 (jialong 负责金融逻辑, xingyu 负责代码框架), pip install -e, Tushare + akshare 双数据源接入, 跑通第一张 OHLCV 图.",
+      en: "Team split, editable install, dual Tushare + akshare data sources, and the first OHLCV chart.",
+    },
+    rejection: {
+      zh: "早期 akshare 批量下载限流导致数据不完整, 后期切 parquet 缓存.",
+      en: "Early akshare bulk downloads hit rate limits and produced incomplete data; parquet caching replaced it.",
+    },
+    output: {
+      zh: "本地环境可拉数据、画图、跑简单计算.",
+      en: "A local environment that could fetch data, plot, and run simple calculations.",
+    },
   },
   "phase-1": {
-    scope: "收益率 / 相关性 / t-test / 假设检验; A 股 T+1 / 涨跌停 / 除权除息细节; utils/data_loader, utils/metrics 的骨架.",
-    rejection: "—",
-    output: "能用代码分析任意 A 股历史数据, 回测和 live 共享同一套 metrics.",
+    scope: {
+      zh: "收益率 / 相关性 / t-test / 假设检验; A 股 T+1 / 涨跌停 / 除权除息细节; utils/data_loader, utils/metrics 的骨架.",
+      en: "Returns, correlation, t-tests, hypothesis tests, A-share trading constraints, and the first data_loader / metrics modules.",
+    },
+    output: {
+      zh: "能用代码分析任意 A 股历史数据, 回测和 live 共享同一套 metrics.",
+      en: "Any A-share history can be analyzed with the same metrics used by backtest and live workflows.",
+    },
   },
   "phase-2": {
-    scope: "事件驱动 vs 向量化两种回测范式; BacktestEngine 固定 __init__/run 签名; 未来函数 / 幸存者偏差 / 交易成本红线写死.",
-    rejection: "第一版 dual_ma 没 shift(1) 信号 → 隐性 look-ahead, 发现后重构.",
-    output: "strategies/examples/dual_ma.py 完整跑通 + 绩效报告.",
+    scope: {
+      zh: "事件驱动 vs 向量化两种回测范式; BacktestEngine 固定 __init__/run 签名; 未来函数 / 幸存者偏差 / 交易成本红线写死.",
+      en: "Event-driven and vectorized backtest paths, a fixed BacktestEngine contract, and hard rules against look-ahead, survivorship bias, and missing costs.",
+    },
+    rejection: {
+      zh: "第一版 dual_ma 没 shift(1) 信号 → 隐性 look-ahead, 发现后重构.",
+      en: "The first dual_ma version missed signal shift(1), creating hidden look-ahead; it was refactored after discovery.",
+    },
+    output: {
+      zh: "strategies/examples/dual_ma.py 完整跑通 + 绩效报告.",
+      en: "A complete dual_ma example with a performance report.",
+    },
   },
   "phase-3": {
-    scope: "4 个经典因子 (动量 / 价值 / 质量 / 低波动) + 分层 / 衰减 / 中性化 / 多因子合成; 66 个因子扫 IC 三件套.",
-    rejection: "ROE 因子 IC ≈ 0, 教科书质量因子在 A 股表现不佳, 留在库里作反面案例; 66 里只 18 个过 t-stat 门, 48 个被筛掉.",
-    output: "utils/factor_analysis.py (compute_ic_series, quintile_backtest, fama_macbeth_t, decay).",
+    scope: {
+      zh: "4 个经典因子 (动量 / 价值 / 质量 / 低波动) + 分层 / 衰减 / 中性化 / 多因子合成; 66 个因子扫 IC 三件套.",
+      en: "Classic momentum, value, quality, and low-vol factors, plus bucket tests, decay, neutralization, multi-factor blending, and IC scans across 66 factors.",
+    },
+    rejection: {
+      zh: "ROE 因子 IC ≈ 0, 教科书质量因子在 A 股表现不佳, 留在库里作反面案例; 66 里只 18 个过 t-stat 门, 48 个被筛掉.",
+      en: "ROE had near-zero IC and remains as a negative example; only 18 of 66 factors passed the t-stat gate.",
+    },
+    output: {
+      zh: "utils/factor_analysis.py (compute_ic_series, quintile_backtest, fama_macbeth_t, decay).",
+      en: "The factor_analysis utilities for IC series, quintile backtests, Fama-MacBeth t-stats, and decay.",
+    },
   },
   "phase-4": {
-    scope: "Multi-factor session v7 → v25: 手工等权 → ICIR 学习权重 → 组合止损 → 因子挖掘 v11-v21 → regime gating v22-v25.",
-    rejection: "v10 (ICIR + 组合止损) 在 IS 把回撤从 -42% 降到 -24%; WF 17 窗口中位 Sharpe 从 0.53 掉到 0.46, OOS 从 1.60 掉到 0.27.",
-    output: "v9 (ICIR-weighted 5 因子) 成为 research face; v16/v25 挂 candidate, 未 promote.",
+    scope: {
+      zh: "Multi-factor session v7 → v25: 手工等权 → ICIR 学习权重 → 组合止损 → 因子挖掘 v11-v21 → regime gating v22-v25.",
+      en: "Multi-factor sessions v7 to v25: equal weights, ICIR-learned weights, portfolio stop-loss, factor mining, and regime gates.",
+    },
+    rejection: {
+      zh: "v10 (ICIR + 组合止损) 在 IS 把回撤从 -42% 降到 -24%; WF 17 窗口中位 Sharpe 从 0.53 掉到 0.46, OOS 从 1.60 掉到 0.27.",
+      en: "v10 improved in-sample drawdown but damaged walk-forward and OOS Sharpe, so it was rejected.",
+    },
+    output: {
+      zh: "v9 (ICIR-weighted 5 因子) 成为 research face; v16/v25 挂 candidate, 未 promote.",
+      en: "v9 became the research-facing version; v16/v25 remain candidates, not promoted.",
+    },
   },
   "phase-5": {
-    scope: "Paper-trade daily runner, event_paper_trader, broker_adapter, SQLite WAL ledger, kill switch, survivorship guard, data manifest.",
-    rejection: "—",
-    output: "10 个交易日连续 replay, 每日 4/4 步成功, 幂等重跑无副作用; 周报含 git commit + 因子 t-stat audit.",
+    scope: {
+      zh: "Paper-trade daily runner, event_paper_trader, broker_adapter, SQLite WAL ledger, kill switch, survivorship guard, data manifest.",
+      en: "Daily paper-trade runner, broker adapter, SQLite WAL ledger, kill switch, survivorship guard, and data manifest.",
+    },
+    output: {
+      zh: "10 个交易日连续 replay, 每日 4/4 步成功, 幂等重跑无副作用; 周报含 git commit + 因子 t-stat audit.",
+      en: "Ten trading-day replay, all 4/4 daily steps passing, idempotent reruns, and weekly reports with commit and t-stat audit.",
+    },
   },
   "phase-6": {
-    scope: "quant_dojo CLI 入口, dashboard routers, run history, compare/diff/report commands, static portfolio site.",
-    rejection: "—",
-    output: "quant_dojo CLI 16 个子命令; portfolio 站点 (本站) 自动同步 repo 最新 commit.",
+    scope: {
+      zh: "quant_dojo CLI 入口, dashboard routers, run history, compare/diff/report commands, static portfolio site.",
+      en: "quant_dojo CLI, dashboard routers, run history, compare/diff/report commands, and this static portfolio site.",
+    },
+    output: {
+      zh: "quant_dojo CLI 16 个子命令; portfolio 站点 (本站) 自动同步 repo 最新 commit.",
+      en: "A 16-command CLI and a portfolio site synced from the repository.",
+    },
   },
   "phase-7": {
-    scope: "Claude / Ollama agent 写因子草稿 / 跑 coverage audit / 交叉验证 journal 一致性; 人工 admission gate 仍是硬约束.",
-    rejection: "MD&A drift factor KILL (IC 0.0036 << 0.015 门槛); BGFD fade 假设证伪 (反向 follow consensus OOS 2025 Sharpe 2.23 才有 alpha).",
-    output: "agent 能提出实验 / 跑 backtest / 出报告; pre-reg + 5-gate 评审保持在人手里.",
+    scope: {
+      zh: "Claude / Ollama agent 写因子草稿 / 跑 coverage audit / 交叉验证 journal 一致性; 人工 admission gate 仍是硬约束.",
+      en: "Claude / Ollama agents draft factors, run coverage audits, and cross-check journals; human admission gates remain mandatory.",
+    },
+    rejection: {
+      zh: "MD&A drift factor KILL (IC 0.0036 << 0.015 门槛); BGFD fade 假设证伪 (反向 follow consensus OOS 2025 Sharpe 2.23 才有 alpha).",
+      en: "MD&A drift was killed on IC; the BGFD fade thesis was falsified because the opposite follow-consensus direction carried alpha.",
+    },
+    output: {
+      zh: "agent 能提出实验 / 跑 backtest / 出报告; pre-reg + 5-gate 评审保持在人手里.",
+      en: "Agents can propose experiments, run backtests, and write reports; pre-registration and 5-gate review remain human-owned.",
+    },
   },
   "phase-8": {
-    scope: "真实资金前: 合规 / 风控规则固化 / 自动熔断 / 券商 API 审查 / AI 治理规则.",
-    rejection: "—",
-    output: "(待写 — 还没到那里.)",
+    scope: {
+      zh: "真实资金前: 合规 / 风控规则固化 / 自动熔断 / 券商 API 审查 / AI 治理规则.",
+      en: "Before real capital: compliance, fixed risk rules, automated halts, broker API review, and AI governance rules.",
+    },
+    output: {
+      zh: "(待写 — 还没到那里.)",
+      en: "(Not written yet; the project is not there.)",
+    },
   },
 };
 
@@ -80,9 +150,19 @@ export default async function JourneyPage() {
     <>
       <PageHeader
         eyebrow={`Week ${week} · ${dateStr}`}
-        title="Project timeline"
-        subtitle={`Project started ${SITE.started_at} · today ${dateStr} · Day ${(week - 1) * 7 + 1}+`}
-        description="A compact timeline. Each phase records scope, rejected assumptions, and output; detailed evidence lives in the linked pages."
+        title={<Lang zh="项目时间线" en="Project timeline" />}
+        subtitle={
+          <Lang
+            zh={`项目开始 ${SITE.started_at} · 今日 ${dateStr} · Day ${(week - 1) * 7 + 1}+`}
+            en={`Project started ${SITE.started_at} · today ${dateStr} · Day ${(week - 1) * 7 + 1}+`}
+          />
+        }
+        description={
+          <Lang
+            zh="一条压缩时间线。每个阶段只保留范围、被否决的假设和产出；细节证据放在链接页面里。"
+            en="A compact timeline. Each phase records scope, rejected assumptions, and output; detailed evidence lives in linked pages."
+          />
+        }
         crumbs={[{ label: "Home", href: "/" }, { label: "Journey" }]}
       />
 
@@ -90,7 +170,7 @@ export default async function JourneyPage() {
         <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-              Overall progress
+              <Lang zh="整体进度" en="Overall progress" />
             </span>
             <span className="text-sm font-mono text-[var(--text-secondary)]">
               {doneChecks}/{totalChecks} ·{" "}
@@ -106,7 +186,8 @@ export default async function JourneyPage() {
             />
           </div>
           <p className="text-[10px] font-mono text-[var(--text-tertiary)] mt-3">
-            Source: {journey.source} · generated {journey.generated_at}
+            <Lang zh="来源" en="Source" />: {journey.source} ·{" "}
+            <Lang zh="生成于" en="generated" /> {journey.generated_at}
           </p>
         </div>
       </section>
@@ -122,7 +203,7 @@ export default async function JourneyPage() {
       <section className="max-w-content mx-auto px-6 pb-24">
         <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5 text-sm text-[var(--text-secondary)]">
           <p className="font-semibold text-[var(--text-primary)] mb-2">
-            Credibility signals
+            <Lang zh="可信度信号" en="Credibility signals" />
           </p>
           <ul className="space-y-1.5">
             <li>
@@ -213,30 +294,30 @@ function PhaseNode({ phase, index }: { phase: Phase; index: number }) {
             {narrative.scope && (
               <div>
                 <dt className="text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)] mb-0.5">
-                  Scope
+                  <Lang zh="范围" en="Scope" />
                 </dt>
                 <dd className="text-[var(--text-secondary)] leading-relaxed">
-                  {narrative.scope}
+                  <Lang zh={narrative.scope.zh} en={narrative.scope.en} />
                 </dd>
               </div>
             )}
-            {narrative.rejection && narrative.rejection !== "—" && (
+            {narrative.rejection && (
               <div>
                 <dt className="text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--red)] mb-0.5">
-                  Rejection / Lesson
+                  <Lang zh="否决 / 教训" en="Rejection / Lesson" />
                 </dt>
                 <dd className="text-[var(--text-secondary)] leading-relaxed">
-                  {narrative.rejection}
+                  <Lang zh={narrative.rejection.zh} en={narrative.rejection.en} />
                 </dd>
               </div>
             )}
             {narrative.output && (
               <div>
                 <dt className="text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)] mb-0.5">
-                  Output
+                  <Lang zh="产出" en="Output" />
                 </dt>
                 <dd className="text-[var(--text-secondary)] leading-relaxed">
-                  {narrative.output}
+                  <Lang zh={narrative.output.zh} en={narrative.output.en} />
                 </dd>
               </div>
             )}

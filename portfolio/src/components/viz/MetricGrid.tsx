@@ -1,7 +1,7 @@
 interface Metric {
-  label: string;
+  label: React.ReactNode;
   value: string;
-  hint?: string;
+  hint?: React.ReactNode;
   tone?: "neutral" | "good" | "bad" | "warn";
 }
 

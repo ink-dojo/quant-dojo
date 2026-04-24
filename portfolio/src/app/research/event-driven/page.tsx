@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Lang } from "@/components/layout/LanguageText";
 import { EquityChart } from "@/components/viz/EquityChart";
 import { MetricGrid } from "@/components/viz/MetricGrid";
 import { DisclosurePanel, EvidenceCard, SectionLabel } from "@/components/layout/Primitives";
@@ -150,9 +151,19 @@ export default async function EventDrivenPage() {
     <>
       <PageHeader
         eyebrow="Research · Event-driven"
-        title="Event-driven trials"
-        subtitle={`${trials.trials.length} tabulated trials · ${trials.n_pass_4_of_5} single-leg 4/5 · one 5/5 ensemble`}
-        description="Corporate-action and order-flow hypotheses are tracked as case files. The summary shows gate outcomes; details open below."
+        title={<Lang zh="事件驱动实验" en="Event-driven trials" />}
+        subtitle={
+          <Lang
+            zh={`${trials.trials.length} 个表格化实验 · ${trials.n_pass_4_of_5} 个单腿 4/5 · 1 个 5/5 组合`}
+            en={`${trials.trials.length} tabulated trials · ${trials.n_pass_4_of_5} single-leg 4/5 · one 5/5 ensemble`}
+          />
+        }
+        description={
+          <Lang
+            zh="公司行为和订单流假设都按 case file 记录。摘要只展示 gate 结果，细节在下方折叠。"
+            en="Corporate-action and order-flow hypotheses are tracked as case files. The summary shows gate outcomes; details open below."
+          />
+        }
         crumbs={[
           { label: "Home", href: "/" },
           { label: "Research", href: "/research" },
@@ -162,23 +173,29 @@ export default async function EventDrivenPage() {
 
       <section className="max-w-content mx-auto px-6 pb-10">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <EvidenceCard tone="blue" label="Trials" value={String(trials.trials.length)} detail={`DSR penalty n=${trials.n_trials_conservative}`} />
-          <EvidenceCard tone="gold" label="Single legs" value={`${trials.n_pass_4_of_5} × 4/5`} detail="No standalone leg passed all gates" />
-          <EvidenceCard tone="green" label="Ensemble" value="5/5" detail={`corr ${fmtNum(trials.ensemble_50_50.correlation, 2)}`} />
-          <EvidenceCard tone="red" label="Failure files" value={String(byStatus.fail.length + byStatus.falsified.length)} detail="kept in the trial table" />
+          <EvidenceCard tone="blue" label={<Lang zh="实验数" en="Trials" />} value={String(trials.trials.length)} detail={`DSR penalty n=${trials.n_trials_conservative}`} />
+          <EvidenceCard tone="gold" label={<Lang zh="单腿" en="Single legs" />} value={`${trials.n_pass_4_of_5} × 4/5`} detail={<Lang zh="没有单腿通过全部 gate" en="No standalone leg passed all gates" />} />
+          <EvidenceCard tone="green" label={<Lang zh="组合" en="Ensemble" />} value="5/5" detail={`corr ${fmtNum(trials.ensemble_50_50.correlation, 2)}`} />
+          <EvidenceCard tone="red" label={<Lang zh="失败档案" en="Failure files" />} value={String(byStatus.fail.length + byStatus.falsified.length)} detail={<Lang zh="保留在实验表里" en="kept in the trial table" />} />
         </div>
       </section>
 
       <section className="max-w-content mx-auto px-6 pb-10">
         <DisclosurePanel
           tone="green"
-          title="Why the ensemble passed"
-          summary="DSR #30 failed CI_low; DSR #33 failed MDD. The combination reduced the separate failure modes."
+          title={<Lang zh="为什么组合通过" en="Why the ensemble passed" />}
+          summary={
+            <Lang
+              zh="DSR #30 失败在 CI_low；DSR #33 失败在 MDD。组合降低了两条腿各自的失败模式。"
+              en="DSR #30 failed CI_low; DSR #33 failed MDD. The combination reduced the separate failure modes."
+            />
+          }
         >
           <p>
-            The combination rule is fixed at 50/50. It is shown here as a
-            research outcome, while the live page remains the source of truth
-            for what is actually running.
+            <Lang
+              zh="组合规则固定为 50/50。这里展示的是研究结果；真正运行什么，以 live 页面为准。"
+              en="The combination rule is fixed at 50/50. It is shown here as a research outcome, while the live page remains the source of truth for what is actually running."
+            />
           </p>
         </DisclosurePanel>
       </section>
@@ -186,9 +203,14 @@ export default async function EventDrivenPage() {
       {catalog && catalog.strategies.length > 0 && (
         <section className="max-w-content mx-auto px-6 pb-16">
           <SectionLabel
-            eyebrow="Catalog"
-            title="Open a strategy file"
-            body="Each file contains event definition, universe, holding window, gates, failure modes, decay evidence, and paper-trade spec if applicable."
+            eyebrow={<Lang zh="目录" en="Catalog" />}
+            title={<Lang zh="打开策略文件" en="Open a strategy file" />}
+            body={
+              <Lang
+                zh="每个文件包含事件定义、股票池、持有窗口、gate、失败模式、衰减证据，以及适用时的 paper-trade spec。"
+                en="Each file contains event definition, universe, holding window, gates, failure modes, decay evidence, and paper-trade spec if applicable."
+              />
+            }
           />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {catalog.strategies.map((s) => (
@@ -224,14 +246,13 @@ export default async function EventDrivenPage() {
 
       <section className="max-w-content mx-auto px-6 pb-16">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-1">
-          50/50 Ensemble · 5/5 PASS
+          <Lang zh="50/50 组合 · 5/5 通过" en="50/50 Ensemble · 5/5 PASS" />
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
-          零 DoF combination (1/2 · #30 + 1/2 · #33), 主板 only, 成本 15bps/side,
-          gross cap 1.0 已施加于每个 sleeve。图为 log-equity (Y 轴为 log(1+累计收益))
-          — 因为 #33 单独 8 年累计 55×，线性坐标会把其他两条压成直线。
-          <span className="text-[var(--green)] font-semibold"> 观察组合曲线尾部浅于两成分</span>
-          但上行斜率稳于 #30。
+          <Lang
+            zh="零 DoF 组合 (1/2 · #30 + 1/2 · #33)，主板 only，成本 15bps/side，gross cap 1.0 已施加于每个 sleeve。图为 log-equity，因为 #33 单独 8 年累计 55×，线性坐标会把其他两条压成直线。组合尾部浅于两成分，但上行斜率稳于 #30。"
+            en="A zero-DoF 50/50 combination of #30 and #33, main-board only, 15bps/side cost, and gross cap 1.0 applied to each sleeve. The chart uses log-equity because #33 alone compounds by 55x over 8 years and would flatten the other curves on a linear axis."
+          />
         </p>
         <div className="rounded-lg border border-[var(--green)]/30 bg-[var(--green)]/[0.05] p-4 mb-6">
           <EquityChart series={series} height={400} logScale />
