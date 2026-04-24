@@ -32,7 +32,7 @@ export default async function PaperTradePage() {
     return (
       <>
         <PageHeader
-          eyebrow="Live · 实盘"
+          eyebrow="Live · paper"
           title="DSR #30 BB-only Paper Trade"
           subtitle="等待第一次 EOD 跑"
           description="还没有 state snapshot — paper_trade/state.json 不存在. 运行 scripts/paper_trade_daily.py 之后这里会填满."
@@ -87,7 +87,7 @@ export default async function PaperTradePage() {
                     : "bg-[var(--text-tertiary)]"
                 }`}
               />
-              {state.enabled ? "Live" : "Disabled"}
+              {state.enabled ? "Paper running" : "Disabled"}
             </span>
             <span className="text-sm font-semibold text-[var(--text-primary)]">
               {state.strategy_id ?? "paper-trade"}

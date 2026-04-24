@@ -34,16 +34,16 @@ const PHASE_NARRATIVE: Record<
   },
   "phase-4": {
     scope: "Multi-factor session v7 → v25: 手工等权 → ICIR 学习权重 → 组合止损 → 因子挖掘 v11-v21 → regime gating v22-v25.",
-    rejection: "v10 (ICIR + 组合止损) 在 IS 把回撤从 -42% 救到 -24%, 看似完美; WF 17 窗口中位 Sharpe 从 0.53 掉到 0.46, OOS 从 1.60 崩到 0.27 — 止损在震荡市反复割肉, 诚实否决.",
+    rejection: "v10 (ICIR + 组合止损) 在 IS 把回撤从 -42% 降到 -24%; WF 17 窗口中位 Sharpe 从 0.53 掉到 0.46, OOS 从 1.60 掉到 0.27.",
     output: "v9 (ICIR-weighted 5 因子) 成为 research face; v16/v25 挂 candidate, 未 promote.",
   },
   "phase-5": {
-    scope: "Paper-trade 四层: signal_generator / broker_adapter / reconcile / factor_snapshot; SQLite WAL ACID ledger + 幸存者偏差修复 + 数据 manifest 指纹.",
+    scope: "Paper-trade daily runner, event_paper_trader, broker_adapter, SQLite WAL ledger, kill switch, survivorship guard, data manifest.",
     rejection: "—",
     output: "10 个交易日连续 replay, 每日 4/4 步成功, 幂等重跑无副作用; 周报含 git commit + 因子 t-stat audit.",
   },
   "phase-6": {
-    scope: "统一 CLI 入口 (qd run / qd audit / qd reconcile), 只读 dashboard 展示所有策略 / 运行状态.",
+    scope: "quant_dojo CLI 入口, dashboard routers, run history, compare/diff/report commands, static portfolio site.",
     rejection: "—",
     output: "quant_dojo CLI 16 个子命令; portfolio 站点 (本站) 自动同步 repo 最新 commit.",
   },
@@ -80,9 +80,9 @@ export default async function JourneyPage() {
     <>
       <PageHeader
         eyebrow={`Week ${week} · ${dateStr}`}
-        title="6 周 · 9 phase · 48 个因子被筛掉"
+        title="Project timeline"
         subtitle={`Project started ${SITE.started_at} · today ${dateStr} · Day ${(week - 1) * 7 + 1}+`}
-        description="按周线时间轴看项目从 0 到当前的 scope / rejection / output. ROADMAP.md 里的 phase 编号是研究里程碑, 不是周数; 下面每个 phase 标的是实际日期区间, 有的 phase 压缩在几天内完成, 有的横跨一周以上."
+        description="A compact timeline. Each phase records scope, rejected assumptions, and output; detailed evidence lives in the linked pages."
         crumbs={[{ label: "Home", href: "/" }, { label: "Journey" }]}
       />
 
@@ -122,7 +122,7 @@ export default async function JourneyPage() {
       <section className="max-w-content mx-auto px-6 pb-24">
         <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5 text-sm text-[var(--text-secondary)]">
           <p className="font-semibold text-[var(--text-primary)] mb-2">
-            Credibility signals · 诚实的失败清单
+            Credibility signals
           </p>
           <ul className="space-y-1.5">
             <li>
@@ -141,7 +141,7 @@ export default async function JourneyPage() {
               — IS 回撤救回 18pp, OOS Sharpe 从 1.60 崩到 0.27, WF 否决并回滚.
             </li>
             <li>
-              Week 6: spec v4 RIAD + DSR#30 BB-only 合成 paper-trade proposal 写完 → 否决.
+              Week 6: spec v4 RIAD + DSR#30 BB-only combo proposal → blocked.
               Filtered universe OOS 2025 Sharpe −0.59, DSR 0.92 &lt; 0.95 门槛;
               合成的 4/5 gate 是在 baseline (不可执行) 版本上过的.
             </li>

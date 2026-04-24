@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EquityChart } from "@/components/viz/EquityChart";
 import { MetricGrid } from "@/components/viz/MetricGrid";
+import { DisclosurePanel, EvidenceCard, SectionLabel } from "@/components/layout/Primitives";
 import { readData, readDataOrNull } from "@/lib/data";
 import { fmtNum, fmtPct } from "@/lib/formatters";
 import type { DSRStrategiesFile, EquityCurveFile } from "@/lib/types";
@@ -148,10 +149,10 @@ export default async function EventDrivenPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Research · Event-Driven"
-        title={`${trials.trials.length} 预注册 trials · 1 个 5/5 组合`}
-        subtitle="Phase 3 + 4 + 4.1 · Event-driven long-only on A-share main board"
-        description="从锁定期 / 回购 / 业绩预告 / 龙虎榜 / 分红 / 股东增减持六类事件出发，逐一 pre-register hypothesis → backtest → 过 5-gate admission。最终两个 4/5 候选因失败模式正交，50/50 ensemble 过全 5 gate。"
+        eyebrow="Research · Event-driven"
+        title="Event-driven trials"
+        subtitle={`${trials.trials.length} tabulated trials · ${trials.n_pass_4_of_5} single-leg 4/5 · one 5/5 ensemble`}
+        description="Corporate-action and order-flow hypotheses are tracked as case files. The summary shows gate outcomes; details open below."
         crumbs={[
           { label: "Home", href: "/" },
           { label: "Research", href: "/research" },
@@ -160,38 +161,35 @@ export default async function EventDrivenPage() {
       />
 
       <section className="max-w-content mx-auto px-6 pb-10">
-        <div className="max-w-3xl space-y-4 text-[var(--text-secondary)] leading-relaxed">
-          <p>
-            事件驱动 long-only 策略 — 所有假设在 backtest 前
-            <span className="text-[var(--text-primary)]">写入 pre-reg spec</span>
-            , 跑完按 5-gate 硬门槛评估（年化 15% / Sharpe 0.8 / 回撤 30% /
-            PSR 0.95 / Bootstrap Sharpe CI_low 0.5）。
-            一共 {trials.n_trials_conservative} trials 守纪律计入 DSR penalty
-            （对从 n 次尝试里挑最佳做多重检验修正）。
-          </p>
-          <p>
-            单独策略里最多过 4/5。<span className="text-[var(--gold)] font-semibold">
-              DSR #30 BB 回购 drift</span>卡在 CI_low（样本 8 年不够稳），
-            <span className="text-[var(--gold)] font-semibold">DSR #33 LHB 跌幅 contrarian</span>
-            卡在 MDD（尾部失控）— 两者失败模式互补，
-            相关系数仅 <span className="font-mono">{fmtNum(trials.ensemble_50_50.correlation, 2)}</span>。
-            50/50 等权 ensemble（零自由度 combination rule）达 5/5。
-          </p>
-          <p className="text-xs text-[var(--text-tertiary)]">
-            DSR multi-testing penalty 保守按 n = {trials.n_trials_conservative}（包含 Phase 3 早期
-            未单独 tabulate 的探索性 trials），当前表格 tabulate 了 {trials.trials.length} 个主力 trials。
-          </p>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <EvidenceCard tone="blue" label="Trials" value={String(trials.trials.length)} detail={`DSR penalty n=${trials.n_trials_conservative}`} />
+          <EvidenceCard tone="gold" label="Single legs" value={`${trials.n_pass_4_of_5} × 4/5`} detail="No standalone leg passed all gates" />
+          <EvidenceCard tone="green" label="Ensemble" value="5/5" detail={`corr ${fmtNum(trials.ensemble_50_50.correlation, 2)}`} />
+          <EvidenceCard tone="red" label="Failure files" value={String(byStatus.fail.length + byStatus.falsified.length)} detail="kept in the trial table" />
         </div>
+      </section>
+
+      <section className="max-w-content mx-auto px-6 pb-10">
+        <DisclosurePanel
+          tone="green"
+          title="Why the ensemble passed"
+          summary="DSR #30 failed CI_low; DSR #33 failed MDD. The combination reduced the separate failure modes."
+        >
+          <p>
+            The combination rule is fixed at 50/50. It is shown here as a
+            research outcome, while the live page remains the source of truth
+            for what is actually running.
+          </p>
+        </DisclosurePanel>
       </section>
 
       {catalog && catalog.strategies.length > 0 && (
         <section className="max-w-content mx-auto px-6 pb-16">
-          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
-            Strategy Catalog · 逐条深度页
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-3xl">
-            每条事件驱动策略独立一页 — 事件定义 / 股票池 / 持有窗口 / 5-gate / 失败模式 / 衰减证据 / paper-trade 协议。
-          </p>
+          <SectionLabel
+            eyebrow="Catalog"
+            title="Open a strategy file"
+            body="Each file contains event definition, universe, holding window, gates, failure modes, decay evidence, and paper-trade spec if applicable."
+          />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {catalog.strategies.map((s) => (
               <Link
@@ -275,7 +273,7 @@ export default async function EventDrivenPage() {
         <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
           单样本 5/5 只是入场券 — 真正决定能不能上 paper-trade 的是
           <span className="text-[var(--text-primary)]"> walk-forward 中位 Sharpe / 牛熊分区 / 成本冲击 / 交易级集中度</span>。
-          五条都过, 才敢推候选策略上实盘。
+          五条都过, 才能进入 paper-trade review。
         </p>
         <div className="rounded-lg border border-[var(--green)]/35 bg-[var(--green)]/[0.06] p-5 mb-6">
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm">
@@ -434,7 +432,7 @@ export default async function EventDrivenPage() {
               </tbody>
             </table>
             <p className="text-[10px] text-[var(--text-tertiary)] mt-3 leading-relaxed">
-              至 75bps (我们 pre-reg 的 5× 强假设) ann 仍 +37%. 100bps 以上 MDD 快速失控 — 上实盘必须盯住 execution slippage。
+              至 75bps (pre-reg 的 5× 强假设) ann 仍 +37%. 100bps 以上 MDD 快速失控 — paper-trade 必须盯住 execution slippage。
             </p>
           </div>
 
@@ -483,7 +481,7 @@ export default async function EventDrivenPage() {
             <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--gold)]">
               Caveat · alpha decay
             </span>
-            <span className="text-xs text-[var(--text-tertiary)]">必须诚实披露</span>
+            <span className="text-xs text-[var(--text-tertiary)]">negative results retained</span>
           </div>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3">
             5/5 admission gate 通过, 但 ensemble
@@ -598,7 +596,7 @@ export default async function EventDrivenPage() {
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
           按 n_pass 降序 — 除 2 个 4/5 候选外, 其余全部 ≤ 3/5。
-          这份诚实的负结果表本身是最重要的产出: 说明
+          这份负结果表本身是重要产出: 说明
           <span className="text-[var(--text-primary)]"> 主板 long-only 单因子事件 alpha 普遍薄</span>
           , 优势只出现在 ensemble 层。
         </p>
@@ -631,7 +629,7 @@ export default async function EventDrivenPage() {
       <section className="max-w-content mx-auto px-6 pb-24">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Takeaway
-            title="方法论: 零自由度 + 诚实记账"
+            title="Protocol: fixed rule + full trial accounting"
             body="每个 DSR trial 开工前写 pre-reg spec (数据源 / 信号 / 方向 / 窗口 / UNIT / gross cap 全固定), 跑完把结果钉到 journal, 不再修参。这意味着表里的 17 个 fail 不能藏。从 21 个 trial 里挑 best-Sharpe 再做 ensemble = 天然有选择偏差 — DSR penalty 负责 bookkeep。"
           />
           <Takeaway

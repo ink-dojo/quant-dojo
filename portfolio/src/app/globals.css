@@ -48,6 +48,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% -10%, rgba(79, 142, 247, 0.10), transparent 28rem),
+    radial-gradient(circle at 82% 8%, rgba(0, 200, 150, 0.07), transparent 24rem),
+    linear-gradient(180deg, rgba(255,255,255,0.018), transparent 18rem);
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
 ::selection {
   background: var(--blue);
   color: var(--bg-base);

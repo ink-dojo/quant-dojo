@@ -12,7 +12,7 @@ interface Props {
 /**
  * Circular gauge — used for ICIR / IC / Sharpe where a single number needs
  * a pass-fail read at a glance. `value` goes from 0..max; negatives render
- * as a red sliver so honest-failure cases (roe IC≈0, v10 OOS 0.27) still
+ * as a red sliver so rejected cases (roe IC≈0, v10 OOS 0.27) still
  * show up visibly.
  */
 export function GaugeRing({

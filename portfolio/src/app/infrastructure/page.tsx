@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/layout/PageHeader";
+import { EvidenceCard, SectionLabel } from "@/components/layout/Primitives";
 import { readData } from "@/lib/data";
 import type { Meta } from "@/lib/types";
 
@@ -10,15 +11,15 @@ const STACK = [
     rows: [
       {
         name: "utils/data_loader.py",
-        desc: "Tushare 日频 OHLCV + 复权价 loader；附数据质量断言（行数/空值/单调）",
+        desc: "akshare / local cache entry points for stock history.",
       },
       {
-        name: "utils/fundamental_loader.py",
-        desc: "PE / PB / 市值等截面基本面，point-in-time join 避免未来函数",
+        name: "utils/tushare_loader.py",
+        desc: "Tushare access layer; token / endpoint rules live in the journal guide.",
       },
       {
-        name: "utils/industry_loader.py",
-        desc: "申万一级行业归类，用于因子行业中性化",
+        name: "utils/listing_metadata.py + utils/data_manifest.py",
+        desc: "Survivorship guard and data fingerprinting for auditable runs.",
       },
     ],
   },
@@ -29,19 +30,19 @@ const STACK = [
     rows: [
       {
         name: "utils/alpha_factors.py",
-        desc: "66 个 alpha 因子的纯函数实现，每个带中文 docstring + 最小 __main__ 验证",
+        desc: "Registered cross-sectional factor library.",
       },
       {
         name: "utils/factor_analysis.py",
         desc: "compute_ic_series / quintile_backtest / factor_decay_analysis / fama_macbeth_t",
       },
       {
-        name: "scripts/audit_factor_data_coverage.py",
-        desc: "扫 factor_library 产出 coverage 报告（IC 统计 + research 文件夹 + 策略覆盖）",
+        name: "research/factors/",
+        desc: "Per-factor research folders, reports, and pre-registered evaluations.",
       },
       {
-        name: "scripts/deep_analysis_hero_factors.py",
-        desc: "8 个英雄因子的深度分析管道，~10 分钟跑完，产出 hero_factor_stats_*.json",
+        name: "scripts/audit_factor_data_coverage.py",
+        desc: "Exports factor coverage for the portfolio site.",
       },
     ],
   },
@@ -52,72 +53,80 @@ const STACK = [
     rows: [
       {
         name: "backtest/engine.py :: BacktestEngine",
-        desc: "固定 __init__ / run 签名 — notebook 依赖这个接口，不允许改",
+        desc: "Event-driven engine; public constructor/run signature is a protected interface.",
       },
       {
-        name: "utils/metrics.py",
-        desc: "年化 / 夏普 / 回撤 / 胜率；backtest 和 live 共享同一套 metrics",
+        name: "backtest/standardized.py",
+        desc: "Standardized run artifacts and comparable metrics.",
       },
       {
-        name: "utils/icir_weight.py",
-        desc: "v9/v10 的 ICIR 学习权重器，walk-forward 不泄漏训练窗口",
+        name: "utils/walk_forward.py + utils/purged_cv.py",
+        desc: "Rolling validation, purging, and embargo logic.",
       },
     ],
   },
   {
-    category: "Live / Paper",
-    zh: "实盘",
+    category: "Paper-trade",
+    zh: "模拟盘",
     color: "var(--green)",
     rows: [
       {
-        name: "live/signal_generator.py",
-        desc: "日终收盘后：读当日因子 → 合成得分 → 生成 long/short 仓位",
+        name: "scripts/paper_trade_daily.py",
+        desc: "Daily EOD paper-trade runner: signal, orders, ledger, report.",
       },
       {
-        name: "live/broker_adapter.py",
-        desc: "Paper broker 接口，预留 XTP/宽邮券商真实成交替换点",
+        name: "live/event_paper_trader.py",
+        desc: "Event-driven order generation and fill simulation.",
       },
       {
-        name: "live/reconcile.py",
-        desc: "live 仓位 vs signal 期望仓位对账，发现 drift 打日志",
+        name: "live/ledger.py",
+        desc: "SQLite WAL append-only ledger for trades and NAV.",
       },
       {
-        name: "live/factor_snapshot/",
-        desc: "每日因子值快照（可重放）— bug bisect 的地基",
+        name: "live/event_kill_switch.py",
+        desc: "Runtime halt / halve / warning decisions.",
       },
     ],
   },
   {
-    category: "Unified CLI",
-    zh: "统一入口",
+    category: "Risk Tier 1",
+    zh: "风控",
     color: "var(--gold)",
     rows: [
       {
-        name: "qd run <strategy>",
-        desc: "统一 runner：跑 backtest 或 live signal，复用同一组 config/metrics",
+        name: "pipeline/vol_targeting.py",
+        desc: "Realized-vol scaling with bounded gross exposure.",
       },
       {
-        name: "qd audit",
-        desc: "定期扫因子库、run 产物、journal 是否匹配（发现脚本被遗弃）",
+        name: "pipeline/capacity_monitor.py",
+        desc: "ADV occupancy checks and capacity caps.",
       },
       {
-        name: "qd reconcile",
-        desc: "对账 + 每日报表生成",
+        name: "pipeline/live_vs_backtest.py",
+        desc: "Live/backtest divergence metrics and alert input.",
+      },
+      {
+        name: "scripts/stress_test.py",
+        desc: "Historical stress replay for current positions.",
       },
     ],
   },
   {
-    category: "Agentic Research",
-    zh: "Agentic 层",
-    color: "var(--red)",
+    category: "Control surface",
+    zh: "操作面",
+    color: "var(--cyan)",
     rows: [
       {
-        name: "agents/",
-        desc: "Claude / Ollama 驱动的研究助理：写因子草稿、跑 audit、交叉验证 journal 一致性",
+        name: "quant_dojo/__main__.py",
+        desc: "Top-level CLI with run / backtest / compare / history / diff / doctor.",
       },
       {
-        name: "admission gate (人工)",
-        desc: "agent 产出不直接上 live — 任何进策略的因子/权重必须由 jialong 签字确认",
+        name: "pipeline/cli.py + control_surface.py",
+        desc: "Research assistant and control-plane entry points.",
+      },
+      {
+        name: "dashboard/",
+        desc: "FastAPI operational dashboard and routers.",
       },
     ],
   },
@@ -128,7 +137,7 @@ const STACK = [
     rows: [
       {
         name: "portfolio/scripts/export_data.py",
-        desc: "AST 解析 alpha_factors.py + ROADMAP.md regex + live/ 状态 → public/data/*.json",
+        desc: "Exports structured JSON from repo artifacts into public/data.",
       },
       {
         name: "portfolio/ · Next.js 14 App Router",
@@ -136,7 +145,7 @@ const STACK = [
       },
       {
         name: "prebuild hook",
-        desc: "npm run build 前自动跑 export_data.py — 本站永远和 repo 最新 commit 对齐",
+        desc: "npm run build runs export_data first, then static export.",
       },
     ],
   },
@@ -148,47 +157,28 @@ export default async function InfrastructurePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Infrastructure · 工程"
-        title="Repo 分层"
-        subtitle="Data → Factors → Backtest → Paper-trade → Agents"
-        description={`整个 quant-dojo repo 的结构画在一张图上. 每一层有一条「不能改」的接口 (data loader 的 assertion · BacktestEngine 的签名 · metrics 的计算), 其余都可以自由实验.`}
+        eyebrow="Infrastructure"
+        title="Repo map"
+        subtitle="Actual paths, not architecture slogans"
+        description="A compact map of the code that produces research, paper-trade state, risk checks, and this static site."
         crumbs={[{ label: "Home", href: "/" }, { label: "Infrastructure" }]}
       />
 
       <section className="max-w-content mx-auto px-6 pb-12">
-        <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
-          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-4">
-            设计公理
-          </h2>
-          <ul className="space-y-2 text-sm text-[var(--text-secondary)] leading-relaxed">
-            <li>
-              <span className="font-mono text-[var(--blue)]">数据质量门</span>{" "}
-              — 每次 load 后 assertion：行数 &gt; 100，缺失 &lt; 10%，日期单调
-            </li>
-            <li>
-              <span className="font-mono text-[var(--blue)]">回测 / live 共享 metrics</span>{" "}
-              — 一套 utils/metrics.py 同时服务 backtest 和 paper trader
-            </li>
-            <li>
-              <span className="font-mono text-[var(--blue)]">snapshot 可重放</span>{" "}
-              — 任何信号都能从 factor_snapshot 复原，bug 可以 bisect
-            </li>
-            <li>
-              <span className="font-mono text-[var(--blue)]">单一入口</span>{" "}
-              — qd 命令作为所有运行的唯一 entry, 杜绝脚本漂移
-            </li>
-            <li>
-              <span className="font-mono text-[var(--blue)]">人类 admission gate</span>{" "}
-              — agent 可以当操作员，不能当决策者
-            </li>
-          </ul>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <EvidenceCard tone="blue" label="Research" value="factors" detail="IC, decay, quintile, FM tests" />
+          <EvidenceCard tone="green" label="Paper" value="ledger" detail="orders, NAV, kill switch" />
+          <EvidenceCard tone="gold" label="Risk" value="Tier 1" detail="vol, capacity, stress, divergence" />
+          <EvidenceCard tone="neutral" label="Site" value="SSG" detail={`build ${meta.git.short ?? "dirty"}`} />
         </div>
       </section>
 
       <section className="max-w-content mx-auto px-6 pb-16">
-        <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-4">
-          分层组件 · {STACK.length} 层
-        </h2>
+        <SectionLabel
+          eyebrow="Layers"
+          title={`${STACK.length} code layers`}
+          body="Each row is a real file or directory in the repo."
+        />
         <div className="space-y-4">
           {STACK.map((layer) => (
             <StackLayer key={layer.category} layer={layer} />
@@ -204,13 +194,13 @@ export default async function InfrastructurePage() {
             </h3>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <Dt>Research</Dt>
-              <Dd>Python 3.11 · pandas · numpy · scipy · numba</Dd>
+              <Dd>Python 3.11 · pandas · numpy · scipy · statsmodels</Dd>
               <Dt>Backtest</Dt>
               <Dd>自研 BacktestEngine（固定接口）</Dd>
               <Dt>Data</Dt>
               <Dd>Tushare + parquet 本地缓存</Dd>
               <Dt>Agents</Dt>
-              <Dd>claude -p subprocess / Ollama localhost · 无 API key</Dd>
+              <Dd>claude -p subprocess / Ollama localhost fallback</Dd>
               <Dt>Site</Dt>
               <Dd>Next.js 14 (App Router) · Tailwind · Recharts · react-katex</Dd>
               <Dt>Hosting</Dt>

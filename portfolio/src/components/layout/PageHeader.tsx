@@ -18,29 +18,29 @@ export function PageHeader({
   actions,
 }: Props) {
   return (
-    <header className="max-w-content mx-auto px-6 pt-12 pb-8">
+    <header className="max-w-content mx-auto px-6 pt-14 pb-10">
       {crumbs && crumbs.length > 0 && (
         <div className="mb-5">
           <Breadcrumb items={crumbs} />
         </div>
       )}
-      <div className="flex items-start justify-between gap-8">
+      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           {eyebrow && (
-            <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--blue)] mb-2">
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[var(--text-tertiary)] mb-3">
               {eyebrow}
             </p>
           )}
-          <h1 className="text-3xl md:text-4xl font-semibold text-[var(--text-primary)] leading-tight">
+          <h1 className="max-w-4xl text-3xl md:text-5xl font-semibold tracking-[-0.03em] text-[var(--text-primary)] leading-tight">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-2 text-sm font-mono text-[var(--text-tertiary)]">
+            <p className="mt-3 text-sm font-mono text-[var(--text-tertiary)]">
               {subtitle}
             </p>
           )}
           {description && (
-            <p className="mt-4 max-w-2xl text-[var(--text-secondary)] leading-relaxed">
+            <p className="mt-5 max-w-2xl text-sm md:text-base text-[var(--text-secondary)] leading-relaxed">
               {description}
             </p>
           )}

@@ -3,21 +3,23 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricGrid } from "@/components/viz/MetricGrid";
 import { readData, readDataOrNull } from "@/lib/data";
 import { fmtPct, fmtNum } from "@/lib/formatters";
-import { SITE, projectWeek } from "@/lib/constants";
-import type {
-  LiveDashboard,
-  LiveRunSummary,
-  PaperTradeState,
-} from "@/lib/types";
+import { projectWeek } from "@/lib/constants";
+import {
+  DisclosurePanel,
+  EvidenceCard,
+  SectionLabel,
+  StatusPill,
+  TextLink,
+} from "@/components/layout/Primitives";
+import type { LiveDashboard, LiveRunSummary, PaperTradeState } from "@/lib/types";
 
 export const metadata = {
   title: "Paper-Trade · Live · QuantDojo",
-  description:
-    "Week 6 paper-trade status (DSR #30 BB-only, spec v3) + research-side backtest activity. 5% 模拟资金, 不是真钱.",
+  description: "Current paper-trade state, risk action, positions, and run audit.",
 };
 
 export default async function LivePage() {
-  const [dashboard, ptState] = await Promise.all([
+  const [dashboard, state] = await Promise.all([
     readData<LiveDashboard>("live/dashboard.json"),
     readDataOrNull<PaperTradeState>("paper_trade/state.json"),
   ]);
@@ -28,99 +30,166 @@ export default async function LivePage() {
     <>
       <PageHeader
         eyebrow={`Week ${week} · ${dateStr}`}
-        title="Paper-Trade · 模拟盘"
+        title="Paper-trade state"
         subtitle={
-          ptState
-            ? `${ptState.strategy_id ?? "—"} · spec ${ptState.spec_version} · Day ${ptState.kill.running_days}`
-            : "等待第一次 EOD 跑"
+          state
+            ? `${state.strategy_id ?? "paper-trade"} · spec ${state.spec_version} · Day ${state.kill.running_days}`
+            : "No EOD snapshot exported"
         }
-        description="这里展示的是当前正在跑的 paper-trade 状态 — 5% 模拟资金, 不是真钱. 实盘代码从 2026-04-17 (Week 6 Day 1) 开始每日 EOD 生成 signal → 下单 → 风控 → 归档. 上面的研究页是这一次 paper-trade 背后的推理过程."
+        description="This page is operational state only. Research candidates and rejected specs stay below the fold unless opened."
         crumbs={[{ label: "Home", href: "/" }, { label: "Live" }]}
       />
 
-      {ptState ? (
-        <LiveSnapshot state={ptState} />
-      ) : (
-        <EmptyLiveState />
-      )}
+      {state ? <StateOverview state={state} /> : <EmptyState />}
 
       <section className="max-w-content mx-auto px-6 pb-16">
-        <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/30 p-5">
-          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
-            Why BB-only, not the RIAD combo
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-            Week 6 写了 spec v4 (RIAD + DSR#30 BB-only 50/50 合成), backtest 显示 SR 1.87 · DSR 0.920.
-            但 filtered universe (真实融券约束) 下 RIAD OOS 2025 Sharpe −0.59,
-            walk-forward 最近一折 −1.56. 合成的 4/5 gate 是在 baseline (不可执行) 版本上过的.
-            否决 v4, 先上 v3 BB-only 单腿 — 证据更硬 (8-yr 4/5), 6 个月后再评估是否加 RIAD leg.
-          </p>
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs font-mono text-[var(--text-tertiary)]">
-            <span>spec: paper_trade_spec_v3_bb_only_20260422.md</span>
-            <span>v4 否决: paper_trade_spec_v4_riad_dsr30_combo_20260422.md</span>
+        <SectionLabel
+          eyebrow="Details"
+          title="Open the audit trail"
+          body="The default view stays compact. Expand rows for trades, positions, risk messages, and research context."
+        />
+        {state && (
+          <div className="space-y-3">
+            <DisclosurePanel
+              tone={state.kill.action === "ok" ? "green" : "gold"}
+              title="Risk action and kill-switch inputs"
+              summary={`Action ${state.kill.action.toUpperCase()} · DD ${fmtPct(state.kill.cum_drawdown, 2)} · monthly MDD ${fmtPct(state.kill.monthly_mdd, 2)}`}
+            >
+              <MetricGrid
+                metrics={[
+                  { label: "30d SR", value: fmtNum(state.kill.rolling_sr_30d, 2) },
+                  { label: "Live Sharpe", value: fmtNum(state.kill.live_sharpe, 2) },
+                  { label: "Scale", value: `× ${state.kill.position_scale.toFixed(1)}` },
+                  { label: "Warnings", value: String(state.kill.warnings.length) },
+                ]}
+              />
+              {(state.kill.reasons.length > 0 || state.kill.warnings.length > 0) && (
+                <ul className="mt-4 space-y-1 text-xs text-[var(--text-secondary)]">
+                  {[...state.kill.reasons, ...state.kill.warnings].map((w, i) => (
+                    <li key={i}>· {w}</li>
+                  ))}
+                </ul>
+              )}
+            </DisclosurePanel>
+
+            <DisclosurePanel
+              tone="blue"
+              title="Positions and entries"
+              summary={`${state.positions.length} holdings · ${state.open_entries_count} open entries`}
+            >
+              {state.positions.length === 0 ? (
+                <p>No active positions.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-[var(--border-soft)]">
+                  <table className="w-full text-sm">
+                    <thead className="text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                      <tr className="border-b border-[var(--border-soft)]">
+                        <th className="px-4 py-3 text-left font-normal">Symbol</th>
+                        <th className="px-4 py-3 text-right font-normal">Shares</th>
+                        <th className="px-4 py-3 text-right font-normal">Cost</th>
+                        <th className="px-4 py-3 text-right font-normal">Current</th>
+                        <th className="px-4 py-3 text-right font-normal">PnL</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono">
+                      {state.positions.map((p) => (
+                        <tr key={p.symbol} className="border-b border-[var(--border-soft)] last:border-b-0">
+                          <td className="px-4 py-3 text-[var(--text-primary)]">{p.symbol}</td>
+                          <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{p.shares}</td>
+                          <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{fmtNum(p.cost_price, 2)}</td>
+                          <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{fmtNum(p.current_price, 2)}</td>
+                          <td
+                            className="px-4 py-3 text-right"
+                            style={{ color: p.pnl_pct >= 0 ? "var(--green)" : "var(--red)" }}
+                          >
+                            {fmtPct(p.pnl_pct, 2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </DisclosurePanel>
+
+            <DisclosurePanel
+              tone="neutral"
+              title="Daily orders"
+              summary={`${state.daily_summary.n_buys} buys · ${state.daily_summary.n_sells} sells · turnover ${fmtPct(state.daily_summary.turnover, 2)}`}
+            >
+              {state.today_trades.length === 0 ? (
+                <p>No trades in the exported day.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {state.today_trades.map((t, i) => (
+                    <div key={`${t.symbol}-${i}`} className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)]/35 p-3 text-xs font-mono">
+                      <span className={t.action === "buy" ? "text-[var(--green)]" : "text-[var(--red)]"}>
+                        {t.action.toUpperCase()}
+                      </span>
+                      <span className="ml-3 text-[var(--text-primary)]">{t.symbol}</span>
+                      <span className="ml-3 text-[var(--text-tertiary)]">
+                        {t.shares} @ {fmtNum(t.price, 2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DisclosurePanel>
           </div>
-        </div>
+        )}
       </section>
 
-      <section className="max-w-content mx-auto px-6 pb-12">
-        <div className="flex items-baseline justify-between gap-3 mb-2">
-          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-            Multi-factor research face · {dashboard.production_face}
-          </h2>
-          <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
-            multi-factor — 未进 live
-          </span>
-        </div>
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-3xl mb-4">
-          {dashboard.note ?? ""}
-        </p>
-        <div className="flex flex-wrap gap-2 text-xs font-mono">
-          <Link
-            href={`/strategy#${dashboard.production_face}`}
-            className="px-3 py-1.5 rounded border border-[var(--green)]/35 bg-[var(--green)]/[0.05] text-[var(--green)] hover:bg-[var(--green)]/[0.1] transition-colors"
+      <section className="max-w-content mx-auto px-6 pb-16">
+        <SectionLabel eyebrow="Context" title="Research context is separate" />
+        <div className="space-y-3">
+          <DisclosurePanel
+            tone="red"
+            title="Why the RIAD combo is not marked as running"
+            summary="The executable RIAD version did not preserve the baseline result."
           >
-            {dashboard.production_face} 详情 →
-          </Link>
-          <Link
-            href={`/strategy#${dashboard.candidate}`}
-            className="px-3 py-1.5 rounded border border-[var(--gold)]/35 bg-[var(--gold)]/[0.05] text-[var(--gold)] hover:bg-[var(--gold)]/[0.1] transition-colors"
+            <p>
+              The combo spec is kept as a validation case, not as current live
+              state. The paper-trade state on this page remains BB-only until a
+              new executable leg passes the gates.
+            </p>
+            <div className="mt-3">
+              <TextLink href="/validation">Open validation case</TextLink>
+            </div>
+          </DisclosurePanel>
+
+          <DisclosurePanel
+            tone="blue"
+            title={`Multi-factor research face: ${dashboard.production_face}`}
+            summary="Research benchmark only. It is not the current paper-trade strategy."
           >
-            候选 {dashboard.candidate} →
-          </Link>
-          <Link
-            href="/validation"
-            className="px-3 py-1.5 rounded border border-[var(--red)]/35 bg-[var(--red)]/[0.05] text-[var(--red)] hover:bg-[var(--red)]/[0.1] transition-colors"
-          >
-            为什么不 promote 到 live →
-          </Link>
+            <p>{dashboard.note}</p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <TextLink href={`/strategy#${dashboard.production_face}`}>Open strategy card</TextLink>
+              <TextLink href="/strategy/candidates">Open candidate pool</TextLink>
+            </div>
+          </DisclosurePanel>
         </div>
       </section>
 
       <section className="max-w-content mx-auto px-6 pb-24">
-        <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
-          Research · Recent backtest runs
-        </h2>
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-3xl mb-4">
-          {SITE.title} 的每次回测都通过统一 runner 落库, 方便事后审计选择偏差.
-          v11-v21 是 Week 5 因子挖掘 session 的一次性搜索, 并非 live 活动 —
-          从中挑 sharpe 最高的 v16 作 candidate, 但同期还在
-          {" "}<Link href="/validation" className="text-[var(--red)] hover:underline">
-            过 walk-forward / admission gate
-          </Link>.
-        </p>
-        <div className="overflow-x-auto rounded-lg border border-[var(--border-soft)]">
+        <SectionLabel
+          eyebrow="Recent runs"
+          title="Backtests remain auditable"
+          body="These are research-side runs, not live trading activity."
+        />
+        <div className="overflow-x-auto rounded-xl border border-[var(--border-soft)]">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)] border-b border-[var(--border-soft)]">
-                <th className="text-left px-4 py-3 font-normal">Version</th>
-                <th className="text-left px-4 py-3 font-normal">Created</th>
-                <th className="text-right px-4 py-3 font-normal">Annual</th>
-                <th className="text-right px-4 py-3 font-normal">Sharpe</th>
-                <th className="text-right px-4 py-3 font-normal">MaxDD</th>
+              <tr className="border-b border-[var(--border-soft)] text-[10px] font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
+                <th className="px-4 py-3 text-left font-normal">Version</th>
+                <th className="px-4 py-3 text-left font-normal">Created</th>
+                <th className="px-4 py-3 text-right font-normal">Annual</th>
+                <th className="px-4 py-3 text-right font-normal">Sharpe</th>
+                <th className="px-4 py-3 text-right font-normal">MaxDD</th>
               </tr>
             </thead>
             <tbody>
-              {dashboard.recent_runs.slice(0, 10).map((r) => (
+              {dashboard.recent_runs.slice(0, 8).map((r) => (
                 <RunRow key={r.run_id} run={r} />
               ))}
             </tbody>
@@ -131,108 +200,71 @@ export default async function LivePage() {
   );
 }
 
-function EmptyLiveState() {
+function StateOverview({ state }: { state: PaperTradeState }) {
+  const riskTone =
+    state.kill.action === "ok"
+      ? "green"
+      : state.kill.action === "halt"
+        ? "red"
+        : "gold";
+
   return (
-    <section className="max-w-content mx-auto px-6 pb-16">
-      <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-6">
-        <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-2">
-          No state snapshot
-        </p>
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-          <code className="font-mono text-xs text-[var(--text-primary)]">
-            paper_trade/state.json
-          </code>{" "}
-          不存在 — 可能 EOD cron 还没跑完, 或 portfolio/scripts/export_data.py 尚未同步.
-        </p>
+    <section className="max-w-content mx-auto px-6 pb-14">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <StatusPill tone={state.enabled ? "green" : "gold"}>
+          {state.enabled ? "enabled" : "disabled"}
+        </StatusPill>
+        <StatusPill tone={riskTone}>{state.kill.action}</StatusPill>
+        <StatusPill tone="neutral">last day {state.last_trading_day}</StatusPill>
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <EvidenceCard
+          tone="green"
+          label="NAV"
+          value={fmtNum(state.last_nav, 0)}
+          detail={`initial ${fmtNum(state.initial_capital, 0)}`}
+        />
+        <EvidenceCard
+          tone={state.cum_return >= 0 ? "green" : "red"}
+          label="Cumulative"
+          value={fmtPct(state.cum_return, 2)}
+          detail={`today ${(state.pnl_today >= 0 ? "+" : "") + fmtNum(state.pnl_today, 0)}`}
+        />
+        <EvidenceCard
+          tone="blue"
+          label="Exposure"
+          value={fmtPct(state.daily_summary.gross_weight, 1)}
+          detail={`${state.positions.length} positions · ${state.open_entries_count} entries`}
+        />
+        <EvidenceCard
+          tone={riskTone}
+          label="Risk"
+          value={state.kill.action.toUpperCase()}
+          detail={`position scale ×${state.kill.position_scale.toFixed(1)}`}
+        />
+      </div>
+      <div className="mt-4">
+        <Link
+          href="/live/paper-trade"
+          className="text-xs font-mono text-[var(--blue)] hover:underline"
+        >
+          Open full paper-trade archive →
+        </Link>
       </div>
     </section>
   );
 }
 
-function LiveSnapshot({ state }: { state: PaperTradeState }) {
-  const killTone: "good" | "warn" | "bad" | "neutral" =
-    state.kill.action === "halt"
-      ? "bad"
-      : state.kill.action === "warn" ||
-          state.kill.action === "halve" ||
-          state.kill.action === "cool_off" ||
-          state.kill.action === "do_not_upgrade"
-        ? "warn"
-        : state.kill.action === "ok"
-          ? "good"
-          : "neutral";
-
-  const cumTone: "good" | "bad" | "neutral" =
-    state.cum_return > 0 ? "good" : state.cum_return < 0 ? "bad" : "neutral";
-  const pnlTone: "good" | "bad" | "neutral" =
-    state.pnl_today > 0 ? "good" : state.pnl_today < 0 ? "bad" : "neutral";
-
+function EmptyState() {
   return (
-    <section className="max-w-content mx-auto px-6 pb-12">
-      <div className="rounded-lg border border-[var(--green)]/30 bg-[var(--green)]/[0.04] p-5 mb-6">
-        <div className="flex flex-wrap items-baseline gap-3 mb-4">
-          <span className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--green)]">
-            <span
-              className={`w-2 h-2 rounded-full bg-[var(--green)] ${state.enabled ? "animate-pulse" : ""}`}
-            />
-            {state.enabled ? "Live · paper" : "Disabled"}
-          </span>
-          <span className="text-sm font-semibold text-[var(--text-primary)]">
-            {state.strategy_id ?? "paper-trade"}
-          </span>
-          <span className="text-xs font-mono text-[var(--text-tertiary)]">
-            Day {state.kill.running_days} · started {state.started_at ?? "—"}
-          </span>
-          <Link
-            href="/live/paper-trade"
-            className="ml-auto text-xs font-mono text-[var(--blue)] hover:underline"
-          >
-            完整 paper-trade 页 →
-          </Link>
-        </div>
-
-        <MetricGrid
-          metrics={[
-            {
-              label: "NAV",
-              value: fmtNum(state.last_nav, 0),
-              hint: `init ${fmtNum(state.initial_capital, 0)}`,
-            },
-            {
-              label: "Cum Return",
-              value: fmtPct(state.cum_return),
-              tone: cumTone,
-            },
-            {
-              label: "PnL Today",
-              value:
-                (state.pnl_today >= 0 ? "+" : "") +
-                fmtNum(state.pnl_today, 0),
-              tone: pnlTone,
-            },
-            {
-              label: "Positions",
-              value: String(state.positions.length),
-              hint: `${state.open_entries_count} entries`,
-            },
-            {
-              label: "Gross",
-              value: fmtPct(state.daily_summary.gross_weight, 1),
-            },
-            {
-              label: "Risk",
-              value: state.kill.action.toUpperCase(),
-              tone: killTone,
-              hint: `× ${state.kill.position_scale.toFixed(1)}`,
-            },
-          ]}
-        />
-
-        {state.kill.warnings.length > 0 && (
-          <div className="mt-4 text-[11px] font-mono text-[var(--gold)]">
-            warnings: {state.kill.warnings.join(" · ")}
-          </div>
-        )}
+    <section className="max-w-content mx-auto px-6 pb-14">
+      <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)]/35 p-5">
+        <p className="text-sm text-[var(--text-secondary)]">
+          <code className="font-mono text-xs text-[var(--text-primary)]">
+            paper_trade/state.json
+          </code>{" "}
+          was not exported. Run the portfolio data export after the next EOD snapshot.
+        </p>
       </div>
     </section>
   );
@@ -248,30 +280,10 @@ function RunRow({ run }: { run: LiveRunSummary }) {
       <td className="px-4 py-3 font-mono text-xs text-[var(--text-tertiary)]">
         {run.created_at?.slice(0, 10)}
       </td>
-      <td
-        className="px-4 py-3 text-right font-mono"
-        style={{
-          color:
-            (run.annualized_return ?? 0) >= 0.2
-              ? "var(--green)"
-              : (run.annualized_return ?? 0) >= 0.1
-                ? "var(--gold)"
-                : "var(--text-secondary)",
-        }}
-      >
+      <td className="px-4 py-3 text-right font-mono text-[var(--text-secondary)]">
         {fmtPct(run.annualized_return, 1)}
       </td>
-      <td
-        className="px-4 py-3 text-right font-mono"
-        style={{
-          color:
-            (run.sharpe ?? 0) >= 0.7
-              ? "var(--green)"
-              : (run.sharpe ?? 0) >= 0.5
-                ? "var(--gold)"
-                : "var(--text-secondary)",
-        }}
-      >
+      <td className="px-4 py-3 text-right font-mono text-[var(--text-secondary)]">
         {fmtNum(run.sharpe, 3)}
       </td>
       <td className="px-4 py-3 text-right font-mono text-[var(--text-secondary)]">
