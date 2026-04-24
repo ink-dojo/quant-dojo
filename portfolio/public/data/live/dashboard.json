@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-23",
+  "generated_at": "2026-04-24",
   "production_face": "v9",
   "candidate": "v25",
-  "note": "v9 是 walk-forward 验证过的 research face。v25 是 Week 5 mining round + regime gating 的候选，未过 admission gate。实际 paper-trade 跑的是独立的 event-driven BB-only (spec v3), 见 /live/paper-trade.",
+  "note": "v9 是 walk-forward 验证过的 research face. v25 是 Week 5 mining round + regime gating 的候选, 未过 admission gate. 实际 paper-trade 跑的是独立的 event-driven BB-only (spec v3), 见 /live/paper-trade.",
   "signal_dates": [],
-  "signal_dates_note": "Paper-trade 从 2026-04-17 (Week 6 Day 1) 启动; signal 每交易日 EOD 生成. 尚未沉淀到 portfolio 可读路径.",
+  "signal_dates_note": "Paper-trade 从 2026-04-17 (Week 6 Day 1) 启动; signal 每交易日 EOD 生成. 早于该日期的 signal 文件是研究期 multi-factor session 产物, 不是实盘信号.",
   "snapshot_dates": [],
   "recent_runs": [
     {

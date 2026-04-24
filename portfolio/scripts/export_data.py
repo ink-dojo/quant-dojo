@@ -113,16 +113,16 @@ STRATEGY_VERSIONS: list[dict] = [
         "name_zh": "5 因子等权基线",
         "tagline": "通过 admission 的第一版 — 手工权重、等权合成",
         "status": "legacy",
-        "era_start": "2026-Q1",
+        "era_start": "Week 5 · 2026-04-13",
         "factors": ["team_coin", "low_vol_20d", "cgo", "enhanced_momentum", "bp_factor"],
     },
     {
         "id": "v9",
-        "name_en": "ICIR-Weighted Production Face",
-        "name_zh": "ICIR 学习权重 · 生产门面",
-        "tagline": "手工权重 → 数据驱动。WF 中位 sharpe 0.53、OOS 较 v7 +18%，四代里唯一通过完整验证的门面",
+        "name_en": "ICIR-Weighted Research Face",
+        "name_zh": "ICIR 学习权重 · research face",
+        "tagline": "手工权重 → 数据驱动. WF 中位 sharpe 0.53 · OOS 较 v7 +18% · 多因子线里唯一通过完整 WF 验证的版本",
         "status": "production",
-        "era_start": "2026-Q2",
+        "era_start": "Week 5 · 2026-04-13 ~ 04-17",
         "factors": ["team_coin", "low_vol_20d", "cgo", "enhanced_momentum", "bp_factor"],
         "highlights": [
             "OOS Sharpe 1.60 (vs v7 1.35)",
@@ -137,7 +137,7 @@ STRATEGY_VERSIONS: list[dict] = [
         "name_zh": "ICIR 权重 + 组合止损（已否决）",
         "tagline": "止损层破坏 OOS 泛化 — 诚实证伪案例",
         "status": "rejected",
-        "era_start": "2026-Q2",
+        "era_start": "Week 5 · 2026-04-13 ~ 04-17",
         "factors": ["team_coin", "low_vol_20d", "cgo", "enhanced_momentum", "bp_factor"],
         "highlights": [
             "IS 回撤 -42% → -24%（看起来在救命）",
@@ -153,7 +153,7 @@ STRATEGY_VERSIONS: list[dict] = [
         "name_zh": "9 因子挖掘候选（pending WF）",
         "tagline": "2026-04-14 因子挖掘会话从 v11-v21 共 12 个候选中挑出；IS sharpe 0.80、回撤 -43% 红线未过",
         "status": "candidate",
-        "era_start": "2026-Q2",
+        "era_start": "Week 5 · 2026-04-13 ~ 04-17",
         "factors": [
             "low_vol_20d",
             "team_coin",
@@ -185,7 +185,7 @@ STRATEGY_VERSIONS: list[dict] = [
         "name_zh": "v16 + HS300 熊市门控止损",
         "tagline": "2026-04-17 回撤治理：HS300<MA120 时启用半仓止损，MDD 从 -43% 收到 -26%；sharpe 仅退 0.03",
         "status": "candidate",
-        "era_start": "2026-Q2",
+        "era_start": "Week 5 · 2026-04-13 ~ 04-17",
         "factors": [
             "low_vol_20d",
             "team_coin",
@@ -425,12 +425,13 @@ def write_strategy(coverage_generated_at: str) -> None:
         "production_face": FACE_PRODUCTION_VERSION,
         "research_face": FACE_RESEARCH_VERSION,
         "candidate": CANDIDATE_VERSION,
-        "declared_active": active,
-        "declared_note": state.get("note"),
+        "declared_active": None,
+        "declared_note": None,
         "face_note": (
-            "v9 是实际经过 walk-forward 验证的生产门面（中位 Sharpe 0.53、OOS +18%）。"
-            "strategy_state.json 在 2026-04-14 声明 v16 为 active，但 v16 仅 1 次 IS 回测、"
-            "回撤 -43% 超红线、sharpe 0.73 未达门槛、尚未生成任何 live 信号 — 仍为 candidate。"
+            "v9 是走过 walk-forward 17 窗口的 research face (中位 Sharpe 0.53 · OOS 较 v7 +18%). "
+            "v16 是 Week 5 挖掘 session 里 sharpe 最高的候选, 但回撤 -43% 超红线、WF 未跑, 未 promote. "
+            "实际 paper-trade 跑的是独立的 event-driven BB-only (见 /live/paper-trade), "
+            "不是 multi-factor 这条线."
         ),
         "versions": versions_out,
     }
@@ -636,15 +637,49 @@ def write_candidates() -> None:
     print(f"  wrote strategy/candidates.json ({len(rows)} candidates)")
 
 
+# ROADMAP.md 里 Phase N 标题带的是 "（第 X-Y 周）" 这种计划周数 (按 ROADMAP 假设的
+# 9 个月日历算的), 不是实际日历周. 项目实际从 2026-03-13 起跑, 所以 Journey 页面
+# 展示的是 Week N · 实际日期区间. 下面的 overlay 把两者解耦:
+# - title 里的 "（第 X-Y 周）" 去掉 (ROADMAP.md 不动)
+# - 加 week_range / date_range 字段, 按实际 git 历史
+PHASE_OVERLAY: dict[str, dict[str, str]] = {
+    "phase-0": {"week_range": "Week 1", "date_range": "2026-03-13 → 03-17"},
+    "phase-1": {"week_range": "Week 1-2", "date_range": "2026-03-18 → 03-26"},
+    "phase-2": {"week_range": "Week 2-3", "date_range": "2026-03-27 → 04-02"},
+    "phase-3": {"week_range": "Week 3-4", "date_range": "2026-04-03 → 04-09"},
+    "phase-4": {"week_range": "Week 4-5", "date_range": "2026-04-10 → 04-16"},
+    "phase-5": {"week_range": "Week 5-6", "date_range": "2026-04-14 → 04-21"},
+    "phase-6": {"week_range": "Week 6", "date_range": "2026-04-16 → ongoing"},
+    "phase-7": {"week_range": "Week 6", "date_range": "2026-04-21 → ongoing"},
+    "phase-8": {"week_range": "未开始", "date_range": "planned"},
+}
+
+_PHASE_WEEK_SUFFIX_RE = re.compile(r"（第[^）]*周）")
+
+
+def _strip_week_suffix(title: str) -> str:
+    """去掉 ROADMAP 标题里 '（第 X-Y 周）' 计划周数后缀 (保留其他括注)."""
+    return _PHASE_WEEK_SUFFIX_RE.sub("", title).strip()
+
+
 def write_journey() -> None:
     journey_dir = OUT / "journey"
     journey_dir.mkdir(parents=True, exist_ok=True)
     phases = parse_roadmap()
+    for p in phases:
+        p["title"] = _strip_week_suffix(p["title"])
+        overlay = PHASE_OVERLAY.get(p["id"])
+        if overlay:
+            p["week_range"] = overlay["week_range"]
+            p["date_range"] = overlay["date_range"]
     (journey_dir / "phases.json").write_text(
         json.dumps(
             {
                 "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                "source": "ROADMAP.md",
+                "project_started_at": "2026-03-13",
+                "current_week": 6,
+                "current_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "source": "ROADMAP.md + git history (week overlay)",
                 "phases": phases,
             },
             ensure_ascii=False,
@@ -667,10 +702,14 @@ def write_live() -> None:
         except Exception:
             state = {}
 
+    # Paper-trade 从 2026-04-17 (Week 6 Day 1) 起真正 live.
+    # 之前的 signal 文件是研究期 (multi-factor session) 产物, 不是实盘信号.
+    # Live 页面只展示 ≥ go-live 日期的 signal 文件.
+    PAPER_TRADE_GO_LIVE = "2026-04-17"
     signal_dates: list[str] = []
     if SIGNALS_DIR.exists():
         signal_dates = sorted(
-            [p.stem for p in SIGNALS_DIR.glob("*.json")],
+            [p.stem for p in SIGNALS_DIR.glob("*.json") if p.stem >= PAPER_TRADE_GO_LIVE],
             reverse=True,
         )[:10]
 
@@ -714,29 +753,22 @@ def write_live() -> None:
             if len(recent_runs) >= 15:
                 break
 
-    # 最新信号文件读出来的 strategy 字段（metadata.strategy）— 那才是 signal
-    # generator 当天实际使用的 factor list。strategy_state.json 是声明，
-    # signal metadata 是事实。
-    last_signal_strategy: str | None = None
-    if signal_dates:
-        last = SIGNALS_DIR / f"{signal_dates[0]}.json"
-        try:
-            sig = json.loads(last.read_text(encoding="utf-8"))
-            last_signal_strategy = (sig.get("metadata") or {}).get("strategy")
-        except Exception:
-            last_signal_strategy = None
-
     payload = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "declared_active": state.get("active_strategy"),
-        "declared_note": state.get("note"),
-        "state_updated_at": state.get("updated_at"),
-        # 实际生产门面由我们判断（经过 WF 验证的 v9），见 FACE_PRODUCTION_VERSION
+        # Multi-factor 线的 research face, 不是实际 live strategy (live 是独立
+        # 的 event-driven BB-only spec v3, 见 /live/paper-trade).
         "production_face": FACE_PRODUCTION_VERSION,
         "candidate": CANDIDATE_VERSION,
-        # 最近一次 signal 文件里的 strategy（事实，不是声明）
-        "last_signal_strategy": last_signal_strategy,
+        "note": (
+            "v9 是 walk-forward 验证过的 research face. v25 是 Week 5 mining round + "
+            "regime gating 的候选, 未过 admission gate. 实际 paper-trade 跑的是独立的 "
+            "event-driven BB-only (spec v3), 见 /live/paper-trade."
+        ),
         "signal_dates": signal_dates,
+        "signal_dates_note": (
+            "Paper-trade 从 2026-04-17 (Week 6 Day 1) 启动; signal 每交易日 EOD 生成. "
+            "早于该日期的 signal 文件是研究期 multi-factor session 产物, 不是实盘信号."
+        ),
         "snapshot_dates": snapshot_dates,
         "recent_runs": recent_runs,
     }
