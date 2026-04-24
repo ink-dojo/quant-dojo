@@ -22,7 +22,7 @@ const STATUS_STYLE: Record<
     bg: "rgba(148,163,184,0.12)",
   },
   "research-face": {
-    label: "Research Face",
+    label: "Research face",
     color: "var(--blue)",
     bg: "rgba(59,130,246,0.12)",
   },
@@ -37,7 +37,7 @@ const STATUS_STYLE: Record<
     bg: "rgba(239,68,68,0.1)",
   },
   production: {
-    label: "Production Face",
+    label: "Research face (WF validated)",
     color: "var(--green)",
     bg: "rgba(34,197,94,0.12)",
   },
@@ -97,28 +97,29 @@ export default async function StrategyPage() {
   return (
     <>
       <PageHeader
-        title="四代策略演化"
-        subtitle="Four Generations: v7 → v9 → v10 → v16"
+        eyebrow="Strategy · Week 4-5"
+        title="Multi-factor research · v7 → v25"
+        subtitle="ICIR-weighted face + mining round experiments + regime gating"
+        description="Multi-factor 这条线从 Week 4 的 5 因子手工基线 v7 起步, 到 Week 5 的 ICIR 学习权重 v9 + 止损试错 v10 + 因子挖掘 v11-v21 + regime gating v22-v25 结束. 真正上 paper-trade 的是独立的 event-driven 线 (见 /live); 这页的价值是 5 次假设 / 5 次验证 / 5 次否决的研究记录."
         crumbs={[{ label: "Home", href: "/" }, { label: "Strategy" }]}
       />
 
       <section className="max-w-content mx-auto px-6 pb-10">
         <div className="max-w-3xl space-y-4 text-[var(--text-secondary)] leading-relaxed">
           <p>
-            这个项目的主线不是任何单一版本的 sharpe，而是
+            主线不是任何单一版本的 sharpe, 而是
             <span className="text-[var(--text-primary)]"> 纪律</span>
-            ：什么样的策略配得上&ldquo;生产门面&rdquo;这四个字。
+            : 什么样的策略配得上走进 paper-trade 这四个字.
           </p>
           <p>
-            从 v7 的 5 因子手工权重开始，v9 用 ICIR
-            学习权重拿到了真正的样本外提升（中位 sharpe 0.53、OOS +18%），成为
+            v7 是 5 因子手工等权基线. v9 切换到 ICIR 学习权重, 在 17 个滚动 WF 窗口中位 sharpe 0.53 · OOS 较 v7 +18%, 成为
             <Link
               href="#v9"
               className="text-[var(--green)] font-semibold hover:underline"
             >
-              实际生产门面
+              research face
             </Link>
-            。v10 试图叠加组合止损，IS 回撤看似缓解，却被我们自己的 walk-forward
+            . v10 试图叠加组合止损, IS 回撤看似缓解, 但 WF
             {" "}
             <Link
               href="/validation"
@@ -126,16 +127,16 @@ export default async function StrategyPage() {
             >
               证伪并否决
             </Link>
-            。v16 是上周因子挖掘会话从 12 个候选里挑出的&ldquo;赢家&rdquo;——
-            但它的选拔过程和 v10 的陷阱是一样的，
+            . v16 是 Week 5 因子挖掘 session 从 11 个候选里按 sharpe 挑出的&ldquo;赢家&rdquo;
+            — 选拔过程和 v10 的陷阱是同一类,
             {" "}
             <Link
               href="#v16"
               className="text-[var(--gold)] hover:underline"
             >
-              仍是 candidate，不上 live
+              仍是 candidate, 不上 live
             </Link>
-            。
+            .
           </p>
         </div>
       </section>
@@ -159,15 +160,15 @@ export default async function StrategyPage() {
               Timeline · v7 → v25
             </span>
             <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
-              6 个时代 · 包括止损灾难 v10 和挖掘陷阱 v16
+              5 次假设 / 验证 / 否决 — 包括 v10 止损灾难和 v16 挖掘陷阱
             </span>
           </div>
           <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
             完整演化时间线 + 逐版本深度页
           </h3>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-            每一版本都记录动机 / 方法 / 结果 / 教训 / 触发下一版本的问题 —
-            包含六次被证伪的诚实故事。
+            每一版本记录动机 / 方法 / 结果 / 教训 / 触发下一版本的问题 —
+            包含被证伪的诚实故事.
             <span className="text-[var(--blue)] ml-1">进入时间线 →</span>
           </p>
         </Link>
@@ -180,7 +181,7 @@ export default async function StrategyPage() {
           </h2>
           <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-3xl">
             2022-01 → 2025-12 回测期。
-            <span className="text-[var(--green)]">v9 实线</span> 是当前生产门面；
+            <span className="text-[var(--green)]">v9 实线</span> 是 research face (WF 验证过);
             <span className="text-[var(--red)]">v10 虚线</span> 被 admission gate 否决；
             <span className="text-[var(--gold)]">v16 虚线</span> 是挖掘候选（注意它总回报最高，但回撤深度 -43%）。
           </p>
@@ -271,8 +272,12 @@ export default async function StrategyPage() {
           </table>
         </div>
         <p className="mt-3 text-xs text-[var(--text-tertiary)] leading-relaxed max-w-3xl">
-          v9 是唯一四条都过的版本。v16 虽然年化最高，但回撤和 sharpe 两条未过，WF
-          还没跑 — 所以它挂 <em>candidate</em> 而不是 production。
+          v9 是唯一四条都过的版本. v16 年化最高但回撤和 sharpe 两条未过、WF 未跑,
+          所以它挂 <em>candidate</em> 而不是 face.
+          注: v9 的 metrics 在两处展示 — 这里是 admission gate 评估的 IS+OOS 整段口径 (年化 12.9%),
+          <Link href="/validation" className="text-[var(--blue)] hover:underline">/validation</Link>{" "}
+          页列的是 walk-forward 滚动窗口的 OOS 口径 (年化 +18.7%).
+          数字差异反映的是评估区间不同, 不是数据错配.
         </p>
       </section>
 
@@ -319,7 +324,7 @@ function FaceBanner({ version }: { version: StrategyVersion }) {
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <span className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.18em] text-[var(--green)]">
           <span className="w-2 h-2 rounded-full bg-[var(--green)]" />
-          Production Face · 实际生产门面
+          Research face · WF validated
         </span>
         <span className="text-sm font-semibold text-[var(--text-primary)]">
           {version.id} · {version.name_en}
