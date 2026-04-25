@@ -1,0 +1,1 @@
+{"path": "research/factors/industry_momentum/report.md", "language": "markdown", "kind": "factor", "lines": 12, "bytes": 320, "truncated": false, "content": "# F13 行业动量因子研究\n\n**日期**: 2026-04-21  \n## 设置\n\n- 价格: qfq 2015-2025, 5477 股\n- 行业: 申万一级 (265 行业)\n- 变体: 12-1m, 6-1m, 3m, 12m\n\n## 策略实现\n\n散户执行方案: 每月底对 30+ 申万一级 ETF 按过去 12-1 月收益排序, 持有 top-5 行业等权 ETF, 月末换仓。\n"}

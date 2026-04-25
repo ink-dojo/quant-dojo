@@ -7,6 +7,33 @@ export interface Meta {
   face: { research: string; production: string };
 }
 
+export interface SourceManifestItem {
+  path: string;
+  slug: string;
+  data_file: string;
+  language: string;
+  kind: string;
+  lines: number;
+  bytes: number;
+  truncated: boolean;
+}
+
+export interface SourceManifest {
+  generated_at: string;
+  total: number;
+  files: SourceManifestItem[];
+}
+
+export interface SourceFile {
+  path: string;
+  language: string;
+  kind: string;
+  lines: number;
+  bytes: number;
+  truncated: boolean;
+  content: string;
+}
+
 export interface FactorIndexItem {
   name: string;
   category: FactorCategory;

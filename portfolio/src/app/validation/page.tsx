@@ -7,6 +7,7 @@ import {
   SectionLabel,
 } from "@/components/layout/Primitives";
 import { Lang } from "@/components/layout/LanguageText";
+import { SourceLinkList } from "@/components/source/SourceLink";
 import { readData, readDataOrNull } from "@/lib/data";
 import { fmtPct, fmtNum } from "@/lib/formatters";
 import type {
@@ -177,7 +178,7 @@ export default async function ValidationPage() {
         />
         <DisclosurePanel
           tone="neutral"
-          title="Admission gate — v9 / v10 / v16"
+          title={<Lang zh="准入 gate：v9 / v10 / v16" en="Admission gate — v9 / v10 / v16" />}
           summary={<Lang zh="v10 OOS 失败；v16 被回撤和缺失 WF 拦住。" en="v10 fails OOS; v16 is blocked by drawdown and missing WF." />}
         >
           <div className="overflow-x-auto rounded-lg border border-[var(--border-soft)]">
@@ -283,6 +284,13 @@ export default async function ValidationPage() {
               </tbody>
             </table>
           </div>
+          <SourceLinkList
+            paths={[
+              "utils/walk_forward.py",
+              "utils/purged_cv.py",
+              "journal/v10_icir_stoploss_eval_20260416.md",
+            ]}
+          />
         </DisclosurePanel>
       </section>
 
@@ -318,7 +326,7 @@ export default async function ValidationPage() {
             body="17 窗口滚动，中位 Sharpe 从 v9 的 0.53 掉到 v10 的 0.46。样本外平均表现更差，不是偶然。"
           />
           <div className="text-xs font-mono text-[var(--text-tertiary)] pt-2 border-t border-[var(--red)]/20">
-            完整报告 → journal/v10_icir_stoploss_eval_20260416.md
+            <SourceLinkList paths={["journal/v10_icir_stoploss_eval_20260416.md", "scripts/v10_icir_stoploss_eval.py"]} label={<Lang zh="完整报告 / 脚本" en="Report / script" />} />
           </div>
           </div>
         </DisclosurePanel>
@@ -364,6 +372,7 @@ export default async function ValidationPage() {
           <div className="text-xs font-mono text-[var(--text-tertiary)] pt-2 border-t border-[var(--gold)]/25">
             下一步 → 对 top 3 候选 (不只是 v16) 跑 scripts/walk_forward.py ·
             <span className="ml-1">看 11 个候选对比 /strategy/candidates</span>
+            <SourceLinkList paths={["utils/walk_forward.py", "utils/purged_cv.py", "journal/candidate_review_20260417.md"]} label={<Lang zh="验证入口" en="Validation entry" />} />
           </div>
           </div>
         </DisclosurePanel>

@@ -20,8 +20,10 @@ JSON，写到 `portfolio/public/data/` 下。Next.js 构建时以 SSG 读取，
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import re
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +39,7 @@ STATE_JSON = ROOT / "live" / "strategy_state.json"
 SIGNALS_DIR = ROOT / "live" / "signals"
 SNAPSHOT_DIR = ROOT / "live" / "factor_snapshot"
 JOURNAL_DIR = ROOT / "journal"
+SOURCE_DIR = OUT / "source"
 
 # 策略门面（诚实版）
 # v9  — 实际生产门面：ICIR 学习权重、WF 中位 sharpe 0.53、OOS +18%，真实 track record
@@ -803,6 +806,183 @@ def write_meta(coverage: dict) -> None:
     print("  wrote meta.json")
 
 
+SOURCE_GLOBS = [
+    "*.md",
+    "*.toml",
+    "Makefile",
+    "utils/**/*.py",
+    "backtest/**/*.py",
+    "pipeline/**/*.py",
+    "live/**/*.py",
+    "scripts/**/*.py",
+    "tests/**/*.py",
+    "research/**/*.py",
+    "research/**/*.md",
+    "research/**/*.ipynb",
+    "journal/**/*.md",
+    "quant_dojo/**/*.py",
+    "dashboard/**/*.py",
+    "strategies/**/*.py",
+    "providers/**/*.py",
+    "agents/**/*.py",
+    "portfolio/src/**/*.ts",
+    "portfolio/src/**/*.tsx",
+    "portfolio/scripts/**/*.py",
+]
+
+SOURCE_EXCLUDE_PARTS = {
+    ".git",
+    ".next",
+    ".vercel",
+    "__pycache__",
+    "node_modules",
+    "out",
+    "public",
+}
+
+LANG_BY_SUFFIX = {
+    ".py": "python",
+    ".ts": "typescript",
+    ".tsx": "tsx",
+    ".md": "markdown",
+    ".toml": "toml",
+    ".yml": "yaml",
+    ".yaml": "yaml",
+    ".json": "json",
+    ".ipynb": "notebook",
+}
+
+MAX_SOURCE_BYTES = 220_000
+
+
+def _source_kind(rel: str) -> str:
+    if rel.startswith("backtest/") or rel.startswith("strategies/"):
+        return "backtest"
+    if rel.startswith("utils/walk_forward.py") or rel.startswith("utils/purged_cv.py"):
+        return "validation"
+    if rel.startswith("tests/"):
+        return "tests"
+    if rel.startswith("live/"):
+        return "live"
+    if rel.startswith("pipeline/risk") or "risk" in rel or "capacity" in rel or "vol_targeting" in rel:
+        return "risk"
+    if rel.startswith("pipeline/") or rel.startswith("quant_dojo/") or rel.startswith("dashboard/"):
+        return "pipeline"
+    if rel.startswith("research/factors/"):
+        return "factor"
+    if rel.startswith("research/"):
+        return "research"
+    if rel.startswith("journal/"):
+        return "journal"
+    if rel.startswith("portfolio/"):
+        return "site"
+    return "other"
+
+
+def _source_slug(rel: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "__", rel.strip("/"))
+    return slug.strip("_")
+
+
+def _read_notebook(path: Path) -> str:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    chunks: list[str] = []
+    for i, cell in enumerate(data.get("cells", []), start=1):
+        cell_type = cell.get("cell_type", "cell")
+        source = cell.get("source", [])
+        text = "".join(source) if isinstance(source, list) else str(source)
+        if not text.strip():
+            continue
+        fence = "python" if cell_type == "code" else "markdown"
+        chunks.append(f"# %% [{i}] {cell_type}\n```{fence}\n{text.rstrip()}\n```")
+    return "\n\n".join(chunks) + "\n"
+
+
+def _read_source_file(path: Path) -> tuple[str, bool]:
+    truncated = False
+    if path.suffix == ".ipynb":
+        text = _read_notebook(path)
+    else:
+        raw = path.read_bytes()
+        if len(raw) > MAX_SOURCE_BYTES:
+            raw = raw[:MAX_SOURCE_BYTES]
+            truncated = True
+        text = raw.decode("utf-8", errors="replace")
+    if len(text.encode("utf-8")) > MAX_SOURCE_BYTES:
+        text = text.encode("utf-8")[:MAX_SOURCE_BYTES].decode("utf-8", errors="replace")
+        truncated = True
+    return text, truncated
+
+
+def write_source_index() -> None:
+    if SOURCE_DIR.exists():
+        shutil.rmtree(SOURCE_DIR)
+    files_dir = SOURCE_DIR / "files"
+    files_dir.mkdir(parents=True, exist_ok=True)
+
+    candidates: dict[str, Path] = {}
+    for pattern in SOURCE_GLOBS:
+        for path in ROOT.glob(pattern):
+            if not path.is_file():
+                continue
+            rel = path.relative_to(ROOT).as_posix()
+            parts = set(rel.split("/"))
+            if parts & SOURCE_EXCLUDE_PARTS:
+                continue
+            if path.suffix in {".pyc", ".png", ".parquet", ".csv", ".log", ".db"}:
+                continue
+            candidates[rel] = path
+
+    manifest_files: list[dict] = []
+    for rel, path in sorted(candidates.items()):
+        try:
+            content, truncated = _read_source_file(path)
+        except Exception as e:
+            print(f"  [warn] source skipped {rel}: {e}")
+            continue
+        digest = hashlib.sha1(rel.encode("utf-8")).hexdigest()[:16]
+        data_file = f"files/{digest}.json"
+        payload = {
+            "path": rel,
+            "language": LANG_BY_SUFFIX.get(path.suffix, "text"),
+            "kind": _source_kind(rel),
+            "lines": len(content.splitlines()),
+            "bytes": len(content.encode("utf-8")),
+            "truncated": truncated,
+            "content": content,
+        }
+        (files_dir / f"{digest}.json").write_text(
+            json.dumps(payload, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        manifest_files.append(
+            {
+                "path": rel,
+                "slug": _source_slug(rel),
+                "data_file": data_file,
+                "language": payload["language"],
+                "kind": payload["kind"],
+                "lines": payload["lines"],
+                "bytes": payload["bytes"],
+                "truncated": truncated,
+            }
+        )
+
+    (SOURCE_DIR / "manifest.json").write_text(
+        json.dumps(
+            {
+                "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "total": len(manifest_files),
+                "files": manifest_files,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print(f"  wrote source/manifest.json ({len(manifest_files)} files)")
+
+
 def main() -> None:
     print(f"Exporting to {OUT.relative_to(ROOT)}")
     coverage = load_coverage()
@@ -812,6 +992,7 @@ def main() -> None:
     write_candidates()
     write_live()
     write_journey()
+    write_source_index()
     print("done.")
 
 

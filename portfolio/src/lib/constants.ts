@@ -22,6 +22,7 @@ export const NAV_ITEMS = [
   { href: "/research", label: "Research", zh: "研究" },
   { href: "/strategy", label: "Strategy", zh: "策略" },
   { href: "/infrastructure", label: "Infra", zh: "工程" },
+  { href: "/source", label: "Source", zh: "源码" },
   { href: "/journey", label: "Journey", zh: "历程" },
   { href: "/glossary", label: "Glossary", zh: "术语" },
 ] as const;
