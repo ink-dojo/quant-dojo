@@ -1,0 +1,5816 @@
+{
+  "generated_at": "2026-04-25T02:16:58+00:00",
+  "total": 581,
+  "files": [
+    {
+      "path": "ALPHA_THEORY_2026.md",
+      "slug": "ALPHA_THEORY_2026.md",
+      "data_file": "files/1daf6b93bc12817a.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 321,
+      "bytes": 12652,
+      "truncated": false
+    },
+    {
+      "path": "BRAINSTORM.md",
+      "slug": "BRAINSTORM.md",
+      "data_file": "files/ed80d60873ea4b3b.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 236,
+      "bytes": 7023,
+      "truncated": false
+    },
+    {
+      "path": "CHINA_QUANT_GUIDE.md",
+      "slug": "CHINA_QUANT_GUIDE.md",
+      "data_file": "files/f7d1ed5574c8bf48.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 209,
+      "bytes": 6911,
+      "truncated": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "slug": "CLAUDE.md",
+      "data_file": "files/2d5d10cfc503b52b.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 270,
+      "bytes": 8538,
+      "truncated": false
+    },
+    {
+      "path": "Makefile",
+      "slug": "Makefile",
+      "data_file": "files/836efb6e25a091dc.json",
+      "language": "text",
+      "kind": "other",
+      "lines": 52,
+      "bytes": 2400,
+      "truncated": false
+    },
+    {
+      "path": "README.md",
+      "slug": "README.md",
+      "data_file": "files/8ec9a00bfd09b319.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 272,
+      "bytes": 14879,
+      "truncated": false
+    },
+    {
+      "path": "README.zh-CN.md",
+      "slug": "README.zh-CN.md",
+      "data_file": "files/95a4272f06f616e2.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 266,
+      "bytes": 14492,
+      "truncated": false
+    },
+    {
+      "path": "ROADMAP.md",
+      "slug": "ROADMAP.md",
+      "data_file": "files/aca0bc867aba812c.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 294,
+      "bytes": 13800,
+      "truncated": false
+    },
+    {
+      "path": "TODO.md",
+      "slug": "TODO.md",
+      "data_file": "files/b5b096f958319b1c.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 210,
+      "bytes": 10721,
+      "truncated": false
+    },
+    {
+      "path": "VERIFY.md",
+      "slug": "VERIFY.md",
+      "data_file": "files/d6e8f55ec85e3939.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 68,
+      "bytes": 2629,
+      "truncated": false
+    },
+    {
+      "path": "WORKFLOW.md",
+      "slug": "WORKFLOW.md",
+      "data_file": "files/a6a9017757ce02f3.json",
+      "language": "markdown",
+      "kind": "other",
+      "lines": 137,
+      "bytes": 3978,
+      "truncated": false
+    },
+    {
+      "path": "agents/__init__.py",
+      "slug": "agents____init__.py",
+      "data_file": "files/3fcc8209be70e425.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 11,
+      "bytes": 259,
+      "truncated": false
+    },
+    {
+      "path": "agents/base.py",
+      "slug": "agents__base.py",
+      "data_file": "files/480a908b8ab91323.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 255,
+      "bytes": 8017,
+      "truncated": false
+    },
+    {
+      "path": "agents/data_agent.py",
+      "slug": "agents__data_agent.py",
+      "data_file": "files/7f05b1e5d3f60882.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 172,
+      "bytes": 6267,
+      "truncated": false
+    },
+    {
+      "path": "agents/debate.py",
+      "slug": "agents__debate.py",
+      "data_file": "files/e83bd08687ea8482.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 180,
+      "bytes": 6462,
+      "truncated": false
+    },
+    {
+      "path": "agents/executor_agent.py",
+      "slug": "agents__executor_agent.py",
+      "data_file": "files/7b10b43e8f388ccd.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 130,
+      "bytes": 4640,
+      "truncated": false
+    },
+    {
+      "path": "agents/factor_analyst.py",
+      "slug": "agents__factor_analyst.py",
+      "data_file": "files/d58a6fc4a04e3932.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 167,
+      "bytes": 5208,
+      "truncated": false
+    },
+    {
+      "path": "agents/factor_doctor.py",
+      "slug": "agents__factor_doctor.py",
+      "data_file": "files/1ac04f4d9a008f66.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 200,
+      "bytes": 7285,
+      "truncated": false
+    },
+    {
+      "path": "agents/factor_miner.py",
+      "slug": "agents__factor_miner.py",
+      "data_file": "files/fe0113ec364d3d87.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 298,
+      "bytes": 11313,
+      "truncated": false
+    },
+    {
+      "path": "agents/fund_manager.py",
+      "slug": "agents__fund_manager.py",
+      "data_file": "files/60754e850f0e8584.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 901,
+      "bytes": 36517,
+      "truncated": false
+    },
+    {
+      "path": "agents/idea_parser.py",
+      "slug": "agents__idea_parser.py",
+      "data_file": "files/bf425746d5cc41bf.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 327,
+      "bytes": 13431,
+      "truncated": false
+    },
+    {
+      "path": "agents/quant_mentor.py",
+      "slug": "agents__quant_mentor.py",
+      "data_file": "files/7b9b95c3ff1241ea.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 1066,
+      "bytes": 50205,
+      "truncated": false
+    },
+    {
+      "path": "agents/reporter.py",
+      "slug": "agents__reporter.py",
+      "data_file": "files/dee8c4a231941889.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 249,
+      "bytes": 10681,
+      "truncated": false
+    },
+    {
+      "path": "agents/risk_guard.py",
+      "slug": "agents__risk_guard.py",
+      "data_file": "files/471eb78433042782.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 117,
+      "bytes": 3792,
+      "truncated": false
+    },
+    {
+      "path": "agents/signal_producer.py",
+      "slug": "agents__signal_producer.py",
+      "data_file": "files/629229c73eb26aad.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 206,
+      "bytes": 7249,
+      "truncated": false
+    },
+    {
+      "path": "agents/stock_analyst.py",
+      "slug": "agents__stock_analyst.py",
+      "data_file": "files/cdd3e1e3f2a426c9.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 322,
+      "bytes": 12400,
+      "truncated": false
+    },
+    {
+      "path": "agents/strategy_composer.py",
+      "slug": "agents__strategy_composer.py",
+      "data_file": "files/eb1867c0fec141f7.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 239,
+      "bytes": 8514,
+      "truncated": false
+    },
+    {
+      "path": "agents/test_debate.py",
+      "slug": "agents__test_debate.py",
+      "data_file": "files/3d3b9c675a842fc6.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 61,
+      "bytes": 1804,
+      "truncated": false
+    },
+    {
+      "path": "backtest/__init__.py",
+      "slug": "backtest____init__.py",
+      "data_file": "files/fbe2f7e8c38ce7fa.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 3,
+      "bytes": 73,
+      "truncated": false
+    },
+    {
+      "path": "backtest/comparison.py",
+      "slug": "backtest__comparison.py",
+      "data_file": "files/dc83e204bacf5bba.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 183,
+      "bytes": 6049,
+      "truncated": false
+    },
+    {
+      "path": "backtest/engine.py",
+      "slug": "backtest__engine.py",
+      "data_file": "files/cdcfcc4f98558730.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 86,
+      "bytes": 2865,
+      "truncated": false
+    },
+    {
+      "path": "backtest/report.py",
+      "slug": "backtest__report.py",
+      "data_file": "files/59166e41dee2f2e4.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 600,
+      "bytes": 19349,
+      "truncated": false
+    },
+    {
+      "path": "backtest/standardized.py",
+      "slug": "backtest__standardized.py",
+      "data_file": "files/17058da36be3791a.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 1059,
+      "bytes": 41447,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/__init__.py",
+      "slug": "dashboard____init__.py",
+      "data_file": "files/0810b10ffea628c1.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 2,
+      "bytes": 140,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/app.py",
+      "slug": "dashboard__app.py",
+      "data_file": "files/c52ac9c41fcfa060.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 166,
+      "bytes": 5708,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/__init__.py",
+      "slug": "dashboard__routers____init__.py",
+      "data_file": "files/0a65e6ebd08336b9.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 1,
+      "bytes": 40,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/ai.py",
+      "slug": "dashboard__routers__ai.py",
+      "data_file": "files/6628b7030efd0f8d.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 53,
+      "bytes": 1474,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/auto.py",
+      "slug": "dashboard__routers__auto.py",
+      "data_file": "files/843fe55594ee4b7f.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 42,
+      "bytes": 1318,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/backtest.py",
+      "slug": "dashboard__routers__backtest.py",
+      "data_file": "files/83e61d62b1046781.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 118,
+      "bytes": 3784,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/data_status.py",
+      "slug": "dashboard__routers__data_status.py",
+      "data_file": "files/06e08ed95656042e.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 23,
+      "bytes": 558,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/docs.py",
+      "slug": "dashboard__routers__docs.py",
+      "data_file": "files/eeff4b712aebeb42.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 23,
+      "bytes": 721,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/factors.py",
+      "slug": "dashboard__routers__factors.py",
+      "data_file": "files/ec8685419ef60840.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 64,
+      "bytes": 1978,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/flow.py",
+      "slug": "dashboard__routers__flow.py",
+      "data_file": "files/46dee592978e9f29.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 18,
+      "bytes": 454,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/live.py",
+      "slug": "dashboard__routers__live.py",
+      "data_file": "files/53138cde53122f4b.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 22,
+      "bytes": 597,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/notebooks.py",
+      "slug": "dashboard__routers__notebooks.py",
+      "data_file": "files/e61ba1189914d7df.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 16,
+      "bytes": 438,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/pipeline.py",
+      "slug": "dashboard__routers__pipeline.py",
+      "data_file": "files/e0f4fc882ea85287.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 36,
+      "bytes": 1062,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/portfolio.py",
+      "slug": "dashboard__routers__portfolio.py",
+      "data_file": "files/ae55454cd57df321.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 35,
+      "bytes": 900,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/research.py",
+      "slug": "dashboard__routers__research.py",
+      "data_file": "files/9860b5e2807ea5d3.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 26,
+      "bytes": 764,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/risk.py",
+      "slug": "dashboard__routers__risk.py",
+      "data_file": "files/7f9ad1117df9808b.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 23,
+      "bytes": 507,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/signals.py",
+      "slug": "dashboard__routers__signals.py",
+      "data_file": "files/76f405fadf32e8b7.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 30,
+      "bytes": 875,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/strategies.py",
+      "slug": "dashboard__routers__strategies.py",
+      "data_file": "files/2de61af74e57efd9.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 26,
+      "bytes": 648,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/routers/trigger.py",
+      "slug": "dashboard__routers__trigger.py",
+      "data_file": "files/e74694bfbc9452fa.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 70,
+      "bytes": 2341,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/__init__.py",
+      "slug": "dashboard__services____init__.py",
+      "data_file": "files/8da961489b7575d1.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 1,
+      "bytes": 41,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/ai_service.py",
+      "slug": "dashboard__services__ai_service.py",
+      "data_file": "files/b52c0a5ecfbb819f.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 159,
+      "bytes": 6300,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/auto_service.py",
+      "slug": "dashboard__services__auto_service.py",
+      "data_file": "files/38351b00b034c5de.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 162,
+      "bytes": 6397,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/backtest_service.py",
+      "slug": "dashboard__services__backtest_service.py",
+      "data_file": "files/c57cba00353658c0.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 232,
+      "bytes": 6413,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/data_loader.py",
+      "slug": "dashboard__services__data_loader.py",
+      "data_file": "files/220561a1f7d1af4c.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 133,
+      "bytes": 4199,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/docs_service.py",
+      "slug": "dashboard__services__docs_service.py",
+      "data_file": "files/d997ad35622996bd.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 168,
+      "bytes": 5184,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/factors_service.py",
+      "slug": "dashboard__services__factors_service.py",
+      "data_file": "files/a40a4aaecc435786.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 557,
+      "bytes": 20155,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/flow_service.py",
+      "slug": "dashboard__services__flow_service.py",
+      "data_file": "files/e34447ca792db036.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 379,
+      "bytes": 15534,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/notebooks_service.py",
+      "slug": "dashboard__services__notebooks_service.py",
+      "data_file": "files/5ca37ac2fca4ed33.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 112,
+      "bytes": 3295,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/pipeline_service.py",
+      "slug": "dashboard__services__pipeline_service.py",
+      "data_file": "files/67f5e668ed67c1c8.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 77,
+      "bytes": 2499,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/portfolio_service.py",
+      "slug": "dashboard__services__portfolio_service.py",
+      "data_file": "files/f44bd59dc83fe9c7.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 118,
+      "bytes": 3623,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/research_service.py",
+      "slug": "dashboard__services__research_service.py",
+      "data_file": "files/5275d85f4ec65390.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 87,
+      "bytes": 2839,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/risk_service.py",
+      "slug": "dashboard__services__risk_service.py",
+      "data_file": "files/0e0bffe1356a68c0.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 45,
+      "bytes": 1344,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/signals_service.py",
+      "slug": "dashboard__services__signals_service.py",
+      "data_file": "files/b62e702b71b8f610.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 185,
+      "bytes": 5642,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/sse_utils.py",
+      "slug": "dashboard__services__sse_utils.py",
+      "data_file": "files/1616b7efd3f207d4.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 25,
+      "bytes": 649,
+      "truncated": false
+    },
+    {
+      "path": "dashboard/services/strategies_service.py",
+      "slug": "dashboard__services__strategies_service.py",
+      "data_file": "files/c7c7d6c20a68e78d.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 303,
+      "bytes": 14108,
+      "truncated": false
+    },
+    {
+      "path": "journal/README.md",
+      "slug": "journal__README.md",
+      "data_file": "files/14fac0956fc894f0.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 66,
+      "bytes": 1203,
+      "truncated": false
+    },
+    {
+      "path": "journal/a_share_quant_deep_dive_20260421.md",
+      "slug": "journal__a_share_quant_deep_dive_20260421.md",
+      "data_file": "files/8c0f881a105067fb.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 748,
+      "bytes": 48964,
+      "truncated": false
+    },
+    {
+      "path": "journal/breadth_regime_research_20260417.md",
+      "slug": "journal__breadth_regime_research_20260417.md",
+      "data_file": "files/17880c6cd0d2f46a.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 47,
+      "bytes": 1734,
+      "truncated": false
+    },
+    {
+      "path": "journal/bta_experiment_terminal_20260421.md",
+      "slug": "journal__bta_experiment_terminal_20260421.md",
+      "data_file": "files/de03e2aaab0a3918.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 167,
+      "bytes": 6233,
+      "truncated": false
+    },
+    {
+      "path": "journal/candidate_review_20260416.md",
+      "slug": "journal__candidate_review_20260416.md",
+      "data_file": "files/8a8f41ab74b63a96.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 38,
+      "bytes": 2496,
+      "truncated": false
+    },
+    {
+      "path": "journal/candidate_review_20260417.md",
+      "slug": "journal__candidate_review_20260417.md",
+      "data_file": "files/971774e07d633d3b.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 40,
+      "bytes": 2674,
+      "truncated": false
+    },
+    {
+      "path": "journal/cross_factor_regime_shift_20260422.md",
+      "slug": "journal__cross_factor_regime_shift_20260422.md",
+      "data_file": "files/2d21c59a901dc4af.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 78,
+      "bytes": 3952,
+      "truncated": false
+    },
+    {
+      "path": "journal/daily_report_2026-04-03.md",
+      "slug": "journal__daily_report_2026-04-03.md",
+      "data_file": "files/6164148185d84a28.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 100,
+      "bytes": 4943,
+      "truncated": false
+    },
+    {
+      "path": "journal/dsr30_decay_check_20260421.md",
+      "slug": "journal__dsr30_decay_check_20260421.md",
+      "data_file": "files/d13cc3790dcc74b6.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 74,
+      "bytes": 3102,
+      "truncated": false
+    },
+    {
+      "path": "journal/dsr37_postmortem_20260421.md",
+      "slug": "journal__dsr37_postmortem_20260421.md",
+      "data_file": "files/621b7d346ad87573.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 117,
+      "bytes": 4554,
+      "truncated": false
+    },
+    {
+      "path": "journal/factor_admission_rogt_20260414.md",
+      "slug": "journal__factor_admission_rogt_20260414.md",
+      "data_file": "files/4291c22bfdb7f9b1.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 167,
+      "bytes": 7770,
+      "truncated": false
+    },
+    {
+      "path": "journal/factor_library_report_20260325.md",
+      "slug": "journal__factor_library_report_20260325.md",
+      "data_file": "files/701f3188f62d679a.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 124,
+      "bytes": 5078,
+      "truncated": false
+    },
+    {
+      "path": "journal/factor_mining_sprint2_20260421.md",
+      "slug": "journal__factor_mining_sprint2_20260421.md",
+      "data_file": "files/8ff113b0ec775ac6.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 175,
+      "bytes": 8382,
+      "truncated": false
+    },
+    {
+      "path": "journal/factor_mining_sprint3_20260422.md",
+      "slug": "journal__factor_mining_sprint3_20260422.md",
+      "data_file": "files/cd551ada425a0894.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 116,
+      "bytes": 5914,
+      "truncated": false
+    },
+    {
+      "path": "journal/factor_mining_sprint_20260421.md",
+      "slug": "journal__factor_mining_sprint_20260421.md",
+      "data_file": "files/34dbdf459abc093f.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 97,
+      "bytes": 5340,
+      "truncated": false
+    },
+    {
+      "path": "journal/factor_orthogonality_v16_20260416.md",
+      "slug": "journal__factor_orthogonality_v16_20260416.md",
+      "data_file": "files/54ad90a9940049fd.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 120,
+      "bytes": 5902,
+      "truncated": false
+    },
+    {
+      "path": "journal/free_data_strategy_20260325.md",
+      "slug": "journal__free_data_strategy_20260325.md",
+      "data_file": "files/dcc451b9bdee002b.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 193,
+      "bytes": 6528,
+      "truncated": false
+    },
+    {
+      "path": "journal/full_factor_analysis_20260325.md",
+      "slug": "journal__full_factor_analysis_20260325.md",
+      "data_file": "files/57fad74ef8a68272.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 150,
+      "bytes": 5771,
+      "truncated": false
+    },
+    {
+      "path": "journal/handoff_mda_drift_tier1b_20260422.md",
+      "slug": "journal__handoff_mda_drift_tier1b_20260422.md",
+      "data_file": "files/2676a3088e30b72a.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 128,
+      "bytes": 4778,
+      "truncated": false
+    },
+    {
+      "path": "journal/ideas.md",
+      "slug": "journal__ideas.md",
+      "data_file": "files/884abe26e8737890.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 19,
+      "bytes": 308,
+      "truncated": false
+    },
+    {
+      "path": "journal/infra/stats_audit_20260417.md",
+      "slug": "journal__infra__stats_audit_20260417.md",
+      "data_file": "files/c95544491fc2cb8d.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 206,
+      "bytes": 8660,
+      "truncated": false
+    },
+    {
+      "path": "journal/infrastructure_baseline_20260414.md",
+      "slug": "journal__infrastructure_baseline_20260414.md",
+      "data_file": "files/450c1b8aa59dfc53.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 134,
+      "bytes": 5105,
+      "truncated": false
+    },
+    {
+      "path": "journal/live_vs_backtest_v7_20260407.md",
+      "slug": "journal__live_vs_backtest_v7_20260407.md",
+      "data_file": "files/d421180f0fd237b8.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 35,
+      "bytes": 1013,
+      "truncated": false
+    },
+    {
+      "path": "journal/live_vs_backtest_v7_20260407_analysis.md",
+      "slug": "journal__live_vs_backtest_v7_20260407_analysis.md",
+      "data_file": "files/36862f1d1bb3a70d.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 92,
+      "bytes": 4429,
+      "truncated": false
+    },
+    {
+      "path": "journal/lulr_v2_preregistration_20260422.md",
+      "slug": "journal__lulr_v2_preregistration_20260422.md",
+      "data_file": "files/d579f0a5997d1a83.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 212,
+      "bytes": 8292,
+      "truncated": false
+    },
+    {
+      "path": "journal/management_change_eval_20260422.md",
+      "slug": "journal__management_change_eval_20260422.md",
+      "data_file": "files/329d33c6f69b55e3.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 31,
+      "bytes": 785,
+      "truncated": false
+    },
+    {
+      "path": "journal/mda_drift_tier1_result_20260422.md",
+      "slug": "journal__mda_drift_tier1_result_20260422.md",
+      "data_file": "files/e6cfce8fe7b6ab0b.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 37,
+      "bytes": 1424,
+      "truncated": false
+    },
+    {
+      "path": "journal/mda_llm_drift_mini_ic_20260422.md",
+      "slug": "journal__mda_llm_drift_mini_ic_20260422.md",
+      "data_file": "files/f25fbd5081f9bbea.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 127,
+      "bytes": 6613,
+      "truncated": false
+    },
+    {
+      "path": "journal/mda_llm_opus_quality_audit_20260422.md",
+      "slug": "journal__mda_llm_opus_quality_audit_20260422.md",
+      "data_file": "files/8a86419f6afe0f52.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 194,
+      "bytes": 8269,
+      "truncated": false
+    },
+    {
+      "path": "journal/mda_llm_outlook_drift_mini_ic_20260422.md",
+      "slug": "journal__mda_llm_outlook_drift_mini_ic_20260422.md",
+      "data_file": "files/1aafb0bc738a3990.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 58,
+      "bytes": 2144,
+      "truncated": false
+    },
+    {
+      "path": "journal/methodology_gap_analysis_20260324.md",
+      "slug": "journal__methodology_gap_analysis_20260324.md",
+      "data_file": "files/ba35863609246bf5.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 118,
+      "bytes": 4948,
+      "truncated": false
+    },
+    {
+      "path": "journal/paper_trade_spec_20260420.md",
+      "slug": "journal__paper_trade_spec_20260420.md",
+      "data_file": "files/45eb293cd5979b48.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 150,
+      "bytes": 6101,
+      "truncated": false
+    },
+    {
+      "path": "journal/paper_trade_spec_v2_20260421.md",
+      "slug": "journal__paper_trade_spec_v2_20260421.md",
+      "data_file": "files/a49a32f7e72bbe68.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 153,
+      "bytes": 5941,
+      "truncated": false
+    },
+    {
+      "path": "journal/paper_trade_spec_v3_bb_only_20260422.md",
+      "slug": "journal__paper_trade_spec_v3_bb_only_20260422.md",
+      "data_file": "files/6ea266606f201185.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 188,
+      "bytes": 8197,
+      "truncated": false
+    },
+    {
+      "path": "journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md",
+      "slug": "journal__paper_trade_spec_v4_riad_dsr30_combo_20260422.md",
+      "data_file": "files/1c0971c3d1981e84.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 226,
+      "bytes": 8853,
+      "truncated": false
+    },
+    {
+      "path": "journal/phase3_summary.md",
+      "slug": "journal__phase3_summary.md",
+      "data_file": "files/d7bbf9b597816146.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 274,
+      "bytes": 9770,
+      "truncated": false
+    },
+    {
+      "path": "journal/phase5_closeout_20260407.md",
+      "slug": "journal__phase5_closeout_20260407.md",
+      "data_file": "files/a48d9e7bf123a9c7.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 162,
+      "bytes": 6709,
+      "truncated": false
+    },
+    {
+      "path": "journal/phase5_closeout_20260407_part2.md",
+      "slug": "journal__phase5_closeout_20260407_part2.md",
+      "data_file": "files/a0eeae3a08436883.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 93,
+      "bytes": 3547,
+      "truncated": false
+    },
+    {
+      "path": "journal/phase5_continuous_run_20260407.md",
+      "slug": "journal__phase5_continuous_run_20260407.md",
+      "data_file": "files/c18c9a5271655fcd.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 84,
+      "bytes": 3825,
+      "truncated": false
+    },
+    {
+      "path": "journal/phase5_regime_robust_plan_20260420.md",
+      "slug": "journal__phase5_regime_robust_plan_20260420.md",
+      "data_file": "files/649da58ac8b61aa8.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 95,
+      "bytes": 4835,
+      "truncated": false
+    },
+    {
+      "path": "journal/phase7_closeout_20260408.md",
+      "slug": "journal__phase7_closeout_20260408.md",
+      "data_file": "files/790fd09774dfd043.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 158,
+      "bytes": 7248,
+      "truncated": false
+    },
+    {
+      "path": "journal/pipeline_reset_20260331.md",
+      "slug": "journal__pipeline_reset_20260331.md",
+      "data_file": "files/041dcc89b72de8f9.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 75,
+      "bytes": 2592,
+      "truncated": false
+    },
+    {
+      "path": "journal/portfolio_data_audit_2026-04-16.md",
+      "slug": "journal__portfolio_data_audit_2026-04-16.md",
+      "data_file": "files/6f647e8221c56da5.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 114,
+      "bytes": 6129,
+      "truncated": false
+    },
+    {
+      "path": "journal/portfolio_face_strategy.md",
+      "slug": "journal__portfolio_face_strategy.md",
+      "data_file": "files/e44333009ff493be.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 86,
+      "bytes": 4436,
+      "truncated": false
+    },
+    {
+      "path": "journal/portfolio_hero_factors.md",
+      "slug": "journal__portfolio_hero_factors.md",
+      "data_file": "files/ef57e7851bd64007.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 91,
+      "bytes": 5098,
+      "truncated": false
+    },
+    {
+      "path": "journal/project_overview_20260325.md",
+      "slug": "journal__project_overview_20260325.md",
+      "data_file": "files/7e6ff4aa403c17ab.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 205,
+      "bytes": 8573,
+      "truncated": false
+    },
+    {
+      "path": "journal/regime_boundary_analysis_20260423.md",
+      "slug": "journal__regime_boundary_analysis_20260423.md",
+      "data_file": "files/5c36ce67d1bc72b1.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 189,
+      "bytes": 6162,
+      "truncated": false
+    },
+    {
+      "path": "journal/regime_decision_tree_20260422.md",
+      "slug": "journal__regime_decision_tree_20260422.md",
+      "data_file": "files/b4c8e101dcf7c3ea.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 217,
+      "bytes": 9170,
+      "truncated": false
+    },
+    {
+      "path": "journal/regime_robust_factor_scan_20260419.md",
+      "slug": "journal__regime_robust_factor_scan_20260419.md",
+      "data_file": "files/8bc8319d224dba64.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 69,
+      "bytes": 5105,
+      "truncated": false
+    },
+    {
+      "path": "journal/reversal_factors_eval_20260417.md",
+      "slug": "journal__reversal_factors_eval_20260417.md",
+      "data_file": "files/7f8d7b72366c9427.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 99,
+      "bytes": 4387,
+      "truncated": false
+    },
+    {
+      "path": "journal/riad_fold3_diagnosis_20260422.md",
+      "slug": "journal__riad_fold3_diagnosis_20260422.md",
+      "data_file": "files/4047219d838642ed.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 142,
+      "bytes": 5971,
+      "truncated": false
+    },
+    {
+      "path": "journal/riad_mfd_factor_result_20260422.md",
+      "slug": "journal__riad_mfd_factor_result_20260422.md",
+      "data_file": "files/52e6a68b5e25db88.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 393,
+      "bytes": 15989,
+      "truncated": false
+    },
+    {
+      "path": "journal/risk_infra_roadmap_phase8_20260423.md",
+      "slug": "journal__risk_infra_roadmap_phase8_20260423.md",
+      "data_file": "files/a36849c7cc09c5cc.json",
+      "language": "markdown",
+      "kind": "risk",
+      "lines": 774,
+      "bytes": 27643,
+      "truncated": false
+    },
+    {
+      "path": "journal/rogt_v8_validation_20260414.md",
+      "slug": "journal__rogt_v8_validation_20260414.md",
+      "data_file": "files/6411e1027155aca4.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 113,
+      "bytes": 4944,
+      "truncated": false
+    },
+    {
+      "path": "journal/rx_factor_health_20260422.md",
+      "slug": "journal__rx_factor_health_20260422.md",
+      "data_file": "files/bd8f32f7f334efe1.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 136,
+      "bytes": 5008,
+      "truncated": false
+    },
+    {
+      "path": "journal/rx_factor_monitor_first_readout_20260422.md",
+      "slug": "journal__rx_factor_monitor_first_readout_20260422.md",
+      "data_file": "files/79e91e0c25658b2b.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 91,
+      "bytes": 3965,
+      "truncated": false
+    },
+    {
+      "path": "journal/session_log_2026-04-05.md",
+      "slug": "journal__session_log_2026-04-05.md",
+      "data_file": "files/a7e0019ddd8d1dcd.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 69,
+      "bytes": 2995,
+      "truncated": false
+    },
+    {
+      "path": "journal/session_report_20260324.md",
+      "slug": "journal__session_report_20260324.md",
+      "data_file": "files/f549944e56d9fa7d.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 232,
+      "bytes": 8553,
+      "truncated": false
+    },
+    {
+      "path": "journal/strategy_admission_decision_20260324.md",
+      "slug": "journal__strategy_admission_decision_20260324.md",
+      "data_file": "files/b871c4e5135c1d48.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 87,
+      "bytes": 3721,
+      "truncated": false
+    },
+    {
+      "path": "journal/strategy_admission_decision_v6_20260325.md",
+      "slug": "journal__strategy_admission_decision_v6_20260325.md",
+      "data_file": "files/f657253b0d4052b7.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 137,
+      "bytes": 7115,
+      "truncated": false
+    },
+    {
+      "path": "journal/strategy_admission_decision_v6_biweekly_20260326.md",
+      "slug": "journal__strategy_admission_decision_v6_biweekly_20260326.md",
+      "data_file": "files/7ad3d74f6cc29d31.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 126,
+      "bytes": 5811,
+      "truncated": false
+    },
+    {
+      "path": "journal/strategy_admission_decision_v7_industry_neutral_20260403.md",
+      "slug": "journal__strategy_admission_decision_v7_industry_neutral_20260403.md",
+      "data_file": "files/9537297b7d7f6c10.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 178,
+      "bytes": 8174,
+      "truncated": false
+    },
+    {
+      "path": "journal/strategy_eval_20260324.md",
+      "slug": "journal__strategy_eval_20260324.md",
+      "data_file": "files/82adf1d52f9c15d6.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 93,
+      "bytes": 2781,
+      "truncated": false
+    },
+    {
+      "path": "journal/stress_test_results_20260423.md",
+      "slug": "journal__stress_test_results_20260423.md",
+      "data_file": "files/905a2300c74506a2.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 80,
+      "bytes": 3452,
+      "truncated": false
+    },
+    {
+      "path": "journal/stress_test_results_20260423_spec_v3_repr.md",
+      "slug": "journal__stress_test_results_20260423_spec_v3_repr.md",
+      "data_file": "files/bc09c289120012a2.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 80,
+      "bytes": 3452,
+      "truncated": false
+    },
+    {
+      "path": "journal/suspend_reopen_reversal_eval_20260422.md",
+      "slug": "journal__suspend_reopen_reversal_eval_20260422.md",
+      "data_file": "files/4d981e92bc77c2ef.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 31,
+      "bytes": 745,
+      "truncated": false
+    },
+    {
+      "path": "journal/tsm_index_20260417.md",
+      "slug": "journal__tsm_index_20260417.md",
+      "data_file": "files/7623f3fea8309e88.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 60,
+      "bytes": 2694,
+      "truncated": false
+    },
+    {
+      "path": "journal/tushare_access_guide_20260423.md",
+      "slug": "journal__tushare_access_guide_20260423.md",
+      "data_file": "files/904fcbf5f188c392.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 244,
+      "bytes": 11079,
+      "truncated": false
+    },
+    {
+      "path": "journal/tushare_data_inventory_20260420.md",
+      "slug": "journal__tushare_data_inventory_20260420.md",
+      "data_file": "files/d59d8f05399a0d69.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 141,
+      "bytes": 7888,
+      "truncated": false
+    },
+    {
+      "path": "journal/v10_icir_stoploss_eval_20260416.md",
+      "slug": "journal__v10_icir_stoploss_eval_20260416.md",
+      "data_file": "files/7fe6ed22ea8aa2d3.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 121,
+      "bytes": 5348,
+      "truncated": false
+    },
+    {
+      "path": "journal/v10_reversal_eval_20260418.md",
+      "slug": "journal__v10_reversal_eval_20260418.md",
+      "data_file": "files/5ee7881914a337df.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 46,
+      "bytes": 1215,
+      "truncated": false
+    },
+    {
+      "path": "journal/v11_adaptive_stop_eval_20260416.md",
+      "slug": "journal__v11_adaptive_stop_eval_20260416.md",
+      "data_file": "files/819b98422e9db18f.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 130,
+      "bytes": 5476,
+      "truncated": false
+    },
+    {
+      "path": "journal/v11_regime_eval_20260419.md",
+      "slug": "journal__v11_regime_eval_20260419.md",
+      "data_file": "files/4daf95398090c634.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 51,
+      "bytes": 1676,
+      "truncated": false
+    },
+    {
+      "path": "journal/v12_partial_regime_eval_20260419.md",
+      "slug": "journal__v12_partial_regime_eval_20260419.md",
+      "data_file": "files/604a14469e1f0388.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 37,
+      "bytes": 1267,
+      "truncated": false
+    },
+    {
+      "path": "journal/v16_capm_alpha_20260417.md",
+      "slug": "journal__v16_capm_alpha_20260417.md",
+      "data_file": "files/616ce5dd9dbe162a.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 104,
+      "bytes": 4709,
+      "truncated": false
+    },
+    {
+      "path": "journal/v16_capm_zz500_hedge_20260417.md",
+      "slug": "journal__v16_capm_zz500_hedge_20260417.md",
+      "data_file": "files/7b256a3cdf385122.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 73,
+      "bytes": 2973,
+      "truncated": false
+    },
+    {
+      "path": "journal/v16_regime_ic_20260417.md",
+      "slug": "journal__v16_regime_ic_20260417.md",
+      "data_file": "files/febd8453cd04898c.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 82,
+      "bytes": 6700,
+      "truncated": false
+    },
+    {
+      "path": "journal/v16_tsm_ensemble_20260417.md",
+      "slug": "journal__v16_tsm_ensemble_20260417.md",
+      "data_file": "files/96242a7e2194c1e6.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 51,
+      "bytes": 2654,
+      "truncated": false
+    },
+    {
+      "path": "journal/v17_crowding_aware_eval_20260421.md",
+      "slug": "journal__v17_crowding_aware_eval_20260421.md",
+      "data_file": "files/11111a379036bdee.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 48,
+      "bytes": 1909,
+      "truncated": false
+    },
+    {
+      "path": "journal/v17_oos_eval_20260421.md",
+      "slug": "journal__v17_oos_eval_20260421.md",
+      "data_file": "files/eb66b6e21b47f3d6.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 34,
+      "bytes": 1002,
+      "truncated": false
+    },
+    {
+      "path": "journal/v18_ind_reversal_oos_20260421.md",
+      "slug": "journal__v18_ind_reversal_oos_20260421.md",
+      "data_file": "files/2cbe2dc220a9bfc8.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 26,
+      "bytes": 836,
+      "truncated": false
+    },
+    {
+      "path": "journal/v18_regime_overlay_20260421.md",
+      "slug": "journal__v18_regime_overlay_20260421.md",
+      "data_file": "files/c290b5a0f98ddf0c.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 37,
+      "bytes": 996,
+      "truncated": false
+    },
+    {
+      "path": "journal/v25_2022_postmortem_20260417.md",
+      "slug": "journal__v25_2022_postmortem_20260417.md",
+      "data_file": "files/eadbfc0a8cc560b8.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 61,
+      "bytes": 3467,
+      "truncated": false
+    },
+    {
+      "path": "journal/v25_oos_audit_20260417.md",
+      "slug": "journal__v25_oos_audit_20260417.md",
+      "data_file": "files/171469776d2e5ed8.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 91,
+      "bytes": 4408,
+      "truncated": false
+    },
+    {
+      "path": "journal/v25_param_sweep_20260417.md",
+      "slug": "journal__v25_param_sweep_20260417.md",
+      "data_file": "files/127069a9e6933ee3.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 85,
+      "bytes": 5133,
+      "truncated": false
+    },
+    {
+      "path": "journal/v25_param_sweep_fresh_20260417.md",
+      "slug": "journal__v25_param_sweep_fresh_20260417.md",
+      "data_file": "files/bf72c0ad3cbd7b13.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 67,
+      "bytes": 3813,
+      "truncated": false
+    },
+    {
+      "path": "journal/v27_half_rigorous_audit_20260417.md",
+      "slug": "journal__v27_half_rigorous_audit_20260417.md",
+      "data_file": "files/dd27ab5f07a7b02e.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 79,
+      "bytes": 3699,
+      "truncated": false
+    },
+    {
+      "path": "journal/v27_regime_zero_vs_half_20260417.md",
+      "slug": "journal__v27_regime_zero_vs_half_20260417.md",
+      "data_file": "files/643ca0e981a56816.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 74,
+      "bytes": 3866,
+      "truncated": false
+    },
+    {
+      "path": "journal/v28_v16_plus_reversal_skip1m_20260417.md",
+      "slug": "journal__v28_v16_plus_reversal_skip1m_20260417.md",
+      "data_file": "files/c9860393a006f25a.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 52,
+      "bytes": 2281,
+      "truncated": false
+    },
+    {
+      "path": "journal/v33_reversal_ls_tradeable_20260417.md",
+      "slug": "journal__v33_reversal_ls_tradeable_20260417.md",
+      "data_file": "files/ef653d20a1e81232.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 58,
+      "bytes": 2337,
+      "truncated": false
+    },
+    {
+      "path": "journal/v34_v16_long_history_20260417.md",
+      "slug": "journal__v34_v16_long_history_20260417.md",
+      "data_file": "files/47f8069a8de10632.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 64,
+      "bytes": 2381,
+      "truncated": false
+    },
+    {
+      "path": "journal/v6_admission_eval_2026-03-25.md",
+      "slug": "journal__v6_admission_eval_2026-03-25.md",
+      "data_file": "files/b55f20bb0e5210fe.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 56,
+      "bytes": 1695,
+      "truncated": false
+    },
+    {
+      "path": "journal/v6_admission_eval_2026-03-26.md",
+      "slug": "journal__v6_admission_eval_2026-03-26.md",
+      "data_file": "files/64fa0cefe1d60f19.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 40,
+      "bytes": 1279,
+      "truncated": false
+    },
+    {
+      "path": "journal/v6_baseline_definition.md",
+      "slug": "journal__v6_baseline_definition.md",
+      "data_file": "files/40071825792910cc.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 207,
+      "bytes": 8241,
+      "truncated": false
+    },
+    {
+      "path": "journal/v6_biweekly_eval_20260326.md",
+      "slug": "journal__v6_biweekly_eval_20260326.md",
+      "data_file": "files/e8a9594b2ff35efd.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 175,
+      "bytes": 6832,
+      "truncated": false
+    },
+    {
+      "path": "journal/v6_biweekly_eval_result_20260326.md",
+      "slug": "journal__v6_biweekly_eval_result_20260326.md",
+      "data_file": "files/e651706bf34e075b.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 40,
+      "bytes": 1291,
+      "truncated": false
+    },
+    {
+      "path": "journal/v7_factor_ic_audit_20260407.md",
+      "slug": "journal__v7_factor_ic_audit_20260407.md",
+      "data_file": "files/152c72b4b16f1f0b.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 90,
+      "bytes": 4079,
+      "truncated": false
+    },
+    {
+      "path": "journal/v7_industry_neutral_eval_20260331.md",
+      "slug": "journal__v7_industry_neutral_eval_20260331.md",
+      "data_file": "files/5e6a77844dec31c2.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 67,
+      "bytes": 2928,
+      "truncated": false
+    },
+    {
+      "path": "journal/v7_industry_neutral_eval_20260403.md",
+      "slug": "journal__v7_industry_neutral_eval_20260403.md",
+      "data_file": "files/0c066c14753cf9bc.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 38,
+      "bytes": 1979,
+      "truncated": false
+    },
+    {
+      "path": "journal/v8_regime_adaptive_eval_20260414.md",
+      "slug": "journal__v8_regime_adaptive_eval_20260414.md",
+      "data_file": "files/2af6fff96bafabc4.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 65,
+      "bytes": 2562,
+      "truncated": false
+    },
+    {
+      "path": "journal/v8_regime_adaptive_eval_20260415.md",
+      "slug": "journal__v8_regime_adaptive_eval_20260415.md",
+      "data_file": "files/0c8cecf2e9ebf41c.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 65,
+      "bytes": 2726,
+      "truncated": false
+    },
+    {
+      "path": "journal/v9_icir_weighted_eval_20260416.md",
+      "slug": "journal__v9_icir_weighted_eval_20260416.md",
+      "data_file": "files/d8b1f4e3e69bca9b.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 123,
+      "bytes": 5108,
+      "truncated": false
+    },
+    {
+      "path": "journal/weekly/2026-W01.md",
+      "slug": "journal__weekly__2026-W01.md",
+      "data_file": "files/32811b0dc364a848.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 96,
+      "bytes": 3709,
+      "truncated": false
+    },
+    {
+      "path": "journal/weekly/2026-W12.md",
+      "slug": "journal__weekly__2026-W12.md",
+      "data_file": "files/c215d6dd3c8203a3.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 100,
+      "bytes": 3828,
+      "truncated": false
+    },
+    {
+      "path": "journal/weekly/2026-W13.md",
+      "slug": "journal__weekly__2026-W13.md",
+      "data_file": "files/884cc0de7a179ebd.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 96,
+      "bytes": 3709,
+      "truncated": false
+    },
+    {
+      "path": "journal/weekly/2026-W14.md",
+      "slug": "journal__weekly__2026-W14.md",
+      "data_file": "files/d87c888f756b81f1.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 230,
+      "bytes": 9594,
+      "truncated": false
+    },
+    {
+      "path": "journal/weekly/2026-W15.md",
+      "slug": "journal__weekly__2026-W15.md",
+      "data_file": "files/591f7d56ca7058c8.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 166,
+      "bytes": 6168,
+      "truncated": false
+    },
+    {
+      "path": "journal/weekly/2026-W16.md",
+      "slug": "journal__weekly__2026-W16.md",
+      "data_file": "files/2b14a22f7ad93b41.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 1633,
+      "bytes": 78179,
+      "truncated": false
+    },
+    {
+      "path": "journal/weekly/2026-W17.md",
+      "slug": "journal__weekly__2026-W17.md",
+      "data_file": "files/d5b429eafb6e3865.json",
+      "language": "markdown",
+      "kind": "journal",
+      "lines": 158,
+      "bytes": 7080,
+      "truncated": false
+    },
+    {
+      "path": "live/__init__.py",
+      "slug": "live____init__.py",
+      "data_file": "files/926097bd576d0742.json",
+      "language": "python",
+      "kind": "live",
+      "lines": 8,
+      "bytes": 194,
+      "truncated": false
+    },
+    {
+      "path": "live/broker_adapter.py",
+      "slug": "live__broker_adapter.py",
+      "data_file": "files/2b55e72f568b33b7.json",
+      "language": "python",
+      "kind": "live",
+      "lines": 618,
+      "bytes": 21402,
+      "truncated": false
+    },
+    {
+      "path": "live/event_kill_switch.py",
+      "slug": "live__event_kill_switch.py",
+      "data_file": "files/b7ca4317766c69a3.json",
+      "language": "python",
+      "kind": "live",
+      "lines": 289,
+      "bytes": 10378,
+      "truncated": false
+    },
+    {
+      "path": "live/event_paper_trader.py",
+      "slug": "live__event_paper_trader.py",
+      "data_file": "files/c81b612d5adcfc6c.json",
+      "language": "python",
+      "kind": "live",
+      "lines": 493,
+      "bytes": 19832,
+      "truncated": false
+    },
+    {
+      "path": "live/ledger.py",
+      "slug": "live__ledger.py",
+      "data_file": "files/b66f8e6b8dcfbcb5.json",
+      "language": "python",
+      "kind": "live",
+      "lines": 390,
+      "bytes": 15090,
+      "truncated": false
+    },
+    {
+      "path": "live/paper_trader.py",
+      "slug": "live__paper_trader.py",
+      "data_file": "files/353b16ec2ceadfc4.json",
+      "language": "python",
+      "kind": "live",
+      "lines": 815,
+      "bytes": 32816,
+      "truncated": false
+    },
+    {
+      "path": "live/risk_monitor.py",
+      "slug": "live__risk_monitor.py",
+      "data_file": "files/bf458c7426e597ab.json",
+      "language": "python",
+      "kind": "live",
+      "lines": 445,
+      "bytes": 16402,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/__init__.py",
+      "slug": "pipeline____init__.py",
+      "data_file": "files/983b67da3a4a9337.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 41,
+      "bytes": 1356,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/active_strategy.py",
+      "slug": "pipeline__active_strategy.py",
+      "data_file": "files/8fbf535f87f82afa.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 113,
+      "bytes": 3198,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/alert_notifier.py",
+      "slug": "pipeline__alert_notifier.py",
+      "data_file": "files/3e7eda45b436e57c.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 202,
+      "bytes": 5665,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/auto_gen_loader.py",
+      "slug": "pipeline__auto_gen_loader.py",
+      "data_file": "files/dc65f16ea5d5d0ad.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 161,
+      "bytes": 4738,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/capacity_monitor.py",
+      "slug": "pipeline__capacity_monitor.py",
+      "data_file": "files/1f2e2be8cfc39821.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 324,
+      "bytes": 12155,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/cli.py",
+      "slug": "pipeline__cli.py",
+      "data_file": "files/db77ac83abdba02d.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 1634,
+      "bytes": 65308,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/control_surface.py",
+      "slug": "pipeline__control_surface.py",
+      "data_file": "files/24570271e438cae8.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 455,
+      "bytes": 14453,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/daily_signal.py",
+      "slug": "pipeline__daily_signal.py",
+      "data_file": "files/646f4b1bbc5a0519.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 933,
+      "bytes": 41343,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/dashboard_export.py",
+      "slug": "pipeline__dashboard_export.py",
+      "data_file": "files/d17f7ecba29cfc44.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 291,
+      "bytes": 9538,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/data_checker.py",
+      "slug": "pipeline__data_checker.py",
+      "data_file": "files/c2d65fa4ea0e8e74.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 143,
+      "bytes": 4477,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/data_update.py",
+      "slug": "pipeline__data_update.py",
+      "data_file": "files/68594343c3ea0e8a.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 429,
+      "bytes": 15425,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/event_signal.py",
+      "slug": "pipeline__event_signal.py",
+      "data_file": "files/a533b38c952a8c21.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 356,
+      "bytes": 14723,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/experiment_runner.py",
+      "slug": "pipeline__experiment_runner.py",
+      "data_file": "files/601133184f44bee7.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 271,
+      "bytes": 10001,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/experiment_store.py",
+      "slug": "pipeline__experiment_store.py",
+      "data_file": "files/2a025b8d001bde56.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 283,
+      "bytes": 10090,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/experiment_summarizer.py",
+      "slug": "pipeline__experiment_summarizer.py",
+      "data_file": "files/76ecb7b6b5e38c3b.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 260,
+      "bytes": 8670,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/factor_monitor.py",
+      "slug": "pipeline__factor_monitor.py",
+      "data_file": "files/c2a01c8c8e0ca0cc.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 349,
+      "bytes": 12380,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/idea_to_strategy.py",
+      "slug": "pipeline__idea_to_strategy.py",
+      "data_file": "files/373266aa66a521e7.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 1122,
+      "bytes": 44936,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/live_data_service.py",
+      "slug": "pipeline__live_data_service.py",
+      "data_file": "files/7e085a4e2d00ead5.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 264,
+      "bytes": 9351,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/live_vs_backtest.py",
+      "slug": "pipeline__live_vs_backtest.py",
+      "data_file": "files/2e422ad0375d5708.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 545,
+      "bytes": 19762,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/orchestrator.py",
+      "slug": "pipeline__orchestrator.py",
+      "data_file": "files/99798bccaba4e108.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 337,
+      "bytes": 11615,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/regime_detector.py",
+      "slug": "pipeline__regime_detector.py",
+      "data_file": "files/0c7eb6edc9372c4b.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 256,
+      "bytes": 11076,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/research_planner.py",
+      "slug": "pipeline__research_planner.py",
+      "data_file": "files/c97b779134189b9e.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 305,
+      "bytes": 12642,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/risk_gate.py",
+      "slug": "pipeline__risk_gate.py",
+      "data_file": "files/3f3a2fd12e16401d.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 211,
+      "bytes": 7394,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/run_store.py",
+      "slug": "pipeline__run_store.py",
+      "data_file": "files/cda89a048984d346.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 372,
+      "bytes": 11941,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/rx_factor_monitor.py",
+      "slug": "pipeline__rx_factor_monitor.py",
+      "data_file": "files/e654a58a1a89b4ba.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 447,
+      "bytes": 15773,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/strategy_registry.py",
+      "slug": "pipeline__strategy_registry.py",
+      "data_file": "files/00955337577c3ae9.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 2510,
+      "bytes": 109307,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/vol_targeting.py",
+      "slug": "pipeline__vol_targeting.py",
+      "data_file": "files/5c0b4fb6bc922c70.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 230,
+      "bytes": 8304,
+      "truncated": false
+    },
+    {
+      "path": "pipeline/weekly_report.py",
+      "slug": "pipeline__weekly_report.py",
+      "data_file": "files/59d1afba79c06899.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 782,
+      "bytes": 25834,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/scripts/export_data.py",
+      "slug": "portfolio__scripts__export_data.py",
+      "data_file": "files/9f8ff84e5debee8a.json",
+      "language": "python",
+      "kind": "site",
+      "lines": 1000,
+      "bytes": 37513,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/glossary/page.tsx",
+      "slug": "portfolio__src__app__glossary__page.tsx",
+      "data_file": "files/a9c5c69beb53c602.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 169,
+      "bytes": 6601,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/infrastructure/page.tsx",
+      "slug": "portfolio__src__app__infrastructure__page.tsx",
+      "data_file": "files/35cedaa63d47061e.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 347,
+      "bytes": 14849,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/journey/page.tsx",
+      "slug": "portfolio__src__app__journey__page.tsx",
+      "data_file": "files/967791890f7a9e25.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 329,
+      "bytes": 15051,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/layout.tsx",
+      "slug": "portfolio__src__app__layout.tsx",
+      "data_file": "files/1d6a1aa9635f43ea.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 37,
+      "bytes": 1204,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/live/page.tsx",
+      "slug": "portfolio__src__app__live__page.tsx",
+      "data_file": "files/14c9db052bcdc492.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 298,
+      "bytes": 15195,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/live/paper-trade/NavCurve.tsx",
+      "slug": "portfolio__src__app__live__paper-trade__NavCurve.tsx",
+      "data_file": "files/be4ca86137c4edbe.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 172,
+      "bytes": 5174,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/live/paper-trade/page.tsx",
+      "slug": "portfolio__src__app__live__paper-trade__page.tsx",
+      "data_file": "files/4acde42a6af42a32.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 397,
+      "bytes": 17106,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/page.tsx",
+      "slug": "portfolio__src__app__page.tsx",
+      "data_file": "files/760c9f06ebb96519.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 303,
+      "bytes": 15054,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/preview/terminal/page.tsx",
+      "slug": "portfolio__src__app__preview__terminal__page.tsx",
+      "data_file": "files/6597351da04a963c.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 674,
+      "bytes": 31733,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/research/[slug]/page.tsx",
+      "slug": "portfolio__src__app__research__slug__page.tsx",
+      "data_file": "files/4439beec63a90e2b.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 599,
+      "bytes": 21497,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/research/category/[cat]/page.tsx",
+      "slug": "portfolio__src__app__research__category__cat__page.tsx",
+      "data_file": "files/0f38007c28924333.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 279,
+      "bytes": 11396,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/research/event-driven/[id]/page.tsx",
+      "slug": "portfolio__src__app__research__event-driven__id__page.tsx",
+      "data_file": "files/37c14c22a21cb428.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 380,
+      "bytes": 13370,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/research/event-driven/page.tsx",
+      "slug": "portfolio__src__app__research__event-driven__page.tsx",
+      "data_file": "files/11b4a4679d7b5330.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 864,
+      "bytes": 39588,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/research/page.tsx",
+      "slug": "portfolio__src__app__research__page.tsx",
+      "data_file": "files/83f497c1732b6954.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 227,
+      "bytes": 10649,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/source/[slug]/page.tsx",
+      "slug": "portfolio__src__app__source__slug__page.tsx",
+      "data_file": "files/c855382fa1db1ab8.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 97,
+      "bytes": 3699,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/source/page.tsx",
+      "slug": "portfolio__src__app__source__page.tsx",
+      "data_file": "files/c385f8ae962aea76.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 99,
+      "bytes": 3318,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/strategy/candidates/page.tsx",
+      "slug": "portfolio__src__app__strategy__candidates__page.tsx",
+      "data_file": "files/6165457be9f0c322.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 395,
+      "bytes": 15262,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/strategy/multi-factor/[version]/page.tsx",
+      "slug": "portfolio__src__app__strategy__multi-factor__version__page.tsx",
+      "data_file": "files/0a2d0a34b6f01223.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 190,
+      "bytes": 6749,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/strategy/multi-factor/page.tsx",
+      "slug": "portfolio__src__app__strategy__multi-factor__page.tsx",
+      "data_file": "files/d4e998e210523415.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 139,
+      "bytes": 5566,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/strategy/page.tsx",
+      "slug": "portfolio__src__app__strategy__page.tsx",
+      "data_file": "files/25b0cede306f333f.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 571,
+      "bytes": 20231,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/app/validation/page.tsx",
+      "slug": "portfolio__src__app__validation__page.tsx",
+      "data_file": "files/840b54c94d8fdf43.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 516,
+      "bytes": 20492,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/cards/CategoryBadge.tsx",
+      "slug": "portfolio__src__components__cards__CategoryBadge.tsx",
+      "data_file": "files/f95154631866e786.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 32,
+      "bytes": 959,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/cards/FactorCard.tsx",
+      "slug": "portfolio__src__components__cards__FactorCard.tsx",
+      "data_file": "files/f6a25b5593845483.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 88,
+      "bytes": 2967,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/layout/Breadcrumb.tsx",
+      "slug": "portfolio__src__components__layout__Breadcrumb.tsx",
+      "data_file": "files/acf466f066ec6382.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 28,
+      "bytes": 773,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/layout/LanguageText.tsx",
+      "slug": "portfolio__src__components__layout__LanguageText.tsx",
+      "data_file": "files/5945ce40b8b66e33.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 14,
+      "bytes": 212,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/layout/LanguageToggle.tsx",
+      "slug": "portfolio__src__components__layout__LanguageToggle.tsx",
+      "data_file": "files/1b472e4d9cbc36c5.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 53,
+      "bytes": 1542,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/layout/Navbar.tsx",
+      "slug": "portfolio__src__components__layout__Navbar.tsx",
+      "data_file": "files/3df368a90ffeacbb.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 51,
+      "bytes": 1990,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/layout/PageHeader.tsx",
+      "slug": "portfolio__src__components__layout__PageHeader.tsx",
+      "data_file": "files/f7987999abb0f550.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 52,
+      "bytes": 1510,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/layout/Primitives.tsx",
+      "slug": "portfolio__src__components__layout__Primitives.tsx",
+      "data_file": "files/04bf1fd0f0cc594f.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 164,
+      "bytes": 4537,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/research/FactorLibrary.tsx",
+      "slug": "portfolio__src__components__research__FactorLibrary.tsx",
+      "data_file": "files/762becb18930012d.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 203,
+      "bytes": 6862,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/source/SourceLink.tsx",
+      "slug": "portfolio__src__components__source__SourceLink.tsx",
+      "data_file": "files/6709d3352e38f827.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 45,
+      "bytes": 1289,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/viz/DecayChart.tsx",
+      "slug": "portfolio__src__components__viz__DecayChart.tsx",
+      "data_file": "files/8b1a096c1ef3256c.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 101,
+      "bytes": 2897,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/viz/EquityChart.tsx",
+      "slug": "portfolio__src__components__viz__EquityChart.tsx",
+      "data_file": "files/467397db2273e77c.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 135,
+      "bytes": 3807,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/viz/FormulaDisplay.tsx",
+      "slug": "portfolio__src__components__viz__FormulaDisplay.tsx",
+      "data_file": "files/568de6e940b4f313.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 23,
+      "bytes": 595,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/viz/GaugeRing.tsx",
+      "slug": "portfolio__src__components__viz__GaugeRing.tsx",
+      "data_file": "files/b227c313e1440447.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 91,
+      "bytes": 2390,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/viz/ICTrendChart.tsx",
+      "slug": "portfolio__src__components__viz__ICTrendChart.tsx",
+      "data_file": "files/9a6cd08f00a0c637.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 96,
+      "bytes": 2773,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/viz/MetricGrid.tsx",
+      "slug": "portfolio__src__components__viz__MetricGrid.tsx",
+      "data_file": "files/29e78c30656d253a.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 39,
+      "bytes": 1059,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/viz/MiniSparkline.tsx",
+      "slug": "portfolio__src__components__viz__MiniSparkline.tsx",
+      "data_file": "files/606b10108ff40cf9.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 75,
+      "bytes": 1715,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/components/viz/QuintileChart.tsx",
+      "slug": "portfolio__src__components__viz__QuintileChart.tsx",
+      "data_file": "files/e92580d18dfa0909.json",
+      "language": "tsx",
+      "kind": "site",
+      "lines": 93,
+      "bytes": 2472,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/lib/constants.ts",
+      "slug": "portfolio__src__lib__constants.ts",
+      "data_file": "files/0c42573b20e090f2.json",
+      "language": "typescript",
+      "kind": "site",
+      "lines": 40,
+      "bytes": 1924,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/lib/data.ts",
+      "slug": "portfolio__src__lib__data.ts",
+      "data_file": "files/f1bf35f6b7ad6ec8.json",
+      "language": "typescript",
+      "kind": "site",
+      "lines": 38,
+      "bytes": 1219,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/lib/formatters.ts",
+      "slug": "portfolio__src__lib__formatters.ts",
+      "data_file": "files/6d4408d840fb6f4b.json",
+      "language": "typescript",
+      "kind": "site",
+      "lines": 28,
+      "bytes": 1115,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/lib/source.ts",
+      "slug": "portfolio__src__lib__source.ts",
+      "data_file": "files/d870bea7491f512a.json",
+      "language": "typescript",
+      "kind": "site",
+      "lines": 16,
+      "bytes": 480,
+      "truncated": false
+    },
+    {
+      "path": "portfolio/src/lib/types.ts",
+      "slug": "portfolio__src__lib__types.ts",
+      "data_file": "files/24291245e9a1887f.json",
+      "language": "typescript",
+      "kind": "site",
+      "lines": 581,
+      "bytes": 12198,
+      "truncated": false
+    },
+    {
+      "path": "providers/__init__.py",
+      "slug": "providers____init__.py",
+      "data_file": "files/964cd906fddca75e.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 19,
+      "bytes": 691,
+      "truncated": false
+    },
+    {
+      "path": "providers/akshare_provider.py",
+      "slug": "providers__akshare_provider.py",
+      "data_file": "files/b2be89bdc0386818.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 200,
+      "bytes": 6237,
+      "truncated": false
+    },
+    {
+      "path": "providers/baostock_provider.py",
+      "slug": "providers__baostock_provider.py",
+      "data_file": "files/3d5e7a59ce2a584b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 226,
+      "bytes": 6749,
+      "truncated": false
+    },
+    {
+      "path": "providers/base.py",
+      "slug": "providers__base.py",
+      "data_file": "files/462e0f0a89eb2b79.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 87,
+      "bytes": 2530,
+      "truncated": false
+    },
+    {
+      "path": "providers/sina_provider.py",
+      "slug": "providers__sina_provider.py",
+      "data_file": "files/ac2bbdc0b293fb4b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 201,
+      "bytes": 6306,
+      "truncated": false
+    },
+    {
+      "path": "providers/tushare_provider.py",
+      "slug": "providers__tushare_provider.py",
+      "data_file": "files/b5a20946e613173b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 330,
+      "bytes": 11543,
+      "truncated": false
+    },
+    {
+      "path": "pyproject.toml",
+      "slug": "pyproject.toml",
+      "data_file": "files/5d07e7d72637aa0d.json",
+      "language": "toml",
+      "kind": "other",
+      "lines": 17,
+      "bytes": 410,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/__init__.py",
+      "slug": "quant_dojo____init__.py",
+      "data_file": "files/32d5eeaabf7efbca.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 2,
+      "bytes": 71,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/__main__.py",
+      "slug": "quant_dojo____main__.py",
+      "data_file": "files/5382060d2355e6f8.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 352,
+      "bytes": 14030,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/__init__.py",
+      "slug": "quant_dojo__commands____init__.py",
+      "data_file": "files/10d78fb22c6d2f85.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 0,
+      "bytes": 0,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/activate.py",
+      "slug": "quant_dojo__commands__activate.py",
+      "data_file": "files/7ce9f016a743e85b.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 98,
+      "bytes": 4002,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/backtest.py",
+      "slug": "quant_dojo__commands__backtest.py",
+      "data_file": "files/04fde2b7670e3891.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 112,
+      "bytes": 3706,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/compare.py",
+      "slug": "quant_dojo__commands__compare.py",
+      "data_file": "files/a8f5aa83cb029b44.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 177,
+      "bytes": 6410,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/dashboard.py",
+      "slug": "quant_dojo__commands__dashboard.py",
+      "data_file": "files/65a0a9e95a31f2a0.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 49,
+      "bytes": 1773,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/diff.py",
+      "slug": "quant_dojo__commands__diff.py",
+      "data_file": "files/1ffa3dfa8479f8dc.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 179,
+      "bytes": 7340,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/doctor.py",
+      "slug": "quant_dojo__commands__doctor.py",
+      "data_file": "files/ccc9fc2d1881725c.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 171,
+      "bytes": 6378,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/generate.py",
+      "slug": "quant_dojo__commands__generate.py",
+      "data_file": "files/d75518fda74b664d.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 512,
+      "bytes": 17450,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/history.py",
+      "slug": "quant_dojo__commands__history.py",
+      "data_file": "files/dd663485d4fd4c44.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 267,
+      "bytes": 10133,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/init.py",
+      "slug": "quant_dojo__commands__init.py",
+      "data_file": "files/24f797b48f31ddf3.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 207,
+      "bytes": 6736,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/logs.py",
+      "slug": "quant_dojo__commands__logs.py",
+      "data_file": "files/878ec48bc530923a.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 72,
+      "bytes": 2285,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/notify.py",
+      "slug": "quant_dojo__commands__notify.py",
+      "data_file": "files/04a0d305678e675f.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 94,
+      "bytes": 2932,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/quickstart.py",
+      "slug": "quant_dojo__commands__quickstart.py",
+      "data_file": "files/c9f05360228db197.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 144,
+      "bytes": 5560,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/report.py",
+      "slug": "quant_dojo__commands__report.py",
+      "data_file": "files/da484d1a773788ee.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 115,
+      "bytes": 4160,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/run.py",
+      "slug": "quant_dojo__commands__run.py",
+      "data_file": "files/10ec1d752be286e7.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 440,
+      "bytes": 15223,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/schedule.py",
+      "slug": "quant_dojo__commands__schedule.py",
+      "data_file": "files/40856bed9f1ee0c4.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 99,
+      "bytes": 2902,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/signals.py",
+      "slug": "quant_dojo__commands__signals.py",
+      "data_file": "files/9d96af636f076f2c.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 72,
+      "bytes": 2031,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/status.py",
+      "slug": "quant_dojo__commands__status.py",
+      "data_file": "files/42b8faca6ebda863.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 311,
+      "bytes": 9718,
+      "truncated": false
+    },
+    {
+      "path": "quant_dojo/commands/update.py",
+      "slug": "quant_dojo__commands__update.py",
+      "data_file": "files/b64a8884f9e1ac06.json",
+      "language": "python",
+      "kind": "pipeline",
+      "lines": 105,
+      "bytes": 3963,
+      "truncated": false
+    },
+    {
+      "path": "research/README.md",
+      "slug": "research__README.md",
+      "data_file": "files/601779a9946a30a4.json",
+      "language": "markdown",
+      "kind": "research",
+      "lines": 50,
+      "bytes": 1325,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/DSR31_SPEC.md",
+      "slug": "research__event_driven__DSR31_SPEC.md",
+      "data_file": "files/9a3cb97c9223f4cf.json",
+      "language": "markdown",
+      "kind": "research",
+      "lines": 67,
+      "bytes": 2897,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/NEXT_STEPS.md",
+      "slug": "research__event_driven__NEXT_STEPS.md",
+      "data_file": "files/6fdab7f1053f8ac9.json",
+      "language": "markdown",
+      "kind": "research",
+      "lines": 84,
+      "bytes": 4236,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/PHASE4_SPEC.md",
+      "slug": "research__event_driven__PHASE4_SPEC.md",
+      "data_file": "files/cc70ebe35a83f7c5.json",
+      "language": "markdown",
+      "kind": "research",
+      "lines": 122,
+      "bytes": 4143,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/README.md",
+      "slug": "research__event_driven__README.md",
+      "data_file": "files/616569d13604cbd3.json",
+      "language": "markdown",
+      "kind": "research",
+      "lines": 110,
+      "bytes": 5738,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/block_trade_inst_accum_strategy.py",
+      "slug": "research__event_driven__block_trade_inst_accum_strategy.py",
+      "data_file": "files/8aa7b53c16c51e70.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 272,
+      "bytes": 11229,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/block_trade_sanity.py",
+      "slug": "research__event_driven__block_trade_sanity.py",
+      "data_file": "files/8b5ca115324a14b8.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 213,
+      "bytes": 8678,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/block_trade_sanity_v2.py",
+      "slug": "research__event_driven__block_trade_sanity_v2.py",
+      "data_file": "files/d9bd8aae9079e5a8.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 147,
+      "bytes": 6845,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/bta_postmortem.py",
+      "slug": "research__event_driven__bta_postmortem.py",
+      "data_file": "files/c9c9aef36558e639.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 110,
+      "bytes": 4743,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/build_raw_close_panel.py",
+      "slug": "research__event_driven__build_raw_close_panel.py",
+      "data_file": "files/34edd0bbc5c780d8.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 51,
+      "bytes": 1728,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/buyback_hedged_strategy.py",
+      "slug": "research__event_driven__buyback_hedged_strategy.py",
+      "data_file": "files/ac3d81e50de40457.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 200,
+      "bytes": 7594,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/buyback_hedged_v2_strategy.py",
+      "slug": "research__event_driven__buyback_hedged_v2_strategy.py",
+      "data_file": "files/ab6a874f466c206d.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 187,
+      "bytes": 7446,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/buyback_long_only_strategy.py",
+      "slug": "research__event_driven__buyback_long_only_strategy.py",
+      "data_file": "files/d997a544815b0d1a.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 200,
+      "bytes": 7369,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/buyback_strategy.py",
+      "slug": "research__event_driven__buyback_strategy.py",
+      "data_file": "files/fb5f1bfa98d303ac.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 227,
+      "bytes": 8858,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/dividend_drift_strategy.py",
+      "slug": "research__event_driven__dividend_drift_strategy.py",
+      "data_file": "files/d70dde3a7edcd240.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 206,
+      "bytes": 7622,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/dsr29_mainboard_filter.py",
+      "slug": "research__event_driven__dsr29_mainboard_filter.py",
+      "data_file": "files/dd9307b324ade610.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 148,
+      "bytes": 5358,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/dsr30_mainboard_recal.py",
+      "slug": "research__event_driven__dsr30_mainboard_recal.py",
+      "data_file": "files/c4d1cc31695b944a.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 157,
+      "bytes": 5849,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/dsr30_standalone_wf.py",
+      "slug": "research__event_driven__dsr30_standalone_wf.py",
+      "data_file": "files/29ff70afa1e5394e.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 311,
+      "bytes": 12048,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/dsr31_three_way_ensemble.py",
+      "slug": "research__event_driven__dsr31_three_way_ensemble.py",
+      "data_file": "files/ee60ae08d4046564.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 188,
+      "bytes": 6859,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/dsr36_bta_cluster_strategy.py",
+      "slug": "research__event_driven__dsr36_bta_cluster_strategy.py",
+      "data_file": "files/640943eb95e72ad0.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 197,
+      "bytes": 7902,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/dsr37_post_unlock_reversal.py",
+      "slug": "research__event_driven__dsr37_post_unlock_reversal.py",
+      "data_file": "files/7c8df78111a09b08.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 233,
+      "bytes": 9523,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/dsr_data_upgrade_pv_15yr.py",
+      "slug": "research__event_driven__dsr_data_upgrade_pv_15yr.py",
+      "data_file": "files/a1c1e0323b2252d6.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 111,
+      "bytes": 4608,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/earnings_preview_strategy.py",
+      "slug": "research__event_driven__earnings_preview_strategy.py",
+      "data_file": "files/d5475508827f8685.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 197,
+      "bytes": 7388,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/ensemble_v1_strategy.py",
+      "slug": "research__event_driven__ensemble_v1_strategy.py",
+      "data_file": "files/2d5c97326e6858ae.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 103,
+      "bytes": 3764,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/event_study.py",
+      "slug": "research__event_driven__event_study.py",
+      "data_file": "files/2c87131ea6e97de8.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 146,
+      "bytes": 5174,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/insider_purchase_strategy.py",
+      "slug": "research__event_driven__insider_purchase_strategy.py",
+      "data_file": "files/c79d41fd92e24e93.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 177,
+      "bytes": 6452,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/lhb_amplitude_strategy.py",
+      "slug": "research__event_driven__lhb_amplitude_strategy.py",
+      "data_file": "files/0cfb718e3762d091.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 134,
+      "bytes": 5419,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/lhb_decline_contrarian_strategy.py",
+      "slug": "research__event_driven__lhb_decline_contrarian_strategy.py",
+      "data_file": "files/4b5674b97a7f91fe.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 146,
+      "bytes": 6094,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/lhb_momentum_strategy.py",
+      "slug": "research__event_driven__lhb_momentum_strategy.py",
+      "data_file": "files/6b68fe757b0dcd00.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 200,
+      "bytes": 7520,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/lhb_turnover_strategy.py",
+      "slug": "research__event_driven__lhb_turnover_strategy.py",
+      "data_file": "files/3c63db177bb8481d.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 150,
+      "bytes": 6086,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/lockup_strategy.py",
+      "slug": "research__event_driven__lockup_strategy.py",
+      "data_file": "files/9c42d57084ebce08.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 198,
+      "bytes": 7085,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/lockup_v2_strategy.py",
+      "slug": "research__event_driven__lockup_v2_strategy.py",
+      "data_file": "files/02d681fa3ecffca2.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 222,
+      "bytes": 8365,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/lockup_v3_strategy.py",
+      "slug": "research__event_driven__lockup_v3_strategy.py",
+      "data_file": "files/e19c8aaa330974e8.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 217,
+      "bytes": 8007,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/pead_strategy.py",
+      "slug": "research__event_driven__pead_strategy.py",
+      "data_file": "files/1bb3cc36a52f14ff.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 253,
+      "bytes": 8987,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/phase3_postmortem_gross_cap.py",
+      "slug": "research__event_driven__phase3_postmortem_gross_cap.py",
+      "data_file": "files/2253f0d44293a1db.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 177,
+      "bytes": 6986,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/phase4_risk_overlays.py",
+      "slug": "research__event_driven__phase4_risk_overlays.py",
+      "data_file": "files/29fac18871db03fb.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 225,
+      "bytes": 9598,
+      "truncated": false
+    },
+    {
+      "path": "research/event_driven/wf_and_stress.py",
+      "slug": "research__event_driven__wf_and_stress.py",
+      "data_file": "files/5ff75fe7890f3a29.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 367,
+      "bytes": 14984,
+      "truncated": false
+    },
+    {
+      "path": "research/factor_audit.py",
+      "slug": "research__factor_audit.py",
+      "data_file": "files/7716b66a98dc1c8f.json",
+      "language": "python",
+      "kind": "research",
+      "lines": 837,
+      "bytes": 30674,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/FACTOR_PIPELINE_AUDIT.md",
+      "slug": "research__factors__FACTOR_PIPELINE_AUDIT.md",
+      "data_file": "files/f37640d8588600ba.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 142,
+      "bytes": 5824,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/_orthogonality_check.py",
+      "slug": "research__factors___orthogonality_check.py",
+      "data_file": "files/d53555fa2406d979.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 192,
+      "bytes": 6783,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/_orthogonality_v2.py",
+      "slug": "research__factors___orthogonality_v2.py",
+      "data_file": "files/4dc730098b23229c.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 180,
+      "bytes": 6506,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/_template/README.md",
+      "slug": "research__factors___template__README.md",
+      "data_file": "files/bc1ee330ec0e01fc.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 112,
+      "bytes": 3959,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/_template/factor.py",
+      "slug": "research__factors___template__factor.py",
+      "data_file": "files/b97e530d85c37585.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 71,
+      "bytes": 2151,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/asset_growth/evaluate.py",
+      "slug": "research__factors__asset_growth__evaluate.py",
+      "data_file": "files/6b3654960aa7127b.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 132,
+      "bytes": 4571,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/asset_growth/factor.py",
+      "slug": "research__factors__asset_growth__factor.py",
+      "data_file": "files/d62ca3d592fd9402.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 104,
+      "bytes": 4127,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/broker_gold_fade/README.md",
+      "slug": "research__factors__broker_gold_fade__README.md",
+      "data_file": "files/7f431bbd8f9e8cbb.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 56,
+      "bytes": 2612,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/broker_gold_fade/evaluate_bgfd.py",
+      "slug": "research__factors__broker_gold_fade__evaluate_bgfd.py",
+      "data_file": "files/f831496dc2c7023a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 195,
+      "bytes": 6461,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/broker_gold_fade/factor.py",
+      "slug": "research__factors__broker_gold_fade__factor.py",
+      "data_file": "files/a4ee93b3593ef1d4.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 167,
+      "bytes": 5877,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/composite_three/composite_ls_strategy.py",
+      "slug": "research__factors__composite_three__composite_ls_strategy.py",
+      "data_file": "files/3f09f86f75838d7d.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 240,
+      "bytes": 8307,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/composite_three/composite_strategy.py",
+      "slug": "research__factors__composite_three__composite_strategy.py",
+      "data_file": "files/f6ffd0b8499ec97e.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 306,
+      "bytes": 10820,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/crowding_filter/factor_research.py",
+      "slug": "research__factors__crowding_filter__factor_research.py",
+      "data_file": "files/7e328f2421a2f8b4.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 280,
+      "bytes": 13351,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/crowding_filter/report.md",
+      "slug": "research__factors__crowding_filter__report.md",
+      "data_file": "files/54fadfcb2481cbc0.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 54,
+      "bytes": 1581,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/earnings_pead/factor_research.py",
+      "slug": "research__factors__earnings_pead__factor_research.py",
+      "data_file": "files/81d1a20b877a2ad7.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 279,
+      "bytes": 12614,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/earnings_pead/report.md",
+      "slug": "research__factors__earnings_pead__report.md",
+      "data_file": "files/1388b2686dfb8ee2.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 47,
+      "bytes": 1862,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/foreign_margin_divergence/factor.py",
+      "slug": "research__factors__foreign_margin_divergence__factor.py",
+      "data_file": "files/13970f04ef262255.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 167,
+      "bytes": 6190,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/frog_in_pan/evaluate.py",
+      "slug": "research__factors__frog_in_pan__evaluate.py",
+      "data_file": "files/35080488b5b8056a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 111,
+      "bytes": 3918,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/frog_in_pan/factor.py",
+      "slug": "research__factors__frog_in_pan__factor.py",
+      "data_file": "files/dc32982259eb8460.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 89,
+      "bytes": 3475,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/industry_momentum/factor_research.py",
+      "slug": "research__factors__industry_momentum__factor_research.py",
+      "data_file": "files/f85b2d32821377fe.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 209,
+      "bytes": 8612,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/industry_momentum/report.md",
+      "slug": "research__factors__industry_momentum__report.md",
+      "data_file": "files/b701f58aacc2e8c0.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 12,
+      "bytes": 320,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/insider_trading/factor_research.py",
+      "slug": "research__factors__insider_trading__factor_research.py",
+      "data_file": "files/eadf540f9508174a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 209,
+      "bytes": 8205,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/insider_trading/report.md",
+      "slug": "research__factors__insider_trading__report.md",
+      "data_file": "files/9500eb42d6be4037.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 26,
+      "bytes": 731,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/institutional_holdings/factor_research.py",
+      "slug": "research__factors__institutional_holdings__factor_research.py",
+      "data_file": "files/12adcd271cc7d31c.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 198,
+      "bytes": 8267,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/institutional_holdings/report.md",
+      "slug": "research__factors__institutional_holdings__report.md",
+      "data_file": "files/52a844b4139668f8.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 20,
+      "bytes": 390,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/limit_up_ladder/evaluate_lulr.py",
+      "slug": "research__factors__limit_up_ladder__evaluate_lulr.py",
+      "data_file": "files/97b65cf446f8e907.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 195,
+      "bytes": 6517,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/limit_up_ladder/factor.py",
+      "slug": "research__factors__limit_up_ladder__factor.py",
+      "data_file": "files/ea999bdb73c2bd7c.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 134,
+      "bytes": 4777,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/limit_up_sleeve/factor_research.py",
+      "slug": "research__factors__limit_up_sleeve__factor_research.py",
+      "data_file": "files/1d5fb4bb2cd49a0d.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 270,
+      "bytes": 10399,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/limit_up_sleeve/report.md",
+      "slug": "research__factors__limit_up_sleeve__report.md",
+      "data_file": "files/eee5e75066b911eb.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 90,
+      "bytes": 3997,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/lockup_pressure/factor_research.py",
+      "slug": "research__factors__lockup_pressure__factor_research.py",
+      "data_file": "files/b1c3583275882d3d.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 205,
+      "bytes": 9089,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/lockup_pressure/report.md",
+      "slug": "research__factors__lockup_pressure__report.md",
+      "data_file": "files/dabd78de64355d47.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 28,
+      "bytes": 753,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/low_vol/08_low_vol_factor.ipynb",
+      "slug": "research__factors__low_vol__08_low_vol_factor.ipynb",
+      "data_file": "files/f6dde849d437f5b5.json",
+      "language": "notebook",
+      "kind": "factor",
+      "lines": 474,
+      "bytes": 15801,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/low_vol/README.md",
+      "slug": "research__factors__low_vol__README.md",
+      "data_file": "files/05d3b3b95f4fd325.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 78,
+      "bytes": 2238,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/low_vol/low_vol_factor.py",
+      "slug": "research__factors__low_vol__low_vol_factor.py",
+      "data_file": "files/b38cbdaa1554cdb0.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 155,
+      "bytes": 5764,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/management_change/README.md",
+      "slug": "research__factors__management_change__README.md",
+      "data_file": "files/7626f70c3d5b54d5.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 46,
+      "bytes": 1989,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/management_change/factor.py",
+      "slug": "research__factors__management_change__factor.py",
+      "data_file": "files/a9f87f0580a88a03.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 172,
+      "bytes": 6487,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/margin_balance/factor_research.py",
+      "slug": "research__factors__margin_balance__factor_research.py",
+      "data_file": "files/948cf71e499aa5f7.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 133,
+      "bytes": 5081,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/margin_balance/report.md",
+      "slug": "research__factors__margin_balance__report.md",
+      "data_file": "files/52ec33346e3147a2.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 15,
+      "bytes": 264,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/mda_drift/README.md",
+      "slug": "research__factors__mda_drift__README.md",
+      "data_file": "files/77b993b3b74eaca8.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 152,
+      "bytes": 5603,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/mda_drift/__init__.py",
+      "slug": "research__factors__mda_drift____init__.py",
+      "data_file": "files/ac877b8141c11b2a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 49,
+      "bytes": 1419,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/mda_drift/data_loader.py",
+      "slug": "research__factors__mda_drift__data_loader.py",
+      "data_file": "files/5afb295d5f18d8cb.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 228,
+      "bytes": 7366,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/mda_drift/factor.py",
+      "slug": "research__factors__mda_drift__factor.py",
+      "data_file": "files/f23382a6c5bc9569.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 388,
+      "bytes": 14777,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/mda_drift/outlook_extractor.py",
+      "slug": "research__factors__mda_drift__outlook_extractor.py",
+      "data_file": "files/423653eefb7f5c1d.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 107,
+      "bytes": 3417,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/mda_drift/similarity.py",
+      "slug": "research__factors__mda_drift__similarity.py",
+      "data_file": "files/d6c888ae56aae60c.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 163,
+      "bytes": 5906,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/mda_drift/text_processor.py",
+      "slug": "research__factors__mda_drift__text_processor.py",
+      "data_file": "files/7cd14d371eddf66b.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 269,
+      "bytes": 10040,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/momentum/README.md",
+      "slug": "research__factors__momentum__README.md",
+      "data_file": "files/d1342e45e48965bf.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 72,
+      "bytes": 2039,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/momentum/momentum_factor.py",
+      "slug": "research__factors__momentum__momentum_factor.py",
+      "data_file": "files/f1b41a1c3fc51a85.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 117,
+      "bytes": 3298,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/moneyflow_divergence/README.md",
+      "slug": "research__factors__moneyflow_divergence__README.md",
+      "data_file": "files/b1a5c661ae022a1e.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 43,
+      "bytes": 1775,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/moneyflow_divergence/combined_eval.py",
+      "slug": "research__factors__moneyflow_divergence__combined_eval.py",
+      "data_file": "files/8e813031af02eefd.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 140,
+      "bytes": 4893,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/moneyflow_divergence/evaluate_mfd.py",
+      "slug": "research__factors__moneyflow_divergence__evaluate_mfd.py",
+      "data_file": "files/769626b84ab22f77.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 93,
+      "bytes": 2900,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/moneyflow_divergence/factor.py",
+      "slug": "research__factors__moneyflow_divergence__factor.py",
+      "data_file": "files/6759a5d84de94d62.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 158,
+      "bytes": 5699,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/moneyflow_large/factor_research.py",
+      "slug": "research__factors__moneyflow_large__factor_research.py",
+      "data_file": "files/80e7f7ed7776654a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 168,
+      "bytes": 7645,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/moneyflow_large/report.md",
+      "slug": "research__factors__moneyflow_large__report.md",
+      "data_file": "files/66b1cb3c8e518388.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 37,
+      "bytes": 655,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/pledge_filter/factor_research.py",
+      "slug": "research__factors__pledge_filter__factor_research.py",
+      "data_file": "files/5d99760c4f677b0a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 232,
+      "bytes": 10585,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/pledge_filter/report.md",
+      "slug": "research__factors__pledge_filter__report.md",
+      "data_file": "files/5409fb37f4330ce5.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 76,
+      "bytes": 3118,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/polar_pv_factor/README.md",
+      "slug": "research__factors__polar_pv_factor__README.md",
+      "data_file": "files/139bc9bfd30a4d55.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 72,
+      "bytes": 2208,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/polar_pv_factor/exam_QR_JialongWang.ipynb",
+      "slug": "research__factors__polar_pv_factor__exam_QR_JialongWang.ipynb",
+      "data_file": "files/2642d8ef659e3793.json",
+      "language": "notebook",
+      "kind": "factor",
+      "lines": 1022,
+      "bytes": 38427,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/quality/07_quality_factor.ipynb",
+      "slug": "research__factors__quality__07_quality_factor.ipynb",
+      "data_file": "files/eb33c3197723ae4e.json",
+      "language": "notebook",
+      "kind": "factor",
+      "lines": 398,
+      "bytes": 13968,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/quality/README.md",
+      "slug": "research__factors__quality__README.md",
+      "data_file": "files/d8b0559b181dc436.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 72,
+      "bytes": 2807,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/quality/quality_factor.py",
+      "slug": "research__factors__quality__quality_factor.py",
+      "data_file": "files/1a804add9deac6af.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 233,
+      "bytes": 7938,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/README.md",
+      "slug": "research__factors__retail_inst_divergence__README.md",
+      "data_file": "files/551c0985fea105d4.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 80,
+      "bytes": 3290,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/bench_short_only.py",
+      "slug": "research__factors__retail_inst_divergence__bench_short_only.py",
+      "data_file": "files/09204536f70fb2e6.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 218,
+      "bytes": 8195,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/corr_vs_dsr30.py",
+      "slug": "research__factors__retail_inst_divergence__corr_vs_dsr30.py",
+      "data_file": "files/043c9414422bb322.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 112,
+      "bytes": 4725,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/cost_aware_ls.py",
+      "slug": "research__factors__retail_inst_divergence__cost_aware_ls.py",
+      "data_file": "files/bc2a89b88ee6d060.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 253,
+      "bytes": 9146,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/daily_returns.py",
+      "slug": "research__factors__retail_inst_divergence__daily_returns.py",
+      "data_file": "files/25f950f806323b7c.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 218,
+      "bytes": 7681,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/data_coverage_check.py",
+      "slug": "research__factors__retail_inst_divergence__data_coverage_check.py",
+      "data_file": "files/20133fb7f9897d7a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 106,
+      "bytes": 4172,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/dsr_ci.py",
+      "slug": "research__factors__retail_inst_divergence__dsr_ci.py",
+      "data_file": "files/b3fee5c266f81a20.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 155,
+      "bytes": 5420,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/evaluate_riad.py",
+      "slug": "research__factors__retail_inst_divergence__evaluate_riad.py",
+      "data_file": "files/b07acb5198a574e4.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 197,
+      "bytes": 6829,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/factor.py",
+      "slug": "research__factors__retail_inst_divergence__factor.py",
+      "data_file": "files/b7179fa6ab27ab38.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 277,
+      "bytes": 11069,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/fold3_monthly_attribution.py",
+      "slug": "research__factors__retail_inst_divergence__fold3_monthly_attribution.py",
+      "data_file": "files/0904c6bb622333c6.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 178,
+      "bytes": 6923,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/industry_attribution.py",
+      "slug": "research__factors__retail_inst_divergence__industry_attribution.py",
+      "data_file": "files/287f0eee044816dd.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 206,
+      "bytes": 7896,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/industry_eval.py",
+      "slug": "research__factors__retail_inst_divergence__industry_eval.py",
+      "data_file": "files/875808bd79a0bb2a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 141,
+      "bytes": 4851,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/long_only_filtered.py",
+      "slug": "research__factors__retail_inst_divergence__long_only_filtered.py",
+      "data_file": "files/7998426e70f6d488.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 201,
+      "bytes": 7540,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/neutralize_eval.py",
+      "slug": "research__factors__retail_inst_divergence__neutralize_eval.py",
+      "data_file": "files/ab8eb75791811fde.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 179,
+      "bytes": 5846,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/regime_gate.py",
+      "slug": "research__factors__retail_inst_divergence__regime_gate.py",
+      "data_file": "files/c0ccd398631c3fb5.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 151,
+      "bytes": 5711,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/tradable_universe.py",
+      "slug": "research__factors__retail_inst_divergence__tradable_universe.py",
+      "data_file": "files/cf185c15f19d6773.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 212,
+      "bytes": 8137,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_inst_divergence/walk_forward.py",
+      "slug": "research__factors__retail_inst_divergence__walk_forward.py",
+      "data_file": "files/163d2ed3dcf2b44a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 120,
+      "bytes": 4402,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_open_trap/factor_research.py",
+      "slug": "research__factors__retail_open_trap__factor_research.py",
+      "data_file": "files/b555787ac9a5a02a.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 447,
+      "bytes": 17799,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/retail_open_trap/report.md",
+      "slug": "research__factors__retail_open_trap__report.md",
+      "data_file": "files/c50e44eb62593905.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 102,
+      "bytes": 2602,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/survey_attention/factor_research.py",
+      "slug": "research__factors__survey_attention__factor_research.py",
+      "data_file": "files/a72426c48f028951.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 189,
+      "bytes": 8073,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/survey_attention/report.md",
+      "slug": "research__factors__survey_attention__report.md",
+      "data_file": "files/6934c89ef1734790.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 23,
+      "bytes": 483,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/survey_burst/evaluate_sb.py",
+      "slug": "research__factors__survey_burst__evaluate_sb.py",
+      "data_file": "files/a6d272550a8e922e.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 91,
+      "bytes": 2773,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/survey_burst/factor.py",
+      "slug": "research__factors__survey_burst__factor.py",
+      "data_file": "files/a1bb24653d5a3267.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 119,
+      "bytes": 4498,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/suspend_reopen_reversal/README.md",
+      "slug": "research__factors__suspend_reopen_reversal__README.md",
+      "data_file": "files/90f8eda32e6c4a91.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 60,
+      "bytes": 2596,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/suspend_reopen_reversal/factor.py",
+      "slug": "research__factors__suspend_reopen_reversal__factor.py",
+      "data_file": "files/0e950fc127a3a8b3.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 235,
+      "bytes": 9031,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/top_holder_concentration/evaluate_thcc.py",
+      "slug": "research__factors__top_holder_concentration__evaluate_thcc.py",
+      "data_file": "files/ed0a0a9daf5b25e7.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 202,
+      "bytes": 6870,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/top_holder_concentration/factor.py",
+      "slug": "research__factors__top_holder_concentration__factor.py",
+      "data_file": "files/1911d411f38c5aff.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 163,
+      "bytes": 6130,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/value/06_value_factor.ipynb",
+      "slug": "research__factors__value__06_value_factor.ipynb",
+      "data_file": "files/ea32dcdbedefb80a.json",
+      "language": "notebook",
+      "kind": "factor",
+      "lines": 371,
+      "bytes": 11557,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/value/README.md",
+      "slug": "research__factors__value__README.md",
+      "data_file": "files/079f22879c493976.json",
+      "language": "markdown",
+      "kind": "factor",
+      "lines": 108,
+      "bytes": 3666,
+      "truncated": false
+    },
+    {
+      "path": "research/factors/value/value_factor.py",
+      "slug": "research__factors__value__value_factor.py",
+      "data_file": "files/7184931f2ab0116c.json",
+      "language": "python",
+      "kind": "factor",
+      "lines": 164,
+      "bytes": 5653,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/00_data_prep.ipynb",
+      "slug": "research__notebooks__00_data_prep.ipynb",
+      "data_file": "files/9f49b5311ef2deca.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 240,
+      "bytes": 6758,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/01_getting_started.ipynb",
+      "slug": "research__notebooks__01_getting_started.ipynb",
+      "data_file": "files/81357daa106e1ffd.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 259,
+      "bytes": 8011,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/02_statistics_basics.ipynb",
+      "slug": "research__notebooks__02_statistics_basics.ipynb",
+      "data_file": "files/cfb263306fc60a19.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 454,
+      "bytes": 14598,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/03_momentum_factor.ipynb",
+      "slug": "research__notebooks__03_momentum_factor.ipynb",
+      "data_file": "files/286c7896773262f5.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 291,
+      "bytes": 8558,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/03_single_stock_analysis.ipynb",
+      "slug": "research__notebooks__03_single_stock_analysis.ipynb",
+      "data_file": "files/5aeb67f0be15d361.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 493,
+      "bytes": 16194,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/09_factor_validation.ipynb",
+      "slug": "research__notebooks__09_factor_validation.ipynb",
+      "data_file": "files/7ea9ed3e490569c0.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 782,
+      "bytes": 25915,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/10_industry_neutral.ipynb",
+      "slug": "research__notebooks__10_industry_neutral.ipynb",
+      "data_file": "files/4ba3f3388fb9efe2.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 435,
+      "bytes": 15978,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/11_stress_test.ipynb",
+      "slug": "research__notebooks__11_stress_test.ipynb",
+      "data_file": "files/548b8ed7badcdc7c.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 365,
+      "bytes": 13216,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/12_strategy_report.ipynb",
+      "slug": "research__notebooks__12_strategy_report.ipynb",
+      "data_file": "files/a48a46223e2e9d43.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 656,
+      "bytes": 23980,
+      "truncated": false
+    },
+    {
+      "path": "research/notebooks/13_live_simulation.ipynb",
+      "slug": "research__notebooks__13_live_simulation.ipynb",
+      "data_file": "files/8f6f8ff0f96bb94d.json",
+      "language": "notebook",
+      "kind": "research",
+      "lines": 260,
+      "bytes": 7760,
+      "truncated": false
+    },
+    {
+      "path": "research/reference_quantitative_trading/README.md",
+      "slug": "research__reference_quantitative_trading__README.md",
+      "data_file": "files/e957580ec537b3f6.json",
+      "language": "markdown",
+      "kind": "research",
+      "lines": 34,
+      "bytes": 1515,
+      "truncated": false
+    },
+    {
+      "path": "research/space_c_llm_alpha/alpha_theory_space_c_research_20260421.md",
+      "slug": "research__space_c_llm_alpha__alpha_theory_space_c_research_20260421.md",
+      "data_file": "files/555f7dac96f77697.json",
+      "language": "markdown",
+      "kind": "research",
+      "lines": 221,
+      "bytes": 10615,
+      "truncated": false
+    },
+    {
+      "path": "scripts/audit_factor_data_coverage.py",
+      "slug": "scripts__audit_factor_data_coverage.py",
+      "data_file": "files/4367cecb5e4ba38b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 330,
+      "bytes": 12184,
+      "truncated": false
+    },
+    {
+      "path": "scripts/audit_survivorship_bias.py",
+      "slug": "scripts__audit_survivorship_bias.py",
+      "data_file": "files/f2900be4ab8729df.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 167,
+      "bytes": 6550,
+      "truncated": false
+    },
+    {
+      "path": "scripts/backfill_dividend.py",
+      "slug": "scripts__backfill_dividend.py",
+      "data_file": "files/da0df0993a1712c7.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 50,
+      "bytes": 1434,
+      "truncated": false
+    },
+    {
+      "path": "scripts/backfill_earnings_preview.py",
+      "slug": "scripts__backfill_earnings_preview.py",
+      "data_file": "files/e5f60c94c2d0c2ac.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 50,
+      "bytes": 1461,
+      "truncated": false
+    },
+    {
+      "path": "scripts/backfill_ggcg.py",
+      "slug": "scripts__backfill_ggcg.py",
+      "data_file": "files/ad79e7343b7b0207.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 37,
+      "bytes": 1214,
+      "truncated": false
+    },
+    {
+      "path": "scripts/batch_candidate_review.py",
+      "slug": "scripts__batch_candidate_review.py",
+      "data_file": "files/a76ca16c70d616ba.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 283,
+      "bytes": 10141,
+      "truncated": false
+    },
+    {
+      "path": "scripts/batch_update.py",
+      "slug": "scripts__batch_update.py",
+      "data_file": "files/65f1fa77c5fccdc0.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 61,
+      "bytes": 2066,
+      "truncated": false
+    },
+    {
+      "path": "scripts/breadth_regime_research.py",
+      "slug": "scripts__breadth_regime_research.py",
+      "data_file": "files/e974a3873a1db22c.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 199,
+      "bytes": 8714,
+      "truncated": false
+    },
+    {
+      "path": "scripts/bulk_download_tushare.py",
+      "slug": "scripts__bulk_download_tushare.py",
+      "data_file": "files/eed3e7b6e0f4bed7.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 882,
+      "bytes": 34439,
+      "truncated": false
+    },
+    {
+      "path": "scripts/bulk_download_tushare_extras.py",
+      "slug": "scripts__bulk_download_tushare_extras.py",
+      "data_file": "files/6aad7c367ab70505.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 714,
+      "bytes": 27475,
+      "truncated": false
+    },
+    {
+      "path": "scripts/cache_fundamentals.py",
+      "slug": "scripts__cache_fundamentals.py",
+      "data_file": "files/08957280aece25f4.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 94,
+      "bytes": 3141,
+      "truncated": false
+    },
+    {
+      "path": "scripts/check_data_drift.py",
+      "slug": "scripts__check_data_drift.py",
+      "data_file": "files/e846808e3e283f8b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 136,
+      "bytes": 4656,
+      "truncated": false
+    },
+    {
+      "path": "scripts/compare_strategies.py",
+      "slug": "scripts__compare_strategies.py",
+      "data_file": "files/39a4d0ad771e52ce.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 185,
+      "bytes": 6008,
+      "truncated": false
+    },
+    {
+      "path": "scripts/daily_live_vs_backtest_check.py",
+      "slug": "scripts__daily_live_vs_backtest_check.py",
+      "data_file": "files/5d11ea9d0a302850.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 151,
+      "bytes": 5090,
+      "truncated": false
+    },
+    {
+      "path": "scripts/deep_analysis_hero_factors.py",
+      "slug": "scripts__deep_analysis_hero_factors.py",
+      "data_file": "files/c29f4121854254cf.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 327,
+      "bytes": 12054,
+      "truncated": false
+    },
+    {
+      "path": "scripts/dsr30_decay_check.py",
+      "slug": "scripts__dsr30_decay_check.py",
+      "data_file": "files/4824b5f60f4502e7.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 108,
+      "bytes": 3969,
+      "truncated": false
+    },
+    {
+      "path": "scripts/export_event_driven_portfolio.py",
+      "slug": "scripts__export_event_driven_portfolio.py",
+      "data_file": "files/e042d83c93749cd5.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 153,
+      "bytes": 8843,
+      "truncated": false
+    },
+    {
+      "path": "scripts/factor_orthogonality_analysis.py",
+      "slug": "scripts__factor_orthogonality_analysis.py",
+      "data_file": "files/cedbaf662f036c06.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 446,
+      "bytes": 18555,
+      "truncated": false
+    },
+    {
+      "path": "scripts/health_check.py",
+      "slug": "scripts__health_check.py",
+      "data_file": "files/549d5e1a3c29a28c.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 214,
+      "bytes": 6924,
+      "truncated": false
+    },
+    {
+      "path": "scripts/mda_drift_tier1_eval.py",
+      "slug": "scripts__mda_drift_tier1_eval.py",
+      "data_file": "files/b59fabdc8dcf8557.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 225,
+      "bytes": 9274,
+      "truncated": false
+    },
+    {
+      "path": "scripts/mda_drift_tier1b_ic_eval.py",
+      "slug": "scripts__mda_drift_tier1b_ic_eval.py",
+      "data_file": "files/062e9eab44eee29c.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 289,
+      "bytes": 11544,
+      "truncated": false
+    },
+    {
+      "path": "scripts/mda_llm_drift_bootstrap.py",
+      "slug": "scripts__mda_llm_drift_bootstrap.py",
+      "data_file": "files/3589e4d2903730bc.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 149,
+      "bytes": 5578,
+      "truncated": false
+    },
+    {
+      "path": "scripts/mda_llm_drift_ic.py",
+      "slug": "scripts__mda_llm_drift_ic.py",
+      "data_file": "files/f9c72a35cc80e208.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 516,
+      "bytes": 20404,
+      "truncated": false
+    },
+    {
+      "path": "scripts/mda_llm_opus_quality_audit.py",
+      "slug": "scripts__mda_llm_opus_quality_audit.py",
+      "data_file": "files/c0701c46687ee4c3.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 346,
+      "bytes": 13980,
+      "truncated": false
+    },
+    {
+      "path": "scripts/mda_llm_pilot.py",
+      "slug": "scripts__mda_llm_pilot.py",
+      "data_file": "files/c172a64238c5f776.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 259,
+      "bytes": 10542,
+      "truncated": false
+    },
+    {
+      "path": "scripts/monitor_rx_factors.py",
+      "slug": "scripts__monitor_rx_factors.py",
+      "data_file": "files/e80adce50f4807e5.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 200,
+      "bytes": 7263,
+      "truncated": false
+    },
+    {
+      "path": "scripts/paper_trade_daily.py",
+      "slug": "scripts__paper_trade_daily.py",
+      "data_file": "files/d6f1bf6139fcde5d.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 424,
+      "bytes": 17095,
+      "truncated": false
+    },
+    {
+      "path": "scripts/paper_trade_gen_demo_state.py",
+      "slug": "scripts__paper_trade_gen_demo_state.py",
+      "data_file": "files/a90a05c1e7b44398.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 230,
+      "bytes": 9480,
+      "truncated": false
+    },
+    {
+      "path": "scripts/paper_trade_monthly_review.py",
+      "slug": "scripts__paper_trade_monthly_review.py",
+      "data_file": "files/2f4d8e24bb4d4ba7.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 238,
+      "bytes": 8168,
+      "truncated": false
+    },
+    {
+      "path": "scripts/paper_trade_smoke_test.py",
+      "slug": "scripts__paper_trade_smoke_test.py",
+      "data_file": "files/745ac6454f84b239.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 324,
+      "bytes": 12820,
+      "truncated": false
+    },
+    {
+      "path": "scripts/pipeline_daemon.py",
+      "slug": "scripts__pipeline_daemon.py",
+      "data_file": "files/ebaf72ee39e310dc.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 172,
+      "bytes": 5192,
+      "truncated": false
+    },
+    {
+      "path": "scripts/policy_downloader.py",
+      "slug": "scripts__policy_downloader.py",
+      "data_file": "files/115ed5787cae0dd1.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 286,
+      "bytes": 11532,
+      "truncated": false
+    },
+    {
+      "path": "scripts/policy_monitor.py",
+      "slug": "scripts__policy_monitor.py",
+      "data_file": "files/735494ae8f14d2e9.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 543,
+      "bytes": 21857,
+      "truncated": false
+    },
+    {
+      "path": "scripts/rebuild_price_wide_close.py",
+      "slug": "scripts__rebuild_price_wide_close.py",
+      "data_file": "files/3ba6a6af2ce02884.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 50,
+      "bytes": 1700,
+      "truncated": false
+    },
+    {
+      "path": "scripts/refresh_buyback_events.py",
+      "slug": "scripts__refresh_buyback_events.py",
+      "data_file": "files/ebebd1dea89ab736.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 73,
+      "bytes": 2694,
+      "truncated": false
+    },
+    {
+      "path": "scripts/refresh_industry.py",
+      "slug": "scripts__refresh_industry.py",
+      "data_file": "files/a12c154a32971645.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 133,
+      "bytes": 4853,
+      "truncated": false
+    },
+    {
+      "path": "scripts/refresh_listing_metadata.py",
+      "slug": "scripts__refresh_listing_metadata.py",
+      "data_file": "files/2cc2bee2f55c97dc.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 234,
+      "bytes": 9340,
+      "truncated": false
+    },
+    {
+      "path": "scripts/regime_boundary_analysis.py",
+      "slug": "scripts__regime_boundary_analysis.py",
+      "data_file": "files/5854918254adf864.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 388,
+      "bytes": 14268,
+      "truncated": false
+    },
+    {
+      "path": "scripts/regime_robust_factor_scan.py",
+      "slug": "scripts__regime_robust_factor_scan.py",
+      "data_file": "files/c86871ccb283ace9.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 294,
+      "bytes": 12524,
+      "truncated": false
+    },
+    {
+      "path": "scripts/reversal_factor_eval.py",
+      "slug": "scripts__reversal_factor_eval.py",
+      "data_file": "files/5eb61c47cdec489b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 240,
+      "bytes": 10565,
+      "truncated": false
+    },
+    {
+      "path": "scripts/rogt_v8_validation.py",
+      "slug": "scripts__rogt_v8_validation.py",
+      "data_file": "files/b27ce2c143fe9d15.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 495,
+      "bytes": 21004,
+      "truncated": false
+    },
+    {
+      "path": "scripts/run_backtest.py",
+      "slug": "scripts__run_backtest.py",
+      "data_file": "files/5e5426908cdae6cf.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 152,
+      "bytes": 6060,
+      "truncated": false
+    },
+    {
+      "path": "scripts/run_factor_evaluation.py",
+      "slug": "scripts__run_factor_evaluation.py",
+      "data_file": "files/16a578eb3f85505a.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 331,
+      "bytes": 12888,
+      "truncated": false
+    },
+    {
+      "path": "scripts/run_pipeline.py",
+      "slug": "scripts__run_pipeline.py",
+      "data_file": "files/be6f9ecd2e11dc54.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 116,
+      "bytes": 3306,
+      "truncated": false
+    },
+    {
+      "path": "scripts/run_v22_backtest.py",
+      "slug": "scripts__run_v22_backtest.py",
+      "data_file": "files/e0423d5343f3588b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 109,
+      "bytes": 3729,
+      "truncated": false
+    },
+    {
+      "path": "scripts/run_v23_backtest.py",
+      "slug": "scripts__run_v23_backtest.py",
+      "data_file": "files/c044bd7913869ba2.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 112,
+      "bytes": 3873,
+      "truncated": false
+    },
+    {
+      "path": "scripts/run_v24_backtest.py",
+      "slug": "scripts__run_v24_backtest.py",
+      "data_file": "files/ce1dc0821844d8ef.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 113,
+      "bytes": 3855,
+      "truncated": false
+    },
+    {
+      "path": "scripts/run_v25_backtest.py",
+      "slug": "scripts__run_v25_backtest.py",
+      "data_file": "files/8f1273e21771b08a.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 114,
+      "bytes": 3966,
+      "truncated": false
+    },
+    {
+      "path": "scripts/simulate_pipeline.py",
+      "slug": "scripts__simulate_pipeline.py",
+      "data_file": "files/36af638a46ee630c.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 168,
+      "bytes": 5900,
+      "truncated": false
+    },
+    {
+      "path": "scripts/single_factor_gate.py",
+      "slug": "scripts__single_factor_gate.py",
+      "data_file": "files/5aa66284e199a3dc.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 255,
+      "bytes": 9224,
+      "truncated": false
+    },
+    {
+      "path": "scripts/strategy_eval.py",
+      "slug": "scripts__strategy_eval.py",
+      "data_file": "files/d6ad5dbff221f5af.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 435,
+      "bytes": 19541,
+      "truncated": false
+    },
+    {
+      "path": "scripts/strategy_v4.py",
+      "slug": "scripts__strategy_v4.py",
+      "data_file": "files/7d75f75b3b4195e6.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 281,
+      "bytes": 11579,
+      "truncated": false
+    },
+    {
+      "path": "scripts/strategy_v5.py",
+      "slug": "scripts__strategy_v5.py",
+      "data_file": "files/3453dbab5b772dd5.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 339,
+      "bytes": 13817,
+      "truncated": false
+    },
+    {
+      "path": "scripts/stress_test.py",
+      "slug": "scripts__stress_test.py",
+      "data_file": "files/22f13ff68acdab05.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 568,
+      "bytes": 23048,
+      "truncated": false
+    },
+    {
+      "path": "scripts/sweep_v16_dd_overlay.py",
+      "slug": "scripts__sweep_v16_dd_overlay.py",
+      "data_file": "files/97a500b53b3f8b4e.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 129,
+      "bytes": 4420,
+      "truncated": false
+    },
+    {
+      "path": "scripts/sweep_v25_fresh.py",
+      "slug": "scripts__sweep_v25_fresh.py",
+      "data_file": "files/9113162151a56034.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 148,
+      "bytes": 6074,
+      "truncated": false
+    },
+    {
+      "path": "scripts/sweep_v25_regime_params.py",
+      "slug": "scripts__sweep_v25_regime_params.py",
+      "data_file": "files/9ba6ceb4e265ad21.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 154,
+      "bytes": 6241,
+      "truncated": false
+    },
+    {
+      "path": "scripts/ts_momentum_index.py",
+      "slug": "scripts__ts_momentum_index.py",
+      "data_file": "files/078d3b953e3570b1.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 266,
+      "bytes": 10927,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v10_icir_stoploss_eval.py",
+      "slug": "scripts__v10_icir_stoploss_eval.py",
+      "data_file": "files/351da22cf69e2524.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 389,
+      "bytes": 16298,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v10_reversal_eval.py",
+      "slug": "scripts__v10_reversal_eval.py",
+      "data_file": "files/6f6233b29081c878.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 400,
+      "bytes": 17135,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v11_adaptive_stop_eval.py",
+      "slug": "scripts__v11_adaptive_stop_eval.py",
+      "data_file": "files/62d2c64eea1c0acf.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 461,
+      "bytes": 19899,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v11_regime_eval.py",
+      "slug": "scripts__v11_regime_eval.py",
+      "data_file": "files/856dd5e76b71455e.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 435,
+      "bytes": 19058,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v12_partial_regime_eval.py",
+      "slug": "scripts__v12_partial_regime_eval.py",
+      "data_file": "files/905fbc03ccffe51e.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 353,
+      "bytes": 13980,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v16_capm_alpha_decomposition.py",
+      "slug": "scripts__v16_capm_alpha_decomposition.py",
+      "data_file": "files/745a32987528b949.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 282,
+      "bytes": 12194,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v16_capm_zz500_hedge.py",
+      "slug": "scripts__v16_capm_zz500_hedge.py",
+      "data_file": "files/9ceee6d9b80d8195.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 281,
+      "bytes": 12910,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v16_plus_tsm_ensemble.py",
+      "slug": "scripts__v16_plus_tsm_ensemble.py",
+      "data_file": "files/ae1a43fb35d49cb4.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 251,
+      "bytes": 10449,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v16_regime_conditional_ic.py",
+      "slug": "scripts__v16_regime_conditional_ic.py",
+      "data_file": "files/2821b246d7848474.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 210,
+      "bytes": 9004,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v17_crowding_aware_eval.py",
+      "slug": "scripts__v17_crowding_aware_eval.py",
+      "data_file": "files/92c31c0fb23b1de0.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 331,
+      "bytes": 13039,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v17_oos_eval.py",
+      "slug": "scripts__v17_oos_eval.py",
+      "data_file": "files/bcb815efb7f8e693.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 246,
+      "bytes": 9170,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v18_ind_reversal_oos_eval.py",
+      "slug": "scripts__v18_ind_reversal_oos_eval.py",
+      "data_file": "files/cadd57c8725d90b1.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 192,
+      "bytes": 7950,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v18_regime_overlay_eval.py",
+      "slug": "scripts__v18_regime_overlay_eval.py",
+      "data_file": "files/1dec526fe57232a5.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 298,
+      "bytes": 11858,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v25_2022_postmortem.py",
+      "slug": "scripts__v25_2022_postmortem.py",
+      "data_file": "files/4ce1063e92ac5e1e.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 250,
+      "bytes": 11192,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v25_oos_audit.py",
+      "slug": "scripts__v25_oos_audit.py",
+      "data_file": "files/509886628ff93bad.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 314,
+      "bytes": 13874,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v27_half_rigorous_audit.py",
+      "slug": "scripts__v27_half_rigorous_audit.py",
+      "data_file": "files/dbb6cee288d5c151.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 289,
+      "bytes": 12889,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v27_regime_zero_vs_half.py",
+      "slug": "scripts__v27_regime_zero_vs_half.py",
+      "data_file": "files/2de7050e0fd80c4b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 209,
+      "bytes": 7976,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v28_v16_plus_reversal_skip1m.py",
+      "slug": "scripts__v28_v16_plus_reversal_skip1m.py",
+      "data_file": "files/8ca82bbaf6f3a1bd.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 261,
+      "bytes": 11028,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v33_reversal_ls_tradeable.py",
+      "slug": "scripts__v33_reversal_ls_tradeable.py",
+      "data_file": "files/786d96f417c2b5b3.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 252,
+      "bytes": 10293,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v34_v16_long_history.py",
+      "slug": "scripts__v34_v16_long_history.py",
+      "data_file": "files/ce1f80f4bfc458eb.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 267,
+      "bytes": 10711,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v6_admission_eval.py",
+      "slug": "scripts__v6_admission_eval.py",
+      "data_file": "files/6a2330a3998796e3.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 937,
+      "bytes": 37963,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v7_industry_neutral_eval.py",
+      "slug": "scripts__v7_industry_neutral_eval.py",
+      "data_file": "files/23dbcca8ce06d9cb.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 355,
+      "bytes": 14968,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v8_regime_adaptive_eval.py",
+      "slug": "scripts__v8_regime_adaptive_eval.py",
+      "data_file": "files/ad91fe7d93988637.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 445,
+      "bytes": 19031,
+      "truncated": false
+    },
+    {
+      "path": "scripts/v9_icir_weighted_eval.py",
+      "slug": "scripts__v9_icir_weighted_eval.py",
+      "data_file": "files/0b20be200c33382b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 437,
+      "bytes": 18702,
+      "truncated": false
+    },
+    {
+      "path": "strategies/__init__.py",
+      "slug": "strategies____init__.py",
+      "data_file": "files/698e4f1b949b8598.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 3,
+      "bytes": 103,
+      "truncated": false
+    },
+    {
+      "path": "strategies/base.py",
+      "slug": "strategies__base.py",
+      "data_file": "files/fd5f268af3f9639d.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 84,
+      "bytes": 2301,
+      "truncated": false
+    },
+    {
+      "path": "strategies/examples/dual_ma.py",
+      "slug": "strategies__examples__dual_ma.py",
+      "data_file": "files/f93edc9cb0a903d7.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 79,
+      "bytes": 2707,
+      "truncated": false
+    },
+    {
+      "path": "strategies/generated/__init__.py",
+      "slug": "strategies__generated____init__.py",
+      "data_file": "files/46a13ac5fc935809.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 25,
+      "bytes": 861,
+      "truncated": false
+    },
+    {
+      "path": "strategies/multi_factor.py",
+      "slug": "strategies__multi_factor.py",
+      "data_file": "files/d5541848f65b9b96.json",
+      "language": "python",
+      "kind": "backtest",
+      "lines": 446,
+      "bytes": 17885,
+      "truncated": false
+    },
+    {
+      "path": "tests/__init__.py",
+      "slug": "tests____init__.py",
+      "data_file": "files/8e911f6351f3fa0c.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 0,
+      "bytes": 0,
+      "truncated": false
+    },
+    {
+      "path": "tests/pipeline/test_capacity_monitor.py",
+      "slug": "tests__pipeline__test_capacity_monitor.py",
+      "data_file": "files/9d8f9180ae23739b.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 202,
+      "bytes": 8333,
+      "truncated": false
+    },
+    {
+      "path": "tests/research/test_mda_drift.py",
+      "slug": "tests__research__test_mda_drift.py",
+      "data_file": "files/6f8532dcafb29356.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 273,
+      "bytes": 11923,
+      "truncated": false
+    },
+    {
+      "path": "tests/scripts/__init__.py",
+      "slug": "tests__scripts____init__.py",
+      "data_file": "files/bd837125a457e7e9.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 0,
+      "bytes": 0,
+      "truncated": false
+    },
+    {
+      "path": "tests/scripts/test_stress_test.py",
+      "slug": "tests__scripts__test_stress_test.py",
+      "data_file": "files/fd64ed924d3d020a.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 278,
+      "bytes": 11350,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_backtest_comparison.py",
+      "slug": "tests__test_backtest_comparison.py",
+      "data_file": "files/bdf438c437225eb6.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 83,
+      "bytes": 2907,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_backtest_report.py",
+      "slug": "tests__test_backtest_report.py",
+      "data_file": "files/7d29efd274ed173e.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 321,
+      "bytes": 13135,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_cli_chain_integration.py",
+      "slug": "tests__test_cli_chain_integration.py",
+      "data_file": "files/31dd960aa0208af7.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 231,
+      "bytes": 9331,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_control_plane.py",
+      "slug": "tests__test_control_plane.py",
+      "data_file": "files/cae5dd835dfa2a23.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 387,
+      "bytes": 16798,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_dashboard_trigger_router.py",
+      "slug": "tests__test_dashboard_trigger_router.py",
+      "data_file": "files/1ee0cba954107234.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 130,
+      "bytes": 4984,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_data_checker.py",
+      "slug": "tests__test_data_checker.py",
+      "data_file": "files/e344e3476acab9cd.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 202,
+      "bytes": 7450,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_data_update.py",
+      "slug": "tests__test_data_update.py",
+      "data_file": "files/9ed2765162e309f1.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 158,
+      "bytes": 5648,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_diff_cli.py",
+      "slug": "tests__test_diff_cli.py",
+      "data_file": "files/6aa1ee33ffe14f63.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 222,
+      "bytes": 8093,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_e2e_control_plane.py",
+      "slug": "tests__test_e2e_control_plane.py",
+      "data_file": "files/3aed91869fee3dc7.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 263,
+      "bytes": 11530,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_event_kill_switch.py",
+      "slug": "tests__test_event_kill_switch.py",
+      "data_file": "files/1bd6594e845c421e.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 145,
+      "bytes": 4911,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_event_paper_trader.py",
+      "slug": "tests__test_event_paper_trader.py",
+      "data_file": "files/21857d3a363d368d.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 324,
+      "bytes": 13622,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_event_signal.py",
+      "slug": "tests__test_event_signal.py",
+      "data_file": "files/9eb09ccc4e93122b.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 304,
+      "bytes": 10808,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_experiment_runner.py",
+      "slug": "tests__test_experiment_runner.py",
+      "data_file": "files/e3d60fdfe2d3aa89.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 267,
+      "bytes": 11492,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_experiment_store.py",
+      "slug": "tests__test_experiment_store.py",
+      "data_file": "files/074b39357b9f97d6.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 325,
+      "bytes": 13336,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_experiment_summarizer.py",
+      "slug": "tests__test_experiment_summarizer.py",
+      "data_file": "files/a5495ed377bfec30.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 184,
+      "bytes": 7533,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_factor_monitor_health.py",
+      "slug": "tests__test_factor_monitor_health.py",
+      "data_file": "files/75026482e8807fb8.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 106,
+      "bytes": 4402,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_history_cli.py",
+      "slug": "tests__test_history_cli.py",
+      "data_file": "files/14062b353fdb1494.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 401,
+      "bytes": 16665,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_index_history.py",
+      "slug": "tests__test_index_history.py",
+      "data_file": "files/204787cbb888312e.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 72,
+      "bytes": 2492,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_industry_neutral.py",
+      "slug": "tests__test_industry_neutral.py",
+      "data_file": "files/a49065c0714963b3.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 42,
+      "bytes": 1181,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_live_data.py",
+      "slug": "tests__test_live_data.py",
+      "data_file": "files/c7a580d18ff08c0a.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 80,
+      "bytes": 2887,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_live_vs_backtest_divergence.py",
+      "slug": "tests__test_live_vs_backtest_divergence.py",
+      "data_file": "files/5e1526804795a10b.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 410,
+      "bytes": 16398,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_ls_costs.py",
+      "slug": "tests__test_ls_costs.py",
+      "data_file": "files/fcf71df3a1dd5e52.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 174,
+      "bytes": 7503,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_no_leakage.py",
+      "slug": "tests__test_no_leakage.py",
+      "data_file": "files/b64b64c4e6195da4.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 188,
+      "bytes": 8290,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_notebook_compat.py",
+      "slug": "tests__test_notebook_compat.py",
+      "data_file": "files/0478241d0a582c4b.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 138,
+      "bytes": 4958,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_paper_trade_daily.py",
+      "slug": "tests__test_paper_trade_daily.py",
+      "data_file": "files/202412193614599c.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 126,
+      "bytes": 4180,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_phase5_regression.py",
+      "slug": "tests__test_phase5_regression.py",
+      "data_file": "files/db2f5fea341e1499.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 523,
+      "bytes": 25561,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_phase5_smoke.py",
+      "slug": "tests__test_phase5_smoke.py",
+      "data_file": "files/3aeb1abc2a2a4a07.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 753,
+      "bytes": 38156,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_pipeline_agents.py",
+      "slug": "tests__test_pipeline_agents.py",
+      "data_file": "files/e12b499e393d2ba1.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 906,
+      "bytes": 37235,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_purged_cv.py",
+      "slug": "tests__test_purged_cv.py",
+      "data_file": "files/6ce11a4c5a764ff3.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 196,
+      "bytes": 9462,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_quant_dojo_cli.py",
+      "slug": "tests__test_quant_dojo_cli.py",
+      "data_file": "files/89bacdb1db412b82.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 1280,
+      "bytes": 55904,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_quant_dojo_e2e.py",
+      "slug": "tests__test_quant_dojo_e2e.py",
+      "data_file": "files/a24daf668d96d756.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 210,
+      "bytes": 8665,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_research_cli.py",
+      "slug": "tests__test_research_cli.py",
+      "data_file": "files/158786480cdc80c9.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 174,
+      "bytes": 7320,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_research_planner.py",
+      "slug": "tests__test_research_planner.py",
+      "data_file": "files/577653e0ea3e02be.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 266,
+      "bytes": 11437,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_risk_gate.py",
+      "slug": "tests__test_risk_gate.py",
+      "data_file": "files/647281bb2d621650.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 192,
+      "bytes": 7445,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_run_store_experiment_id.py",
+      "slug": "tests__test_run_store_experiment_id.py",
+      "data_file": "files/a8aa0e8ca1409e4c.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 80,
+      "bytes": 2670,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_standardized_backtest.py",
+      "slug": "tests__test_standardized_backtest.py",
+      "data_file": "files/b8016e456f1e8353.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 538,
+      "bytes": 22732,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_vol_targeting.py",
+      "slug": "tests__test_vol_targeting.py",
+      "data_file": "files/033eee6f6b38f385.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 253,
+      "bytes": 10080,
+      "truncated": false
+    },
+    {
+      "path": "tests/test_weekly_report_audit.py",
+      "slug": "tests__test_weekly_report_audit.py",
+      "data_file": "files/5f7f7885a3caf582.json",
+      "language": "python",
+      "kind": "tests",
+      "lines": 127,
+      "bytes": 4277,
+      "truncated": false
+    },
+    {
+      "path": "utils/__init__.py",
+      "slug": "utils____init__.py",
+      "data_file": "files/cb19cfbf0eac792d.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 95,
+      "bytes": 2075,
+      "truncated": false
+    },
+    {
+      "path": "utils/alpha_factors.py",
+      "slug": "utils__alpha_factors.py",
+      "data_file": "files/c8d383547d93c25b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 1817,
+      "bytes": 82102,
+      "truncated": false
+    },
+    {
+      "path": "utils/capacity.py",
+      "slug": "utils__capacity.py",
+      "data_file": "files/60743de555569c4e.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 241,
+      "bytes": 9061,
+      "truncated": false
+    },
+    {
+      "path": "utils/data_fingerprint.py",
+      "slug": "utils__data_fingerprint.py",
+      "data_file": "files/a5ff2de716fe555d.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 203,
+      "bytes": 7631,
+      "truncated": false
+    },
+    {
+      "path": "utils/data_loader.py",
+      "slug": "utils__data_loader.py",
+      "data_file": "files/966c7381ef55b3ed.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 410,
+      "bytes": 13045,
+      "truncated": false
+    },
+    {
+      "path": "utils/data_manifest.py",
+      "slug": "utils__data_manifest.py",
+      "data_file": "files/c7f57b0dc71e7fc3.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 279,
+      "bytes": 10550,
+      "truncated": false
+    },
+    {
+      "path": "utils/event_loader.py",
+      "slug": "utils__event_loader.py",
+      "data_file": "files/77c909bf3b910509.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 470,
+      "bytes": 18791,
+      "truncated": false
+    },
+    {
+      "path": "utils/factor_analysis.py",
+      "slug": "utils__factor_analysis.py",
+      "data_file": "files/7787ba8c540cab2d.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 907,
+      "bytes": 32190,
+      "truncated": false
+    },
+    {
+      "path": "utils/fundamental_loader.py",
+      "slug": "utils__fundamental_loader.py",
+      "data_file": "files/e60baf5aca66fa3e.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 595,
+      "bytes": 24276,
+      "truncated": false
+    },
+    {
+      "path": "utils/listing_metadata.py",
+      "slug": "utils__listing_metadata.py",
+      "data_file": "files/e1daf12708ba5c27.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 357,
+      "bytes": 14026,
+      "truncated": false
+    },
+    {
+      "path": "utils/local_data_loader.py",
+      "slug": "utils__local_data_loader.py",
+      "data_file": "files/f45768279e27e47b.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 330,
+      "bytes": 10305,
+      "truncated": false
+    },
+    {
+      "path": "utils/ls_costs.py",
+      "slug": "utils__ls_costs.py",
+      "data_file": "files/1ac594e14a94399f.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 172,
+      "bytes": 6535,
+      "truncated": false
+    },
+    {
+      "path": "utils/market_regime.py",
+      "slug": "utils__market_regime.py",
+      "data_file": "files/b416f9a7fe344703.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 428,
+      "bytes": 13547,
+      "truncated": false
+    },
+    {
+      "path": "utils/mda_anonymize.py",
+      "slug": "utils__mda_anonymize.py",
+      "data_file": "files/f1440f7ec70647a5.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 111,
+      "bytes": 4475,
+      "truncated": false
+    },
+    {
+      "path": "utils/metrics.py",
+      "slug": "utils__metrics.py",
+      "data_file": "files/7ec1628ffe8bcc4c.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 291,
+      "bytes": 9328,
+      "truncated": false
+    },
+    {
+      "path": "utils/multi_factor.py",
+      "slug": "utils__multi_factor.py",
+      "data_file": "files/33495371b1a958e1.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 513,
+      "bytes": 20653,
+      "truncated": false
+    },
+    {
+      "path": "utils/plotting.py",
+      "slug": "utils__plotting.py",
+      "data_file": "files/6f424b2e3dc3f320.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 96,
+      "bytes": 3271,
+      "truncated": false
+    },
+    {
+      "path": "utils/position_sizing.py",
+      "slug": "utils__position_sizing.py",
+      "data_file": "files/c64f4c03860dfdc0.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 200,
+      "bytes": 6877,
+      "truncated": false
+    },
+    {
+      "path": "utils/purged_cv.py",
+      "slug": "utils__purged_cv.py",
+      "data_file": "files/52e5e2ea093dc9a9.json",
+      "language": "python",
+      "kind": "validation",
+      "lines": 226,
+      "bytes": 8723,
+      "truncated": false
+    },
+    {
+      "path": "utils/risk_overlay.py",
+      "slug": "utils__risk_overlay.py",
+      "data_file": "files/e1dd35035699b345.json",
+      "language": "python",
+      "kind": "risk",
+      "lines": 98,
+      "bytes": 3159,
+      "truncated": false
+    },
+    {
+      "path": "utils/runtime_config.py",
+      "slug": "utils__runtime_config.py",
+      "data_file": "files/3333b5176a836805.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 278,
+      "bytes": 7150,
+      "truncated": false
+    },
+    {
+      "path": "utils/stop_loss.py",
+      "slug": "utils__stop_loss.py",
+      "data_file": "files/d83fd1fe862d3828.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 460,
+      "bytes": 16589,
+      "truncated": false
+    },
+    {
+      "path": "utils/tradability_filter.py",
+      "slug": "utils__tradability_filter.py",
+      "data_file": "files/9525309be1a5e007.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 225,
+      "bytes": 7918,
+      "truncated": false
+    },
+    {
+      "path": "utils/tushare_loader.py",
+      "slug": "utils__tushare_loader.py",
+      "data_file": "files/10aaa73784bfd98d.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 413,
+      "bytes": 14804,
+      "truncated": false
+    },
+    {
+      "path": "utils/universe.py",
+      "slug": "utils__universe.py",
+      "data_file": "files/23167cfc5bdc3663.json",
+      "language": "python",
+      "kind": "other",
+      "lines": 165,
+      "bytes": 5966,
+      "truncated": false
+    },
+    {
+      "path": "utils/walk_forward.py",
+      "slug": "utils__walk_forward.py",
+      "data_file": "files/39106ee68a979369.json",
+      "language": "python",
+      "kind": "validation",
+      "lines": 315,
+      "bytes": 12204,
+      "truncated": false
+    }
+  ]
+}

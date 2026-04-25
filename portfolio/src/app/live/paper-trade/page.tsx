@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Lang } from "@/components/layout/LanguageText";
+import { SourceLinkList } from "@/components/source/SourceLink";
 import { MetricGrid } from "@/components/viz/MetricGrid";
 import { readDataOrNull } from "@/lib/data";
 import { fmtNum, fmtPct } from "@/lib/formatters";
@@ -159,6 +160,14 @@ export default async function PaperTradePage() {
                 tone: killTone,
                 hint: <Lang zh={`仓位倍数 × ${kill.position_scale.toFixed(1)}`} en={`scale × ${kill.position_scale.toFixed(1)}`} />,
               },
+            ]}
+          />
+          <SourceLinkList
+            paths={[
+              "scripts/paper_trade_daily.py",
+              "live/event_paper_trader.py",
+              "live/event_kill_switch.py",
+              "tests/test_paper_trade_daily.py",
             ]}
           />
         </div>

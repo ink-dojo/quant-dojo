@@ -1,0 +1,1 @@
+{"path": "live/__init__.py", "language": "python", "kind": "live", "lines": 8, "bytes": 194, "truncated": false, "content": "\"\"\"\nlive 模块 — 模拟盘交易和风险监控\n\"\"\"\n\nfrom live.paper_trader import PaperTrader\nfrom live.risk_monitor import check_risk_alerts\n\n__all__ = [\"PaperTrader\", \"check_risk_alerts\"]\n"}

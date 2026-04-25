@@ -1,0 +1,1 @@
+{"path": "quant_dojo/__init__.py", "language": "python", "kind": "pipeline", "lines": 2, "bytes": 71, "truncated": false, "content": "\"\"\"quant-dojo — 量化研究自动化框架\"\"\"\n__version__ = \"0.1.0\"\n"}

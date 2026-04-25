@@ -12,6 +12,7 @@ import {
   TextLink,
 } from "@/components/layout/Primitives";
 import { Lang } from "@/components/layout/LanguageText";
+import { SourceLinkList } from "@/components/source/SourceLink";
 import type { LiveDashboard, LiveRunSummary, PaperTradeState } from "@/lib/types";
 
 export const metadata = {
@@ -178,6 +179,7 @@ export default async function LivePage() {
           eyebrow={<Lang zh="最近运行" en="Recent runs" />}
           title={<Lang zh="回测仍然可审计" en="Backtests remain auditable" />}
           body={<Lang zh="这些是研究侧 run，不是 live trading 活动。" en="These are research-side runs, not live trading activity." />}
+          action={<SourceLinkList paths={["backtest/standardized.py", "pipeline/run_store.py", "tests/test_backtest_report.py"]} />}
         />
         <div className="overflow-x-auto rounded-xl border border-[var(--border-soft)]">
           <table className="w-full text-sm">

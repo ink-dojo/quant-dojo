@@ -9,6 +9,8 @@ import { ICTrendChart } from "@/components/viz/ICTrendChart";
 import { DecayChart } from "@/components/viz/DecayChart";
 import { QuintileChart } from "@/components/viz/QuintileChart";
 import { FormulaDisplay } from "@/components/viz/FormulaDisplay";
+import { Lang } from "@/components/layout/LanguageText";
+import { SourceLink } from "@/components/source/SourceLink";
 import { readData, readDataOrNull } from "@/lib/data";
 import { fmtNum, fmtPct } from "@/lib/formatters";
 import { FACTOR_CATEGORIES } from "@/lib/constants";
@@ -130,9 +132,9 @@ function HeroFactorView({
   return (
     <>
       <PageHeader
-        eyebrow={`Research · ${hero.tier === "core" ? "Core 4" : "Experimental 4"}`}
-        title={hero.title_en}
-        subtitle={`${hero.name} · ${hero.title_zh}`}
+        eyebrow={<Lang zh={`研究 · ${hero.tier === "core" ? "核心 4 个" : "实验 4 个"}`} en={`Research · ${hero.tier === "core" ? "Core 4" : "Experimental 4"}`} />}
+        title={<Lang zh={hero.title_zh} en={hero.title_en} />}
+        subtitle={<Lang zh={hero.name} en={`${hero.name} · ${hero.title_zh}`} />}
         description={hero.pitch}
         crumbs={[
           { label: "Home", href: "/" },
@@ -148,7 +150,7 @@ function HeroFactorView({
             href={`/research/category/${hero.category}`}
             className="text-[10px] font-mono text-[var(--text-tertiary)] hover:text-[var(--blue)]"
           >
-            → category overview
+            <Lang zh="→ 分类总览" en="→ category overview" />
           </Link>
           <span className="font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
             {hero.tier}
@@ -165,7 +167,7 @@ function HeroFactorView({
           {hero.in_v16 && <span className="font-mono text-[var(--blue)]">in v16</span>}
           {lineNumber !== null && (
             <span className="font-mono text-[var(--text-tertiary)] ml-auto">
-              utils/alpha_factors.py:{lineNumber}
+              <SourceLink path="utils/alpha_factors.py" line={lineNumber} />
             </span>
           )}
         </div>
@@ -176,7 +178,7 @@ function HeroFactorView({
           {detail?.intuition && (
             <>
               <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
-                Intro · 一句话讲清
+                <Lang zh="一句话讲清" en="Intro" />
               </h2>
               <p className="text-base text-[var(--text-primary)] leading-relaxed">
                 {detail.intuition}
@@ -186,7 +188,7 @@ function HeroFactorView({
           {detail?.formula_latex && (
             <>
               <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] pt-4">
-                Formula
+                <Lang zh="公式" en="Formula" />
               </h2>
               <FormulaDisplay
                 latex={detail.formula_latex}
@@ -195,7 +197,7 @@ function HeroFactorView({
             </>
           )}
           <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] pt-4">
-            Docstring · 代码原文
+            <Lang zh="代码原文 Docstring" en="Docstring · source text" />
           </h2>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
             {hero.docstring}
@@ -372,7 +374,7 @@ function LibraryFactorView({
   return (
     <>
       <PageHeader
-        eyebrow="Research · Full Library"
+        eyebrow={<Lang zh="研究 · 完整因子库" en="Research · Full Library" />}
         title={item.name}
         subtitle={subtitle}
         description={item.docstring.split("\n")[0] ?? item.docstring}
@@ -390,7 +392,7 @@ function LibraryFactorView({
             href={`/research/category/${item.category}`}
             className="text-[10px] font-mono text-[var(--text-tertiary)] hover:text-[var(--blue)]"
           >
-            → category overview
+            <Lang zh="→ 分类总览" en="→ category overview" />
           </Link>
           {item.verdict && (
             <span className="font-mono text-[var(--text-tertiary)]">{item.verdict}</span>
@@ -399,7 +401,7 @@ function LibraryFactorView({
           {item.in_v16 && <span className="font-mono text-[var(--blue)]">in v16</span>}
           {lineNumber !== null && (
             <span className="font-mono text-[var(--text-tertiary)] ml-auto">
-              utils/alpha_factors.py:{lineNumber}
+              <SourceLink path="utils/alpha_factors.py" line={lineNumber} />
             </span>
           )}
         </div>
@@ -445,7 +447,7 @@ function LibraryFactorView({
         {detail?.intuition && (
           <div>
             <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
-              Intro · 一句话讲清
+              <Lang zh="一句话讲清" en="Intro" />
             </h2>
             <p className="text-base text-[var(--text-primary)] leading-relaxed">
               {detail.intuition}
@@ -456,7 +458,7 @@ function LibraryFactorView({
         {detail?.formula_latex && (
           <div>
             <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
-              Formula
+              <Lang zh="公式" en="Formula" />
             </h2>
             <FormulaDisplay
               latex={detail.formula_latex}
@@ -467,7 +469,7 @@ function LibraryFactorView({
 
         <div>
           <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--text-tertiary)] mb-3">
-            Docstring · 代码原文
+            <Lang zh="代码原文 Docstring" en="Docstring · source text" />
           </h2>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
             {item.docstring}

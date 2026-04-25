@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EvidenceCard, SectionLabel } from "@/components/layout/Primitives";
 import { Lang } from "@/components/layout/LanguageText";
+import { SourceLinkList } from "@/components/source/SourceLink";
 import { readData } from "@/lib/data";
 import type { Meta } from "@/lib/types";
 
@@ -176,6 +177,33 @@ const STACK = [
   },
 ];
 
+const SOURCE_MAP: Record<string, string[]> = {
+  "utils/data_loader.py": ["utils/data_loader.py"],
+  "utils/tushare_loader.py": ["utils/tushare_loader.py", "journal/tushare_access_guide_20260423.md"],
+  "utils/listing_metadata.py + utils/data_manifest.py": ["utils/listing_metadata.py", "utils/data_manifest.py"],
+  "utils/alpha_factors.py": ["utils/alpha_factors.py"],
+  "utils/factor_analysis.py": ["utils/factor_analysis.py"],
+  "research/factors/": ["research/factors/FACTOR_PIPELINE_AUDIT.md", "research/factors/low_vol/08_low_vol_factor.ipynb"],
+  "scripts/audit_factor_data_coverage.py": ["scripts/audit_factor_data_coverage.py"],
+  "backtest/engine.py :: BacktestEngine": ["backtest/engine.py", "tests/test_standardized_backtest.py"],
+  "backtest/standardized.py": ["backtest/standardized.py", "tests/test_backtest_report.py"],
+  "utils/walk_forward.py + utils/purged_cv.py": ["utils/walk_forward.py", "utils/purged_cv.py", "tests/test_purged_cv.py"],
+  "scripts/paper_trade_daily.py": ["scripts/paper_trade_daily.py", "tests/test_paper_trade_daily.py"],
+  "live/event_paper_trader.py": ["live/event_paper_trader.py", "tests/test_event_paper_trader.py"],
+  "live/ledger.py": ["live/ledger.py"],
+  "live/event_kill_switch.py": ["live/event_kill_switch.py", "tests/test_event_kill_switch.py"],
+  "pipeline/vol_targeting.py": ["pipeline/vol_targeting.py", "tests/test_vol_targeting.py"],
+  "pipeline/capacity_monitor.py": ["pipeline/capacity_monitor.py"],
+  "pipeline/live_vs_backtest.py": ["pipeline/live_vs_backtest.py", "tests/test_live_vs_backtest_divergence.py"],
+  "scripts/stress_test.py": ["scripts/stress_test.py", "tests/scripts/test_stress_test.py"],
+  "quant_dojo/__main__.py": ["quant_dojo/__main__.py", "tests/test_quant_dojo_cli.py"],
+  "pipeline/cli.py + control_surface.py": ["pipeline/cli.py", "pipeline/control_surface.py", "tests/test_control_plane.py"],
+  "dashboard/": ["dashboard/app.py", "dashboard/routers/backtest.py", "dashboard/routers/notebooks.py"],
+  "portfolio/scripts/export_data.py": ["portfolio/scripts/export_data.py"],
+  "portfolio/ · Next.js 14 App Router": ["portfolio/src/app/page.tsx", "portfolio/src/app/source/[slug]/page.tsx"],
+  "prebuild hook": ["portfolio/scripts/export_data.py"],
+};
+
 export default async function InfrastructurePage() {
   const meta = await readData<Meta>("meta.json");
 
@@ -190,11 +218,12 @@ export default async function InfrastructurePage() {
       />
 
       <section className="max-w-content mx-auto px-6 pb-12">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <EvidenceCard tone="blue" label={<Lang zh="研究" en="Research" />} value="factors" detail={<Lang zh="IC、衰减、分层、FM 检验" en="IC, decay, quintile, FM tests" />} />
           <EvidenceCard tone="green" label={<Lang zh="模拟盘" en="Paper" />} value="ledger" detail={<Lang zh="订单、NAV、kill switch" en="orders, NAV, kill switch" />} />
           <EvidenceCard tone="gold" label={<Lang zh="风控" en="Risk" />} value="Tier 1" detail={<Lang zh="波动、容量、压力、偏差" en="vol, capacity, stress, divergence" />} />
           <EvidenceCard tone="neutral" label={<Lang zh="站点" en="Site" />} value="SSG" detail={`build ${meta.git.short ?? "dirty"}`} />
+          <EvidenceCard tone="blue" label={<Lang zh="源码" en="Source" />} value={<Lang zh="可点击" en="linked" />} detail={<Lang zh="源码、测试、notebook 快照" en="source, tests, notebook snapshots" />} href="/source" />
         </div>
       </section>
 
@@ -215,39 +244,39 @@ export default async function InfrastructurePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
             <h3 className="text-sm font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)] mb-3">
-              Tech Stack
+              <Lang zh="技术栈" en="Tech Stack" />
             </h3>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-              <Dt>Research</Dt>
+              <Dt><Lang zh="研究" en="Research" /></Dt>
               <Dd>Python 3.11 · pandas · numpy · scipy · statsmodels</Dd>
-              <Dt>Backtest</Dt>
+              <Dt><Lang zh="回测" en="Backtest" /></Dt>
               <Dd>自研 BacktestEngine（固定接口）</Dd>
-              <Dt>Data</Dt>
+              <Dt><Lang zh="数据" en="Data" /></Dt>
               <Dd>Tushare + parquet 本地缓存</Dd>
-              <Dt>Agents</Dt>
+              <Dt><Lang zh="Agent" en="Agents" /></Dt>
               <Dd>claude -p subprocess / Ollama localhost fallback</Dd>
-              <Dt>Site</Dt>
+              <Dt><Lang zh="站点" en="Site" /></Dt>
               <Dd>Next.js 14 (App Router) · Tailwind · Recharts · react-katex</Dd>
-              <Dt>Hosting</Dt>
+              <Dt><Lang zh="托管" en="Hosting" /></Dt>
               <Dd>Vercel · SSG 静态导出 · prebuild 自动跑 export_data</Dd>
             </dl>
           </div>
           <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-5">
             <h3 className="text-sm font-mono uppercase tracking-[0.15em] text-[var(--text-tertiary)] mb-3">
-              Build Info
+              <Lang zh="构建信息" en="Build Info" />
             </h3>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-xs font-mono">
               <Dt>Repo</Dt>
               <Dd>ink-dojo/quant-dojo</Dd>
               <Dt>SHA</Dt>
               <Dd>{meta.git.short ?? "dirty"}</Dd>
-              <Dt>Subject</Dt>
+              <Dt><Lang zh="提交" en="Subject" /></Dt>
               <Dd className="break-words">{meta.git.subject}</Dd>
-              <Dt>Generated</Dt>
+              <Dt><Lang zh="生成" en="Generated" /></Dt>
               <Dd>{meta.generated_at}</Dd>
-              <Dt>Research face</Dt>
+              <Dt><Lang zh="研究基线" en="Research face" /></Dt>
               <Dd>{meta.face.research}</Dd>
-              <Dt>Multi-factor line</Dt>
+              <Dt><Lang zh="多因子线" en="Multi-factor line" /></Dt>
               <Dd>{meta.face.production}</Dd>
             </dl>
           </div>
@@ -272,13 +301,10 @@ function StackLayer({
           className="text-sm font-semibold"
           style={{ color: layer.color }}
         >
-          {layer.category}
-        </span>
-        <span className="text-xs font-mono text-[var(--text-tertiary)]">
-          {layer.zh}
+          <Lang zh={layer.zh} en={layer.category} />
         </span>
         <span className="ml-auto text-[10px] font-mono text-[var(--text-tertiary)]">
-          {layer.rows.length} components
+          <Lang zh={`${layer.rows.length} 个组件`} en={`${layer.rows.length} components`} />
         </span>
       </header>
       <ul>
@@ -293,6 +319,7 @@ function StackLayer({
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
               <Lang zh={r.desc_zh ?? r.desc} en={r.desc} />
             </p>
+            <SourceLinkList paths={SOURCE_MAP[r.name] ?? []} />
           </li>
         ))}
       </ul>

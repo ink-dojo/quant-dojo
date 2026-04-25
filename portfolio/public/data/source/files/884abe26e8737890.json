@@ -1,0 +1,1 @@
+{"path": "journal/ideas.md", "language": "markdown", "kind": "journal", "lines": 19, "bytes": 308, "truncated": false, "content": "# 策略想法池\n\n> 好想法不等于好策略——每个想法都需要用数据验证。\n\n---\n\n## 模板\n\n```\n## YYYY-MM-DD | 想法标题\n**核心逻辑：**\n**信号定义：**\n**风险点：**\n**状态：** 待研究 / 研究中 / 已回测 / 已放弃\n```\n\n---\n\n<!-- 在这里添加你的想法 -->\n"}

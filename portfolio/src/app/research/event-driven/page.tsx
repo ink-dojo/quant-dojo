@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Lang } from "@/components/layout/LanguageText";
+import { SourceLinkList } from "@/components/source/SourceLink";
 import { EquityChart } from "@/components/viz/EquityChart";
 import { MetricGrid } from "@/components/viz/MetricGrid";
 import { DisclosurePanel, EvidenceCard, SectionLabel } from "@/components/layout/Primitives";
@@ -197,6 +198,13 @@ export default async function EventDrivenPage() {
               en="The combination rule is fixed at 50/50. It is shown here as a research outcome, while the live page remains the source of truth for what is actually running."
             />
           </p>
+          <SourceLinkList
+            paths={[
+              "research/event_driven/dsr30_mainboard_recal.py",
+              "research/event_driven/lhb_decline_contrarian_strategy.py",
+              "research/event_driven/wf_and_stress.py",
+            ]}
+          />
         </DisclosurePanel>
       </section>
 
@@ -667,9 +675,16 @@ export default async function EventDrivenPage() {
           />
         </div>
         <div className="mt-6 text-xs text-[var(--text-tertiary)]">
-          数据: <code className="font-mono">data/raw/events/_all_*.parquet</code> · 计算:
-          <code className="font-mono"> research/event_driven/dsr3*_*.py</code> ·
-          methodology: pre-reg spec + deflated Sharpe + bootstrap CI.
+          <Lang zh="计算源码：" en="Computation source:" />{" "}
+          <SourceLinkList
+            paths={[
+              "research/event_driven/dsr30_mainboard_recal.py",
+              "research/event_driven/lhb_decline_contrarian_strategy.py",
+              "research/event_driven/wf_and_stress.py",
+              "research/event_driven/PHASE4_SPEC.md",
+            ]}
+            label={<Lang zh="打开" en="Open" />}
+          />
         </div>
       </section>
     </>

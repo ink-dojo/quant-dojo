@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-24",
+  "generated_at": "2026-04-25",
   "production_face": "v9",
   "candidate": "v25",
   "note": "v9 是 walk-forward 验证过的 research face. v25 是 Week 5 mining round + regime gating 的候选, 未过 admission gate. 实际 paper-trade 跑的是独立的 event-driven BB-only (spec v3), 见 /live/paper-trade.",
