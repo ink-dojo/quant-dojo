@@ -14,8 +14,8 @@
     "bb": 1.0,
     "pv": 0.0
   },
-  "last_run_ts": "2026-04-24T21:32:08.477393+08:00",
-  "last_trading_day": "2026-04-24",
+  "last_run_ts": "2026-04-27T21:34:05.805320+08:00",
+  "last_trading_day": "2026-04-27",
   "nav_series": [
     {
       "date": "2026-04-17",
@@ -40,67 +40,71 @@
     {
       "date": "2026-04-24",
       "nav": 997122.6566965692
+    },
+    {
+      "date": "2026-04-27",
+      "nav": 996964.3363354222
     }
   ],
-  "last_nav": 997122.6566965692,
-  "cum_return": -0.0028773433034308127,
-  "pnl_today": -2678.9944279019255,
+  "last_nav": 996964.3363354222,
+  "cum_return": -0.003035663664577748,
+  "pnl_today": -158.3203611469362,
   "daily_summary": {
     "n_buys": 1,
     "n_sells": 1,
-    "turnover": 0.2625,
+    "turnover": 0.2647,
     "gross_weight": 0.1323,
-    "cash_after": 865185.55,
-    "nav_after": 997122.66,
+    "cash_after": 865091.84,
+    "nav_after": 996964.34,
     "skipped_buys": [],
     "dropped_no_price": [],
     "duplicate_skipped": []
   },
   "today_trades": [
     {
-      "symbol": "600557",
+      "symbol": "000650",
       "action": "sell",
-      "shares": 1172,
-      "price": 110.87578032985232,
-      "cost": 194.91962181988038
+      "shares": 1075,
+      "price": 122.95335984333158,
+      "cost": 198.2622927473722
     },
     {
-      "symbol": "000650",
+      "symbol": "002959",
       "action": "buy",
-      "shares": 1075,
-      "price": 122.73219642537305,
-      "cost": 197.90566673591405
+      "shares": 723,
+      "price": 182.39625883361873,
+      "cost": 197.8087427050595
     }
   ],
   "positions": [
     {
-      "symbol": "000650",
-      "shares": 1075,
-      "cost_price": 122.73219642537305,
-      "current_price": 122.73219642537305,
+      "symbol": "002959",
+      "shares": 723,
+      "cost_price": 182.39625883361873,
+      "current_price": 182.39625883361873,
       "pnl_pct": 0.0
     }
   ],
   "open_entries_count": 1,
   "open_entries": [
     {
-      "symbol": "000650",
+      "symbol": "002959",
       "leg": "bb",
-      "entry_date": "2026-04-24",
+      "entry_date": "2026-04-27",
       "exit_date": "",
       "unit_weight": 0.13234077750206782,
-      "signal": 1.339344804265,
-      "entry_price": 122.73219642537305
+      "signal": 1.480870078775,
+      "entry_price": 182.39625883361873
     }
   ],
   "kill": {
     "action": "warn",
     "position_scale": 1.0,
     "rolling_sr_30d": null,
-    "live_sharpe": -7.747947224149474,
-    "cum_drawdown": -0.0028773433034308127,
-    "monthly_mdd": -0.0028773433034308127,
-    "running_days": 5,
+    "live_sharpe": -7.519772980247266,
+    "cum_drawdown": -0.003035663664577748,
+    "monthly_mdd": -0.003035663664577748,
+    "running_days": 6,
     "reasons": [],
     "warnings": [
       "当日持仓只数 1 < 3"
