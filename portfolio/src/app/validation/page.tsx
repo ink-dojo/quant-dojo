@@ -407,10 +407,10 @@ export default async function ValidationPage() {
               color="gold"
             />
             <RejectionCard
-              date="2026-04-23"
+              date="2026-04-28"
               tag="Paper-trade spec"
-              title="spec v4 RIAD combo blocked"
-              body="Baseline combo passed several gates, but executable RIAD constraints broke the result."
+              title="spec v4 RIAD combo rejected"
+              body="Jialong rejected go-live: headline SR depended on a one-off DSR exception and executable RIAD constraints broke the result."
               color="red"
             />
           </div>

@@ -188,20 +188,18 @@ def generate_riad_signal(date_t):
 | 日期 | 动作 |
 |---|---|
 | 2026-04-22 | spec v4 pre-reg 完成 (本文档) |
-| 2026-04-23 | jialong 批准 / 否决 / 要求修改 |
-| 若批准 → 2026-04-24 起 | `pipeline/riad_signal.py` 实现 + 单元测试 |
-| +1 周 | Paper-trade 代码集成 (双腿 config + daily 合成 NAV) |
-| +1 周 | smoke test 8-yr BB+RIAD vs backtest parquet, 差异 ≤ 10 bps |
-| +2 周 | Go-live Phase 1 (5% 总权益, Monday 09:30 SH) |
+| 2026-04-28 | **Jialong 否决 spec v4** — 不实现 `pipeline/riad_signal.py`, 不 go-live |
+| 后续 | 保留本文档作审计历史；RIAD 只做 regime / Fold 3 复盘，不追加参数调优 |
 
 ---
 
-## 11. 若被否决 (backup plan)
+## 11. 否决后处理
 
-若 jialong 认为 DSR 0.92 < 0.95 差 0.03 也不行:
-- **Option Z1**: 扩样本 — 等 stk_surv 累积到 4 年再跑 RIAD (预计 2027-10)
-- **Option Z2**: 换 baseline RIAD → baseline Q2Q3 (Sharpe 1.36, 实盘不可执行, 仅做研究 tracking)
-- **Option Z3**: 彻底放弃 RIAD, DSR #30 BB-only v3 单独继续
+Jialong 已否决 spec v4, 因此:
+- **不走 Z1/Z2/Z3 继续推进**: 当前目标是收窄项目, 不是换一个理由继续 go-live。
+- **不实现 RIAD live signal**: `pipeline/riad_signal.py` 暂不创建。
+- **不做 iCloud / 存储迁移 / 宽泛 infra**: 除非它们直接阻塞研究复盘。
+- **只保留审计价值**: 本 spec 作为“headline 指标好看但依赖一次性例外”的反面案例。
 
 ---
 
@@ -223,4 +221,4 @@ logs/riad_dsr30_combined_returns.parquet                              (合成 da
 
 — 记录: jialong
 — Pre-reg: 2026-04-22
-— 状态: 待 jialong 批准 (本 spec 若 +1d 未批即作废, 重新评估)
+— 状态: **Rejected by Jialong on 2026-04-28**

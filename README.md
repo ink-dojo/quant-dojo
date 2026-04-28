@@ -91,12 +91,14 @@ before it can touch real capital.
 | 5   | Paper-trade infra, ACID ledger, audit trail | ✅ Complete |
 | 6   | Control plane — CLI + dashboard | ✅ Complete |
 | 7   | Agentic research — AI operator with risk gate | ✅ Complete |
-| **8** | **Real-money readiness — Tier 1 risk infra** | 🟡 **In progress (2/4 done)** |
+| **8** | **Real-money readiness** | ⚪ **Deferred — not current scope** |
 
-**Active candidate**: `spec v4` — RIAD + DSR #30 BB-only 50/50 ensemble.
-SR 1.87, PSR 0.998, DSR 0.920, MDD −4.86%; passes 4/5 gates pending Phase 8
-Tier 1 completion. Spec frozen in
-`journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`.
+**Current scope**: no active go-live candidate. `spec v4` — RIAD + DSR #30 BB-only
+50/50 — was rejected by Jialong on 2026-04-28 despite attractive headline metrics
+(SR 1.87, PSR 0.998, DSR 0.920, MDD −4.86%). The project is narrowed to:
+1) preserve credible completed research, 2) keep the existing control plane and
+portfolio honest, and 3) only reopen paper-trading after a stricter, pre-registered
+candidate clears all gates without one-off exceptions.
 
 ---
 
@@ -247,8 +249,8 @@ No paid feeds required for any of the public research tracks.
 | `BRAINSTORM.md` | Design decisions, tradeoffs, alternatives considered |
 | `ALPHA_THEORY_2026.md` | Current alpha thesis and search direction |
 | `CHINA_QUANT_GUIDE.md` | A-share market reference (T+1, ST, fees, etc.) |
-| `journal/risk_infra_roadmap_phase8_20260423.md` | Phase 8 executable plan |
-| `journal/paper_trade_spec_v4_*.md` | Active live-trading specification |
+| `journal/risk_infra_roadmap_phase8_20260423.md` | Deferred Phase 8 risk-infra backlog |
+| `journal/paper_trade_spec_v4_*.md` | Rejected candidate spec kept for audit history |
 
 ---
 

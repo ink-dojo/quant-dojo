@@ -85,12 +85,13 @@
 | 5    | 模拟盘基础设施 / ACID ledger / 审计 | ✅ 已完成 |
 | 6    | Control plane — CLI + dashboard | ✅ 已完成 |
 | 7    | Agentic research — 带 risk gate 的 AI 操作员 | ✅ 已完成 |
-| **8** | **实盘 readiness — Tier 1 风控基建** | 🟡 **进行中 (2/4 已完成)** |
+| **8** | **实盘 readiness** | ⚪ **暂缓 — 不属于当前范围** |
 
-**当前候选策略**: `spec v4` — RIAD + DSR #30 BB-only 50/50 组合.
-SR 1.87, PSR 0.998, DSR 0.920, MDD −4.86%; 通过 4/5 门槛, 待 Phase 8 Tier 1
-完成后上线. spec 已锁死在
-`journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`.
+**当前范围**: 暂无 go-live 候选策略。`spec v4` — RIAD + DSR #30 BB-only
+50/50 — 已由 Jialong 于 2026-04-28 否决；尽管 headline 指标好看
+(SR 1.87, PSR 0.998, DSR 0.920, MDD −4.86%)，它依赖一次性 DSR 例外，
+不进入模拟盘。项目先收窄为：保留可信研究、维护 control plane / portfolio 的真实展示，
+只在新候选严格预注册并无例外通过全部门槛后，再重启 paper-trading。
 
 ---
 
@@ -241,8 +242,8 @@ python -m research.factors.low_vol.factor
 | `BRAINSTORM.md` | 设计决策 / 取舍 / 备选方案 |
 | `ALPHA_THEORY_2026.md` | 当前 alpha 理论 + 探索方向 |
 | `CHINA_QUANT_GUIDE.md` | A 股市场参考 (T+1, ST, 费率等) |
-| `journal/risk_infra_roadmap_phase8_20260423.md` | Phase 8 可执行计划 |
-| `journal/paper_trade_spec_v4_*.md` | 当前实盘策略规格 |
+| `journal/risk_infra_roadmap_phase8_20260423.md` | 暂缓的 Phase 8 风控基建 backlog |
+| `journal/paper_trade_spec_v4_*.md` | 已否决候选规格，保留作审计历史 |
 
 ---
 

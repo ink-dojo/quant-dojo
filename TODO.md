@@ -191,20 +191,23 @@ Issue 主线: #25
       3/4 严格门通过 (DSR 0.920 差 0.03, 一次性例外 per pre-reg)
 - [x] **paper_trade_spec_v4 (RIAD + DSR#30 BB-only 双腿 50/50) 已写完**
       (`journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`)
-      待 jialong 批准 (截止 2026-04-23, 超时作废)
+- [x] **Jialong 否决 spec v4 (2026-04-28)** — 不 go-live Phase 1, 不实现 `pipeline/riad_signal.py`
 
-### ⏳ 待 jialong 决定 (2026-04-23)
+### ✅ 2026-04-28 收窄后近期范围
 
-- [ ] **批准 spec v4** — go-live Phase 1 (5% 总权益, 双腿合成)
-      若批: 2026-04-24 实现 `pipeline/riad_signal.py` + smoke test + go-live
-      若否: fallback to Option Z1/Z2/Z3 (详见 spec v4 §11)
-- [ ] BGFD / LULR 作为 universe filter (入榜 ∩ RIAD 打分 / 避雷池) — 待 paper-trade 稳定后
-- [ ] THCC 反向 (做空机构加仓) 作为补充候选 — 下轮 pre-reg
-- [ ] FMD (Foreign-Margin Divergence) — northbound 2025 仅 5 行, 等 tushare 补齐
+- [ ] 复盘 RIAD Fold 3 / regime shift：只产出诊断结论，不再追加参数 sweep
+- [x] 更新 portfolio / README：明确 no active go-live candidate，避免把 spec v4 包装成当前策略
+- [ ] 梳理 open issues：关闭或标记暂缓过期研究任务；iCloud / 存储迁移 / 宽泛 infra 暂不处理
+
+### 暂缓 / 不做
+
+- [ ] BGFD / LULR 作为 universe filter — 暂缓，除非新候选严格预注册
+- [ ] THCC 反向 (做空机构加仓) — 暂缓
+- [ ] FMD (Foreign-Margin Divergence) — 暂缓；northbound 2025 数据缺失不是近期阻塞项
 
 ### 红线
 
 - 不基于 2024 IS / 2025 OOS 结果回头调 RIAD/MFD/BGFD 参数
-- spec v4 DSR 0.92 是一次性例外; 下次新腿必须严格过 4/4 (DSR ≥ 0.95)
+- spec v4 的 DSR 0.92 例外不再接受；下次新腿必须严格过 4/4 (DSR ≥ 0.95)
 - 只报真实数字, 不 round up
 

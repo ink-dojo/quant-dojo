@@ -222,9 +222,9 @@ export default async function JourneyPage() {
               — IS 回撤救回 18pp, OOS Sharpe 从 1.60 崩到 0.27, WF 否决并回滚.
             </li>
             <li>
-              Week 6: spec v4 RIAD + DSR#30 BB-only combo proposal → blocked.
+              Week 7: spec v4 RIAD + DSR#30 BB-only combo proposal → Jialong rejected.
               Filtered universe OOS 2025 Sharpe −0.59, DSR 0.92 &lt; 0.95 门槛;
-              合成的 4/5 gate 是在 baseline (不可执行) 版本上过的.
+              headline 4/5 gate 来自 baseline (不可执行) 版本, 不进入 go-live.
             </li>
             <li>
               Week 6: MD&amp;A drift factor KILL — subset 500 × 8 年 PDF 跑完,

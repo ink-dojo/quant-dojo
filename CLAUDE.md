@@ -10,9 +10,8 @@ A 股量化研究项目，目标是做出真正盈利的系统化策略。
 团队：jialong（金融逻辑/因子设计）、xingyu（代码实现/框架）。
 
 当前阶段：Phase 3 + 4 已终结（2026-04-18），差异化因子轨道 Issue #33 完成（2026-04-22）。
-唯一过门槛策略：spec v4 RIAD + DSR#30 BB-only 双腿 50/50（SR 1.87, DSR 0.920, 3/4 严格门），
-待 jialong 批准（2026-04-23），批准后实现 `pipeline/riad_signal.py` → go-live Phase 1（5%）。
-详见 ROADMAP.md 与 `journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`。
+Jialong 已否决 spec v4 RIAD + DSR#30 BB-only 双腿 50/50（2026-04-28）：不实现 `pipeline/riad_signal.py`，不进入 go-live Phase 1。
+近期项目收窄为“复盘已完成研究 → 保留少数可信候选 → 维护现有 control plane/portfolio 真实性”；iCloud/存储迁移/宽泛 infra 暂不处理。
 
 ---
 

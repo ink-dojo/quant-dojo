@@ -26,7 +26,7 @@
 | v17 (Sprint 1 集成) | 只做 2022-2025 短窗口 | 未做长历史 |
 | v18 (Sprint 2 集成) | 只做 2025 OOS 一年 | 真 pb 下 Δ SR +0.054, 已否决 |
 | **DSR #30 (BB+PV 主板 rescaled)** | 8-yr single-sample 4/5 gate | **CI_low 0.20 fail 为唯一 miss, 2024-2025 SR 1.34** |
-| **spec v4: RIAD + DSR#30 BB-only 双腿 50/50** | 完整 5-gate (n_trials=44) | **SR 1.87, CI_low +0.91; DSR 0.920 (差 0.03, 一次性例外); 待 jialong 批准** |
+| **spec v4: RIAD + DSR#30 BB-only 双腿 50/50** | 完整 5-gate (n_trials=44) | **REJECTED 2026-04-28** — SR 1.87 / CI_low +0.91 但 DSR 0.920 依赖一次性例外, 不 go-live |
 
 ### 0.3 诊断
 
@@ -37,7 +37,7 @@
 - 北向资金 dominate 大盘蓝筹定价
 - A 股 2023 注册制后信息效率上移, 很多 anomaly 被补刀
 
-**挖第 11 个因子不如 paper-trade 一个已过 4/5 gate 的真能跑的**。
+**2026-04-28 更新：spec v4 已被否决。当前重点不是继续挖第 11 个因子，也不是急着 paper-trade；而是把已完成研究收窄成可信档案，等待无例外通过的候选。**
 
 ---
 
@@ -197,18 +197,17 @@
 
 按价值 × 紧急度排序:
 
-### 4.1 🔴 Paper-trade DSR #30 (最高优先级)
+### 4.1 🔴 收窄项目范围：暂无 Paper-trade go-live
 
 **为什么**:
-- 过 4/5 gate, 2024-2025 SR 1.34, post-announcement drift 学术 40 年
-- paper_trade_spec_v2_20260421.md 已写好
-- 3 个月 live 验证给你**校准先验**, 让未来所有 backtest 可信度 × 10
+- spec v4 已由 Jialong 于 2026-04-28 否决；不得继续按“待批准候选”推进。
+- RIAD 的 Fold 3 / 2025 H2 regime 问题仍需复盘，不能用 headline SR 覆盖结构性失败。
+- 现在继续铺 Phase 8 / iCloud / 宽泛 infra 会稀释研究主线。
 
 **怎么做**:
-- 按 spec v4 (RIAD + DSR#30 BB-only 双腿 50/50) 执行 5% 规模
-  (`journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`, 待 jialong 批准)
-- daily pipeline 在现有 `scripts/` 拼接
-- live SR < 0.5 立即降规模
+- 不实现 `pipeline/riad_signal.py`，不执行 5% paper-trade。
+- 只保留 spec v4 文档作为审计历史，并在 README / portfolio 标注 rejected。
+- 近期只做三件事：研究复盘、展示口径纠偏、open issue 清理；iCloud / 存储迁移先不管。
 
 ### 4.2 🔴 修复 dashboard 认知诚信
 

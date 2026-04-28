@@ -218,19 +218,25 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
 
 ---
 
-## Phase 8：Agentic Execution / Real-Money Readiness（远期）
+## Phase 8：Agentic Execution / Real-Money Readiness（远期，当前暂缓）
 
 ### 目标
 
-讨论 AI 更深度接管之前，必须先解决真实资金约束。
+讨论 AI 更深度接管之前，必须先解决真实资金约束；但 2026-04-28 起 Phase 8 不再是近期主线。
 
+**当前收窄原则：**
+- 不因为 spec v4 headline 指标好看就推进 go-live；spec v4 已否决。
+- 不处理 iCloud / 存储迁移 / 宽泛基础设施优化，除非它阻塞当前研究复盘。
+- 只保留“审计历史 + portfolio 真实展示 + control plane 基本可用”三件事。
+
+**暂缓 backlog：**
 - [ ] 模拟盘连续表现门槛
 - [ ] 资金管理与风控规则固化
 - [ ] 自动停机 / 熔断 / 风险升级机制
 - [ ] 券商 API 与实盘执行审查
 - [ ] AI 是否可拥有部分执行权的治理规则
 
-**交付物：** 不是“AI 已经自动交易”，而是“系统已具备被审查和被约束的资格”
+**交付物：** 暂不追求实盘 readiness；先把项目从“继续扩张”收窄为“可信研究档案 + 少数候选复盘”。
 
 ---
 
@@ -272,7 +278,7 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
 - [ ] **FMD** (Foreign-Margin Divergence) — 设计完成, northbound 2025 数据缺失, 待修
 - [x] RIAD walk-forward (3-fold blocked CV) + regime-aware gate + 融券 universe filter 完成
       RIAD 单独 2/4 (DSR/bootstrap 不过), RIAD × DSR#30 BB-only corr=-0.04 → 合成 1.87 SR, 3/4 通过
-      paper_trade_spec_v4 (RIAD + DSR#30 BB-only 双腿 50/50) 已写, 待 jialong 批准 (2026-04-23)
+      paper_trade_spec_v4 (RIAD + DSR#30 BB-only 双腿 50/50) 已写但 **2026-04-28 被 Jialong 否决**：不 go-live，不实现 RIAD 信号管道
       (详见 `journal/riad_mfd_factor_result_20260422.md`, `journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`)
 - [ ] **Tier 2** — LLM hedging 密度增量（条件: Tier 1 IC ∈ [0.015, 0.025]）
 - [ ] **Tier 3** — 跨文档 conditional reasoning（条件: Tier 1/2 任一 work）

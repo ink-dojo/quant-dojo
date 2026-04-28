@@ -70,11 +70,12 @@ python -m research.factors.retail_inst_divergence.neutralize_eval
 - [x] 融券 universe filter — 见 `tradable_universe.py`, OOS Sharpe 变负 -0.34
 - [x] Regime gate (HS300 +3%) — 见 `regime_gate.py`, Sharpe 1.58 vs baseline 1.64 持平
 - [x] 和 DSR #30 BB-only corr — `corr_vs_dsr30.py`, Pearson -0.04, 合成 Sharpe 2.12
-- [x] paper-trade pre-reg spec — `journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md`
+- [x] paper-trade pre-reg spec — `journal/paper_trade_spec_v4_riad_dsr30_combo_20260422.md` (**2026-04-28 已否决**)
 
 ## 最终结论 (2026-04-22)
 
-RIAD 单独 **不过** 5-gate 4/4 (最好 2/4). 但作为 DSR #30 BB-only 的 diversifier
-过 3/4 (Sharpe 1.87, PSR 0.998, CI_low +0.91, DSR 0.920 差 0.03).
+RIAD 单独 **不过** 5-gate 4/4 (最好 2/4). 作为 DSR #30 BB-only 的 diversifier
+曾在 baseline 口径过 3/4 (Sharpe 1.87, PSR 0.998, CI_low +0.91, DSR 0.920 差 0.03),
+但依赖一次性 DSR 例外且可执行约束下表现恶化。
 
-**推荐路径**: Paper-trade spec v4 (RIAD + DSR30 合成 50/50), 不是 RIAD 单独.
+**最终决策 (2026-04-28)**: Jialong 否决 Paper-trade spec v4；RIAD 不进入模拟盘，后续仅作为 regime shift / Fold 3 诊断案例保留。

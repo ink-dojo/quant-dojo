@@ -119,7 +119,7 @@ export default async function Home() {
           <EvidenceCard
             tone="red"
             label={<Lang zh="最近硬否决" en="Latest hard reject" />}
-            value="RIAD combo"
+            value="No go-live candidate"
             detail={<Lang zh="可执行股票池破坏 baseline 结果；继续跑 BB-only。" en="Executable universe broke the baseline result; keep BB-only live." />}
             href="/validation"
           />
@@ -198,7 +198,7 @@ export default async function Home() {
           <DisclosurePanel
             tone="neutral"
             title={<Lang zh="打开多因子净值对比" en="Open multi-factor equity overlay" />}
-            summary={<Lang zh="v9 基线、被否决的止损版本、当前候选放在同一坐标。" en="v9 face, rejected stop-loss variant, and current candidate on one axis." />}
+            summary={<Lang zh="v9 基线、被否决版本、暂缓候选放在同一坐标。" en="v9 face, rejected variants, and deferred candidates on one axis." />}
           >
             <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)]/40 p-4">
               <EquityChart series={series} height={380} />
@@ -221,8 +221,8 @@ export default async function Home() {
               {candidate && (
                 <MiniNote
                   tone="gold"
-                  label={`${candidate.id} · candidate`}
-                  body={<Lang zh="保留展示是因为它有诱惑力，不代表已批准。" en="Kept visible because it is tempting, not because it is approved." />}
+                  label={`${candidate.id} · deferred candidate`}
+                  body={<Lang zh="保留展示是因为它有研究价值，不代表当前要推进。" en="Kept visible for research value, not because it is being promoted now." />}
                 />
               )}
             </div>
@@ -239,7 +239,7 @@ export default async function Home() {
           <PathCard href="/live" n="01" title="Live" body={<Lang zh="当前模拟盘状态、风控动作、持仓和每日摘要。" en="Current paper-trade state, risk action, positions, and daily summary." />} />
           <PathCard href="/validation" n="02" title="Validation" body={<Lang zh="被否决策略、被杀因子、被阻塞 spec 的 case files。" en="Case files for rejected strategies, killed factors, and blocked specs." />} />
           <PathCard href="/research" n="03" title="Research" body={<Lang zh="因子库、分类筛选和核心因子的深度页。" en="Factor library, category filter, and deep dives for selected factors." />} />
-          <PathCard href="/strategy" n="04" title="Strategy" body={<Lang zh="多因子版本、gate、候选和净值对比。" en="Multi-factor versions, gates, candidates, and equity overlays." />} />
+          <PathCard href="/strategy" n="04" title="Strategy" body={<Lang zh="多因子版本、gate、暂缓候选和净值对比。" en="Multi-factor versions, gates, deferred candidates, and equity overlays." />} />
           <PathCard href="/journey" n="05" title="Journey" body={<Lang zh="按时间记录 scope、产出和教训。" en="Chronological project record with scope, output, and lessons." />} />
           <PathCard href="/infrastructure" n="06" title="Infra" body={<Lang zh="真实 repo 分层、数据导出路径和构建信息。" en="Actual repo layers, data export path, and build metadata." />} />
         </div>
