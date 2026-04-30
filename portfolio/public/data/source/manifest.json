@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-30T02:45:55+00:00",
+  "generated_at": "2026-04-30T02:53:30+00:00",
   "total": 13028,
   "files": [
     {
@@ -88,8 +88,8 @@
       "data_file": "files/aca0bc867aba812c.json",
       "language": "markdown",
       "kind": "other",
-      "lines": 315,
-      "bytes": 14946,
+      "lines": 318,
+      "bytes": 15108,
       "truncated": false
     },
     {
@@ -1178,8 +1178,8 @@
       "data_file": "files/973aff80af32f1c0.json",
       "language": "markdown",
       "kind": "journal",
-      "lines": 75,
-      "bytes": 4195,
+      "lines": 108,
+      "bytes": 7686,
       "truncated": false
     },
     {
@@ -2148,8 +2148,8 @@
       "data_file": "files/3f3a2fd12e16401d.json",
       "language": "python",
       "kind": "risk",
-      "lines": 264,
-      "bytes": 10705,
+      "lines": 290,
+      "bytes": 12551,
       "truncated": false
     },
     {
@@ -128648,8 +128648,8 @@
       "data_file": "files/4214f6144c431bc0.json",
       "language": "markdown",
       "kind": "research",
-      "lines": 89,
-      "bytes": 3515,
+      "lines": 78,
+      "bytes": 3469,
       "truncated": false
     },
     {
@@ -128658,8 +128658,8 @@
       "data_file": "files/e9bff838057373c9.json",
       "language": "python",
       "kind": "research",
-      "lines": 113,
-      "bytes": 4515,
+      "lines": 127,
+      "bytes": 5178,
       "truncated": false
     },
     {
@@ -128668,8 +128668,8 @@
       "data_file": "files/23b094861f3eac5d.json",
       "language": "python",
       "kind": "research",
-      "lines": 203,
-      "bytes": 6316,
+      "lines": 196,
+      "bytes": 6075,
       "truncated": false
     },
     {
