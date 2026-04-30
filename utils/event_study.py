@@ -258,6 +258,74 @@ def quintile_spread(
     return out
 
 
+# ─────────────────────────────────────────────────────────────
+# 4. T+1 涨跌停 next-day filter (排除 T+1 不可入场事件)
+# ─────────────────────────────────────────────────────────────
+
+def t1_limit_mask(
+    events: pd.DataFrame,
+    prices: pd.DataFrame,
+    *,
+    date_col: str = "trade_date",
+    symbol_col: str = "symbol",
+    cat_col: Optional[str] = "reason_cat",
+    nolimit_value: str = "nolimit",
+    threshold: float = 0.095,
+) -> pd.Series:
+    """对每事件查 T+1 raw return. 返回 bool Series, True = T+1 涨跌停 → 应剔.
+
+    Vectorized fancy-index, ~50-100x 比 Python loop. 边界条件保留:
+        - i0 越界 / sym 不在 prices 列 / event_date 不在交易日历 → False (不剔)
+        - prices[T] 或 prices[T+1] NaN / prices[T] == 0 → False
+        - cat_col 列里 nolimit_value 的事件不过滤 (本无涨跌停板)
+
+    threshold 默认 0.095 (主板 ±10% 留 50bp buffer). 创业板/科创板 +/- 19.5%
+    用同阈值会 over-filter, 是已知 trade-off (保守优先). 后续可接 tushare
+    limit_list 做精确多板 detection.
+
+    参数:
+        events, prices : 同 compute_event_abn_returns
+        cat_col, nolimit_value : 跳过无涨跌停板事件 (传 cat_col=None 则全部过滤)
+        threshold      : |T+1 return| 阈值, 默认 0.095
+    """
+    td_arr = prices.index.values
+    n_dates = len(td_arr)
+    col_index = {c: i for i, c in enumerate(prices.columns)}
+    p_vals = prices.values
+
+    ev_dates = pd.to_datetime(events[date_col]).values.astype("datetime64[ns]")
+    ev_syms = events[symbol_col].values
+
+    i0 = np.searchsorted(td_arr, ev_dates, side="left")
+    sym_idx = np.array([col_index.get(s, -1) for s in ev_syms])
+
+    in_range = (i0 < n_dates - 1)
+    safe_i0 = np.where(in_range, i0, 0)
+    hit = np.zeros(len(events), dtype=bool)
+    hit[in_range] = td_arr[safe_i0[in_range]] == ev_dates[in_range]
+    sym_ok = sym_idx >= 0
+
+    if cat_col is not None and cat_col in events.columns:
+        not_nolimit = events[cat_col].values != nolimit_value
+    else:
+        not_nolimit = np.ones(len(events), dtype=bool)
+
+    eligible = in_range & hit & sym_ok & not_nolimit
+    is_limit = np.zeros(len(events), dtype=bool)
+    if eligible.any():
+        i0_e = i0[eligible]
+        col_e = sym_idx[eligible]
+        p_t = p_vals[i0_e, col_e]
+        p_t1 = p_vals[i0_e + 1, col_e]
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ret_t1 = p_t1 / p_t - 1
+        valid = ~(np.isnan(p_t) | np.isnan(p_t1) | (p_t == 0))
+        flag = valid & (np.abs(ret_t1) >= threshold)
+        is_limit[np.where(eligible)[0]] = flag
+
+    return pd.Series(is_limit, index=events.index, name="t1_limit")
+
+
 if __name__ == "__main__":
     # 最小自测: 合成 200 个事件 + 100 股票 30 日窗
     rng = np.random.default_rng(42)
