@@ -93,7 +93,7 @@ def csi300_pit_ranges() -> dict[str, list[tuple[pd.Timestamp, pd.Timestamp]]]:
     return members
 
 
-def fetch_one(symbol: str, retries: int = 5, throttle_s: float = 0.3) -> pd.DataFrame | None:
+def fetch_one(symbol: str, retries: int = 6, throttle_s: float = 3.0) -> pd.DataFrame | None:
     import akshare as ak
     cache_path = PARQUET_CACHE / f"{symbol}.parquet"
     if cache_path.exists():
