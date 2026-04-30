@@ -243,13 +243,22 @@ refactor: 重构
 
 ---
 
-## 策略评审门槛（来自 WORKFLOW.md）
+## 策略 Live-Tier 与实盘门 (v1, 2026-04-29 ratified)
 
-策略进入模拟盘前必须达到：
-- 年化收益 > 15%
-- 夏普比率 > 0.8
-- 最大回撤 < 30%
-- 回测时间跨度 > 3 年，覆盖牛熊
+策略不是"能不能上线"二元判断, 是 4 级 Live-Tier 渐进:
+
+- **Live-Tier 0** (paper-only): no lookahead + 回测 sharpe_net > 0 + 30 天 paper smoke
+- **Live-Tier 1** (1-5% NAV): + backtest sharpe_net > 0.5 (双边 0.5% cost) + 全 OOS 切片不 FAIL_IC_FLIP, 至多 1 个 FAIL_NEG_SHARPE 且失败窗 net_ann × 仓位 < 0.3% NAV + 30 天 paper green
+- **Live-Tier 2** (5-25% NAV): + 60 天 Tier-1 live sharpe > 0.8 + DSR > 0.85 + 全切片 0 FAIL + capacity ¥50万
+- **Live-Tier 3** (25-100% / 外部资金): + 12 月 Tier-2 live sharpe > 1.0 + DSR > 0.95 + 全切片 sharpe > 0.8 + cross-regime invariant + 经历至少一次 regime transition
+
+详见 `journal/eval_framework_v1_proposal_20260429.md` (含 first-principles 推导 + 已知约定值标注).
+
+升级 always 需要 live 证据. 降级不需要新证据. spec v4 历史拒绝结论不变.
+
+**当前阶段定位**: Tier 0 验证, 不部署 Tier 1+ 真钱. Tier 1 启动需 jialong 独立 ratify (新 issue), 不靠 framework 自动触发.
+
+代码层默认门 (pipeline/risk_gate.py DEFAULT_RULES) 对应 **Live-Tier 2** (向后兼容老调用); 其他 tier 通过 `tier=` 参数选择.
 
 ---
 
