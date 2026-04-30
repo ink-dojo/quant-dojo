@@ -290,7 +290,8 @@ def build_nb_ratio_chg(stocks: list, price_idx: pd.DatetimeIndex) -> pd.DataFram
 
         nb["date"] = pd.to_datetime(nb["trade_date"], format="%Y%m%d")
         nb = nb.set_index("date").sort_index()
-        nb = nb[["ratio"]].drop_duplicates()
+        # 同日多档/多通道记录: 留最后一条, 否则后续 reindex 报 duplicate-label
+        nb = nb[["ratio"]].loc[~nb.index.duplicated(keep="last")]
 
         # 季度变化
         nb["ratio_chg"] = nb["ratio"].diff()
@@ -322,7 +323,7 @@ def build_roe_stability(stocks: list, price_idx: pd.DatetimeIndex) -> pd.DataFra
     factor_frames = {}
 
     for sym in stocks:
-        fi_path = DATA / "financial" / f"fina_{sym}.parquet"
+        fi_path = DATA / "financial" / f"fina_indicator_{sym}.parquet"
         if not fi_path.exists():
             continue
 
@@ -342,7 +343,8 @@ def build_roe_stability(stocks: list, price_idx: pd.DatetimeIndex) -> pd.DataFra
 
         # 以公告日为时间轴（避免前视偏差）
         ann_series = fi.set_index("ann_date")["roe_stability"]
-        ann_series = ann_series[~ann_series.index.duplicated(keep="last")]
+        # ann_date 与 end_date 顺序常不一致 (财报披露延迟不一); dedup 后必须 sort_index 才能 ffill reindex
+        ann_series = ann_series[~ann_series.index.duplicated(keep="last")].sort_index()
         daily_signal = ann_series.reindex(price_idx, method="ffill")
         factor_frames[sym] = daily_signal
 
@@ -443,7 +445,7 @@ def run_analysis():
     # 确定股票池（有 moneyflow + daily_basic + fina + cashflow + income 的股票）
     mf_stocks = set(f.stem for f in (DATA / "moneyflow").glob("*.parquet"))
     db_stocks = set(f.stem for f in (DATA / "daily_basic").glob("*.parquet"))
-    fi_stocks = set(f.stem.replace("fina_", "") for f in (DATA / "financial").glob("fina_*.parquet"))
+    fi_stocks = set(f.stem.replace("fina_indicator_", "") for f in (DATA / "financial").glob("fina_indicator_*.parquet"))
     cf_stocks = set(f.stem.replace("cashflow_", "") for f in (DATA / "financial").glob("cashflow_*.parquet"))
     ic_stocks = set(f.stem.replace("income_", "") for f in (DATA / "financial").glob("income_*.parquet"))
     nb_stocks = set(f.stem for f in (DATA / "northbound").glob("*.parquet"))
