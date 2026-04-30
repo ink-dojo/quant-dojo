@@ -131,6 +131,8 @@ def main():
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--resume", action="store_true",
                         help="跳过 OUT_DIR/features 已存在的股票")
+    parser.add_argument("--from-cache-only", action="store_true",
+                        help="不调 akshare, 只从已有 SSD parquet cache 写 bin (akshare 限流时使用)")
     args = parser.parse_args()
 
     _check_ssd_mounted()
@@ -151,18 +153,30 @@ def main():
         symbols = [s for s in symbols if to_qlib_symbol(s).lower() not in existing]
         print(f"[resume] {len(symbols)} 只待下 (skip existing)")
 
-    print("[1/3] fetching OHLCV...")
-    panels: dict[str, pd.DataFrame] = {}
-    t0 = time.time()
-    for i, sym in enumerate(symbols):
-        if i % 50 == 0 and i > 0:
-            elapsed = time.time() - t0
-            eta = elapsed * (len(symbols) - i) / i
-            print(f"   {i}/{len(symbols)} ({elapsed:.0f}s, ETA {eta:.0f}s)")
-        df = fetch_one(sym)
-        if df is not None and not df.empty:
-            panels[sym] = df
-    print(f"   loaded {len(panels)}/{len(symbols)} ({time.time()-t0:.0f}s)")
+    if args.from_cache_only:
+        print("[1/3] loading panels from SSD cache only (akshare 不调)")
+        panels: dict[str, pd.DataFrame] = {}
+        for sym in symbols:
+            cache_path = PARQUET_CACHE / f"{sym}.parquet"
+            if cache_path.exists():
+                try:
+                    panels[sym] = pd.read_parquet(cache_path)
+                except Exception:
+                    pass
+        print(f"   loaded {len(panels)}/{len(symbols)} from cache")
+    else:
+        print("[1/3] fetching OHLCV...", flush=True)
+        panels: dict[str, pd.DataFrame] = {}
+        t0 = time.time()
+        for i, sym in enumerate(symbols):
+            if i % 50 == 0 and i > 0:
+                elapsed = time.time() - t0
+                eta = elapsed * (len(symbols) - i) / i
+                print(f"   {i}/{len(symbols)} ({elapsed:.0f}s, ETA {eta:.0f}s)", flush=True)
+            df = fetch_one(sym)
+            if df is not None and not df.empty:
+                panels[sym] = df
+        print(f"   loaded {len(panels)}/{len(symbols)} ({time.time()-t0:.0f}s)", flush=True)
 
     if not panels:
         print("没下到数据, 退出")
