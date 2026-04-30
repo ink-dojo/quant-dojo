@@ -23,8 +23,8 @@ _2026-04-29 — 结论: 全样本全 variant 全 slice 几乎全 FAIL. 杀回购
 
 ## 数据
 
-- `data/raw/tushare/repurchase.parquet`: 95k 公告 2015-2026, proc 6 类
-  - 预案 26.5k / 股东大会通过 12k / 实施 32k / 完成 24k / 停止 0.09k / 未通过 0.03k
+- `data/raw/tushare/repurchase.parquet`: 95k 公告 2015-2026, proc **8 类** (rev 1 漏 "提议" + "失效"):
+  - 实施 32.0k / 预案 26.6k / 完成 23.6k / 股东大会通过 12.3k / 提议 0.9k / 停止 0.09k / 未通过 0.03k / 失效 0.012k
 - 本 study 只用 **proc='预案'** (announcement = alpha 第一次入价时点)
 - 同 (ann_date, ts_code) 多条 (重复披露 / 多次预案) 取 amount 最大
 - 去除 amount NaN / 0 → 15,538 events
