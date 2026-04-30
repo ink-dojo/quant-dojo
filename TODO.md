@@ -239,7 +239,10 @@ Issue 主线: #25
       `journal/a_route_final_summary_20260430.md`
       LHB / 回购 / 解禁 / 调研 全部 framework_pass=0. utils framework 抽出可复用.
       转 C (质量改进 roe_stability) + D (paper-trade infra Issue #51) 并行.
-- [ ] **C: roe_stability 加 regime overlay (HS300 RSRS) — 看是否能补 T4 FAIL 切片**
+- [x] **C: roe_stability + HS300 composite regime overlay (Issue #60)** — 失败
+      `journal/roe_stability_regime_overlay_20260430.md`
+      composite mask 60% 日子是 bear, 把好日子也 mask 掉. T2 由 PASS → FAIL,
+      T4 由 FAIL → FAIL_IC_FLIP. 单 attempt 失败, 不 sweep, 转 D.
 - [ ] **D: 启动 Issue #51 (Tier 0 paper smoke 30 天) — 后台 nightly 跑**
 - [ ] **评估范式 v1 (Tier 0/1/2/3 分级门) — Issue #50, awaiting jialong 决策**
       `journal/eval_framework_v1_proposal_20260429.md`
