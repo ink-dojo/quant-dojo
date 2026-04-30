@@ -1,6 +1,20 @@
 # LHB Phase 2: subgroup × time slice cross-tab + 涨跌停过滤
 
-_2026-04-29 — Issue #56, A 路 Phase 2_
+_2026-04-29 — Issue #56, A 路 Phase 2 (rev 2: simplify 后修 decision logic + 算术)_
+
+> **Rev 2 修订** (simplify review 后):
+> - **算术修正**: rev 1 估"50 events × 0.13% = 1.6% NAV/yr drag", 实际 multi_day
+>   extreme T2 n=509, framework annualization 公式给出 multi_day extreme T+5
+>   T2 drag = **6.58% NAV/yr** (T+10 = 1.98%). 远超 0.3% 阈, 结论"杀 LHB"反而
+>   更强 (rev 1 数字其实低估了 4-10x).
+> - **Decision logic 修了**: rev 1 脚本说"继续 Phase 3" 因为只看 T3 是否 PASS,
+>   journal 手动 override 说"杀". rev 2 加 `framework_strict_decision()` encode
+>   完整 Live-Tier 1 严格门 (T3 PASS + 至多 1 失败 OOS slice + 失败窗 × 仓位
+>   < 0.3% NAV/yr). 现在脚本自动判定 framework_pass=0, 跟 journal 一致.
+> - **A_all 不入 framework 判定**: A_all 含涨跌停板, 是不可交易上界. framework
+>   严格门只对 tradeable variants (B/C) 应用, 防误读"涨停板 alpha = 真候选".
+> - **add_t1_limit_mask vectorized + 下沉 utils**: 抽到 utils.event_study.t1_limit_mask
+>   (~50-100x), 后续 candidate 直接 import.
 
 ---
 
@@ -98,14 +112,15 @@ cell verdict:
 脚本只检查 T3 是否有 PASS cell. **framework Live-Tier 1 入门门是"全 OOS 切片
 不 FAIL_IC_FLIP, 至多 1 个 FAIL_NEG_SHARPE 且失败窗 net_ann × 仓位 < 0.3% NAV"**.
 
-multi_day Variant C 失败窗 (T2):
-- T+5 net spread = -2.63% per event
-- 仓位 5% NAV (Tier 1)
-- 单事件 NAV 影响 = 5% × 2.63% = 0.13% NAV
-- T2 4 年里 multi_day extreme 事件 ≈ 9480 total / 11年 ≈ 860 events/年 × 4 年 / 5 subgroups ≈ 几百 events 在 T2
-  - 实际 T2 multi_day extreme n_events 没单独打印, 但即使少到 50 events, 累计
-    50 × 0.13% = 6.5% NAV / 4年 = **1.6% NAV/年 drag**
-- **远超 framework 0.3% NAV 阈** (5x+)
+multi_day Variant C 失败窗 (T2): 实测 (rev 2 framework_strict_decision 公式)
+- T+5: T2 net spread per-event = -2.63%, n=509
+- annualized net = -2.63% × (250 / 5) = -131.5% (年化把 250 trading days 摊到 5d horizon)
+- 5% Tier 1 仓位下年化 NAV drag = **|-131.5%| × 0.05 = 6.58% NAV/yr**
+- T+10 同算: T2 drag 1.98% NAV/yr (T+10 horizon 拉长稀释了 per-period drag)
+- **远超 framework 0.3% NAV 阈**: T+5 是 22x, T+10 是 7x
+
+(rev 1 误估 1.6% NAV/yr 是把 T2 events 当 50 个、用累计-then-divide 的非标准公式. 真实
+events n=509, 用标准 annualization 后数字大 4-10x. 结论 "杀 LHB" 不变, 反而更强.)
 
 → multi_day extreme **过不了 Tier 1 入门门**. 即使 T3 PASS, T2 FAIL 让组合不可
 deploy.
