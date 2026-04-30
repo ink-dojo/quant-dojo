@@ -211,8 +211,51 @@ def cross_val_score_purged(
     return pd.DataFrame(rows)
 
 
+def combinatorial_purged_cv_splits(
+    dates: pd.DatetimeIndex,
+    n_folds: int = 10,
+    n_test_folds: int = 2,
+    purged_size: int = 5,
+    embargo_size: int = 0,
+):
+    """
+    Combinatorial Purged CV (López de Prado AFML Ch.12) — 通过 skfolio 提供。
+
+    与本模块的 `purged_kfold_indices` 区别:
+      - PurgedKFold: 把样本切成 k 折, 每折轮流当 1 个 test segment, 共 k 个 train/test 对
+      - CombinatorialPurgedCV: 把样本切成 n_folds 折, 每次选 n_test_folds 个折作 test
+        (其余作 train), 共 C(n_folds, n_test_folds) 个 train/test 对 → 多条 backtest paths
+        → 提供 Sharpe / DSR 的 sampling distribution, 而不是单点估计
+
+    参数:
+        dates       : 样本时间索引 (递增唯一)
+        n_folds     : 切分的折数
+        n_test_folds: 每次选作 test 的折数 (1 ≤ n_test_folds < n_folds)
+        purged_size : 训练集中要 purge 的样本数 (= label_horizon, AFML 用样本数而非比例)
+        embargo_size: test 后禁运的样本数
+
+    产出:
+        Iterator[(train_idx, test_idx)] —— 共 C(n_folds, n_test_folds) 个对
+        即 n_folds=10, n_test_folds=2 → 45 个 paths
+
+    注:
+        skfolio 的实现走过 1.9k stars + sklearn API 验证, 比手搓更稳;
+        但模块内 `purged_kfold_indices` 仍保留作 reference + 简单场景。
+    """
+    _validate_inputs(dates, n_folds, max(purged_size, 1), embargo_size / max(len(dates), 1))
+    from skfolio.model_selection import CombinatorialPurgedCV
+    cpcv = CombinatorialPurgedCV(
+        n_folds=n_folds,
+        n_test_folds=n_test_folds,
+        purged_size=purged_size,
+        embargo_size=embargo_size,
+    )
+    n = len(dates)
+    X_dummy = np.zeros((n, 1))
+    yield from cpcv.split(X_dummy)
+
+
 if __name__ == "__main__":
-    # 最小自测：500 个样本 × 5 折 × horizon 5 → 每折应有 ~99 个测试样本
     dates = pd.bdate_range("2020-01-01", periods=500)
     total_test = 0
     for split in purged_kfold_indices(dates, n_splits=5, label_horizon=5, embargo_pct=0.01):
@@ -224,3 +267,13 @@ if __name__ == "__main__":
         total_test += len(split.test_idx)
     assert total_test == 500, f"测试集之和应覆盖全样本，实际 {total_test}"
     print("✓ purged_kfold_indices 自测通过")
+
+    cpcv_splits = list(combinatorial_purged_cv_splits(
+        dates, n_folds=10, n_test_folds=2, purged_size=5, embargo_size=2
+    ))
+    from math import comb
+    expected_paths = comb(10, 2)
+    assert len(cpcv_splits) == expected_paths, (
+        f"CPCV 应产 C(10,2)={expected_paths} 个 path, 实际 {len(cpcv_splits)}"
+    )
+    print(f"✓ combinatorial_purged_cv_splits 自测通过 ({expected_paths} paths)")

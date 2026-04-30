@@ -2,6 +2,9 @@
 仓位管理模块
 支持等权分配、风险平价、单票上限控制等仓位管理方法
 所有函数返回 {symbol: weight} 字典，权重已归一化（sum=1.0）
+
+skfolio backend (HRP / max-diversification / mean-CVaR) 通过 `skfolio_optimizer`
+入口提供, 是可选 backend; 不替换 equal_weight / risk_parity, 仅扩展选择。
 """
 import pandas as pd
 
@@ -155,6 +158,75 @@ def max_single_stock(weights: dict, cap: float = 0.1) -> dict:
     return capped
 
 
+def skfolio_optimizer(
+    selected: list,
+    returns_wide: pd.DataFrame,
+    method: str = "hrp",
+    max_weight: float = 1.0,
+) -> dict:
+    """
+    skfolio 组合优化 backend (可选 — 装了 [research] extras 才能用)。
+
+    与 equal_weight / risk_parity 接口一致, 但支持更复杂的 objective:
+      - 'hrp'        : Hierarchical Risk Parity (López de Prado, AFML Ch.16)
+      - 'min_cvar'   : minimize CVaR (尾部风险最小化)
+      - 'max_div'    : maximum diversification (Choueifaty)
+
+    参数:
+        selected     : 股票代码列表
+        returns_wide : 日收益宽表 (date × symbol), 用于 fit risk model
+        method       : 'hrp' | 'min_cvar' | 'max_div'
+        max_weight   : 单票上限 (传给 skfolio min/max_weights)
+
+    返回:
+        {symbol: weight} dict, sum=1.0
+
+    注:
+        - selected 中的 symbol 必须在 returns_wide.columns 里, 否则被跳过
+        - returns_wide 至少需要 ~60 天历史 (太短 HRP 聚类不稳)
+        - 如果 skfolio 未安装, raise ImportError 提示装 [research] extras
+    """
+    if not selected:
+        return {}
+    try:
+        from skfolio import RiskMeasure
+        from skfolio.optimization import (
+            HierarchicalRiskParity,
+            MaximumDiversification,
+            MeanRisk,
+            ObjectiveFunction,
+        )
+    except ImportError as e:
+        raise ImportError(
+            "skfolio 未装; pip install -e .[research] 或单独 pip install skfolio"
+        ) from e
+
+    valid = [s for s in selected if s in returns_wide.columns]
+    if not valid:
+        return equal_weight(selected)
+    if len(returns_wide) < 60:
+        return equal_weight(valid)
+
+    X = returns_wide[valid].dropna(how="all").fillna(0.0)
+
+    if method == "hrp":
+        opt = HierarchicalRiskParity(max_weights=max_weight)
+    elif method == "min_cvar":
+        opt = MeanRisk(
+            risk_measure=RiskMeasure.CVAR,
+            objective_function=ObjectiveFunction.MINIMIZE_RISK,
+            max_weights=max_weight,
+        )
+    elif method == "max_div":
+        opt = MaximumDiversification(max_weights=max_weight)
+    else:
+        raise ValueError(f"未知 method={method}; 选 hrp / min_cvar / max_div")
+
+    opt.fit(X)
+    weights = opt.weights_
+    return {symbol: float(w) for symbol, w in zip(valid, weights)}
+
+
 if __name__ == "__main__":
     # 冒烟测试
     selected = ["000001", "000002", "000003", "000004"]
@@ -196,5 +268,23 @@ if __name__ == "__main__":
     assert equal_weight([]) == {}, "空列表处理错误"
     assert risk_parity([], vol_wide) == {}, "空列表处理错误"
     print(f"✅ 边界情况处理 OK")
+
+    # 测试 skfolio_optimizer (HRP) — 可选 backend
+    import numpy as np
+    rng = np.random.default_rng(0)
+    n_days = 252
+    syms = ["000001", "000002", "000003", "000004"]
+    returns_wide = pd.DataFrame(
+        rng.normal(0.0005, 0.012, size=(n_days, len(syms))),
+        index=pd.bdate_range("2024-01-01", periods=n_days),
+        columns=syms,
+    )
+    try:
+        weights_hrp = skfolio_optimizer(syms, returns_wide, method="hrp")
+        assert len(weights_hrp) == 4
+        assert abs(sum(weights_hrp.values()) - 1.0) < 1e-4
+        print(f"✅ skfolio_optimizer(hrp) OK | weights={weights_hrp}")
+    except ImportError:
+        print("⚠️ skfolio 未装, 跳过 skfolio_optimizer 测试 (装 .[research] 后可用)")
 
     print("\n✅ 仓位管理模块冒烟测试通过")
