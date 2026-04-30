@@ -1,0 +1,50 @@
+{
+  "factor_name": "surprise_yoy_z",
+  "run_date": "20260429",
+  "n_dates": 2919,
+  "n_assets": 5477,
+  "n_observations": 3583268,
+  "periods": [
+    1,
+    5,
+    10,
+    20
+  ],
+  "quantiles": 5,
+  "ic_mean": {
+    "1D": 0.005678493668704066,
+    "5D": 0.012747744509829611,
+    "10D": 0.016564778786984344,
+    "20D": 0.020490866227956296
+  },
+  "icir": {
+    "1D": 0.07074916998375703,
+    "5D": 0.13811303402419625,
+    "10D": 0.16635427666796357,
+    "20D": 0.1990239754680708
+  },
+  "consistency": {
+    "ic_mean_local": 0.005860863972156952,
+    "ic_mean_alphalens": 0.005842800326524769,
+    "abs_diff": 1.8063645632183586e-05,
+    "passed": true
+  },
+  "outputs": [
+    "ic_ts.png",
+    "ic_hist.png",
+    "ic_monthly_heatmap.png",
+    "returns_quantile_bar.png",
+    "cum_returns_quantile_1D.png",
+    "cum_returns_quantile_5D.png",
+    "cum_returns_quantile_10D.png",
+    "cum_returns_quantile_20D.png",
+    "turnover_top_bottom_1D.png",
+    "turnover_top_bottom_5D.png",
+    "turnover_top_bottom_10D.png",
+    "turnover_top_bottom_20D.png",
+    "factor_rank_autocorr_1D.png",
+    "factor_rank_autocorr_5D.png",
+    "factor_rank_autocorr_10D.png",
+    "factor_rank_autocorr_20D.png"
+  ]
+}

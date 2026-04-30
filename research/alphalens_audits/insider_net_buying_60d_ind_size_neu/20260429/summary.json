@@ -1,0 +1,50 @@
+{
+  "factor_name": "insider_net_buying_60d_ind_size_neu",
+  "run_date": "20260429",
+  "n_dates": 1942,
+  "n_assets": 5477,
+  "n_observations": 8224562,
+  "periods": [
+    1,
+    5,
+    10,
+    20
+  ],
+  "quantiles": 5,
+  "ic_mean": {
+    "1D": -0.0036959622812685754,
+    "5D": -0.005613988005897886,
+    "10D": -0.0069834768806648455,
+    "20D": -0.008102468365892858
+  },
+  "icir": {
+    "1D": -0.0682365009124362,
+    "5D": -0.09958679660188802,
+    "10D": -0.11737920583923062,
+    "20D": -0.1315579635964824
+  },
+  "consistency": {
+    "ic_mean_local": -0.003572776729833987,
+    "ic_mean_alphalens": -0.0035729439012208,
+    "abs_diff": 1.6717138681329735e-07,
+    "passed": true
+  },
+  "outputs": [
+    "ic_ts.png",
+    "ic_hist.png",
+    "ic_monthly_heatmap.png",
+    "returns_quantile_bar.png",
+    "cum_returns_quantile_1D.png",
+    "cum_returns_quantile_5D.png",
+    "cum_returns_quantile_10D.png",
+    "cum_returns_quantile_20D.png",
+    "turnover_top_bottom_1D.png",
+    "turnover_top_bottom_5D.png",
+    "turnover_top_bottom_10D.png",
+    "turnover_top_bottom_20D.png",
+    "factor_rank_autocorr_1D.png",
+    "factor_rank_autocorr_5D.png",
+    "factor_rank_autocorr_10D.png",
+    "factor_rank_autocorr_20D.png"
+  ]
+}

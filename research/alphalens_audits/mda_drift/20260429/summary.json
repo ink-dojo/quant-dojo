@@ -1,0 +1,50 @@
+{
+  "factor_name": "mda_drift",
+  "run_date": "20260429",
+  "n_dates": 1420,
+  "n_assets": 500,
+  "n_observations": 558431,
+  "periods": [
+    20,
+    60,
+    120,
+    250
+  ],
+  "quantiles": 5,
+  "ic_mean": {
+    "20D": -0.0018741731188489348,
+    "60D": -0.0033560549261836916,
+    "120D": -0.01099225420762781,
+    "250D": -0.022287056751525054
+  },
+  "icir": {
+    "20D": -0.020229523968085535,
+    "60D": -0.043692311333313485,
+    "120D": -0.1417366067889349,
+    "250D": -0.37835693711374485
+  },
+  "consistency": {
+    "ic_mean_local": NaN,
+    "ic_mean_alphalens": NaN,
+    "abs_diff": NaN,
+    "passed": true
+  },
+  "outputs": [
+    "ic_ts.png",
+    "ic_hist.png",
+    "ic_monthly_heatmap.png",
+    "returns_quantile_bar.png",
+    "cum_returns_quantile_20D.png",
+    "cum_returns_quantile_60D.png",
+    "cum_returns_quantile_120D.png",
+    "cum_returns_quantile_250D.png",
+    "turnover_top_bottom_20D.png",
+    "turnover_top_bottom_60D.png",
+    "turnover_top_bottom_120D.png",
+    "turnover_top_bottom_250D.png",
+    "factor_rank_autocorr_20D.png",
+    "factor_rank_autocorr_60D.png",
+    "factor_rank_autocorr_120D.png",
+    "factor_rank_autocorr_250D.png"
+  ]
+}
