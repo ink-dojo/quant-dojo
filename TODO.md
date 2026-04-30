@@ -223,9 +223,12 @@ Issue 主线: #25
       45-cell cross-tab 跑了 + 涨跌停 filter (23.4% 事件被过滤) + magnitude top 10%.
       技术上 multi_day extreme T3 +6.19% PASS, 但 T2 -2.63% FAIL → ~1.6% NAV/年 drag,
       远超 framework 0.3% 阈. **杀 LHB 方向**, 转 A 路下一个候选 (回购公告).
-- [ ] **A 路第二候选: 回购公告 + 实施进度 (Phase 3, 新 issue)**
-      复用 utils/event_study.py framework. 数据: tushare repurchase 库. 假设:
-      宣布回购 + 高 fina 现金充足度的股票, [-3, +20] 事件窗多头.
+- [x] **A 路第二候选: 回购预案 event study (Issue #57)**
+      `journal/repurchase_event_study_20260429.md`
+      11.5k events, 全样本 T+5 net **-0.37%** (cost 1% 把 0.6% gross 吃光),
+      Top 10% extreme 反而恶化 (T3 T+5 -1.34%). framework_pass=0. **杀回购方向**.
+- [ ] **A 路第 3 候选: 大股东减持冷静期反弹 (新 issue)**
+      数据 tushare share_float / 减持数据. 假设: 减持公告后 5-15 日反向 (洗盘后反弹).
 - [ ] **评估范式 v1 (Tier 0/1/2/3 分级门) — Issue #50, awaiting jialong 决策**
       `journal/eval_framework_v1_proposal_20260429.md`
       4 个 tier 由 risk capacity 反推门; spec v4 拒绝结论不变;
