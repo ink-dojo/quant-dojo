@@ -3,7 +3,7 @@ PIP ?= pip
 NPM ?= npm
 
 .PHONY: help health test portfolio-data portfolio-dev portfolio-build portfolio-clean \
-        hero-analysis coverage-audit install-hooks
+        hero-analysis coverage-audit install-hooks signal-roe
 
 help:
 	@echo "quant-dojo · Makefile"
@@ -21,6 +21,7 @@ help:
 	@echo "  test                full pytest regression"
 	@echo "  coverage-audit      scripts/audit_factor_data_coverage.py → journal/portfolio_factor_coverage.json"
 	@echo "  hero-analysis       scripts/deep_analysis_hero_factors.py → journal/hero_factor_stats_YYYYMMDD.json (~10 min)"
+	@echo "  signal-roe          每日产 roe_stability Tier 0 paper signal → live/signals/roe_stability_YYYY-MM-DD.json"
 	@echo ""
 	@echo "  Automation"
 	@echo "  ──────────"
@@ -55,6 +56,9 @@ coverage-audit:
 
 hero-analysis:
 	$(PYTHON) scripts/deep_analysis_hero_factors.py
+
+signal-roe:
+	$(PYTHON) scripts/daily_signal_roe_stability.py
 
 # ── Automation ────────────────────────────────────────────────────────────
 
