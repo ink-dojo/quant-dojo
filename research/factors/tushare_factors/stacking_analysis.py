@@ -35,17 +35,22 @@ from research.factors.tushare_factors.factor_research import (  # noqa: E402
 )
 from research.factors.tushare_factors.neutralize_and_cost import (  # noqa: E402
     HORIZON,
-    COST_PER_SIDE,
+    MIN_STOCKS_FOR_IC,
+    Direction,
     build_df_info,
     build_price_panel,
     build_size_panel,
-    compute_forward_returns,
     cost_aware_long_short,
     load_industry_l1,
+    long_short_periods,
+    resolve_stock_pools,
+)
+from research.factors.tushare_factors.factor_research import (  # noqa: E402
+    compute_forward_returns,
 )
 from utils.factor_analysis import (  # noqa: E402
     compute_ic_series,
-    ic_summary,
+    cross_section_rank,
     neutralize_factor,
 )
 
@@ -55,33 +60,15 @@ DATA = ROOT / "data" / "raw" / "tushare"
 OUT = ROOT / "research" / "factors" / "tushare_factors"
 
 
-def monthly_long_short_returns(
+def monthly_long_short_gross(
     factor_wide: pd.DataFrame,
     fwd_ret: pd.DataFrame,
-    direction: str,
+    direction: Direction,
     n_groups: int = 5,
 ) -> pd.Series:
-    """月频抽样 (HORIZON) 的 L-S 序列, 不扣 cost (gross), 用于 corr 比较."""
-    common_dates = factor_wide.index.intersection(fwd_ret.index)
-    rebal = common_dates[::HORIZON]
-    rows = []
-    for date in rebal:
-        f = factor_wide.loc[date].dropna()
-        r = fwd_ret.loc[date].dropna()
-        idx = f.index.intersection(r.index)
-        if len(idx) < n_groups * 5:
-            continue
-        labels = pd.qcut(f[idx], q=n_groups, labels=False, duplicates="drop")
-        if labels.isna().all():
-            continue
-        q_low = idx[labels == 0]
-        q_high = idx[labels == labels.max()]
-        if direction == "Q1_minus_Qn":
-            ls = r[q_low].mean() - r[q_high].mean()
-        else:
-            ls = r[q_high].mean() - r[q_low].mean()
-        rows.append((date, ls))
-    return pd.Series(dict(rows), name=f"ls_{direction}")
+    """月频 gross L-S 序列, 用于序列 corr; 复用 long_short_periods 的 rebal 逻辑."""
+    df = long_short_periods(factor_wide, fwd_ret, direction, n_groups=n_groups)
+    return df["gross"].rename(f"ls_{direction}") if not df.empty else pd.Series(dtype=float, name=f"ls_{direction}")
 
 
 def run() -> dict:
@@ -89,13 +76,9 @@ def run() -> dict:
     print("Stacking 评估: roe_stability × inst_flow_20d  (Issue #46)")
     print("=" * 72)
 
-    # 1. 股票池 (与 neutralize_and_cost 主流程一致)
-    mf_stocks = {f.stem for f in (DATA / "moneyflow").glob("*.parquet")}
-    db_stocks = {f.stem for f in (DATA / "daily_basic").glob("*.parquet")}
-    fi_stocks = {f.stem.replace("fina_indicator_", "")
-                 for f in (DATA / "financial").glob("fina_indicator_*.parquet")}
-    core_stocks = sorted(mf_stocks & db_stocks)
-    quality_stocks = sorted(mf_stocks & db_stocks & fi_stocks)
+    # 1. 股票池
+    pools = resolve_stock_pools()
+    core_stocks, quality_stocks = pools["core"], pools["quality"]
     print(f"\n股票池: core={len(core_stocks)} quality={len(quality_stocks)}")
 
     # 2. 价格 + 前向收益 + size + 行业 + df_info
@@ -111,17 +94,13 @@ def run() -> dict:
     f_inst = build_inst_flow(core_stocks).reindex(price_wide.index)
     f_roe = build_roe_stability(quality_stocks, price_wide.index).reindex(price_wide.index)
 
-    n_inst = neutralize_factor(f_inst, df_info, n_sigma=3.0)
-    n_roe = neutralize_factor(f_roe, df_info, n_sigma=3.0)
-
-    # 截面 rank → [0, 1]
-    r_inst = n_inst.rank(axis=1, pct=True)
-    r_roe = n_roe.rank(axis=1, pct=True)
+    r_inst = cross_section_rank(neutralize_factor(f_inst, df_info, n_sigma=3.0))
+    r_roe = cross_section_rank(neutralize_factor(f_roe, df_info, n_sigma=3.0))
 
     # 4. IC 序列 + 序列 corr
     print("\n[Step 3] IC 序列 corr")
-    ic_inst = compute_ic_series(r_inst, fwd_ret, method="spearman", min_stocks=30)
-    ic_roe = compute_ic_series(r_roe, fwd_ret, method="spearman", min_stocks=30)
+    ic_inst = compute_ic_series(r_inst, fwd_ret, method="spearman", min_stocks=MIN_STOCKS_FOR_IC)
+    ic_roe = compute_ic_series(r_roe, fwd_ret, method="spearman", min_stocks=MIN_STOCKS_FOR_IC)
     ic_df = pd.concat([ic_inst.rename("inst_flow_20d"), ic_roe.rename("roe_stability")], axis=1).dropna()
     pearson_ic = ic_df.corr(method="pearson").iloc[0, 1]
     spearman_ic = ic_df.corr(method="spearman").iloc[0, 1]
@@ -130,8 +109,8 @@ def run() -> dict:
 
     # 5. 月频 L-S 收益 corr (gross)
     print("\n[Step 4] 月频 gross L-S 收益序列 corr")
-    ls_inst = monthly_long_short_returns(r_inst, fwd_ret, direction="Qn_minus_Q1")
-    ls_roe = monthly_long_short_returns(r_roe, fwd_ret, direction="Qn_minus_Q1")
+    ls_inst = monthly_long_short_gross(r_inst, fwd_ret, direction="Qn_minus_Q1")
+    ls_roe = monthly_long_short_gross(r_roe, fwd_ret, direction="Qn_minus_Q1")
     ls_df = pd.concat([ls_inst.rename("inst_flow_20d"), ls_roe.rename("roe_stability")], axis=1).dropna()
     pearson_ls = ls_df.corr(method="pearson").iloc[0, 1]
     print(f"  L-S 月度收益 Pearson corr = {pearson_ls:+.4f}  (n={len(ls_df)})")

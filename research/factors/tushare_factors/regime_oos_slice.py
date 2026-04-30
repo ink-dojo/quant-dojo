@@ -42,7 +42,7 @@ import json
 import sys
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -53,18 +53,22 @@ sys.path.insert(0, str(ROOT))
 from research.factors.tushare_factors.factor_research import (  # noqa: E402
     build_inst_flow,
     build_roe_stability,
+    compute_forward_returns,
 )
 from research.factors.tushare_factors.neutralize_and_cost import (  # noqa: E402
     HORIZON,
+    MIN_STOCKS_FOR_IC,
+    Direction,
     build_df_info,
     build_price_panel,
     build_size_panel,
-    compute_forward_returns,
     cost_aware_long_short,
     load_industry_l1,
+    resolve_stock_pools,
 )
 from utils.factor_analysis import (  # noqa: E402
     compute_ic_series,
+    cross_section_rank,
     ic_summary,
     neutralize_factor,
 )
@@ -78,6 +82,12 @@ OUT = ROOT / "research" / "factors" / "tushare_factors"
 REGIME_MA = 120  # HS300 牛熊判定窗口 (与 factor_research.regime_split 一致)
 MIN_PERIODS_FOR_VERDICT = 3
 PASS_SHARPE = 0.8
+
+Verdict = Literal["PASS", "MARGINAL", "FAIL_NEG_SHARPE", "FAIL_IC_FLIP", "N/A"]
+# 打印汇总顺序; 新增 verdict 必须加到这里, 否则汇总会漏行
+VERDICT_ORDER: tuple[Verdict, ...] = (
+    "PASS", "MARGINAL", "FAIL_NEG_SHARPE", "FAIL_IC_FLIP", "N/A",
+)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -133,70 +143,84 @@ def slice_dates(
 # 2. 单切片度量
 # ─────────────────────────────────────────────────────────────
 
+def _na_metrics(n_days: int) -> dict:
+    """切片样本太短或 IC 算不出来时的占位结果."""
+    return {
+        "n_days": int(n_days),
+        "ic_mean": None, "ic_t_hac": None,
+        "n_periods": 0, "sharpe_gross": None, "sharpe_net": None,
+        "net_ann": None, "avg_turnover": None,
+        "verdict": "N/A",
+    }
+
+
+def _round_or_none(v, ndigits: int):
+    if v is None or pd.isna(v):
+        return None
+    return round(float(v), ndigits)
+
+
+def _decide_verdict(
+    sharpe_net: Optional[float],
+    ic_mean: Optional[float],
+    n_periods: int,
+    full_sample_ic_sign: Optional[int],
+) -> Verdict:
+    if n_periods < MIN_PERIODS_FOR_VERDICT or sharpe_net is None or pd.isna(sharpe_net):
+        return "N/A"
+    if (full_sample_ic_sign is not None and ic_mean is not None
+            and not pd.isna(ic_mean) and np.sign(ic_mean) != full_sample_ic_sign):
+        return "FAIL_IC_FLIP"
+    if sharpe_net <= 0:
+        return "FAIL_NEG_SHARPE"
+    if sharpe_net < PASS_SHARPE:
+        return "MARGINAL"
+    return "PASS"
+
+
 def metrics_for_slice(
     factor_wide: pd.DataFrame,
     fwd_ret: pd.DataFrame,
     dates: pd.DatetimeIndex,
-    direction: str,
+    direction: Direction,
+    full_ic_series: Optional[pd.Series] = None,
     full_sample_ic_sign: Optional[int] = None,
 ) -> dict:
     """切片内: IC + cost-aware L-S 净 sharpe + verdict.
 
-    full_sample_ic_sign: +1/-1, 用于检测 IC 翻号 (slice IC 与全样本反号 → FAIL).
+    full_ic_series: 全样本上算好的 IC 序列 (与 factor_wide 同 index). 传入则
+        切片直接重用对应日期, 不重跑 compute_ic_series 的逐日截面循环 —
+        在 (factor x slice) 矩阵里这是 24x → 3x 的大优化.
+    full_sample_ic_sign: +1/-1, 切片 IC 与全样本反号即 FAIL_IC_FLIP.
     """
     if len(dates) < HORIZON * MIN_PERIODS_FOR_VERDICT:
-        return {
-            "n_days": int(len(dates)),
-            "ic_mean": None, "ic_t_hac": None,
-            "n_periods": 0, "sharpe_gross": None, "sharpe_net": None,
-            "net_ann": None, "avg_turnover": None,
-            "verdict": "N/A",
-        }
+        return _na_metrics(len(dates))
 
     fac = factor_wide.reindex(dates)
     ret = fwd_ret.reindex(dates)
 
-    ic = compute_ic_series(fac, ret, method="spearman", min_stocks=30)
-    ic_clean = ic.dropna()
-    if len(ic_clean) < 30:
-        return {
-            "n_days": int(len(dates)),
-            "ic_mean": None, "ic_t_hac": None,
-            "n_periods": 0, "sharpe_gross": None, "sharpe_net": None,
-            "net_ann": None, "avg_turnover": None,
-            "verdict": "N/A",
-        }
-    s = ic_summary(ic, name="slice", fwd_days=HORIZON, verbose=False)
+    if full_ic_series is not None:
+        ic = full_ic_series.reindex(dates)
+    else:
+        ic = compute_ic_series(fac, ret, method="spearman", min_stocks=MIN_STOCKS_FOR_IC)
 
+    if ic.dropna().shape[0] < MIN_STOCKS_FOR_IC:
+        return _na_metrics(len(dates))
+    s = ic_summary(ic, name="slice", fwd_days=HORIZON, verbose=False)
     bt = cost_aware_long_short(fac, ret, long_short=direction)
 
-    # verdict
-    sharpe_net = bt["sharpe_net"]
-    ic_mean = s["IC_mean"]
-    n_periods = bt["n_periods"]
-    if n_periods < MIN_PERIODS_FOR_VERDICT or pd.isna(sharpe_net):
-        verdict = "N/A"
-    elif (full_sample_ic_sign is not None
-          and ic_mean is not None
-          and not pd.isna(ic_mean)
-          and np.sign(ic_mean) != full_sample_ic_sign):
-        verdict = "FAIL_IC_FLIP"
-    elif sharpe_net <= 0:
-        verdict = "FAIL_NEG_SHARPE"
-    elif sharpe_net < PASS_SHARPE:
-        verdict = "MARGINAL"
-    else:
-        verdict = "PASS"
-
+    verdict = _decide_verdict(
+        bt["sharpe_net"], s["IC_mean"], bt["n_periods"], full_sample_ic_sign,
+    )
     return {
         "n_days": int(len(dates)),
-        "ic_mean": round(float(ic_mean), 4) if not pd.isna(ic_mean) else None,
-        "ic_t_hac": round(float(s["t_stat_hac"]), 2) if not pd.isna(s["t_stat_hac"]) else None,
-        "n_periods": int(n_periods),
-        "sharpe_gross": round(float(bt["sharpe_gross"]), 3) if not pd.isna(bt["sharpe_gross"]) else None,
-        "sharpe_net": round(float(sharpe_net), 3) if not pd.isna(sharpe_net) else None,
-        "net_ann": round(float(bt["net_ann"]), 4) if not pd.isna(bt["net_ann"]) else None,
-        "avg_turnover": round(float(bt["avg_turnover"]), 3) if not pd.isna(bt["avg_turnover"]) else None,
+        "ic_mean": _round_or_none(s["IC_mean"], 4),
+        "ic_t_hac": _round_or_none(s["t_stat_hac"], 2),
+        "n_periods": int(bt["n_periods"]),
+        "sharpe_gross": _round_or_none(bt["sharpe_gross"], 3),
+        "sharpe_net": _round_or_none(bt["sharpe_net"], 3),
+        "net_ann": _round_or_none(bt["net_ann"], 4),
+        "avg_turnover": _round_or_none(bt["avg_turnover"], 3),
         "verdict": verdict,
     }
 
@@ -210,13 +234,9 @@ def run() -> dict:
     print("OOS regime 切片检验  (Issue #47)")
     print("=" * 80)
 
-    # 3.1 股票池 (与 stacking_analysis 一致)
-    mf_stocks = {f.stem for f in (DATA / "moneyflow").glob("*.parquet")}
-    db_stocks = {f.stem for f in (DATA / "daily_basic").glob("*.parquet")}
-    fi_stocks = {f.stem.replace("fina_indicator_", "")
-                 for f in (DATA / "financial").glob("fina_indicator_*.parquet")}
-    core_stocks = sorted(mf_stocks & db_stocks)
-    quality_stocks = sorted(mf_stocks & db_stocks & fi_stocks)
+    # 3.1 股票池
+    pools = resolve_stock_pools()
+    core_stocks, quality_stocks = pools["core"], pools["quality"]
     print(f"股票池: core={len(core_stocks)} quality={len(quality_stocks)}\n")
 
     # 3.2 价格 / size / 行业 / 前向收益
@@ -232,24 +252,24 @@ def run() -> dict:
     print("[Step 2] 构造 + 中性化 (size + SW-L1)")
     f_inst = build_inst_flow(core_stocks).reindex(price_wide.index)
     f_roe = build_roe_stability(quality_stocks, price_wide.index).reindex(price_wide.index)
-    n_inst = neutralize_factor(f_inst, df_info, n_sigma=3.0)
-    n_roe = neutralize_factor(f_roe, df_info, n_sigma=3.0)
-    r_inst = n_inst.rank(axis=1, pct=True)
-    r_roe = n_roe.rank(axis=1, pct=True)
+    r_inst = cross_section_rank(neutralize_factor(f_inst, df_info, n_sigma=3.0))
+    r_roe = cross_section_rank(neutralize_factor(f_roe, df_info, n_sigma=3.0))
     r_stack = (r_inst + r_roe) / 2
     print()
 
-    factors = {
+    factors: dict[str, tuple[pd.DataFrame, Direction]] = {
         "inst_flow_20d": (r_inst, "Qn_minus_Q1"),
         "roe_stability": (r_roe, "Qn_minus_Q1"),
         "stacked_50_50": (r_stack, "Qn_minus_Q1"),
     }
 
-    # 3.4 全样本 IC sign (作为 slice IC 翻号检测的 baseline)
-    print("[Step 3] 全样本 IC sign 锁定")
-    full_sample_signs = {}
+    # 3.4 全样本 IC 序列 + sign — 序列在切片矩阵里复用 (避免 24x compute_ic_series)
+    print("[Step 3] 全样本 IC 序列 + sign 锁定")
+    full_ic_series: dict[str, pd.Series] = {}
+    full_sample_signs: dict[str, int] = {}
     for name, (fac, _) in factors.items():
-        ic = compute_ic_series(fac, fwd_ret, method="spearman", min_stocks=30)
+        ic = compute_ic_series(fac, fwd_ret, method="spearman", min_stocks=MIN_STOCKS_FOR_IC)
+        full_ic_series[name] = ic
         full_sample_signs[name] = int(np.sign(ic.dropna().mean()))
         print(f"  {name}: full IC mean = {ic.dropna().mean():+.4f} → sign = {full_sample_signs[name]:+d}")
     print()
@@ -273,13 +293,14 @@ def run() -> dict:
     print("[Step 5] (factor × slice) 矩阵")
     results: dict[str, dict[str, dict]] = {}
     for fname, (fac, direction) in factors.items():
-        results[fname] = {}
-        for slabel, sidx in slices:
-            m = metrics_for_slice(
+        results[fname] = {
+            slabel: metrics_for_slice(
                 fac, fwd_ret, sidx, direction,
+                full_ic_series=full_ic_series[fname],
                 full_sample_ic_sign=full_sample_signs[fname],
             )
-            results[fname][slabel] = m
+            for slabel, sidx in slices
+        }
     print()
 
     # 3.8 控制台打印
@@ -307,7 +328,7 @@ def run() -> dict:
     for slabel in slice_labels:
         v = stacked_results[slabel]["verdict"]
         by_verdict.setdefault(v, []).append(slabel)
-    for v in ["PASS", "MARGINAL", "FAIL_NEG_SHARPE", "FAIL_IC_FLIP", "N/A"]:
+    for v in VERDICT_ORDER:
         if v in by_verdict:
             print(f"  {v:<18}: {', '.join(by_verdict[v])}")
 
