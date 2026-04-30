@@ -33,6 +33,10 @@ data/processed/*
 # tushare 因子研究的 json 结果 (重跑可复现)
 research/factors/tushare_factors/*.json
 
+# event-alpha 研究的 json + png 结果 (重跑可复现)
+research/event_alpha/*.json
+research/event_alpha/*.png
+
 # Config (真实密钥不入库)
 config/config.yaml
 .env
