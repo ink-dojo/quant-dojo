@@ -98,3 +98,5 @@ data/cache
 /screenshot-*.png
 /ed-section-*.png
 .vercel
+research/qlib_baseline/.venv/
+research/qlib_baseline/runs/
