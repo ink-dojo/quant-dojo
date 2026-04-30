@@ -13,6 +13,13 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV="$ROOT/research/qlib_baseline/.venv"
+QLIB_DATA_DIR="${QLIB_DATA_DIR:-$HOME/.qlib/qlib_data/cn_data}"
+
+# 项目当前是单人 macOS 工作流 (jialong + xingyu); 这个脚本只在 macOS 测试过。
+# Linux 走另一条路 (apt 装 libgomp1 即可代替 brew libomp)。
+if [[ "$OSTYPE" != "darwin"* ]]; then
+    echo "warning: setup_env.sh 只在 macOS 测试过, 你这是 $OSTYPE; 可能要手动 apt install libgomp1"
+fi
 
 if [ ! -d "$VENV" ]; then
     python3 -m venv "$VENV"
@@ -25,11 +32,11 @@ if ! brew list libomp >/dev/null 2>&1; then
     brew install libomp
 fi
 
-if [ ! -d "$HOME/.qlib/qlib_data/cn_data" ]; then
+if [ ! -d "$QLIB_DATA_DIR" ]; then
     python -c "
 from qlib.tests.data import GetData
 GetData().qlib_data(
-    target_dir='$HOME/.qlib/qlib_data/cn_data',
+    target_dir='$QLIB_DATA_DIR',
     region='cn',
     interval='1d',
     version='v3',
