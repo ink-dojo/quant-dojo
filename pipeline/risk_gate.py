@@ -60,24 +60,37 @@ DEFAULT_RULES: dict = {
 # Live-Tier 规则 —— 显式按 tier 选择, 不传 tier= 时回退 DEFAULT_RULES
 # ══════════════════════════════════════════════════════════════
 
+# TIER_RULES[2] 与 DEFAULT_RULES 共享 dict 引用 (alias), 调用方禁止 mutate.
+# Tier 1/3 里的 |MDD| 上界与 n_trading_days 不在 framework doc 里直接给出,
+# 是 risk_gate 这一层的 engineering sanity ceiling (注释里逐项说明). framework
+# doc 的 live-track / DSR / 切片 / capacity 等门 risk_gate 不直接判, 由上游
+# 评审承担.
+
 TIER_RULES: dict[int, dict] = {
-    # Tier 0 (paper-only): 只要 sharpe 不是负数, 回测够长. 严格门由 framework
-    # doc 的 OOS 切片 / no-lookahead / 30 天 paper smoke 承担.
+    # Tier 0 (paper-only): 只要 sharpe 不是负数. 严格门 (no-lookahead / 30 天
+    # paper smoke / OOS 切片不 FAIL_IC_FLIP) 由 framework doc 承担.
     0: {
         "sharpe": {"min": 0.0, "required": True, "label": "夏普比率(Tier 0)"},
         "n_trading_days": {"min": 700, "required": False, "label": "回测天数"},
     },
     # Tier 1 (1-5% NAV): 启动需 jialong 独立 ratify, 不靠 framework 自动触发.
+    # |MDD| < 0.40 是 engineering ceiling (framework 没设): 5% × 30% strategy
+    # DD = 1.5% NAV worst-case 是预期值, 0.40 给 ~33% buffer 防 backtest 异常
+    # outlier. n_trading_days required=False 与 Tier 0 一致 (proposal 都说
+    # "3+ year" 但没标 required, 不在 risk_gate 强行设硬门).
     1: {
         "sharpe": {"min": 0.5, "required": True, "label": "夏普比率(Tier 1)"},
         "annualized_return": {"min": 0.0, "required": False, "label": "年化收益(Tier 1)"},
         "max_drawdown": {"max_abs": 0.40, "required": True, "label": "最大回撤(Tier 1)"},
-        "n_trading_days": {"min": 700, "required": True, "label": "回测天数"},
+        "n_trading_days": {"min": 700, "required": False, "label": "回测天数"},
     },
-    # Tier 2: = DEFAULT_RULES (向后兼容历史调用)
+    # Tier 2: alias 到 DEFAULT_RULES (向后兼容历史调用; 改任一方影响双方).
     2: DEFAULT_RULES,
-    # Tier 3 (25-100% NAV / 外部资金): 严格门 + DSR/bootstrap 由 framework
-    # 与上游评审承担, risk_gate 这里只收紧 sharpe/ann/mdd 三项.
+    # Tier 3 (25-100% NAV / 外部资金): framework 要求 12 月 live + DSR > 0.95
+    # + bootstrap CI_low > 0 + cross-regime invariant (这些 risk_gate 不能直
+    # 接判, 评审承担). 这里收紧 backtest 三项作 engineering ceiling: ann>0.20
+    # / |MDD|<0.20 / n_days>1000. 这些数字不在 framework, 是 risk_gate 这层
+    # 的保守加码 (Tier 3 仓位 25-100% NAV, 历史回测越长越严越好).
     3: {
         "sharpe": {"min": 1.0, "required": True, "label": "夏普比率(Tier 3)"},
         "annualized_return": {"min": 0.20, "required": True, "label": "年化收益(Tier 3)"},
@@ -109,11 +122,15 @@ class GateResult:
         failures   — 硬失败条目列表：[{key, label, expected, actual, reason}]
         warnings   — 软警告条目列表（未达门槛但未被标为必填 + level=warning）
         metrics    — 原始 metrics 副本，便于上游记账
+        tier       — 评判用的 Live-Tier (0/1/2/3); None 表示自定义 rules 或默认
+                     (= Tier 2). 渲染 markdown 时显示, 避免评审人混淆 "passed" 在
+                     哪一级门下成立.
     """
     passed: bool
     failures: list[dict]
     warnings: list[dict]
     metrics: dict
+    tier: Optional[int] = None
 
     def to_dict(self) -> dict:
         return {
@@ -121,6 +138,7 @@ class GateResult:
             "failures": self.failures,
             "warnings": self.warnings,
             "metrics": self.metrics,
+            "tier": self.tier,
         }
 
 
@@ -141,8 +159,13 @@ def evaluate(
     返回：GateResult
     """
     metrics = dict(metrics or {})
+    # 记录评判用的 tier (rules 显式传入时 tier=None, 表示 "未声明 tier 的自定义 rules").
+    # 既不传 tier 也不传 rules 时, effective_tier=2 表示"沿用历史默认".
     if rules is None:
-        rules = get_tier_rules(tier) if tier is not None else DEFAULT_RULES
+        effective_tier = tier if tier is not None else 2
+        rules = get_tier_rules(effective_tier)
+    else:
+        effective_tier = tier  # 调用方显式传 rules 时 tier 仅作展示
     failures: list[dict] = []
     warnings: list[dict] = []
 
@@ -193,6 +216,7 @@ def evaluate(
         failures=failures,
         warnings=warnings,
         metrics=metrics,
+        tier=effective_tier,
     )
 
 
@@ -211,7 +235,9 @@ def _check_rule(key: str, actual: float, cfg: dict) -> tuple[bool, str]:
 
 def render_gate_markdown(result: GateResult) -> str:
     """把 GateResult 渲染成 markdown 一块。"""
-    lines: list[str] = ["## 风险门检查", ""]
+    # tier 标注让评审人知道 "passed" 在哪一级门下成立 — Tier 0 通过 ≠ 上线就绪
+    tier_label = f" (Live-Tier {result.tier})" if result.tier is not None else " (自定义 rules)"
+    lines: list[str] = [f"## 风险门检查{tier_label}", ""]
     icon = "✅" if result.passed else "❌"
     lines.append(f"- **结论**: {icon} {'通过' if result.passed else '未通过'}")
 
