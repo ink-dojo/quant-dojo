@@ -202,7 +202,12 @@ Issue 主线: #25
       `journal/tushare_factors_neutralization_20260429.md`
       候选库进 2 个: roe_stability (sharpe_net 1.44) / inst_flow_20d (sharpe_net 1.03)
       cfoni_precise 临界 (sharpe_net 0.67), nb_ratio_chg 拒绝 (net 负)
-- [ ] 算 roe_stability vs inst_flow_20d 的 IC 序列 corr, 评估 stacking 可行性
+- [x] **roe_stability × inst_flow_20d stacking 评估** — Issue #46
+      `journal/tushare_factors_stacking_20260429.md`
+      IC corr Pearson +0.088 / Spearman +0.029, L-S 月度 corr -0.021 → 基本正交
+      等权 stacked: net_ann 12.7%, sharpe_net **1.66** (vs roe 单腿 1.44, +15%)
+- [ ] 用 RIAD Fold 3 同款 regime 切片方法, 对 stacked 2-腿做 OOS regime 检验
+      (2024 / 2025 H1 / 2025 H2). 若都站住, 才写 stacking pre-reg spec
 
 ### 暂缓 / 不做
 
