@@ -47,7 +47,9 @@ from research.event_alpha.lhb_t1_event_study import (  # noqa: E402
     OUT_DIR,
 )
 from utils.event_study import (  # noqa: E402
+    cell_verdict,
     compute_event_abn_returns,
+    framework_strict_decision,
     load_event_parquets,
     quintile_spread,
     t1_limit_mask,
@@ -83,87 +85,8 @@ TIME_SLICES: list[tuple[str, str, str]] = [
 
 
 # ─────────────────────────────────────────────────────────────
-# 2. cross-tab
+# 2. cross-tab — cell_verdict + framework_strict_decision 已下沉到 utils.event_study
 # ─────────────────────────────────────────────────────────────
-
-def cell_verdict(net: float, t_stat: float) -> str:
-    """Per-cell PASS/MARGINAL/FAIL. PASS = net > 0.5% per event AND |t| > 2.
-
-    注意: 这个 PASS 跟 framework Live-Tier 1 的 'sharpe>0.5' 不是同一量纲
-    (per-event spread vs annualized sharpe). 完整 framework 严格门见
-    framework_strict_decision().
-    """
-    if net is None or t_stat is None or pd.isna(net) or pd.isna(t_stat):
-        return "N/A"
-    if net <= 0:
-        return "FAIL"
-    if net > 0.005 and abs(t_stat) > 2:
-        return "PASS"
-    return "MARGINAL"
-
-
-def framework_strict_decision(
-    variant_outputs: dict,
-    tier1_position: float = 0.05,
-    tier1_fail_nav_budget: float = 0.003,
-    td_per_year: int = 250,
-) -> dict:
-    """完整 Live-Tier 1 入门门: T3 PASS + 至多 1 失败 OOS slice + 失败 slice 的
-    年化 NAV drag < 0.3% NAV (按 5% 仓位).
-
-    单 slice 年化 drag = |spread_net| × periods_per_year × position
-    ≈ |spread_net| × (250 / horizon) × 0.05
-
-    返回 dict:
-      t3_pass_cells: 仅看 T3 cell PASS 的 (loose 判定, 跟旧逻辑一致)
-      framework_pass: 通过严格门的 (T3 PASS + 全 OOS slice budget OK)
-      framework_rejected: T3 PASS 但被 T1/T2 拖累的 (按 T3 net 排)
-    """
-    t3_pass = []
-    fw_pass = []
-    fw_reject = []
-    for variant_name, out in variant_outputs.items():
-        for sg, by_slice in out.items():
-            for h in HORIZONS:
-                t1 = by_slice.get("T1_2015_2019", {}).get(h, {})
-                t2 = by_slice.get("T2_2020_2023", {}).get(h, {})
-                t3 = by_slice.get("T3_2024_2026", {}).get(h, {})
-                if any(c.get("spread_gross") is None for c in (t1, t2, t3)):
-                    continue
-                if cell_verdict(t3["spread_net"], t3["t_stat"]) != "PASS":
-                    continue
-
-                cell_info = {
-                    "variant": variant_name, "subgroup": sg, "horizon": h,
-                    "t3_net": t3["spread_net"], "t3_t": t3["t_stat"],
-                    "n_events": t3["n_events"],
-                }
-                t3_pass.append(cell_info)
-
-                # 检 T1/T2 失败 slice 的年化 drag
-                periods_per_year = td_per_year / h
-                fail_slices = []
-                for slabel, cell in [("T1", t1), ("T2", t2)]:
-                    if cell["spread_net"] <= 0:
-                        net_ann = cell["spread_net"] * periods_per_year
-                        fail_slices.append((slabel, net_ann))
-                worst_drag_nav = max(
-                    (abs(na) * tier1_position for _, na in fail_slices), default=0
-                )
-                cell_info["fail_slices_net_ann"] = fail_slices
-                cell_info["worst_drag_nav"] = worst_drag_nav
-
-                if len(fail_slices) <= 1 and worst_drag_nav < tier1_fail_nav_budget:
-                    fw_pass.append(cell_info)
-                else:
-                    fw_reject.append(cell_info)
-
-    fw_reject.sort(key=lambda x: -x["t3_net"])
-    return {
-        "t3_pass_cells": t3_pass,
-        "framework_pass": fw_pass,
-        "framework_rejected": fw_reject,
-    }
 
 
 def crosstab(long_df: pd.DataFrame, label: str) -> dict:
@@ -293,18 +216,21 @@ def run() -> dict:
     # 真候选, 误读危险. 只把 B + C 喂给严格判定.
     decision = framework_strict_decision(
         {"B_no_limit": out_b, "C_extreme_no_limit": out_c},
+        horizons=HORIZONS,
+        oos_slice_label="T3_2024_2026",
+        is_slice_labels=("T1_2015_2019", "T2_2020_2023"),
     )
-    print(f"\n  T3 自身 PASS cell 数: {len(decision['t3_pass_cells'])} (loose 判定, 仅参考)")
-    for w in decision["t3_pass_cells"][:5]:
+    print(f"\n  OOS (T3) PASS cell 数: {len(decision['oos_pass_cells'])} (loose 判定, 仅参考)")
+    for w in decision["oos_pass_cells"][:5]:
         print(f"    [loose] {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
-              f"net {w['t3_net']*100:+.2f}% t={w['t3_t']:+.2f} n={w['n_events']:,}")
-    print(f"\n  Framework PASS (T3 PASS + T1/T2 不 FAIL_NEG_SHARPE 或失败窗 < 0.3% NAV): "
+              f"net {w['oos_net']*100:+.2f}% t={w['oos_t']:+.2f} n={w['n_events']:,}")
+    print(f"\n  Framework PASS (T3 PASS + IS slice 不 FAIL 或失败窗 < 0.3% NAV): "
           f"{len(decision['framework_pass'])}")
     if decision["framework_pass"]:
         print("\n  ✅ 有 framework PASS 候选, 继续 Phase 3 写 spec:")
         for w in decision["framework_pass"]:
             print(f"    {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
-                  f"T3 net {w['t3_net']*100:+.2f}% t={w['t3_t']:+.2f} n={w['n_events']:,} "
+                  f"T3 net {w['oos_net']*100:+.2f}% t={w['oos_t']:+.2f} n={w['n_events']:,} "
                   f"worst slice drag {w['worst_drag_nav']*100:.3f}% NAV/yr")
     else:
         print("\n  ❌ 无 framework PASS 候选 (T3 PASS 都被 T1/T2 FAIL 拖累超预算).")
@@ -313,7 +239,7 @@ def run() -> dict:
             print("\n  Top 3 rejected (按 T3 net 排) — 离 framework PASS 最近的:")
             for w in decision["framework_rejected"][:3]:
                 print(f"    {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
-                      f"T3 net {w['t3_net']*100:+.2f}% / "
+                      f"T3 net {w['oos_net']*100:+.2f}% / "
                       f"failed slices {[f'{s}:{n*100:+.2f}%' for s, n in w['fail_slices_net_ann']]} / "
                       f"worst drag {w['worst_drag_nav']*100:.3f}% NAV/yr")
 

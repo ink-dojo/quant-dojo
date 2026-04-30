@@ -259,7 +259,110 @@ def quintile_spread(
 
 
 # ─────────────────────────────────────────────────────────────
-# 4. T+1 涨跌停 next-day filter (排除 T+1 不可入场事件)
+# 4. cell verdict + framework-strict decision (Live-Tier 1 严格门)
+# ─────────────────────────────────────────────────────────────
+
+def cell_verdict(net: float, t_stat: float,
+                 min_net: float = 0.005, min_t: float = 2.0) -> str:
+    """Per-cell PASS/MARGINAL/FAIL.
+
+    PASS = net > min_net (default 0.5% per event) AND |t| > min_t (default 2).
+    FAIL = net <= 0.
+    MARGINAL = 介于二者之间.
+
+    注意: 这个 PASS 跟 framework Live-Tier 1 的 'sharpe>0.5' 不是同一量纲
+    (per-event spread vs annualized sharpe). 完整 framework 严格门见
+    framework_strict_decision().
+    """
+    if net is None or t_stat is None or pd.isna(net) or pd.isna(t_stat):
+        return "N/A"
+    if net <= 0:
+        return "FAIL"
+    if net > min_net and abs(t_stat) > min_t:
+        return "PASS"
+    return "MARGINAL"
+
+
+def framework_strict_decision(
+    variant_outputs: dict,
+    horizons: list[int],
+    *,
+    oos_slice_label: str = "T3_2024_2026",
+    is_slice_labels: tuple[str, ...] = ("T1_2015_2019", "T2_2020_2023"),
+    tier1_position: float = 0.05,
+    tier1_fail_nav_budget: float = 0.003,
+    td_per_year: int = 250,
+) -> dict:
+    """完整 Live-Tier 1 入门门: OOS slice PASS + 至多 1 失败 IS slice + 失败 slice
+    的年化 NAV drag < 0.3% NAV (按 5% 仓位).
+
+    单 slice 年化 drag = |spread_net| × periods_per_year × position
+    ≈ |spread_net| × (td_per_year / horizon) × tier1_position
+
+    参数:
+        variant_outputs : {variant_name: quintile_spread output dict}
+                          通常只传 tradeable 的 variants (如 'no_limit'),
+                          含涨跌停板的 baseline 上界不入 framework 判定.
+        horizons        : 横向遍历的 horizon list, e.g. [1, 5, 10]
+        oos_slice_label : OOS 切片名 (必须 PASS), e.g. 'T3_2024_2026'
+        is_slice_labels : IS 切片名 tuple (允许 ≤ 1 FAIL_NEG_SHARPE)
+        tier1_position  : Live-Tier 1 仓位比例 (默认 5% NAV)
+        tier1_fail_nav_budget : 单 IS slice 年化 NAV drag 上限 (默认 0.3%)
+
+    返回:
+        oos_pass_cells : 仅看 OOS PASS 的 (loose 判定, 跟旧逻辑一致)
+        framework_pass : 通过严格门的 cells
+        framework_rejected : OOS PASS 但被 IS slice FAIL 拖累的, 按 OOS net 排
+    """
+    oos_pass = []
+    fw_pass = []
+    fw_reject = []
+    for variant_name, out in variant_outputs.items():
+        for sg, by_slice in out.items():
+            for h in horizons:
+                slices = {lbl: by_slice.get(lbl, {}).get(h, {})
+                          for lbl in (oos_slice_label,) + is_slice_labels}
+                if any(c.get("spread_gross") is None for c in slices.values()):
+                    continue
+                oos = slices[oos_slice_label]
+                if cell_verdict(oos["spread_net"], oos["t_stat"]) != "PASS":
+                    continue
+
+                cell_info = {
+                    "variant": variant_name, "subgroup": sg, "horizon": h,
+                    "oos_net": oos["spread_net"], "oos_t": oos["t_stat"],
+                    "n_events": oos["n_events"],
+                }
+                oos_pass.append(cell_info)
+
+                periods_per_year = td_per_year / h
+                fail_slices = []
+                for slabel in is_slice_labels:
+                    cell = slices[slabel]
+                    if cell["spread_net"] <= 0:
+                        net_ann = cell["spread_net"] * periods_per_year
+                        fail_slices.append((slabel, net_ann))
+                worst_drag_nav = max(
+                    (abs(na) * tier1_position for _, na in fail_slices), default=0
+                )
+                cell_info["fail_slices_net_ann"] = fail_slices
+                cell_info["worst_drag_nav"] = worst_drag_nav
+
+                if len(fail_slices) <= 1 and worst_drag_nav < tier1_fail_nav_budget:
+                    fw_pass.append(cell_info)
+                else:
+                    fw_reject.append(cell_info)
+
+    fw_reject.sort(key=lambda x: -x["oos_net"])
+    return {
+        "oos_pass_cells": oos_pass,
+        "framework_pass": fw_pass,
+        "framework_rejected": fw_reject,
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# 5. T+1 涨跌停 next-day filter (排除 T+1 不可入场事件)
 # ─────────────────────────────────────────────────────────────
 
 def t1_limit_mask(
