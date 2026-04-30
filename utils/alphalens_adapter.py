@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from alphalens.performance import factor_information_coefficient
+from alphalens.utils import get_clean_factor_and_forward_returns
 
 
 def to_alphalens_factor(factor_wide: pd.DataFrame) -> pd.Series:
@@ -101,7 +103,6 @@ def consistency_check_ic(
         dict 含 ic_mean_local / ic_mean_alphalens / abs_diff / passed
     """
     from utils.factor_analysis import compute_ic_series
-    from alphalens.utils import get_clean_factor_and_forward_returns
 
     f_aligned, p_aligned = align_factor_pricing(factor_wide, price_wide)
 
@@ -119,22 +120,18 @@ def consistency_check_ic(
         max_loss=0.5,
     )
 
-    from alphalens.performance import factor_information_coefficient
     ic_al = factor_information_coefficient(factor_data).iloc[:, 0].dropna()
 
     mean_local = float(ic_local.mean())
     mean_al = float(ic_al.mean())
     diff = abs(mean_local - mean_al)
-    passed = diff < atol
 
     return {
         "ic_mean_local": mean_local,
         "ic_mean_alphalens": mean_al,
         "abs_diff": diff,
         "atol": atol,
-        "passed": passed,
-        "n_obs_local": len(ic_local),
-        "n_obs_alphalens": len(ic_al),
+        "passed": diff < atol,
     }
 
 

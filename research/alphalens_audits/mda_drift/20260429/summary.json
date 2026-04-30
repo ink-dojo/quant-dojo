@@ -23,12 +23,7 @@
     "120D": -0.1417366067889349,
     "250D": -0.37835693711374485
   },
-  "consistency": {
-    "ic_mean_local": NaN,
-    "ic_mean_alphalens": NaN,
-    "abs_diff": NaN,
-    "passed": true
-  },
+  "consistency": null,
   "outputs": [
     "ic_ts.png",
     "ic_hist.png",

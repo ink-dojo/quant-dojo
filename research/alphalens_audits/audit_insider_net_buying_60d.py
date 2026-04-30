@@ -29,10 +29,8 @@ FACTOR_PATH = (
 
 def main():
     factor = pd.read_parquet(FACTOR_PATH)
-    if factor.index.name is None:
-        # 这个因子的 parquet 没保 index name；保证 datetime 索引
-        factor.index = pd.to_datetime(factor.index)
-        factor.index.name = "date"
+    # 这个 parquet 没保 index name；强制 DatetimeIndex 让 alphalens 对齐成功
+    factor.index = pd.to_datetime(factor.index)
     print(f"loaded factor: {factor.shape}, idx={factor.index.dtype}")
 
     run_audit(

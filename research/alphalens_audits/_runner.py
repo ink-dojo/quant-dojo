@@ -42,23 +42,28 @@ AUDIT_ROOT = PROJECT_ROOT / "research" / "alphalens_audits"
 
 
 def _load_default_price_panel() -> pd.DataFrame:
-    """加载项目默认 close 宽表（2014-01-02 ~ 2025-12-31，5477 只）"""
-    p = (
-        PROJECT_ROOT
-        / "data" / "processed"
-        / "price_wide_close_2014-01-01_2025-12-31_qfq_5477stocks.parquet"
-    )
-    return pd.read_parquet(p)
+    """复用 utils.data_loader.load_price_matrix 加载项目主价格宽表（2014-2025, 5477 只）"""
+    from utils.data_loader import load_price_matrix
+    panel = load_price_matrix(start="2014-01-01", end="2025-12-31", n_stocks=5477)
+    if panel is None:
+        raise FileNotFoundError(
+            "load_price_matrix 没找到 price_wide 缓存；先在主目录跑数据下载脚本"
+        )
+    return panel
 
 
 def _data_quality_gate(factor: pd.DataFrame, price: pd.DataFrame) -> None:
-    """复用 CLAUDE.md 数据质量门"""
     assert factor.shape[0] > 100, f"因子行数异常: {factor.shape[0]}"
     assert price.shape[0] > 100, f"价格行数异常: {price.shape[0]}"
     common_dates = factor.index.intersection(price.index)
     assert len(common_dates) > 50, f"因子 vs 价格公共日期不足: {len(common_dates)}"
     common_assets = factor.columns.intersection(price.columns)
     assert len(common_assets) > 30, f"因子 vs 价格公共股票不足: {len(common_assets)}"
+
+
+def _period_col(p: int) -> str:
+    """alphalens 列名约定：1 → '1D', 5 → '5D'"""
+    return f"{p}D"
 
 
 def run_audit(
@@ -70,11 +75,7 @@ def run_audit(
     max_loss: float = 0.5,
     skip_consistency: bool = False,
 ) -> dict:
-    """
-    跑 alphalens 完整审计并保存产物
-
-    返回 dict: {tear_sheet_path, summary_path, ic_mean, icir, consistency}
-    """
+    """跑 alphalens 完整审计并保存产物：返回 {out_dir, summary}"""
     if price_wide is None:
         price_wide = _load_default_price_panel()
 
@@ -86,24 +87,14 @@ def run_audit(
         f"price={price_wide.shape}"
     )
 
-    # 一致性校验（红线：本地 IC ≈ alphalens IC）
-    # 一致性校验用 periods[0] 作为前瞻周期（日度因子 1，年度因子 20+）。
     # 稀疏年频因子（如 mda_drift, 7×500 records）一致性会失败 —— 不是 bug，
     # 是 alphalens fill_method='pad' 在稀疏数据上的本质局限；此时传 skip_consistency=True。
-    consistency_period = periods[0]
     if skip_consistency:
-        consistency = {
-            "ic_mean_local": float("nan"),
-            "ic_mean_alphalens": float("nan"),
-            "abs_diff": float("nan"),
-            "atol": 5e-5,
-            "passed": True,
-            "skipped": True,
-        }
+        consistency = None
         print(f"[{factor_name}] consistency: SKIPPED (年频/稀疏因子)")
     else:
         consistency = consistency_check_ic(
-            factor_wide, price_wide, fwd_period=consistency_period, atol=5e-5
+            factor_wide, price_wide, fwd_period=periods[0], atol=5e-5
         )
         print(
             f"[{factor_name}] consistency: local={consistency['ic_mean_local']:.6e} "
@@ -116,7 +107,6 @@ def run_audit(
                 f"适配器或对齐有问题，先修再继续。"
             )
 
-    # alphalens 标准准备
     factor_s = to_alphalens_factor(factor_wide)
     prices = to_alphalens_pricing(price_wide)
     factor_data = get_clean_factor_and_forward_returns(
@@ -126,6 +116,7 @@ def run_audit(
         quantiles=quantiles,
         max_loss=max_loss,
     )
+    del factor_s
 
     run_date = datetime.now().strftime("%Y%m%d")
     out_dir = AUDIT_ROOT / factor_name / run_date
@@ -142,10 +133,9 @@ def run_audit(
         return path.name
 
     saved_pngs: list[str] = []
-
-    # IC 分析
-    ic_df = factor_information_coefficient(factor_data)
     plt.close("all")
+
+    ic_df = factor_information_coefficient(factor_data)
     plotting.plot_ic_ts(ic_df)
     saved_pngs.append(_save_current("ic_ts"))
 
@@ -158,23 +148,21 @@ def run_audit(
     plotting.plot_monthly_ic_heatmap(mean_monthly_ic)
     saved_pngs.append(_save_current("ic_monthly_heatmap"))
 
-    # Returns 分析
     mean_ret_by_q, _ = performance.mean_return_by_quantile(
         factor_data, by_group=False
     )
     plotting.plot_quantile_returns_bar(mean_ret_by_q)
     saved_pngs.append(_save_current("returns_quantile_bar"))
 
-    # Cumulative returns by quantile（每 period 一张）
     mean_quant_daily, _ = performance.mean_return_by_quantile(
         factor_data, by_date=True, by_group=False
     )
-    base_period = factor_data.columns[0]  # '1D' 等
+    base_period = factor_data.columns[0]
     quantile_returns = mean_quant_daily.apply(
         rate_of_return, axis=0, base_period=base_period
     )
     for period in periods:
-        col = f"{period}D"
+        col = _period_col(period)
         if col not in quantile_returns.columns:
             continue
         plotting.plot_cumulative_returns_by_quantile(
@@ -182,7 +170,6 @@ def run_audit(
         )
         saved_pngs.append(_save_current(f"cum_returns_quantile_{col}"))
 
-    # Turnover 分析
     quantile_factor = factor_data["factor_quantile"]
     for period in periods:
         quantile_turnover = pd.concat(
@@ -193,19 +180,15 @@ def run_audit(
             axis=1,
         )
         plotting.plot_top_bottom_quantile_turnover(quantile_turnover, period=period)
-        saved_pngs.append(_save_current(f"turnover_top_bottom_{period}D"))
+        saved_pngs.append(_save_current(f"turnover_top_bottom_{_period_col(period)}"))
 
     for period in periods:
-        autocorr = performance.factor_rank_autocorrelation(
-            factor_data, period=period
-        )
-        plotting.plot_factor_rank_auto_correlation(autocorr, period=f"{period}D")
-        saved_pngs.append(_save_current(f"factor_rank_autocorr_{period}D"))
+        autocorr = performance.factor_rank_autocorrelation(factor_data, period=period)
+        plotting.plot_factor_rank_auto_correlation(autocorr, period=_period_col(period))
+        saved_pngs.append(_save_current(f"factor_rank_autocorr_{_period_col(period)}"))
 
-    # 关键指标摘要
-    ic = factor_information_coefficient(factor_data)
     ic_mean = mean_information_coefficient(factor_data).to_dict()
-    icir = (ic.mean() / ic.std()).to_dict()
+    icir = (ic_df.mean() / ic_df.std()).to_dict()
 
     summary = {
         "factor_name": factor_name,
@@ -217,18 +200,20 @@ def run_audit(
         "quantiles": quantiles,
         "ic_mean": {str(k): float(v) for k, v in ic_mean.items()},
         "icir": {str(k): float(v) for k, v in icir.items()},
-        "consistency": {
-            "ic_mean_local": float(consistency["ic_mean_local"]),
-            "ic_mean_alphalens": float(consistency["ic_mean_alphalens"]),
-            "abs_diff": float(consistency["abs_diff"]),
-            "passed": bool(consistency["passed"]),
-        },
+        "consistency": (
+            None
+            if consistency is None
+            else {
+                "ic_mean_local": float(consistency["ic_mean_local"]),
+                "ic_mean_alphalens": float(consistency["ic_mean_alphalens"]),
+                "abs_diff": float(consistency["abs_diff"]),
+                "passed": bool(consistency["passed"]),
+            }
+        ),
         "outputs": saved_pngs,
     }
     summary_path = out_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False))
+    plt.close("all")
     print(f"[{factor_name}] saved → {out_dir}")
-    return {
-        "out_dir": str(out_dir),
-        "summary": summary,
-    }
+    return {"out_dir": str(out_dir), "summary": summary}

@@ -24,12 +24,13 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
+import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from research.alphalens_audits._runner import run_audit  # noqa: E402
+from research.alphalens_audits._runner import _load_default_price_panel, run_audit  # noqa: E402
 
 
 FACTOR_PATH = PROJECT_ROOT / "data" / "processed" / "mda_drift_scores.parquet"
@@ -49,16 +50,12 @@ def map_fiscal_year_to_publish_date(
     m = manifest[["symbol", "fiscal_year", "publish_date"]].copy()
     m["publish_date"] = pd.to_datetime(m["publish_date"])
 
-    # 把每个 publish_date 对齐到下一个交易日
+    # 向量化对齐到下一个交易日（searchsorted on the whole Series, 而不是 .apply 逐行）
     cal = trading_calendar.sort_values()
-
-    def _next_trading_day(ts):
-        idx = cal.searchsorted(ts, side="left")
-        if idx >= len(cal):
-            return pd.NaT
-        return cal[idx]
-
-    m["effective_date"] = m["publish_date"].apply(_next_trading_day)
+    idx = cal.searchsorted(m["publish_date"].values, side="left")
+    safe_idx = np.minimum(idx, len(cal) - 1)
+    eff = cal.values[safe_idx]
+    m["effective_date"] = pd.to_datetime(np.where(idx >= len(cal), pd.NaT, eff))
     m = m.dropna(subset=["effective_date"])
 
     merged = factor_long.merge(m, on=["symbol", "fiscal_year"], how="inner")
@@ -88,13 +85,9 @@ def main():
     manifest = pd.read_parquet(MANIFEST_PATH)
     print(f"manifest: {manifest.shape}")
 
-    # 加载交易日历（用项目主价格表的索引）
-    price = pd.read_parquet(
-        PROJECT_ROOT
-        / "data" / "processed"
-        / "price_wide_close_2014-01-01_2025-12-31_qfq_5477stocks.parquet"
-    )
-    trading_calendar = pd.DatetimeIndex(price.index)
+    # 主价格宽表只读一次：既给 trading_calendar 也透传给 run_audit（避免重复读 ~MB 级 parquet）
+    price_panel = _load_default_price_panel()
+    trading_calendar = pd.DatetimeIndex(price_panel.index)
 
     factor_sparse = map_fiscal_year_to_publish_date(
         factor_long, manifest, trading_calendar
@@ -125,6 +118,7 @@ def main():
     run_audit(
         factor_name="mda_drift",
         factor_wide=factor_wide,
+        price_wide=price_panel,
         periods=(20, 60, 120, 250),
         quantiles=5,
         skip_consistency=True,

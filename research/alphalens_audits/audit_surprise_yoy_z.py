@@ -26,7 +26,6 @@ FACTOR_PATH = (
 
 def main():
     factor = pd.read_parquet(FACTOR_PATH)
-    factor.index.name = factor.index.name or "date"
     print(f"loaded factor: {factor.shape}, idx={factor.index.dtype}")
 
     run_audit(
