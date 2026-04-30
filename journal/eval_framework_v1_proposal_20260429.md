@@ -1,6 +1,6 @@
 # 评估范式 v1 提案: Live-Tier 0/1/2/3 分级实盘门
 
-_2026-04-29 — Issue #50, awaiting jialong review (不直接改 CLAUDE.md / ROADMAP.md / WORKFLOW.md / pipeline/risk_gate.py)_
+_2026-04-29 — Issue #50, **RATIFIED 2026-04-29 by jialong** (回答见 §"7 个开放问题"已决)_
 
 > **Rev 2 修订** (2026-04-29 同日, simplify review 后):
 > - 命名改 `Live-Tier 0/1/2/3` 与 ROADMAP.md 已有的研究 "Tier 1a/1b/2/3" 区分.
@@ -84,6 +84,14 @@ CLAUDE.md 现有评审门 (line 173-177):
 5. **'no lookahead' 是 hard red line, 全 tier 适用**. 这条不分级.
 6. **spec v4 一次性例外 + 没获批的程序问题不能用分级修补**. 那是治理问题
    不是评估范式问题.
+7. **当前阶段定位是 Tier 0 验证, 不是 Tier 1+ 部署**. jialong 2026-04-29 明确
+   "还没准备好真钱". 因此:
+   - Tier 1 的具体启动 **必须再开一个独立决策点** (新 issue, jialong 显式 ratify),
+     不靠这个 framework 自动触发.
+   - Tier 0 跑满 30 天后产出 review report (不是 framework 自动决定升 Tier 1,
+     是给 jialong 一个 "准备好了吗" 的输入).
+   - 短期目标 = **Tier 0 infra 跑通 + 至少一个候选有 30 天 paper 数据**, 不是
+     "找到一个 Tier 1 候选".
 
 ---
 
@@ -317,38 +325,22 @@ simplify reviewer 警告 "如果 ratify 后只改 doc 不改 risk_gate.py, 代�
 
 ---
 
-## 待 jialong 决策的 7 个开放问题 (rev 2 加了 6 + 7)
+## 7 个开放问题 (RATIFIED 2026-04-29 by jialong)
 
-1. **roe_stability 进 Live-Tier 0 paper smoke 是否批准?**
-   现状是 v16 (deprecated) 在跑 ops smoke. roe_stability 是当前 5/7 切片 PASS
-   的最干净候选. 不批准的话 Tier 0 永远空着也是问题.
+| # | 问题 | 决定 | 理由 |
+|---|---|---|---|
+| 1 | roe_stability 进 Tier 0 paper smoke? | **批准** | 5/7 切片 PASS 最干净候选; Tier 0 零真钱 |
+| 2 | v16 vs roe_stability vs 双跑? | **双跑** | v16 = infra ops smoke (深度集成 pipeline), roe_stability = strategy smoke. 目的不同, 双 ledger 30 天看清差异 |
+| 3 | 5% NAV 上限合适? | **保留 5% 占位**, Tier 1 启动需独立决策 | 现在不跑真钱, 5% 是占位符. 等 Tier 0 30 天后再问 jialong NAV anchor |
+| 4 | 允许 Tier 1 ≤1 FAIL_NEG_SHARPE? | **允许** (按 §Tier 1 推导的 0.3% NAV 阈) | Tier 1 目的本就是 friction measurement, 严格不允许 = 这个 tier 永远空着 = 退化成二元单门 |
+| 5 | Tier 2 升级窗 60 vs 90 天? | **60 天** | 见 §反例 3, 不是统计显著门是 governance 门, 拖 90 天信息增量小 |
+| 6 | Tier 2 DSR 0.80/0.85/0.90? | **0.85** | 中间值, 真到 Tier 2 那一步还能再调, 现在不会触发 |
+| 7 | risk_gate.py 改造 A vs B? | **A** (DEFAULT_RULES dict by tier, 默认 tier=2 兼容) | 向后兼容, 老 caller 不破; 新 caller 加 tier= 参数; 工程量小 |
 
-2. **Tier 0 paper-trade 用 v16 还是 roe_stability?**
-   两套并跑 (双 ledger) vs 单换? 单换风险是丢失 v16 的历史 ops smoke 状态.
-
-3. **5% NAV 上限是否合适?**
-   按账户具体规模. 如果 NAV 是 ¥20 万, 5% = ¥1 万, 可能太小手续费占比高.
-   如果 NAV 是 ¥200 万, 5% = ¥10 万, 合适. 需要 jialong 报具体 anchor.
-
-4. **是否允许 Live-Tier 1 ≤ 1 个 FAIL_NEG_SHARPE 切片?**
-   roe_stability T4 是这种情况. 严格不允许 = roe_stability 也卡 Tier 1 门外.
-   宽松允许 (按 net_ann × 仓位 < 0.3% NAV) = roe_stability 可进.
-   推荐 (a) 宽松, 因为 Tier-1 目标本来就是 friction measurement, 不是 alpha 验证.
-
-5. **Tier 2 需要 60 天 live 还是 90 天 live?**
-   60 天 = 3 月 ≈ 12 周, 信息量小 (sharpe SE 约 1.0 年化, CI 不显著).
-   90 天 略宽. 推荐 60 天: 不是统计显著门, 是 "策略没崩 + tracking error 健康"
-   的 governance 证据. 拖到 90 天信息增量小. 见 §反例 3.
-
-6. **Tier 2 DSR 调成 0.80 / 0.85 / 0.90 哪个?**
-   提案默认 0.85 (working choice, 见 §Tier 2 derivation). 0.80 更宽松 (适合先有
-   live evidence 再调高); 0.90 更严. 这个数字纯政策性, 没"对"的答案.
-
-7. **`pipeline/risk_gate.py` 改造选 A 还是 B?**
-   A = DEFAULT_RULES 改 dict by tier, 调用方传 tier= (默认 tier=2 兼容旧调用).
-   B = DEFAULT_RULES 留作 Tier 2, 加平行 LIVE_TIER_0_RULES / LIVE_TIER_1_RULES, 调用方
-   显式选门, 不设默认.
-   推荐 A (向后兼容, 老调用不破). B 更显式但需要扫所有 caller 改 import.
+短期阻塞解除 (按本批准, 立即可做):
+- ratify 本提案 → 改 4 个文件 (CLAUDE.md / WORKFLOW.md / ROADMAP.md / pipeline/risk_gate.py)
+- 开新 Issue: "Tier 0 启动: roe_stability + v16 双 ledger 30 天 paper smoke"
+- 关本 Issue #50
 
 ---
 
