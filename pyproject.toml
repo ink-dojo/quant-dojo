@@ -12,6 +12,11 @@ dependencies = [
     "pyarrow>=12.0",
 ]
 
+[project.optional-dependencies]
+research = [
+    "alphalens-reloaded>=0.4.6",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["quant_dojo*", "utils*", "strategies*", "backtest*", "research*", "agents*", "pipeline*", "live*", "dashboard*"]
