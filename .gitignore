@@ -30,6 +30,9 @@ data/processed/*
 *.pickle
 *.db
 
+# tushare 因子研究的 json 结果 (重跑可复现)
+research/factors/tushare_factors/*.json
+
 # Config (真实密钥不入库)
 config/config.yaml
 .env
