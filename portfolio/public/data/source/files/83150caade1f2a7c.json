@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/notebook_shim/tests/confs/jupyter_my_ext_config.py", "language": "python", "kind": "research", "lines": 1, "bytes": 31, "truncated": false, "content": "c.MyExt.hello = 'My extension'\n"}

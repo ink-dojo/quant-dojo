@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/matplotlib/testing/exceptions.py", "language": "python", "kind": "research", "lines": 4, "bytes": 138, "truncated": false, "content": "class ImageComparisonFailure(AssertionError):\n    \"\"\"\n    Raise this exception to mark a test as a comparison between two images.\n    \"\"\"\n"}

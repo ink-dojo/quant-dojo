@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-04-25",
+  "generated_at": "2026-04-30",
   "project_started_at": "2026-03-13",
   "current_week": 6,
-  "current_date": "2026-04-25",
+  "current_date": "2026-04-30",
   "source": "ROADMAP.md + git history (week overlay)",
   "phases": [
     {
@@ -96,7 +96,7 @@
     {
       "id": "phase-8",
       "label": "Phase 8",
-      "title": "Agentic Execution / Real-Money Readiness（远期）",
+      "title": "Agentic Execution / Real-Money Readiness（远期，当前暂缓）",
       "status": "planned",
       "checks_total": 5,
       "checks_done": 0,

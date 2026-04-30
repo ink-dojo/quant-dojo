@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/widgetsnbextension/_version.py", "language": "python", "kind": "research", "lines": 4, "bytes": 125, "truncated": false, "content": "# Copyright (c) Jupyter Development Team.\n# Distributed under the terms of the Modified BSD License.\n\n__version__ = '4.0.15'\n"}

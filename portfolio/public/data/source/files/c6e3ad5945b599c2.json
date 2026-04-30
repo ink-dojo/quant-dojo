@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/cvxpy/reductions/dgp2dcp/canonicalizers/xexp_canon.py", "language": "python", "kind": "research", "lines": 6, "bytes": 125, "truncated": false, "content": "from cvxpy.atoms.elementwise.exp import exp\n\n\ndef xexp_canon(expr, args):\n    del expr\n    return args[0] + exp(args[0]), []\n"}

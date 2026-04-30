@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/gitdb/const.py", "language": "python", "kind": "research", "lines": 4, "bytes": 90, "truncated": false, "content": "BYTE_SPACE = b' '\nNULL_BYTE = b'\\0'\nNULL_HEX_SHA = \"0\" * 40\nNULL_BIN_SHA = NULL_BYTE * 20\n"}

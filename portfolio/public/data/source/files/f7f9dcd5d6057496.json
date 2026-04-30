@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/setuptools/tests/script-with-bom.py", "language": "python", "kind": "research", "lines": 1, "bytes": 18, "truncated": false, "content": "result = 'passed'\n"}

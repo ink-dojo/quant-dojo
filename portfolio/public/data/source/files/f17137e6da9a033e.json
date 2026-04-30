@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fqdn/_compat.py", "language": "python", "kind": "research", "lines": 8, "bytes": 174, "truncated": false, "content": "import sys\n\nif sys.version_info[:2] >= (3, 8):\n    from functools import cached_property\nelse:\n    from cached_property import cached_property\n\n__all__ = [\"cached_property\"]\n"}

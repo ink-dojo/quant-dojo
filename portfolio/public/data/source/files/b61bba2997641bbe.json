@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/numpy/lib/scimath.py", "language": "python", "kind": "research", "lines": 13, "bytes": 169, "truncated": false, "content": "from ._scimath_impl import (  # noqa: F401\n    __all__,\n    __doc__,\n    arccos,\n    arcsin,\n    arctanh,\n    log,\n    log2,\n    log10,\n    logn,\n    power,\n    sqrt,\n)\n"}

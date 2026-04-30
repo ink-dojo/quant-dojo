@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/cvxpy/reductions/dgp2dcp/canonicalizers/power_canon.py", "language": "python", "kind": "research", "lines": 3, "bytes": 122, "truncated": false, "content": "def power_canon(expr, args):\n    # u = log x; x^p --> exp(u^p) --> log(exp(u^p)) = p *  u\n    return expr.p * args[0], []\n"}

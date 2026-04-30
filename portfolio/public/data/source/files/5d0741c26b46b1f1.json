@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/charset_normalizer/version.py", "language": "python", "kind": "research", "lines": 8, "bytes": 115, "truncated": false, "content": "\"\"\"\nExpose version\n\"\"\"\n\nfrom __future__ import annotations\n\n__version__ = \"3.4.7\"\nVERSION = __version__.split(\".\")\n"}

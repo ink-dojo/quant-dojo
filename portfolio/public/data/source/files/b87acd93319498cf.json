@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fontTools/colorLib/errors.py", "language": "python", "kind": "research", "lines": 2, "bytes": 41, "truncated": false, "content": "class ColorLibError(Exception):\n    pass\n"}

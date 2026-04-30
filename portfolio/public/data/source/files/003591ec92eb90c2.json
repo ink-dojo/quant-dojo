@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/jupyter.py", "language": "python", "kind": "research", "lines": 8, "bytes": 156, "truncated": false, "content": "\"\"\"Launch the root jupyter command\"\"\"\n\nfrom __future__ import annotations\n\nif __name__ == \"__main__\":\n    from jupyter_core.command import main\n\n    main()\n"}

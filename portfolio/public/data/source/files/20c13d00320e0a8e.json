@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/redis/commands/search/dialect.py", "language": "python", "kind": "research", "lines": 3, "bytes": 105, "truncated": false, "content": "# Value for the default dialect to be used as a part of\n# Search or Aggregate query.\nDEFAULT_DIALECT = 2\n"}

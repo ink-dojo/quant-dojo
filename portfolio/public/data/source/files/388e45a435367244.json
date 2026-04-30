@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/setuptools/tests/textwrap.py", "language": "python", "kind": "research", "lines": 6, "bytes": 98, "truncated": false, "content": "import textwrap\n\n\ndef DALS(s):\n    \"dedent and left-strip\"\n    return textwrap.dedent(s).lstrip()\n"}

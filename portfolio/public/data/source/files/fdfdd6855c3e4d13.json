@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fontTools/varLib/avarPlanner.py", "language": "python", "kind": "research", "lines": 8, "bytes": 109, "truncated": false, "content": "def main(args=None):\n    from .avar.plan import main\n\n    main(args)\n\n\nif __name__ == \"__main__\":\n    main()\n"}

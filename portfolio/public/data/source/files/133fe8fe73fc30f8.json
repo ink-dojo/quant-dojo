@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fastapi/middleware/httpsredirect.py", "language": "python", "kind": "research", "lines": 3, "bytes": 115, "truncated": false, "content": "from starlette.middleware.httpsredirect import (  # noqa\n    HTTPSRedirectMiddleware as HTTPSRedirectMiddleware,\n)\n"}

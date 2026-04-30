@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/attrs/filters.py", "language": "python", "kind": "research", "lines": 3, "bytes": 73, "truncated": false, "content": "# SPDX-License-Identifier: MIT\n\nfrom attr.filters import *  # noqa: F403\n"}

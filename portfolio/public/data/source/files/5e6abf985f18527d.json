@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/joblib/test/test_func_inspect_special_encoding.py", "language": "python", "kind": "research", "lines": 9, "bytes": 180, "truncated": false, "content": "# -*- coding: big5 -*-\n\n\n# Some Traditional Chinese characters: �@�Ǥ���r��\ndef big5_f():\n    \"\"\"�Ω���ժ����\n    \"\"\"\n    # ����\n    return 0\n"}

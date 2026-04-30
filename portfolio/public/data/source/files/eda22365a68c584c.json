@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/graphene/utils/deprecated.py", "language": "python", "kind": "research", "lines": 5, "bytes": 119, "truncated": false, "content": "from warnings import warn\n\n\ndef warn_deprecation(text: str):\n    warn(text, category=DeprecationWarning, stacklevel=2)\n"}

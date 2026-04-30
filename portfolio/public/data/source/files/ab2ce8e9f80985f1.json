@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/setuptools/_vendor/more_itertools/__init__.py", "language": "python", "kind": "research", "lines": 6, "bytes": 149, "truncated": false, "content": "\"\"\"More routines for operating on iterables, beyond itertools\"\"\"\n\nfrom .more import *  # noqa\nfrom .recipes import *  # noqa\n\n__version__ = '10.8.0'\n"}

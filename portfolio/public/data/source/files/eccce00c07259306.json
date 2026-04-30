@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/graphql/pyutils/awaitable_or_value.py", "language": "python", "kind": "research", "lines": 8, "bytes": 139, "truncated": false, "content": "from typing import Awaitable, TypeVar, Union\n\n__all__ = [\"AwaitableOrValue\"]\n\n\nT = TypeVar(\"T\")\n\nAwaitableOrValue = Union[Awaitable[T], T]\n"}

@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pandas/tests/reductions/__init__.py", "language": "python", "kind": "research", "lines": 4, "bytes": 125, "truncated": false, "content": "\"\"\"\nTests for reductions where we want to test for matching behavior across\nArray, Index, Series, and DataFrame methods.\n\"\"\"\n"}

@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/cvxpy/reductions/dgp2dcp/canonicalizers/log_canon.py", "language": "python", "kind": "research", "lines": 5, "bytes": 101, "truncated": false, "content": "from cvxpy.atoms.elementwise.log import log\n\n\ndef log_canon(expr, args):\n    return log(args[0]), []\n"}

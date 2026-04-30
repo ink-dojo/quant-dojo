@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/osqp/builtin.py", "language": "python", "kind": "research", "lines": 6, "bytes": 174, "truncated": false, "content": "from osqp.interface import OSQP as _OSQP\n\n\nclass OSQP(_OSQP):\n    def __init__(self, *args, **kwargs):\n        super(OSQP, self).__init__(*args, **kwargs, algebra='builtin')\n"}

@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/annotated_doc/__init__.py", "language": "python", "kind": "research", "lines": 3, "bytes": 52, "truncated": false, "content": "from .main import Doc as Doc\n\n__version__ = \"0.0.4\"\n"}

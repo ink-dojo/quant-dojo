@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/graphene/utils/get_unbound_function.py", "language": "python", "kind": "research", "lines": 4, "bytes": 121, "truncated": false, "content": "def get_unbound_function(func):\n    if not getattr(func, \"__self__\", True):\n        return func.__func__\n    return func\n"}

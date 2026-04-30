@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/numpy/typing/tests/data/pass/nditer.py", "language": "python", "kind": "research", "lines": 4, "bytes": 63, "truncated": false, "content": "import numpy as np\n\narr = np.array([1])\nnp.nditer([arr, None])\n"}

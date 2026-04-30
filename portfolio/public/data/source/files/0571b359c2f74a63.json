@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pip/_vendor/rich/themes.py", "language": "python", "kind": "research", "lines": 5, "bytes": 102, "truncated": false, "content": "from .default_styles import DEFAULT_STYLES\nfrom .theme import Theme\n\n\nDEFAULT = Theme(DEFAULT_STYLES)\n"}

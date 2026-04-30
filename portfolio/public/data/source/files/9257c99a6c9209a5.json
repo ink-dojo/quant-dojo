@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/IPython/utils/log.py", "language": "python", "kind": "research", "lines": 5, "bytes": 123, "truncated": false, "content": "from warnings import warn\n\nwarn(\"IPython.utils.log has moved to traitlets.log\", stacklevel=2)\n\nfrom traitlets.log import *\n"}

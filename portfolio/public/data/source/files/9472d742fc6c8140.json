@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/jedi/inference/gradual/__init__.py", "language": "python", "kind": "research", "lines": 4, "bytes": 143, "truncated": false, "content": "\"\"\"\nIt is unfortunately not well documented how stubs and annotations work in Jedi.\nIf somebody needs an introduction, please let me know.\n\"\"\"\n"}

@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/mlflow/genai/evaluation/__init__.py", "language": "python", "kind": "research", "lines": 3, "bytes": 106, "truncated": false, "content": "from mlflow.genai.evaluation.base import evaluate, to_predict_fn\n\n__all__ = [\"evaluate\", \"to_predict_fn\"]\n"}

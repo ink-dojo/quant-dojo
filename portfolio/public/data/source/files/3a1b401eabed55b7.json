@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/setuptools/tests/text.py", "language": "python", "kind": "research", "lines": 4, "bytes": 123, "truncated": false, "content": "class Filenames:\n    unicode = 'smörbröd.py'\n    latin_1 = unicode.encode('latin-1')\n    utf_8 = unicode.encode('utf-8')\n"}

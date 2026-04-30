@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/graphql/pyutils/frozen_error.py", "language": "python", "kind": "research", "lines": 5, "bytes": 129, "truncated": false, "content": "__all__ = [\"FrozenError\"]\n\n\nclass FrozenError(TypeError):\n    \"\"\"Error when trying to change a frozen (read only) collection.\"\"\"\n"}

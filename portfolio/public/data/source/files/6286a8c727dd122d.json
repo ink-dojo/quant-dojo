@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/setuptools/version.py", "language": "python", "kind": "research", "lines": 6, "bytes": 161, "truncated": false, "content": "from ._importlib import metadata\n\ntry:\n    __version__ = metadata.version('setuptools') or '0.dev0+unknown'\nexcept Exception:\n    __version__ = '0.dev0+unknown'\n"}

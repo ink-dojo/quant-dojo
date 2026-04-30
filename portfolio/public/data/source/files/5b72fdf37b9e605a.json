@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/numpy/f2py/__main__.py", "language": "python", "kind": "research", "lines": 5, "bytes": 130, "truncated": false, "content": "# See:\n# https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e\nfrom numpy.f2py.f2py2e import main\n\nmain()\n"}

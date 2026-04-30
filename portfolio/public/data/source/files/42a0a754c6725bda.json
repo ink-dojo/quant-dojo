@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/scipy/stats/_common.py", "language": "python", "kind": "research", "lines": 5, "bytes": 172, "truncated": false, "content": "from collections import namedtuple\n\n\nConfidenceInterval = namedtuple(\"ConfidenceInterval\", [\"low\", \"high\"])\nConfidenceInterval. __doc__ = \"Class for confidence intervals.\"\n"}

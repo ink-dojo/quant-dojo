@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/notebook/__main__.py", "language": "python", "kind": "research", "lines": 7, "bytes": 129, "truncated": false, "content": "\"\"\"CLI entry point for notebook.\"\"\"\n\nimport sys\n\nfrom notebook.app import main\n\nsys.exit(main())  # type:ignore[no-untyped-call]\n"}

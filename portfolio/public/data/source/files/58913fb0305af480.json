@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pydantic/parse.py", "language": "python", "kind": "research", "lines": 5, "bytes": 141, "truncated": false, "content": "\"\"\"The `parse` module is a backport module from V1.\"\"\"\n\nfrom ._migration import getattr_migration\n\n__getattr__ = getattr_migration(__name__)\n"}

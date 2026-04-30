@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/charset_normalizer/__main__.py", "language": "python", "kind": "research", "lines": 6, "bytes": 109, "truncated": false, "content": "from __future__ import annotations\n\nfrom .cli import cli_detect\n\nif __name__ == \"__main__\":\n    cli_detect()\n"}

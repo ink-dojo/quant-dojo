@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/jsonschema/benchmarks/__init__.py", "language": "python", "kind": "research", "lines": 5, "bytes": 70, "truncated": false, "content": "\"\"\"\nBenchmarks for validation.\n\nThis package is *not* public API.\n\"\"\"\n"}

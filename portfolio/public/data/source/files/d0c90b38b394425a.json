@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/jsonschema/__main__.py", "language": "python", "kind": "research", "lines": 6, "bytes": 115, "truncated": false, "content": "\"\"\"\nThe jsonschema CLI is now deprecated in favor of check-jsonschema.\n\"\"\"\nfrom jsonschema.cli import main\n\nmain()\n"}

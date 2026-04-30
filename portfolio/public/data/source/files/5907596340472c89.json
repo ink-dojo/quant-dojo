@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/qlib/cli/data.py", "language": "python", "kind": "research", "lines": 9, "bytes": 176, "truncated": false, "content": "#  Copyright (c) Microsoft Corporation.\n#  Licensed under the MIT License.\n\nimport fire\nfrom qlib.tests.data import GetData\n\n\nif __name__ == \"__main__\":\n    fire.Fire(GetData)\n"}

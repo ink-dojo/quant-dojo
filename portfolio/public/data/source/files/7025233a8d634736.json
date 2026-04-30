@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fontTools/voltLib/__init__.py", "language": "python", "kind": "research", "lines": 5, "bytes": 151, "truncated": false, "content": "\"\"\"fontTools.voltLib -- a package for dealing with Visual OpenType Layout Tool\n(VOLT) files.\"\"\"\n\n# See\n# http://www.microsoft.com/typography/VOLT.mspx\n"}

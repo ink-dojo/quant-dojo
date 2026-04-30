@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/IPython/utils/docs.py", "language": "python", "kind": "research", "lines": 3, "bytes": 86, "truncated": false, "content": "import os\n\nGENERATING_DOCUMENTATION = os.environ.get(\"IN_SPHINX_RUN\", None) == \"True\"\n"}

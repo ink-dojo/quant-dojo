@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/PIL/__main__.py", "language": "python", "kind": "research", "lines": 7, "bytes": 133, "truncated": false, "content": "from __future__ import annotations\n\nimport sys\n\nfrom .features import pilinfo\n\npilinfo(supported_formats=\"--report\" not in sys.argv)\n"}

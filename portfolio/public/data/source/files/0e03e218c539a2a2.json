@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/jupyter_server_terminals/_version.py", "language": "python", "kind": "research", "lines": 2, "bytes": 71, "truncated": false, "content": "\"\"\"Version info for jupyter_server_terminals.\"\"\"\n__version__ = \"0.5.4\"\n"}

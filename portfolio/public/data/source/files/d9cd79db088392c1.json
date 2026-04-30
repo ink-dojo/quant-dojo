@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/debugpy/_vendored/pydevd/pydev_pysrc.py", "language": "python", "kind": "research", "lines": 1, "bytes": 101, "truncated": false, "content": "\"\"\"An empty file in pysrc that can be imported (from sitecustomize) to find the location of pysrc\"\"\"\n"}

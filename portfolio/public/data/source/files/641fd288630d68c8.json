@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/zmq/backend/cffi/README.md", "language": "markdown", "kind": "research", "lines": 1, "bytes": 95, "truncated": false, "content": "PyZMQ's CFFI support is designed only for (Unix) systems conforming to `have_sys_un_h = True`.\n"}

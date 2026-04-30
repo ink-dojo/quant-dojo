@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fontTools/designspaceLib/__main__.py", "language": "python", "kind": "research", "lines": 6, "bytes": 103, "truncated": false, "content": "import sys\nfrom fontTools.designspaceLib import main\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n"}

@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fontTools/qu2cu/__main__.py", "language": "python", "kind": "research", "lines": 7, "bytes": 93, "truncated": false, "content": "import sys\n\nfrom .cli import _main as main\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n"}

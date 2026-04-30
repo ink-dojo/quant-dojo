@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pandas/tests/io/pytables/conftest.py", "language": "python", "kind": "research", "lines": 9, "bytes": 136, "truncated": false, "content": "import uuid\n\nimport pytest\n\n\n@pytest.fixture\ndef setup_path():\n    \"\"\"Fixture for setup path\"\"\"\n    return f\"tmp.__{uuid.uuid4()}__.h5\"\n"}

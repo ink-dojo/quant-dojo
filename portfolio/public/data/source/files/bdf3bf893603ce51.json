@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/scipy/misc/common.py", "language": "python", "kind": "research", "lines": 6, "bytes": 142, "truncated": false, "content": "import warnings\nwarnings.warn(\n    \"scipy.misc.common is deprecated and will be removed in 2.0.0\",\n    DeprecationWarning,\n    stacklevel=2\n)\n"}

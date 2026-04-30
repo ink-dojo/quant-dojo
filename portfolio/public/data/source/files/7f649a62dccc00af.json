@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/docker/credentials/constants.py", "language": "python", "kind": "research", "lines": 4, "bytes": 142, "truncated": false, "content": "PROGRAM_PREFIX = 'docker-credential-'\nDEFAULT_LINUX_STORE = 'secretservice'\nDEFAULT_OSX_STORE = 'osxkeychain'\nDEFAULT_WIN32_STORE = 'wincred'\n"}

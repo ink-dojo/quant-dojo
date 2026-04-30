@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/ipykernel/__main__.py", "language": "python", "kind": "research", "lines": 6, "bytes": 143, "truncated": false, "content": "\"\"\"The cli entry point for ipykernel.\"\"\"\n\nif __name__ == \"__main__\":\n    from ipykernel import kernelapp as app\n\n    app.launch_new_instance()\n"}

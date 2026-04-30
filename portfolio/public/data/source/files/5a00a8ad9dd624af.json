@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pyparsing/ai/show_best_practices/__main__.py", "language": "python", "kind": "research", "lines": 2, "bytes": 49, "truncated": false, "content": "import pyparsing\npyparsing.show_best_practices()\n"}

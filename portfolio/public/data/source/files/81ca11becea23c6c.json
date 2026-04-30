@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/notebook_shim/_version.py", "language": "python", "kind": "research", "lines": 2, "bytes": 55, "truncated": false, "content": "version_info = (0, 2, 4, \"\", \"\")\n__version__ = \"0.2.4\"\n"}

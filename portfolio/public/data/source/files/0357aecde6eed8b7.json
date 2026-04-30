@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pip/_vendor/distro/__main__.py", "language": "python", "kind": "research", "lines": 4, "bytes": 64, "truncated": false, "content": "from .distro import main\n\nif __name__ == \"__main__\":\n    main()\n"}

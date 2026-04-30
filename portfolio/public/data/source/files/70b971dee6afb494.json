@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/dotenv/__main__.py", "language": "python", "kind": "research", "lines": 6, "bytes": 129, "truncated": false, "content": "\"\"\"Entry point for cli, enables execution with `python -m dotenv`\"\"\"\n\nfrom .cli import cli\n\nif __name__ == \"__main__\":\n    cli()\n"}

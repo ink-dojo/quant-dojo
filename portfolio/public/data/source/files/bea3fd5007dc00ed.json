@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/notebook_shim/tests/confs/jupyter_notebook_config.py", "language": "python", "kind": "research", "lines": 3, "bytes": 105, "truncated": false, "content": "c.NotebookApp.allow_credentials = False\nc.NotebookApp.port = 8889\nc.NotebookApp.password_required = True\n"}

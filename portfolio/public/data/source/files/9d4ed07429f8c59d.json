@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/cvxpy/reductions/dgp2dcp/canonicalizers/gmatmul_canon.py", "language": "python", "kind": "research", "lines": 2, "bytes": 63, "truncated": false, "content": "def gmatmul_canon(expr, args):\n    return expr.A @ args[0], []\n"}

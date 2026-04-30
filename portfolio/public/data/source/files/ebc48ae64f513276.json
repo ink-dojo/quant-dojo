@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/IPython/testing/plugin/simplevars.py", "language": "python", "kind": "research", "lines": 2, "bytes": 24, "truncated": false, "content": "x = 1\nprint(\"x is:\", x)\n"}

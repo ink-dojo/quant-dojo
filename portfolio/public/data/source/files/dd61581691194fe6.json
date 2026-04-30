@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/mlflow/projects/env_type.py", "language": "python", "kind": "research", "lines": 4, "bytes": 94, "truncated": false, "content": "DOCKER = \"docker_env\"\nPYTHON = \"python_env\"\nCONDA = \"conda_env\"\nALL = [DOCKER, PYTHON, CONDA]\n"}

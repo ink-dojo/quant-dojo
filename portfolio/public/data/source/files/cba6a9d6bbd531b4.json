@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pylab.py", "language": "python", "kind": "research", "lines": 3, "bytes": 110, "truncated": false, "content": "from matplotlib.pylab import *  # noqa: F401, F403\nimport matplotlib.pylab\n__doc__ = matplotlib.pylab.__doc__\n"}

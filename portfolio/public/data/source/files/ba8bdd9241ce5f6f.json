@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/setuptools/_vendor/jaraco/text/to-qwerty.py", "language": "python", "kind": "research", "lines": 5, "bytes": 118, "truncated": false, "content": "import sys\n\nfrom . import layouts\n\n__name__ == '__main__' and layouts._translate_stream(sys.stdin, layouts.to_qwerty)\n"}

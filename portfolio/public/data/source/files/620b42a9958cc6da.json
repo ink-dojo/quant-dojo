@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/mlflow/store/db/base_sql_model.py", "language": "python", "kind": "research", "lines": 3, "bytes": 71, "truncated": false, "content": "from sqlalchemy.orm import declarative_base\n\nBase = declarative_base()\n"}

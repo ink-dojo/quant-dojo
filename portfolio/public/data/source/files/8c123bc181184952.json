@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/numpy/_typing/_ufunc.py", "language": "python", "kind": "research", "lines": 7, "bytes": 156, "truncated": false, "content": "from numpy import ufunc\n\n_UFunc_Nin1_Nout1 = ufunc\n_UFunc_Nin2_Nout1 = ufunc\n_UFunc_Nin1_Nout2 = ufunc\n_UFunc_Nin2_Nout2 = ufunc\n_GUFunc_Nin2_Nout1 = ufunc\n"}

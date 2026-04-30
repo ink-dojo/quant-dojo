@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/setuptools/_distutils/_log.py", "language": "python", "kind": "research", "lines": 3, "bytes": 42, "truncated": false, "content": "import logging\n\nlog = logging.getLogger()\n"}

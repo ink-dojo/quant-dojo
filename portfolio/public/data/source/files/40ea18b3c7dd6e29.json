@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/jupyter_server/__main__.py", "language": "python", "kind": "research", "lines": 6, "bytes": 154, "truncated": false, "content": "\"\"\"The main entry point for Jupyter Server.\"\"\"\n\nif __name__ == \"__main__\":\n    from jupyter_server import serverapp as app\n\n    app.launch_new_instance()\n"}

@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fastapi/openapi/constants.py", "language": "python", "kind": "research", "lines": 3, "bytes": 153, "truncated": false, "content": "METHODS_WITH_BODY = {\"GET\", \"HEAD\", \"POST\", \"PUT\", \"DELETE\", \"PATCH\"}\nREF_PREFIX = \"#/components/schemas/\"\nREF_TEMPLATE = \"#/components/schemas/{model}\"\n"}

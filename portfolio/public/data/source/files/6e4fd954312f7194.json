@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/fastapi/templating.py", "language": "python", "kind": "research", "lines": 1, "bytes": 76, "truncated": false, "content": "from starlette.templating import Jinja2Templates as Jinja2Templates  # noqa\n"}

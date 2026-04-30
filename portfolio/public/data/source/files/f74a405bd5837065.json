@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/setup/build_meta.py", "language": "python", "kind": "research", "lines": 2, "bytes": 164, "truncated": false, "content": "# See https://setuptools.pypa.io/en/latest/build_meta.html#dynamic-build-dependencies-and-other-build-meta-tweaks\nfrom setuptools.build_meta import *  # noqa: F403\n"}

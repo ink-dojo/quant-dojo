@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/notebook_shim/__init__.py", "language": "python", "kind": "research", "lines": 6, "bytes": 127, "truncated": false, "content": "def _jupyter_server_extension_points():\n    return [\n        {\n            'module': 'notebook_shim.nbserver',\n        }\n    ]\n"}

@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/rfc3987_syntax/utils.py", "language": "python", "kind": "research", "lines": 6, "bytes": 136, "truncated": false, "content": "from pathlib import Path\n\n\ndef load_grammar(path: Path):\n    with open(path, \"r\", encoding=\"utf-8\") as file:\n        return file.read()\n"}

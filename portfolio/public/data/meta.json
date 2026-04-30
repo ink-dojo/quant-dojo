@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-25T02:16:58+00:00",
+  "generated_at": "2026-04-30T02:45:50+00:00",
   "coverage_generated_at": "2026-04-16",
   "git": {
-    "sha": "f2d31bbcc05f8d60a89ade2a451f6ab6507b783e",
-    "short": "f2d31bbc",
-    "subject": "portfolio: add bilingual display toggle"
+    "sha": "d03b26cd5d3d365f2072545cdf3302221a921b74",
+    "short": "d03b26cd",
+    "subject": "docs(ROADMAP): 加 'Live-Tier 实盘状态' 节, 跟研究 'Tier 1a/1b/2/3' 区分"
   },
   "face": {
     "research": "v9",

@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pydantic/schema.py", "language": "python", "kind": "research", "lines": 5, "bytes": 142, "truncated": false, "content": "\"\"\"The `schema` module is a backport module from V1.\"\"\"\n\nfrom ._migration import getattr_migration\n\n__getattr__ = getattr_migration(__name__)\n"}

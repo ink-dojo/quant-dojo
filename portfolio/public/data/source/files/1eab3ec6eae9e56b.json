@@ -1,0 +1,1 @@
+{"path": "research/qlib_baseline/.venv/lib/python3.11/site-packages/pydantic/_internal/_internal_dataclass.py", "language": "python", "kind": "research", "lines": 7, "bytes": 144, "truncated": false, "content": "import sys\n\n# `slots` is available on Python >= 3.10\nif sys.version_info >= (3, 10):\n    slots_true = {'slots': True}\nelse:\n    slots_true = {}\n"}
