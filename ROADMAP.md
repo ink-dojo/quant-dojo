@@ -240,6 +240,21 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
 
 ---
 
+## Live-Tier 实盘状态 (v1, 2026-04-29 framework ratified)
+
+> 注: 这是 LIVE-MONEY tier, 跟本 ROADMAP 上文 Space-C 的研究 "Tier 1a/1b/2/3"
+> 不是同一概念. 详见 `journal/eval_framework_v1_proposal_20260429.md`.
+> **当前阶段定位是 Tier 0 验证, 不部署 Tier 1+ 真钱**.
+
+- **Live-Tier 3** (25-100% NAV): 无
+- **Live-Tier 2** (5-25% NAV): 无
+- **Live-Tier 1** (1-5% NAV): 无 (启动需 jialong 独立 ratify, 不靠 framework 自动)
+- **Live-Tier 0** (paper-only):
+  - `roe_stability` 单腿 — 待启动 30 天 paper smoke (新 issue 跟踪)
+  - `v16` — 历史 deprecated ops smoke runner, 继续保留 (infra 验证, 不算 strategy)
+
+---
+
 ## 里程碑时间线
 
 ```
