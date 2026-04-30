@@ -1,6 +1,15 @@
 # quant-dojo Project Status
 
-_Last updated: 2026-04-25_
+_Last updated: 2026-04-29_
+
+## Pending Decisions (awaiting jialong review)
+
+- **评估范式 v1 framework** — `journal/eval_framework_v1_proposal_20260429.md`
+  Proposal: 把当前一道单门拆成 Tier 0/1/2/3 分级实盘门, 每级由 risk capacity →
+  max DD → sharpe 反推, 升级必须 live 证据. **不直接改 CLAUDE.md / ROADMAP.md**,
+  等 jialong 阅 proposal §"5 个开放问题" 后批准再 ratify. Issue #50.
+  - Tushare 因子轮: 候选库本轮归零 (Issue #44/46/47), 不影响 framework 走流程.
+
 
 ## Current Position
 

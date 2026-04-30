@@ -212,6 +212,11 @@ Issue 主线: #25
       单腿: inst_flow 2 FAIL + 1 MARGINAL; roe_stability 1 FAIL + 1 MARGINAL.
       tushare 四因子本轮候选库 = 空. 不再继续 sweep / 不写 spec / 不进 paper-trade.
 - [ ] 把 \"无候选\" 结论同步到 PROJECT_STATUS.md, 避免 portfolio 把全样本 sharpe 1.66 当当前候选展示
+- [ ] **评估范式 v1 (Tier 0/1/2/3 分级门) — Issue #50, awaiting jialong 决策**
+      `journal/eval_framework_v1_proposal_20260429.md`
+      4 个 tier 由 risk capacity 反推门; spec v4 拒绝结论不变;
+      roe_stability 单腿在新框架下可进 Tier 0 paper smoke. 5 个开放问题等回答.
+      **不直接改 CLAUDE.md / ROADMAP.md, 等批准**.
 
 ### 暂缓 / 不做
 
