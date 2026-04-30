@@ -12,12 +12,18 @@ pipeline/risk_gate.py — Phase 7 实验结果风险门
   - 所有阈值用 **"最低要求"** 语义：指标 < 阈值视为失败
   - max_drawdown 比较时考虑它是负数（-0.20 差于 -0.15），比较绝对值
 
-默认门槛来自 CLAUDE.md「策略评审门槛」：
-  - annualized_return > 15%
-  - sharpe > 0.8
-  - abs(max_drawdown) < 30%
-  - n_trading_days > 3 年 ≈ 700
-  - win_rate > 45%
+默认门槛 = Live-Tier 2 (5-25% NAV 部署门), 与历史 CLAUDE.md「策略评审门槛」对齐.
+其他 tier 见 TIER_RULES; 调用方传 tier= 选择, 不传 = DEFAULT_RULES (向后兼容).
+
+Live-Tier 框架: `journal/eval_framework_v1_proposal_20260429.md` (2026-04-29 ratified)
+  Tier 0 (paper-only): sharpe_net > 0
+  Tier 1 (1-5% NAV):   sharpe_net > 0.5
+  Tier 2 (5-25% NAV):  当前 DEFAULT_RULES (sharpe>0.8, ann>0.15, |mdd|<0.30)
+  Tier 3 (25-100%):    sharpe>1.0, ann>0.20, |mdd|<0.20
+
+注意: framework 里的 OOS 切片门 / DSR / 60 天 live track / capacity 这些
+metric 不在 risk_gate 当前输入里, 由 framework doc + 上游评审承担, 这里只
+覆盖 risk_gate 已有 metrics 的部分.
 """
 from __future__ import annotations
 
@@ -26,7 +32,7 @@ from typing import Optional
 
 
 # ══════════════════════════════════════════════════════════════
-# 默认规则 —— 单测/调用方可整份替换
+# 默认规则 —— 单测/调用方可整份替换 (= Live-Tier 2)
 # ══════════════════════════════════════════════════════════════
 
 DEFAULT_RULES: dict = {
@@ -48,6 +54,49 @@ DEFAULT_RULES: dict = {
         "message": "信息比率 {value:.2f} 低于 0.5（策略相对基准超额不稳定）",
     },
 }
+
+
+# ══════════════════════════════════════════════════════════════
+# Live-Tier 规则 —— 显式按 tier 选择, 不传 tier= 时回退 DEFAULT_RULES
+# ══════════════════════════════════════════════════════════════
+
+TIER_RULES: dict[int, dict] = {
+    # Tier 0 (paper-only): 只要 sharpe 不是负数, 回测够长. 严格门由 framework
+    # doc 的 OOS 切片 / no-lookahead / 30 天 paper smoke 承担.
+    0: {
+        "sharpe": {"min": 0.0, "required": True, "label": "夏普比率(Tier 0)"},
+        "n_trading_days": {"min": 700, "required": False, "label": "回测天数"},
+    },
+    # Tier 1 (1-5% NAV): 启动需 jialong 独立 ratify, 不靠 framework 自动触发.
+    1: {
+        "sharpe": {"min": 0.5, "required": True, "label": "夏普比率(Tier 1)"},
+        "annualized_return": {"min": 0.0, "required": False, "label": "年化收益(Tier 1)"},
+        "max_drawdown": {"max_abs": 0.40, "required": True, "label": "最大回撤(Tier 1)"},
+        "n_trading_days": {"min": 700, "required": True, "label": "回测天数"},
+    },
+    # Tier 2: = DEFAULT_RULES (向后兼容历史调用)
+    2: DEFAULT_RULES,
+    # Tier 3 (25-100% NAV / 外部资金): 严格门 + DSR/bootstrap 由 framework
+    # 与上游评审承担, risk_gate 这里只收紧 sharpe/ann/mdd 三项.
+    3: {
+        "sharpe": {"min": 1.0, "required": True, "label": "夏普比率(Tier 3)"},
+        "annualized_return": {"min": 0.20, "required": True, "label": "年化收益(Tier 3)"},
+        "total_return": {"min": 0.0, "required": False, "label": "累计收益"},
+        "max_drawdown": {"max_abs": 0.20, "required": True, "label": "最大回撤(Tier 3)"},
+        "n_trading_days": {"min": 1000, "required": True, "label": "回测天数(Tier 3)"},
+        "win_rate": {"min": 0.50, "required": False, "level": "warning", "label": "胜率"},
+        "information_ratio": {
+            "min": 0.5, "required": False, "level": "warning", "label": "信息比率",
+        },
+    },
+}
+
+
+def get_tier_rules(tier: int) -> dict:
+    """按 Live-Tier 编号取规则字典. 未知 tier 抛 KeyError."""
+    if tier not in TIER_RULES:
+        raise KeyError(f"未知 Live-Tier {tier}, 可选: {sorted(TIER_RULES.keys())}")
+    return TIER_RULES[tier]
 
 
 @dataclass
@@ -78,18 +127,22 @@ class GateResult:
 def evaluate(
     metrics: Optional[dict],
     rules: Optional[dict] = None,
+    tier: Optional[int] = None,
 ) -> GateResult:
     """
     检查回测 metrics 是否通过风险门。
 
     参数：
         metrics — 一般来自 RunRecord.metrics 或 ExperimentRecord.result_summary
-        rules   — 阈值配置，默认 DEFAULT_RULES。单测可传自定义
+        rules   — 阈值配置. 显式传入优先级最高, 用于单测或自定义.
+        tier    — Live-Tier 编号 (0/1/2/3); 仅当 rules=None 时生效.
+                  不传 tier 也不传 rules → DEFAULT_RULES (= Tier 2, 历史兼容).
 
     返回：GateResult
     """
     metrics = dict(metrics or {})
-    rules = rules or DEFAULT_RULES
+    if rules is None:
+        rules = get_tier_rules(tier) if tier is not None else DEFAULT_RULES
     failures: list[dict] = []
     warnings: list[dict] = []
 
