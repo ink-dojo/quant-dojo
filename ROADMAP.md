@@ -275,6 +275,9 @@ Phase 5  模拟实盘基础设施  ██████████  100% ✅
 
 > 由 ALPHA_THEORY_2026 §2.C 孵化出的独立研究轨道。不抢 Phase 6/7 节奏，
 > 单独跑三层 POC，每层都有独立 kill criteria。详见 TODO.md 同名章节。
+>
+> **注**: 本节的 "Tier 1a/1b/2/3" 是研究 POC 阶段标记, **不是** 上文 "Live-Tier
+> 实盘状态" 的实盘资金分级. 两套概念互不重叠.
 
 - [x] **Tier 1a** — MD&A drift factor 框架就绪（Issue #25, 2026-04-21）
 - [ ] **Tier 1b** — 全 A 股 2018-2025 IC 评估 + kill 判读
