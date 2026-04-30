@@ -96,11 +96,18 @@ refactor: 重构 metrics 模块
 - [ ] 交易成本合理计入
 - [ ] 样本外（out-of-sample）测试通过
 
-**绩效标准（最低门槛）**
-- [ ] 年化收益 > 15%
-- [ ] 夏普比率 > 0.8
-- [ ] 最大回撤 < 30%
-- [ ] 回测时间跨度 > 3年，覆盖牛熊周期
+**绩效标准（按 Live-Tier 入门门槛, 详见 `journal/eval_framework_v1_proposal_20260429.md`）**
+
+进 paper-trade（Live-Tier 0）前自检:
+- [ ] no lookahead / no fwd-leak (HARD red line, 全 tier 适用)
+- [ ] cost-aware sharpe_net > 0 over 3+ year, 双边 0.5% cost
+
+进 1-5% 实盘（Live-Tier 1）前自检（**Tier 1 启动需 jialong 独立 ratify**）:
+- [ ] backtest sharpe_net > 0.5 / IC HAC t > 2
+- [ ] OOS 切片无 FAIL_IC_FLIP, 至多 1 个 FAIL_NEG_SHARPE 且失败窗 net_ann × 仓位 < 0.3% NAV
+- [ ] Live-Tier 0 paper-trade 30 天 green light
+
+(Live-Tier 2/3 进入条件参见 framework doc, 不能跳过 Tier 1)
 
 **代码质量**
 - [ ] 代码可读，有必要注释
