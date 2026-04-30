@@ -5,7 +5,7 @@
 
 ## 一句话结论
 
-**DSR #30 BB 主板 rescaled 在 2.5y 重叠期点估计 Sharpe 1.03 vs qlib Alpha158-LightGBM 的 0.42**，方向一致。但**这是 single-point estimate**，并不能推翻 Phase 3 全期 OOS 已得的 CI_low 0.20 fail（bootstrap 95% 下界），所以**不能升级为 Tier 1+ 部署的依据**。ensemble 在 2.5y 重叠期同样比 BB 单脚弱（excess 1.21% vs 6.26%），与 jialong 2026-04-28 否决 spec v4 50/50 双腿的判断一致。
+**DSR #30 BB 主板 rescaled 在 2.5y 重叠期点估计 Sharpe 0.89 vs qlib Alpha158-LightGBM 的 0.34**（用 utils.metrics 标准口径 rf=0.02 ddof=1），方向一致；与 Phase 3 全期 Sharpe 0.84 也很近。但**这是 single-point estimate**，并不能推翻 Phase 3 全期 OOS 已得的 CI_low 0.20 fail（bootstrap 95% 下界），所以**不能升级为 Tier 1+ 部署的依据**。ensemble 在 2.5y 重叠期同样比 BB 单脚弱（excess 1.21% vs 6.26%），与 jialong 2026-04-28 否决 spec v4 50/50 双腿的判断一致。
 
 ## 数据范围（重要 caveat）
 
@@ -17,23 +17,23 @@
 
 ⚠️ 这意味着对照表只能作**参考性外部基线**，不能单独 go/no-go DSR #30 paper-trade —— 真正决策仍要看 DSR 完整 2018-2026 区间。
 
-## 对照表（全部对齐 CSI300 benchmark + 单边 0.15% 成本）
+## 对照表（全部对齐 CSI300 benchmark + 单边 0.15% 成本; Sharpe 用 utils.metrics 标准 rf=0.02 ddof=1）
 
 | 候选 | n_days | 年化 net | 年化 excess | net Sharpe | excess Sharpe | MaxDD | 胜率 | 累计 net |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| qlib Alpha158-LightGBM | 667 | 7.74% | 3.08% | 0.42 | 0.35 | -28.6% | 51.9% | +21.8% |
-| CSI300 benchmark | 667 | 4.86% | — | 0.33 | — | -32.5% | 51.4% | +13.4% |
-| **DSR #30 BB 主板 rescaled** | **667** | **14.62%** | **6.26%** | **1.03** | **0.44** | **-17.5%** | **42.9%** | **+43.5%** |
-| DSR #30 ensemble (BB+PV+recal) | 667 | 8.63% | 1.21% | 0.63 | 0.16 | -18.3% | 50.2% | +24.5% |
+| qlib Alpha158-LightGBM | 667 | 7.74% | 3.08% | 0.34 | 0.15 | -28.6% | 51.9% | +21.8% |
+| CSI300 benchmark | 667 | 4.86% | — | 0.24 | — | -32.5% | 51.4% | +13.4% |
+| **DSR #30 BB 主板 rescaled** | **667** | **14.62%** | **6.26%** | **0.89** | **0.32** | **-17.5%** | **42.9%** | **+43.5%** |
+| DSR #30 ensemble (BB+PV+recal) | 667 | 8.63% | 1.21% | 0.49 | 0.02 | -18.3% | 50.2% | +24.5% |
 
 ## 关键判断
 
 ### 1. BB 主板单脚在 2.5y 重叠期点估计**领先** baseline，但
-- net Sharpe **1.03 通过 CLAUDE.md 门槛 > 0.8**（重叠期）
+- net Sharpe **0.89 通过 CLAUDE.md 门槛 > 0.8**（重叠期，rf=0.02）
 - 年化 14.62% **接近**（但略低于）门槛 15%（重叠期）
 - MaxDD -17.5% **远低于**门槛 30%（重叠期）
 - 胜率 42.9% < 50% —— 事件驱动 + 反转正常
-- **统计有效性 caveat**：用 Lo 2002 公式 SE(annualized SR) ≈ √((1+SR²/2)/T)：T=2.5y, SR=1.03 → **SE ≈ 0.78**，95% CI [-0.5, +2.6]。BB vs qlib 的 Sharpe 差 0.61，**< 1σ**。点估计差距大，但单凭这次对照在统计上**不能 reject 两者 equality**。
+- **统计有效性 caveat**：用 Lo 2002 公式 SE(annualized SR) ≈ √((1+SR²/2)/T)：T=2.5y, SR=0.89 → **SE ≈ 0.74**，95% CI [-0.6, +2.3]。BB vs qlib 的 Sharpe 差 0.55，**< 1σ**。点估计差距大，但单凭这次对照在统计上**不能 reject 两者 equality**。
 
 ### 2. Phase 3 全期 OOS（2018-2025, 7y）才是黄金参考 — 已有结论
 来自 `journal/weekly/2026-W16.md:1331` 与 `paper_trade_spec_v4_riad_dsr30_combo_20260422.md`：
@@ -50,13 +50,13 @@
 **bootstrap CI_low 0.20 才是黄金标准**（用全期 7y 而非本次 2.5y 切片），它是直接的 Sharpe 不确定性度量。**本次 Phase C 的 single-point Sharpe 1.03 不构成对 CI_low 0.20 的反驳** —— 反而印证了 BB 在某些子区间能很高、但稳健性不够。
 
 ### 3. ensemble 比 BB 单脚显著差 → 印证 spec v4 否决
-- BB 单脚 excess 6.26% / Sharpe 0.44（本次重叠期）
-- ensemble excess 1.21% / Sharpe 0.16（本次重叠期）
+- BB 单脚 excess 6.26% / Sharpe 0.32（本次重叠期）
+- ensemble excess 1.21% / Sharpe 0.02（本次重叠期）
 - 与 jialong 2026-04-28 否决 spec v4 RIAD+DSR#30 50/50 一致：50/50 摊薄了 BB edge
 
 ### 4. qlib baseline 在 CLAUDE.md 成本下挣扎
 - without cost: 年化超额 10.67% / IR 1.16
-- with cost (单边 0.15%): 年化超额 3.08% / IR 0.35 / Sharpe 0.42
+- with cost (单边 0.15%): 年化超额 3.08% / Sharpe 0.34（rf=0.02）
 - **成本一刀砍掉 ~7pct 超额** —— A 股 cross-sectional ML 对换手敏感的本质（与 `feedback_ashare_alpha_nuance` 一致）
 
 ### 5. Live-Tier v1 框架（2026-04-29 ratified）映射

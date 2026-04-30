@@ -47,23 +47,12 @@ DSR #30 OOS 起 2018-01-02，所以**对比期只能取重叠区 2018-01-02 ~ 20
 
 ## 交易成本对齐（Phase B 必做）
 
-CLAUDE.md 红线: 双边 0.3%（单边 0.15%）。
+成本规则参见 `CLAUDE.md` 「回测质量红线」与 「Live-Tier v1」（双边 0.3% 用于
+Tier 0 入门，双边 0.5% 用于 Tier 1 升级门）。
+
 qlib `TopkDropoutStrategy` 默认 `open_cost=0.0005, close_cost=0.0015`（单边 0.2%），
-**与项目红线不一致**。Phase B workflow yaml 必须显式覆盖:
-
-```yaml
-strategy:
-  class: TopkDropoutStrategy
-  kwargs:
-    topk: 50
-    n_drop: 5
-    trade_exchange:
-      open_cost: 0.0015
-      close_cost: 0.0015
-      min_cost: 5
-```
-
-否则跑出来的 baseline 与 DSR #30 不可比 —— 前者用 0.2% / 后者用 0.15%，
+与 CLAUDE.md 不一致。`run_baseline.py` 通过 `OPEN_COST = CLOSE_COST = 0.0015`
+显式覆盖到单边 0.15% / 双边 0.30%。改成别的值会让 baseline 与 DSR #30 不可比 ——
 1bp 在 5 年累积是显著偏差。
 
 ## 幸存者偏差（Phase A 已自检）

@@ -10,19 +10,27 @@ Phase C: qlib Alpha158 baseline vs DSR #30 BB 主板 rescaled 对照
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from utils.metrics import (  # noqa: E402
+    annualized_return,
+    annualized_volatility,
+    max_drawdown,
+    sharpe_ratio,
+    win_rate as win_rate_metric,
+)
+
 QLIB_RUN_DIR = PROJECT_ROOT / "research" / "qlib_baseline" / "runs"
 DSR_DIR = PROJECT_ROOT / "research" / "event_driven"
 
 OVERLAP_START = pd.Timestamp("2018-01-02")
 OVERLAP_END = pd.Timestamp("2020-09-25")
-
-ANNUALIZATION = 252
 
 
 def latest_qlib_run() -> Path:
@@ -33,27 +41,31 @@ def latest_qlib_run() -> Path:
 
 
 def perf(daily_ret: pd.Series, label: str) -> dict:
-    """同 CLAUDE.md 评审门槛的指标: 年化, Sharpe, MaxDD, 胜率, 累计."""
+    """同 CLAUDE.md 评审门槛的指标。复用 utils.metrics 保证 sharpe / ddof / rf 与项目一致 (rf=0.02)。"""
     r = daily_ret.dropna()
     n = len(r)
     if n < 30:
         return {"label": label, "n_days": n, "error": "数据不足"}
-    ann_ret = (1 + r).prod() ** (ANNUALIZATION / n) - 1
-    ann_vol = r.std() * np.sqrt(ANNUALIZATION)
-    sharpe = (r.mean() * ANNUALIZATION) / (r.std() * np.sqrt(ANNUALIZATION)) if r.std() > 0 else float("nan")
     cum = (1 + r).cumprod()
-    max_dd = (cum / cum.cummax() - 1).min()
-    win_rate = (r > 0).mean()
     return {
         "label": label,
         "n_days": int(n),
-        "ann_return": float(ann_ret),
-        "ann_vol": float(ann_vol),
-        "sharpe": float(sharpe),
-        "max_dd": float(max_dd),
-        "win_rate": float(win_rate),
+        "ann_return": float(annualized_return(r)),
+        "ann_vol": float(annualized_volatility(r)),
+        "sharpe": float(sharpe_ratio(r)),
+        "max_dd": float(max_drawdown(r)),
+        "win_rate": float(win_rate_metric(r)),
         "cum_return": float(cum.iloc[-1] - 1),
     }
+
+
+def _excess_with_assert(strat: pd.Series, bench: pd.Series, name: str) -> pd.Series:
+    """对齐到策略索引算 excess; 索引不全在 bench 中 -> raise (静默 NaN 是 bug)。"""
+    aligned = bench.reindex(strat.index)
+    assert aligned.notna().all(), (
+        f"{name} 索引含 qlib bench 没有的日期 — 数据对齐有 bug 不能继续"
+    )
+    return strat - aligned
 
 
 def main():
@@ -83,19 +95,14 @@ def main():
     dsr_bb_overlap = dsr_bb.loc[OVERLAP_START:OVERLAP_END]["net_return"]
     print(f"[dsr_bb]  overlap window {dsr_bb_overlap.index.min().date()} ~ "
           f"{dsr_bb_overlap.index.max().date()} ({len(dsr_bb_overlap)} days)")
-    # excess vs CSI300: 用 qlib bench 同期 (DSR #30 没自带 bench, 借 qlib 的)
-    bench_aligned = qlib_bench.reindex(dsr_bb_overlap.index)
-    # DSR 索引 ⊂ qlib 索引应该成立; 触发 NaN 说明 DSR 含 qlib 没有的日期, 是数据 bug
-    assert bench_aligned.notna().all(), (
-        "DSR 索引含 qlib bench 没有的日期 — 数据对齐有 bug 不能继续"
-    )
-    dsr_bb_excess = dsr_bb_overlap - bench_aligned
+    # excess vs CSI300: DSR #30 原 backtest 没自带 bench, 借 qlib SH000300 同期算
+    dsr_bb_excess = _excess_with_assert(dsr_bb_overlap, qlib_bench, "DSR BB")
 
     # ensemble (recal 三足 + BB+PV) 也对照, 让 jialong 看 BB 单脚 vs ensemble
     dsr_ens = pd.read_parquet(DSR_DIR / "dsr30_mainboard_recal_ensemble_oos.parquet")
     dsr_ens.index = pd.to_datetime(dsr_ens.index)
     dsr_ens_overlap = dsr_ens.loc[OVERLAP_START:OVERLAP_END]["net_return"]
-    dsr_ens_excess = dsr_ens_overlap - bench_aligned
+    dsr_ens_excess = _excess_with_assert(dsr_ens_overlap, qlib_bench, "DSR ensemble")
 
     rows = [
         perf(qlib_net, "qlib Alpha158-LightGBM (net, 含成本)"),

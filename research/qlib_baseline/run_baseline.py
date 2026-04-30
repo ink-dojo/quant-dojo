@@ -83,7 +83,6 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"[run_baseline] out_dir={out_dir}")
 
-    # 1. Handler + Dataset
     print("[1/5] building Alpha158 handler...")
     handler = Alpha158(
         instruments="csi300",
@@ -109,21 +108,16 @@ def main():
         },
     )
 
-    # 2. LightGBM 模型
     print("[2/5] training LightGBM Alpha158...")
     model = LGBModel(**LGB_PARAMS)
     model.fit(dataset)
 
-    # 3. predict on test
     print("[3/5] generating signals on test set...")
-    pred_df = model.predict(dataset)
-    if isinstance(pred_df, pd.Series):
-        pred_df = pred_df.to_frame("score")
+    pred_df = model.predict(dataset).to_frame("score")
     pred_path = out_dir / "test_signals.parquet"
     pred_df.to_parquet(pred_path)
     print(f"          signals shape={pred_df.shape}, saved → {pred_path.name}")
 
-    # 4. backtest with TopkDropout + 双边 0.3% 成本
     print("[4/5] backtesting TopkDropout strategy...")
     strategy = TopkDropoutStrategy(
         signal=pred_df,
@@ -150,7 +144,6 @@ def main():
     report_path = out_dir / "test_report.parquet"
     report_normal.to_parquet(report_path)
 
-    # 5. risk analysis (qlib 标准指标)
     print("[5/5] computing risk metrics...")
     analysis = {
         "excess_return_without_cost": risk_analysis(
