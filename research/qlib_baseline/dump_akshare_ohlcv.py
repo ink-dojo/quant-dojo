@@ -108,6 +108,7 @@ def fetch_one(symbol: str, retries: int = 6, throttle_s: float = 3.0) -> pd.Data
             df = ak.stock_zh_a_hist(
                 symbol=symbol, period="daily",
                 start_date=START_DATE, end_date=END_DATE, adjust=ADJUST,
+                timeout=15,
             )
             if df is None or df.empty:
                 return None
