@@ -198,6 +198,11 @@ Issue 主线: #25
 - [ ] 复盘 RIAD Fold 3 / regime shift：只产出诊断结论，不再追加参数 sweep
 - [x] 更新 portfolio / README：明确 no active go-live candidate，避免把 spec v4 包装成当前策略
 - [ ] 梳理 open issues：关闭或标记暂缓过期研究任务；iCloud / 存储迁移 / 宽泛 infra 暂不处理
+- [x] **tushare 四因子 Phase 2 (size + SW-L1 中性化 + cost-aware)** — Issue #44
+      `journal/tushare_factors_neutralization_20260429.md`
+      候选库进 2 个: roe_stability (sharpe_net 1.44) / inst_flow_20d (sharpe_net 1.03)
+      cfoni_precise 临界 (sharpe_net 0.67), nb_ratio_chg 拒绝 (net 负)
+- [ ] 算 roe_stability vs inst_flow_20d 的 IC 序列 corr, 评估 stacking 可行性
 
 ### 暂缓 / 不做
 
