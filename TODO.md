@@ -212,6 +212,13 @@ Issue 主线: #25
       单腿: inst_flow 2 FAIL + 1 MARGINAL; roe_stability 1 FAIL + 1 MARGINAL.
       tushare 四因子本轮候选库 = 空. 不再继续 sweep / 不写 spec / 不进 paper-trade.
 - [ ] 把 \"无候选\" 结论同步到 PROJECT_STATUS.md, 避免 portfolio 把全样本 sharpe 1.66 当当前候选展示
+- [x] **A 路第一步: 龙虎榜 net_rate event study (Issue #55)**
+      `journal/lhb_t1_event_study_20260429.md`
+      129k events 2015-2026, T+1/+5/+10 累计 abn return Q5-Q1 spread.
+      历史 T+5 spread 17% (2015-19), 2.9% (2020-23), **0.08% (2024-26 已被磨平)**.
+      **不直接进 Tier 0** (alpha decay 太厉害), 但不杀方向, 下一步 subgroup × recent.
+- [ ] **A 路 Phase 2: LHB subgroup × recent (multi_day / daily_up × 2024-2026)**
+      看是否任何 reason 子集在最近 OOS 仍保留 ≥ 0.5% net spread T+5
 - [ ] **评估范式 v1 (Tier 0/1/2/3 分级门) — Issue #50, awaiting jialong 决策**
       `journal/eval_framework_v1_proposal_20260429.md`
       4 个 tier 由 risk capacity 反推门; spec v4 拒绝结论不变;
