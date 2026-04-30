@@ -243,7 +243,13 @@ Issue 主线: #25
       `journal/roe_stability_regime_overlay_20260430.md`
       composite mask 60% 日子是 bear, 把好日子也 mask 掉. T2 由 PASS → FAIL,
       T4 由 FAIL → FAIL_IC_FLIP. 单 attempt 失败, 不 sweep, 转 D.
-- [ ] **D: 启动 Issue #51 (Tier 0 paper smoke 30 天) — 后台 nightly 跑**
+- [x] **D: Tier 0 paper smoke kickoff (Issue #51 部分) — signal generator infra ready**
+      `journal/d_route_paper_smoke_kickoff_20260430.md`
+      `scripts/daily_signal_roe_stability.py` + `make signal-roe` ready. 首跑成功 30 picks.
+      30 天 calendar 跑 + nightly cron + PaperTrader 多 ledger refactor → defer 给 jialong / 后续 issue.
+      Issue #51 仍 In Progress (calendar 时间外).
+- [ ] **PaperTrader 多 ledger refactor (新 issue)** — 让 PaperTrader 接受 portfolio_dir override 支持 v16 + roe_stability 双 ledger
+- [ ] **30 天 calendar paper smoke 真启动 (jialong / cron)** — 用 make signal-roe 每日盘后跑
 - [ ] **评估范式 v1 (Tier 0/1/2/3 分级门) — Issue #50, awaiting jialong 决策**
       `journal/eval_framework_v1_proposal_20260429.md`
       4 个 tier 由 risk capacity 反推门; spec v4 拒绝结论不变;
