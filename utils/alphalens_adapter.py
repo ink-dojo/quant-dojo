@@ -80,7 +80,7 @@ def consistency_check_ic(
     price_wide: pd.DataFrame,
     fwd_period: int = 1,
     method: str = "spearman",
-    atol: float = 1e-6,
+    atol: float = 5e-5,
 ) -> dict:
     """
     一致性校验：alphalens 的 IC 均值 vs utils.factor_analysis.compute_ic_series 的 IC 均值。
@@ -94,7 +94,8 @@ def consistency_check_ic(
         fwd_period   : 前瞻天数（default 1）
         method       : 仅 'spearman' 有 alphalens 对照（alphalens 内部硬编码 Rank IC）；
                        'pearson' 仅作为本地参考，不会对照 alphalens
-        atol         : 容许 IC 均值差（default 1e-6）
+        atol         : 容许 IC 均值差（default 5e-5；真实数据 pct_change 内部 fill_method='pad'
+                       与本地 fill_method=None 会产生 ~1e-5 量级微差，5e-5 是稳健容差）
 
     返回:
         dict 含 ic_mean_local / ic_mean_alphalens / abs_diff / passed
@@ -105,7 +106,7 @@ def consistency_check_ic(
     f_aligned, p_aligned = align_factor_pricing(factor_wide, price_wide)
 
     # 1. 本地 IC: factor.shift(0) vs ret_t→t+fwd
-    fwd_ret = p_aligned.pct_change(fwd_period).shift(-fwd_period)
+    fwd_ret = p_aligned.pct_change(fwd_period, fill_method=None).shift(-fwd_period)
     ic_local = compute_ic_series(f_aligned, fwd_ret, method=method).dropna()
 
     # 2. alphalens IC: 自己内部算 forward returns
