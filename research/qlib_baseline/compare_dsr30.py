@@ -72,6 +72,9 @@ def main():
     qlib_net = qlib_overlap["return"] - qlib_overlap["cost"]
     qlib_excess = qlib_net - qlib_overlap["bench"]
     qlib_bench = qlib_overlap["bench"]
+    # qlib bench 来自 SH000300 日度连续; DSR 是事件驱动可能跳过非事件日, 不应跳过
+    # 全部交易日 -> 后面 reindex 到 DSR 索引时不应 fillna 触发 (DSR 索引 ⊂ qlib 索引)
+    assert qlib_bench.notna().all(), "qlib bench 含 NaN, 重叠期切片有问题"
 
     # DSR #30 BB 主板 rescaled (issue body 指定): dsr30_mainboard_bb_oos
     # net_return 已含成本扣 (按 dsr30_mainboard_recal.py:142 命名约定)
@@ -81,7 +84,11 @@ def main():
     print(f"[dsr_bb]  overlap window {dsr_bb_overlap.index.min().date()} ~ "
           f"{dsr_bb_overlap.index.max().date()} ({len(dsr_bb_overlap)} days)")
     # excess vs CSI300: 用 qlib bench 同期 (DSR #30 没自带 bench, 借 qlib 的)
-    bench_aligned = qlib_bench.reindex(dsr_bb_overlap.index).fillna(0)
+    bench_aligned = qlib_bench.reindex(dsr_bb_overlap.index)
+    # DSR 索引 ⊂ qlib 索引应该成立; 触发 NaN 说明 DSR 含 qlib 没有的日期, 是数据 bug
+    assert bench_aligned.notna().all(), (
+        "DSR 索引含 qlib bench 没有的日期 — 数据对齐有 bug 不能继续"
+    )
     dsr_bb_excess = dsr_bb_overlap - bench_aligned
 
     # ensemble (recal 三足 + BB+PV) 也对照, 让 jialong 看 BB 单脚 vs ensemble
