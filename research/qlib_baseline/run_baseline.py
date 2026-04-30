@@ -26,15 +26,14 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import lightgbm
 import pandas as pd
 import qlib
 from qlib.contrib.data.handler import Alpha158
 from qlib.contrib.evaluate import backtest_daily, risk_analysis
 from qlib.contrib.model.gbdt import LGBModel
 from qlib.contrib.strategy import TopkDropoutStrategy
-from qlib.data import D
 from qlib.data.dataset import DatasetH
-from qlib.data.dataset.handler import DataHandlerLP
 
 QLIB_DATA_DIR = os.environ.get("QLIB_DATA_DIR", "~/.qlib/qlib_data/cn_data")
 
@@ -50,9 +49,29 @@ OPEN_COST = 0.0015
 CLOSE_COST = 0.0015
 MIN_COST = 5
 
-# Topk-Drop 标准 baseline 参数 (qlib 教程默认)
+# Topk-Drop 标准 baseline 参数 (qlib 官方 workflow_config_lightgbm_Alpha158.yaml)
 TOPK = 50
 N_DROP = 5
+
+BENCHMARK = "SH000300"
+ACCOUNT = 100_000_000
+LIMIT_THRESHOLD = 0.095  # A股 ±10%, qlib 用 9.5% 留 buffer
+DEAL_PRICE = "close"
+
+# qlib 官方 LightGBM Alpha158 yaml 上对应的 hyperparams (复刻 + 加 seed 可复现)
+LGB_PARAMS = dict(
+    loss="mse",
+    learning_rate=0.0421,
+    num_leaves=210,
+    feature_fraction=0.8879,
+    bagging_fraction=0.8789,
+    bagging_freq=5,
+    max_depth=8,
+    num_boost_round=1000,
+    early_stopping_rounds=50,
+    seed=2026,
+    deterministic=True,
+)
 
 OUT_ROOT = Path(__file__).resolve().parent / "runs"
 
@@ -90,19 +109,9 @@ def main():
         },
     )
 
-    # 2. LightGBM 模型 (qlib 教程默认参数)
+    # 2. LightGBM 模型
     print("[2/5] training LightGBM Alpha158...")
-    model = LGBModel(
-        loss="mse",
-        learning_rate=0.0421,
-        num_leaves=210,
-        feature_fraction=0.8879,
-        bagging_fraction=0.8789,
-        bagging_freq=5,
-        max_depth=8,
-        num_boost_round=1000,
-        early_stopping_rounds=50,
-    )
+    model = LGBModel(**LGB_PARAMS)
     model.fit(dataset)
 
     # 3. predict on test
@@ -125,12 +134,12 @@ def main():
         start_time=TEST_START,
         end_time=TEST_END,
         strategy=strategy,
-        benchmark="SH000300",
-        account=100_000_000,
+        benchmark=BENCHMARK,
+        account=ACCOUNT,
         exchange_kwargs={
             "freq": "day",
-            "limit_threshold": 0.095,
-            "deal_price": "close",
+            "limit_threshold": LIMIT_THRESHOLD,
+            "deal_price": DEAL_PRICE,
             "open_cost": OPEN_COST,
             "close_cost": CLOSE_COST,
             "min_cost": MIN_COST,
@@ -156,18 +165,31 @@ def main():
     analysis_df.to_csv(analysis_path)
     print(analysis_df)
 
-    # 总结 metadata
+    # 总结 metadata（reproducibility — Phase C 决策需要这个）
     meta = {
         "run_date": run_date,
+        "qlib_version": qlib.__version__,
+        "lightgbm_version": lightgbm.__version__,
         "train": [TRAIN_START, TRAIN_END],
         "valid": [VALID_START, VALID_END],
         "test": [TEST_START, TEST_END],
         "universe": "csi300 (PIT-correct, ends 2020-09-25)",
-        "strategy": f"TopkDropout topk={TOPK} n_drop={N_DROP}",
-        "trading_cost": {
-            "open": OPEN_COST, "close": CLOSE_COST, "min": MIN_COST,
-            "note": "对齐 CLAUDE.md 红线 单边 0.15%",
+        "strategy": {
+            "class": "TopkDropoutStrategy",
+            "topk": TOPK,
+            "n_drop": N_DROP,
         },
+        "exchange": {
+            "benchmark": BENCHMARK,
+            "account": ACCOUNT,
+            "limit_threshold": LIMIT_THRESHOLD,
+            "deal_price": DEAL_PRICE,
+            "open_cost": OPEN_COST,
+            "close_cost": CLOSE_COST,
+            "min_cost": MIN_COST,
+            "note": "对齐 CLAUDE.md 红线 单边 0.15% / 双边 0.30%",
+        },
+        "model": LGB_PARAMS,
         "n_signals": int(pred_df.shape[0]),
         "n_test_days": int(report_normal.shape[0]),
     }
