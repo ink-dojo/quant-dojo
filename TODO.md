@@ -206,8 +206,12 @@ Issue 主线: #25
       `journal/tushare_factors_stacking_20260429.md`
       IC corr Pearson +0.088 / Spearman +0.029, L-S 月度 corr -0.021 → 基本正交
       等权 stacked: net_ann 12.7%, sharpe_net **1.66** (vs roe 单腿 1.44, +15%)
-- [ ] 用 RIAD Fold 3 同款 regime 切片方法, 对 stacked 2-腿做 OOS regime 检验
-      (2024 / 2025 H1 / 2025 H2). 若都站住, 才写 stacking pre-reg spec
+- [x] **OOS regime 切片检验 (Issue #47): 失败, 不写 stacking pre-reg**
+      `journal/tushare_factors_regime_oos_20260429.md`
+      Stacked 5 时间切片 FAIL 2 个 (T2_2024 sharpe -0.14, T4_2025h2 sharpe -0.13).
+      单腿: inst_flow 2 FAIL + 1 MARGINAL; roe_stability 1 FAIL + 1 MARGINAL.
+      tushare 四因子本轮候选库 = 空. 不再继续 sweep / 不写 spec / 不进 paper-trade.
+- [ ] 把 \"无候选\" 结论同步到 PROJECT_STATUS.md, 避免 portfolio 把全样本 sharpe 1.66 当当前候选展示
 
 ### 暂缓 / 不做
 

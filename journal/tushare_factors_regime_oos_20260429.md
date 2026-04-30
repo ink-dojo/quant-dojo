@@ -1,0 +1,198 @@
+# Stacked 2-腿 OOS regime 切片检验：FAIL，不写 pre-reg spec
+
+_2026-04-29 — Issue #47, 上承 Issue #46 (stacking 全样本评估)_
+
+---
+
+## TL;DR
+
+Stacked 2-腿 (roe_stability + inst_flow_20d, 等权 rank) 全样本 sharpe_net
+**1.66** 看上去强，但 RIAD-style 时间切片显示 **5 个切片里 FAIL 2 个**:
+
+- **2024 全年** (T2): sharpe_net **−0.14**, net_ann **−1.3%**
+- **2025 H2** (T4): sharpe_net **−0.13**, net_ann **−0.7%**
+
+按 740ea7e 收窄主线和 CLAUDE.md 红线 ("不基于 OOS 结果回头调参"), **不写
+stacking pre-reg spec**。本 journal 记录失败结论与归因, 不进 paper-trade,
+不进 capacity / stress 流程。
+
+---
+
+## 切片设计
+
+- 时间 (RIAD Fold 边界 + 长历史 anchor + freshest OOS):
+  - T1_long_history    2020-01 ~ 2023-12
+  - T2_fold1_2024      2024-01 ~ 2024-12
+  - T3_fold2_2025h1    2025-01 ~ 2025-06
+  - T4_fold3_2025h2    2025-07 ~ 2025-12   ← RIAD 当年也是这里崩
+  - T5_fresh_2026q1    2026-01 ~ 2026-04 (n_periods=3, 警示用)
+- Regime (HS300 vs MA120):
+  - R1_bull            HS300 close ≥ MA120
+  - R2_bear            HS300 close <  MA120
+
+判定门:
+- PASS     : sharpe_net ≥ 0.8 且 IC 与全样本同号
+- MARGINAL : 0 < sharpe_net < 0.8
+- FAIL     : sharpe_net ≤ 0 或 IC 翻号
+- N/A      : n_periods < 3
+
+---
+
+## 结果矩阵
+
+### Stacked 50/50 (主测试对象)
+
+| slice | n_days | n_periods | ic_mean | ic_t_hac | sharpe_gross | **sharpe_net** | net_ann | turn | verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| T1_long_history | 970 | 46 | 0.0514 | 6.97 | 2.65 | **2.43** | 17.0% | 0.43 | PASS |
+| **T2_fold1_2024** | 242 | 12 | 0.0190 | 1.07 | 0.04 | **−0.14** | −1.3% | 0.46 | **FAIL** |
+| T3_fold2_2025h1 | 117 | 6 | 0.0317 | 2.31 | 2.49 | **2.12** | 12.8% | 0.56 | PASS (n 小) |
+| **T4_fold3_2025h2** | 126 | 6 | 0.0165 | 1.01 | 0.23 | **−0.13** | −0.7% | 0.51 | **FAIL** |
+| T5_fresh_2026q1 | 68 | 3 | 0.0500 | 2.62 | 2.29 | **2.02** | 10.7% | 0.62 | PASS (n=3, 警示) |
+| R1_bull | 760 | 35 | 0.0491 | 5.73 | 1.89 | 1.69 | 13.3% | 0.46 | PASS |
+| R2_bear | 763 | 36 | 0.0342 | 4.37 | 1.45 | 1.23 | 9.0% | 0.46 | PASS |
+| F_full_sample | 1523 | 71 | 0.0417 | 6.82 | 1.89 | 1.69 | 12.6% | 0.43 | PASS |
+
+### 单腿全切片表 (用于完整归因)
+
+inst_flow_20d:
+
+| slice | n_periods | ic_mean | sharpe_net | verdict |
+|---|---|---|---|---|
+| T1_long_history | 46 | 0.0419 | 1.66 | PASS |
+| **T2_fold1_2024** | 12 | 0.0093 | **−0.61** | **FAIL_NEG_SHARPE** |
+| **T3_fold2_2025h1** | 6 | **−0.0002** | +0.53 | **FAIL_IC_FLIP** |
+| T4_fold3_2025h2 | 6 | 0.0180 | 0.95 | PASS |
+| T5_fresh_2026q1 | 3 | 0.0418 | 4.98 | PASS (n=3, 警示) |
+| R1_bull | 35 | 0.0423 | 2.35 | PASS |
+| **R2_bear** | 36 | 0.0204 | **0.37** | **MARGINAL** |
+
+roe_stability:
+
+| slice | n_periods | ic_mean | sharpe_net | verdict |
+|---|---|---|---|---|
+| T1_long_history | 47 | 0.0345 | 1.77 | PASS |
+| T2_fold1_2024 | 12 | 0.0209 | 0.85 | PASS |
+| T3_fold2_2025h1 | 6 | 0.0416 | 1.91 | PASS |
+| **T4_fold3_2025h2** | 6 | 0.0019 | **−0.26** | **FAIL_NEG_SHARPE** |
+| T5_fresh_2026q1 | 3 | 0.0168 | 0.32 | MARGINAL (n=3) |
+| R1_bull | 36 | 0.0284 | 1.26 | PASS |
+| R2_bear | 36 | 0.0307 | 1.57 | PASS |
+
+汇总:
+- inst_flow_20d: 2 FAIL (T2 sharpe 崩 + T3 IC 翻号) + 1 MARGINAL (R2)
+- roe_stability: 1 FAIL (T4) + 1 MARGINAL (T5, n=3 不算硬证据)
+
+---
+
+## 关键发现
+
+### 1. 两腿失败模式真的互补 — 但 stacking 没救住
+
+按 Issue #46 的 corr 指标 (Pearson IC corr +0.088, L-S 月度 corr −0.021),
+两腿应该正交; 理论上 stacking 期望减半波动率, 一腿 fail 时另一腿应该缓冲.
+T2 / T4 实际显示:
+
+- T2 inst_flow 崩到 −0.61, roe 撑住 +0.85, **stacked −0.14**
+- T4 roe 崩到 −0.26, inst 撑住 +0.95, **stacked −0.13**
+
+数学上 stacked sharpe 介于两腿之间是合理的, 但**算术平均不是几何平均**:
+- T2: 平均 (−0.61 + 0.85) / 2 = +0.12, 实测 stacked −0.14 — 比平均还差.
+- T4: 平均 (+0.95 − 0.26) / 2 = +0.345, 实测 stacked −0.13 — 远低于平均.
+
+差异来源: 月频 L-S 序列内每个月**贡献符号不一致**, 等权 rank stacking 在
+quintile 边界处的合成交易决策不是简单的 50/50 收益叠加. 当一腿的 quintile
+信号在某月与另一腿强烈反向, stacked quintile 的多空腿可能两腿都被"洗"
+出去, 失去任一腿的 alpha.
+
+→ **教训**: corr 低 ≠ stacking 一定有效. corr 是均值时序的二阶矩, quintile
+合成在尾部 (Q1/Qn) 处可能放大反向. 必须看实测 OOS, 不能只看 corr.
+
+### 2. T2 / T4 失败不是数据问题, 是 alpha 问题
+
+- T2 (2024): A 股 2024 是 "国九条 + 化债" 的结构性年, 中小盘崩盘, inst flow
+  这种主要捕捉"主力进出"的因子在剧烈风格切换中频繁错配. inst_flow_20d 单
+  腿 sharpe −0.61 跟我们 Issue #44 的诊断 ("高频 60% 周转, cost drag 大,
+  对 regime 敏感") 一致.
+- T3 (2025 H1): inst_flow_20d 这一段 IC 直接翻号到 −0.0002 (实务上即 IC=0
+  + cost), sharpe_net 0.53 看上去还行只是因为相对低 cost 救场. 这个 IC
+  翻号是个独立警告, 跟 T2 的 sharpe 崩盘是不同病灶.
+- T4 (2025 H2): RIAD 当年也是这里崩 (TODO 红线 "spec v4 DSR 0.92 例外不
+  再接受"). 这一段是 A 股 "高低切换 + 行业轮动" 期, 质量类 (roe_stability)
+  因子跑输, 因为高 ROE 的大蓝筹本身在这段被资金抛弃换小盘高弹性.
+  roe_stability 单腿 sharpe −0.26.
+
+两个失败都对应已知的市场转折期, 不是数据 bug.
+
+### 3. 全样本 sharpe 1.66 几乎全靠 2020-2023
+
+T1 sharpe_net 2.43 (n=46 期), 占全样本 71 期里 65%. 把 T1 拿掉, 仅 2024-
+2026 的 sharpe 显然撑不住. 这是典型的 "长尾历史拉抬全样本" 模式, RIAD spec
+v4 当年也踩过这个坑.
+
+### 4. T3 / T5 PASS 但 n 太小, 不能当证据
+
+- T3_fold2_2025h1 n=6, T5_fresh_2026q1 n=3. 即使 sharpe_net > 2.0, 单期收益
+  的 leverage 太大. 把 T3 + T5 加起来才 9 期, 仍不够支撑 PASS 结论.
+
+### 5. R1_bull / R2_bear 都 PASS, 时间切片却 FAIL
+
+差异在于: 时间切片是连续年度块, 牛熊切片是离散日期集合. 失败的 T2 / T4
+是连续 6-12 个月的累计回撤, regime 切片把这些坏日期与其他 bull/bear 日
+混合了, 平均掉了. **regime 切片不能替代时间切片**, 否则会掩盖连续时段的
+策略失效.
+
+---
+
+## 结论
+
+- **不写 stacked roe + inst stacking pre-reg spec.** 不进 paper-trade, 不进
+  capacity / stress 流程.
+- 单腿 roe_stability 在 T1 / T2 / T3 / T5 / R1 / R2 都 PASS, 仅 T4 FAIL —
+  比 stacked 还稳一点. 但单腿也是 5 切片里 1 个 FAIL, 同样不到 4/4 严格门
+  的 4/5 + bootstrap 标准.
+- 单腿 inst_flow_20d 仅 T2 FAIL, 其他都 PASS. 同样 4/5, 同样不到门.
+
+→ **当前候选库 (本轮)**: 空.
+- inst_flow_20d 5 切片 PASS / 2 FAIL (T2 sharpe 崩 + T3 IC 翻号) / 1 MARGINAL
+  (R2 bear sharpe 0.37). 不到 4/4 严格门, 也不到 4/5 + bootstrap 标准.
+- roe_stability 5 切片 PASS / 1 FAIL (T4) / 1 MARGINAL (T5 n=3). 比 inst 稳但
+  仍卡在 T4. 跟 RIAD 一样栽在 2025 H2.
+- cfoni_precise 在 Issue #44 已被判临界 (sharpe_net 0.67 < 0.8).
+- nb_ratio_chg 在 Issue #44 已被拒绝 (net 年化 −7.6%).
+
+---
+
+## 不做的事 (红线)
+
+- 不调任何参数 (horizon / quintile / regime MA / cost) 让 T2 / T4 看起来更好.
+- 不做 "regime-aware 切换" (在 2024 用 roe 在 2025H2 用 inst), 那是 OOS 拟合.
+- 不剔除 T2 / T4 数据写一个 "去掉异常年份" 的 spec.
+- 不做 3-腿 stacking 把 cfoni_precise 拉进来"凑"出 OOS PASS.
+- 不复用 spec v4 / spec v3 路径写一个新 combo spec.
+
+---
+
+## 下一步 (TODO)
+
+- 把本轮失败结论同步到 PROJECT_STATUS.md (no active candidate from
+  tushare_factors), 让 portfolio / README 不要把"全样本 sharpe 1.66"当成
+  当前候选展示.
+- 不开新一轮 tushare 因子探索, 直到有新的因子假设来源 (例如 RIAD Fold 3
+  复盘的诊断结论, 或 BGFD / LULR 这类待启动方向). 不为了"项目要有 candidate"
+  而硬推.
+- 跟踪 Issue #45 (pytest 清掉 weekly journal) — 修了之后不再需要每次跑完
+  pytest 都 git status 救场.
+
+---
+
+## 数据/代码出处
+
+- 脚本: `research/factors/tushare_factors/regime_oos_slice.py`
+- 上游: `neutralize_and_cost.py` / `stacking_analysis.py` / `factor_research.py`
+- 数据: SSD parquet (jiaoch token 已 2026-04-22 永久吊销, 不调 live)
+- HS300 regime: `data/raw/tushare/index_daily_000300.parquet`, MA120
+- 结果文件: `regime_oos_results.json` (.gitignore 屏蔽)
+- 数据范围: 2020-01-01 ~ 2026-04-17 (daily_basic 截至日)
+
+— 记录: jialong
