@@ -15,6 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 research = [
     "alphalens-reloaded>=0.4.6",
+    "skfolio>=0.20",
 ]
 
 [tool.setuptools.packages.find]
