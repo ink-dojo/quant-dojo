@@ -1,4 +1,8 @@
-.PHONY: help portfolio-data portfolio-dev portfolio-build portfolio-clean \
+PYTHON ?= python
+PIP ?= pip
+NPM ?= npm
+
+.PHONY: help health test portfolio-data portfolio-dev portfolio-build portfolio-clean \
         hero-analysis coverage-audit install-hooks
 
 help:
@@ -13,6 +17,8 @@ help:
 	@echo ""
 	@echo "  Research pipelines"
 	@echo "  ───────────────────"
+	@echo "  health              offline smoke: imports + key tests + doctor"
+	@echo "  test                full pytest regression"
 	@echo "  coverage-audit      scripts/audit_factor_data_coverage.py → journal/portfolio_factor_coverage.json"
 	@echo "  hero-analysis       scripts/deep_analysis_hero_factors.py → journal/hero_factor_stats_YYYYMMDD.json (~10 min)"
 	@echo ""
@@ -23,24 +29,32 @@ help:
 # ── Portfolio site ────────────────────────────────────────────────────────
 
 portfolio-data:
-	cd portfolio && python3 scripts/export_data.py
+	cd portfolio && $(PYTHON) scripts/export_data.py
 
 portfolio-dev: portfolio-data
 	cd portfolio && npm run dev
 
 portfolio-build:
-	cd portfolio && npm install && npm run build
+	cd portfolio && $(NPM) install && $(NPM) run build
 
 portfolio-clean:
 	rm -rf portfolio/out portfolio/.next
 
 # ── Research pipelines ────────────────────────────────────────────────────
 
+health:
+	$(PYTHON) -c "from utils import get_stock_history; from agents import LLMClient; print('imports ok')"
+	$(PYTHON) -m pytest agents/test_debate.py tests/test_live_data.py tests/test_vol_targeting.py tests/pipeline/test_capacity_monitor.py tests/scripts/test_stress_test.py tests/test_live_vs_backtest_divergence.py tests/test_event_kill_switch.py -q
+	$(PYTHON) -m quant_dojo doctor
+
+test:
+	$(PYTHON) -m pytest -q
+
 coverage-audit:
-	python3 scripts/audit_factor_data_coverage.py
+	$(PYTHON) scripts/audit_factor_data_coverage.py
 
 hero-analysis:
-	python3 scripts/deep_analysis_hero_factors.py
+	$(PYTHON) scripts/deep_analysis_hero_factors.py
 
 # ── Automation ────────────────────────────────────────────────────────────
 

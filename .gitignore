@@ -28,6 +28,7 @@ data/processed/*
 *.hdf5
 *.pkl
 *.pickle
+*.db
 
 # Config (真实密钥不入库)
 config/config.yaml
