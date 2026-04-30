@@ -147,11 +147,13 @@ def main():
         symbols = symbols[: args.limit]
     print(f"[symbols] {len(symbols)} 只 (smoke={args.smoke}, resume={args.resume})")
 
-    # Resume: 跳过 features dir 已有该股票的
+    # Resume: 跳过 SSD parquet cache 已有的股票 (cache 是真实下载完成标记;
+    # OUT_DIR/features 大小写不可靠且会被 --from-cache-only 重写)
     if args.resume:
-        existing = {p.name.upper() for p in (OUT_DIR / "features").glob("*") if p.is_dir()}
-        symbols = [s for s in symbols if to_qlib_symbol(s).lower() not in existing]
-        print(f"[resume] {len(symbols)} 只待下 (skip existing)")
+        cached = {p.stem for p in PARQUET_CACHE.glob("*.parquet")}
+        before = len(symbols)
+        symbols = [s for s in symbols if s not in cached]
+        print(f"[resume] {before - len(symbols)} 只已 cache, {len(symbols)} 只待下", flush=True)
 
     if args.from_cache_only:
         print("[1/3] loading panels from SSD cache only (akshare 不调)")
