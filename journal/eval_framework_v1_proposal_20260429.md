@@ -1,6 +1,17 @@
-# 评估范式 v1 提案: Tier 0/1/2/3 分级实盘门
+# 评估范式 v1 提案: Live-Tier 0/1/2/3 分级实盘门
 
-_2026-04-29 — Issue #50, awaiting jialong review (不直接改 CLAUDE.md / ROADMAP.md)_
+_2026-04-29 — Issue #50, awaiting jialong review (不直接改 CLAUDE.md / ROADMAP.md / WORKFLOW.md / pipeline/risk_gate.py)_
+
+> **Rev 2 修订** (2026-04-29 同日, simplify review 后):
+> - 命名改 `Live-Tier 0/1/2/3` 与 ROADMAP.md 已有的研究 "Tier 1a/1b/2/3" 区分.
+> - §preview 加 WORKFLOW.md 和 `pipeline/risk_gate.py` (原版漏了, simplify 警告 "如果 ratify 后只改 CLAUDE.md 不改 risk_gate.py, 代码会继续用老门把所有 tier 候选都挡住").
+> - Tier 1 sharpe 0.5 derivation 重写 (原版 CI 公式错: `1/√(60/250)` 不是 0.65 是 2.04; 实际 60-day sharpe SE 用 Lo 2002 ≈ 2.2, CI 巨大不能 pin 任何门. 改成"约定值 + risk-budget 经济解释 + live exit rule").
+> - Tier 2 DSR 0.85 derivation 重写 (原版假引 LdP "production deployment", 无依据; 改成"约定值 + 60 天 live 后验等价 framing").
+> - Cost 算术修正 (0.40% → 0.30%, buffer 算到 0.5% 不变).
+> - roe_stability T4 失败窗 net_ann 引用换源 (原引 -1.31% 不在 journal; 改用 stacked T4 -0.7% / 单腿待补).
+> - 删除 × 0.5 horizon factor (无依据).
+> - Tier 3 evidence 窗 6 月 → 12 月 (原版与 Tier 2 重合).
+> - 删除 "information-theoretic" 修辞 (sampling-CI 不是 Shannon).
 
 ---
 
@@ -9,15 +20,15 @@ _2026-04-29 — Issue #50, awaiting jialong review (不直接改 CLAUDE.md / ROA
 把当前 CLAUDE.md "策略评审门槛" 一道单门 (年化>15%, sharpe>0.8, MDD<30%, 3+年回测)
 + 红线一锅 (DSR>0.95, 4/4 严格, 全切片 sharpe>0.8) 拆成 4 个 tier:
 
-| Tier | 实盘比例 | 主要门 | 用途 |
+| Live-Tier | 实盘比例 | 主要门 | 用途 |
 |---|---|---|---|
 | 0 | 0% (paper) | 无策略门, 只过 infra 门 | 验证 pipeline 工作不破 |
 | 1 | 1-5% NAV | sharpe_net > 0.5 + 切片不 FAIL | 真钱小仓位测 backtest-vs-live 缝隙 |
 | 2 | 5-25% NAV | + Tier-1 60 天 live sharpe > 0.8 + DSR > 0.85 | 进入 portfolio 主仓 |
-| 3 | 25-100% NAV | + Tier-2 6 月 live + 原 4/4 全门 (DSR > 0.95) | 机构级 / 外部资金可接 |
+| 3 | 25-100% NAV | + Tier-2 12 月 live + 原 4/4 全门 (DSR > 0.95) | 机构级 / 外部资金可接 |
 
 每一级门由 risk budget → max DD → sharpe 反推, 不拍脑门. 每一级升级必须有 live
-证据 (60 天 / 6 月), 不允许 backtest 直接跳 Tier 2+.
+证据 (60 天 Tier-1 / 12 月 Tier-2), 不允许 backtest 直接跳 Tier 2+.
 
 **这不会救活 spec v4** (拒绝是 procedural — 一次性 DSR 例外没批 — 不是门松了能解决的).
 **这会让 roe_stability 立刻进 Tier 0/1 跑起来** (现在挂在 "5/7 切片 PASS, 1 FAIL"
@@ -116,11 +127,14 @@ strategy alpha, 是 friction measurement.
 - 对个人量化账户, 1.5% 一周内可能因为 beta 也亏掉, 完全可接受
 - ↓ 这个数字反推 sharpe 门:
 
-### 门 (一阶推导)
+### 门 (一阶推导 + 约定)
 - **HARD**: no lookahead
-- **Backtest**: sharpe_net > 0.5 over 3+ year, with 双边 0.5% cost (real fee + slippage 保守值: 佣金 0.025%×2 + 印花 0.05% sell + 滑点 0.1%×2 ≈ 0.4% min, 0.5% 留 buffer)
-  - **为什么 0.5 不是 0.8**: 0.5 是信息论下限. 60 天 (≈ 12 周) 观测期, sharpe 估计 CI ≈ 1/√(60/250) ≈ ±0.65. 真 sharpe 0.5 的策略 60 天观测可能在 [-0.15, +1.15]. 要求 backtest > 0.8 + 不允许 60 天观测 < 0.5 是 type-I error 磁铁 (会拒掉真信号).
-- **OOS 切片**: 所有切片 PASS 或 MARGINAL. 允许 ≤ 1 个 FAIL_NEG_SHARPE 当且仅当 (a) 失败机制可识别 (例 2025H2 高低切换), (b) 失败窗 net_ann × Tier-1 仓位 × 0.5 < 0.3% NAV. **不允许任何 FAIL_IC_FLIP** (IC 翻号说明信号方向不稳定, 是结构问题).
+- **Backtest**: sharpe_net > 0.5 over 3+ year, with 双边 0.5% cost
+  - **0.5% cost 算: ** A 股零售实成本 = 双边佣金 0.025%×2 = 0.05% + 卖方印花 0.05% + 双边滑点 0.1%×2 = 0.20%, 合计 **0.30% min**. 0.5% 是 0.30% 真值 + 0.20% buffer (regime stress 下滑点扩大空间).
+  - **0.5 sharpe 不是 CI 推出的**, 是约定值. 严格 sampling-CI 推算 (Lo 2002): 60 天观测期年化 sharpe SE ≈ √((1+S²/2)/T_years) = √((1.125)/0.238) ≈ 2.17, 即真 sharpe 0.5 的 60 天观测可能落在 [-3.8, +4.8]. **CI 这么大根本 pin 不了任何门**.
+  - 0.5 的 risk-budget 经济解释: 5% NAV 仓位 × sharpe 0.5 (vol 15% 假设) ≈ 7.5% 年化 × 5% = **0.375% NAV/year 期望收益**. 与 5% × 0.5% × 12 (cost drag) = 0.30% NAV/year 几乎抵消. 这是 "刚刚值得为收 friction data 而 deploy" 的边缘. 低于 0.5 backtest sharpe 的策略, 期望真钱回报负, 除非 friction-measurement 价值本身 > 期望回报 — 可以辩论但不该是默认.
+- **OOS 切片**: 所有切片 PASS 或 MARGINAL. 允许 ≤ 1 个 FAIL_NEG_SHARPE 当且仅当 (a) 失败机制可识别 (例 2025H2 高低切换), (b) **失败窗 net_ann × Tier-1 仓位 < 0.3% NAV** (例: roe_stability 在 stacked T4 测得 net_ann -0.7%; 5% × 0.7% = 0.035% NAV 单事件损失, 远小于 0.3% 阈). **不允许任何 FAIL_IC_FLIP** (IC 翻号是结构问题不是 regime 问题).
+  - 0.3% NAV 阈值的来源: Tier-1 worst-case DD 是 5% × 30% = 1.5% NAV (最差年). 单 6-月失败窗造成 0.3% NAV 损失 = 1.5% 的 1/5 = 一年里允许 5 次同等失败窗. 一年 ~ 2 个 6-月窗, 5 倍冗余, 安全余度足够.
 - **IC HAC t > 2** over full sample (mild signal significance).
 - **Capacity > 5% × NAV** (cross-sectional Q1-Qn 在小 AUM 下 trivially 过)
 - **Tier-0 paper-trade**: 30+ 天 green light for THIS specific strategy (不能复用别的 strategy 的 paper 跑)
@@ -157,12 +171,17 @@ strategy alpha, 是 friction measurement.
 ### 门 (一阶推导)
 - **HARD**: no lookahead
 - **必须从 Tier 1 升级**: 60+ 天 live 实测 sharpe > 0.8 (不再是 > 0.5)
-- **Backtest**: DSR > 0.85
-  - **为什么 0.85 不是 0.95**: DSR 是 Bailey/López de Prado 多重假设检验校正,
-    给定 N 次试验和样本噪音, 给出真 sharpe > 0 的概率下界. 0.95 是 publication-
-    quality (文献门槛). **0.85 = 80%+ 概率真 sharpe > 0, 配合 60 天 live 实证
-    confirm, 总后验证据强度 ≈ 单看 backtest DSR 0.95**. 这是用 live 数据交换
-    backtest 严格度.
+- **Backtest**: DSR > 0.85 (约定值)
+  - **DSR 含义**: Bailey & López de Prado (2014) 的 deflated sharpe ratio, 多重检验
+    校正后的真 sharpe > 0 的概率下界. 0.95 是文献 publication-quality 门槛.
+  - **为什么 0.85 而不是 0.95**: 这是 working choice, 不是直接从 LdP 论文里
+    copy 来的"production threshold". 推理是: Tier 2 升级要先有 Tier 1 60 天 live
+    confirm. Live 数据是独立证据 (没受多重检验偏差影响), 把 backtest DSR 0.85
+    + live 60 天 sharpe > 0.8 联合起来的总后验, 在合理先验下大致等价于
+    backtest DSR 0.95 单独 (live 把 ~10pp posterior 转到 "真 sharpe > 0" 那侧).
+    具体后验数字依赖 prior 和 noise model, **不是严格 Bayesian 推导**, 是
+    "用 live 换 backtest 严格度" 的政策性选择, 数字可议. jialong 可调 0.80
+    或 0.90.
 - **OOS 切片**: 所有 PASS 或 MARGINAL, 0 FAIL (比 Tier 1 严, 不允许任何 FAIL).
 - **Capacity**: 25% NAV target 下不冲市场, 单股 < 5% 仓位. 具体 ¥50 万 AUM smoke
   (与 Phase 8 Tier 1 capacity_monitor.py spec 一致).
@@ -192,12 +211,13 @@ strategy alpha, 是 friction measurement.
 
 ### 门 (= 当前 CLAUDE.md / 740ea7e 红线全集)
 - **HARD**: no lookahead
-- **必须从 Tier 2 升级**: 6+ 月 live sharpe > 1.0
+- **必须从 Tier 2 升级**: **12+ 月** live sharpe > 1.0 (注意: 比 Tier 2 的 6 月长一倍 — Tier 3 把仓位再扩 4x, evidence 窗也应该 scale up)
 - **Backtest**: DSR > 0.95 + bootstrap CI_low > 0
 - **OOS 切片**: 全 PASS (sharpe > 0.8 在每个切片, 包括 bear / 危机段)
 - **Capacity**: > 5x target AUM
 - **Cross-regime invariant**: bull / bear / sideways 三段都 sharpe > 0
 - **Independent kill switch + manual override + circuit breaker**
+- **必须经历至少一次 regime transition** (bull→bear 或反向) in Tier-2 12 月窗
 
 ### 退出
 - Live sharpe ≤ 0.5 over rolling 60 days → 降回 Tier 2
@@ -211,7 +231,7 @@ strategy alpha, 是 friction measurement.
 |---|---|---|
 | **spec v4 (RIAD + DSR#30 BB-only 50/50)** | **REJECTED**, 不进任何 tier | 拒绝是 procedural (一次性 DSR 例外 0.920 < 0.95 没获批就过窗口), 不是门松了能解决. 此外 OOS 切片也 FAIL (per Issue #47 stacked 同款机制), 也不过 Tier 1 |
 | **spec v3 (BB-only)** | 同上, REJECTED | 已被 spec v4 替代后又一起 reject |
-| **roe_stability 单腿** | **可进 Tier 0**, Tier 1 边缘 | 5/7 切片 PASS, 1 FAIL (T4_2025h2), 1 MARGINAL (T5 n=3 噪音). T4 失败机制可识别 (高低切换), 失败窗 net_ann -1.31% × 5% × 0.5 = 0.03% NAV, 远小于 0.3% 阈. **建议 jialong 批准 Tier 0 → Tier 1 路径** |
+| **roe_stability 单腿** | **可进 Tier 0**, Tier 1 边缘 | 5/7 切片 PASS, 1 FAIL (T4_2025h2 sharpe -0.26), 1 MARGINAL (T5 n=3 噪音). T4 失败机制可识别 (高低切换). 失败窗 net_ann 单腿数据 journal 没直接列, 用 stacked T4 net_ann -0.7% 作上界估 (单腿应小于此, 因 stacked = 50/50 平均, 单腿 roe 仅占一半). 5% 仓位 × 0.7% 损失 = **0.035% NAV 单事件**, 远小于 0.3% 阈. **建议 jialong 批准 Tier 0 → Tier 1 路径**, 升级前要补单腿真实 net_ann 数字 |
 | **inst_flow_20d 单腿** | **不进**. 4/7 PASS, 2 FAIL (T2 sharpe 崩 + T3 IC 翻号), 1 MARGINAL (R2). FAIL_IC_FLIP 是结构问题, Tier 1 红线挡 |
 | **stacked roe × inst** | **不进**. 6/8 PASS 但 2 FAIL_NEG_SHARPE 是连续 6-12 月失败窗, 不像 single-event regime 那么可识别 |
 | **cfoni_precise** | **不进**. sharpe_net 0.67 < Tier 1 floor 0.5 + cost 后边缘, 单腿都站不稳 |
@@ -220,41 +240,86 @@ strategy alpha, 是 friction measurement.
 
 ---
 
-## 提案的 CLAUDE.md / ROADMAP.md 修改 (preview, 不直接编辑)
+## 提案的文件修改 (preview, 不直接编辑, 等 jialong 批准)
 
-### CLAUDE.md "策略评审门槛" 段 (当前 line ~173-177) 改写为:
+**4 个文件必须一起改, 否则 drift**. 原版 (rev 1) 漏了 WORKFLOW.md 和 risk_gate.py,
+simplify reviewer 警告 "如果 ratify 后只改 doc 不改 risk_gate.py, 代码会继续用
+老门 (sharpe>0.8 / ann>0.15 / mdd<0.30) 把所有 Tier 0/1 候选都挡住".
+
+### (1) CLAUDE.md "策略评审门槛" 段 (line **246-252**, header 是 `## 策略评审门槛（来自 WORKFLOW.md）`) 改写为:
 
 ```markdown
-## 策略 Tier 与实盘门 (v1, 2026-04-29 框架)
+## 策略 Live-Tier 与实盘门 (v1, 2026-04-29 框架)
 
-策略不是 "能不能上线" 的二元判断, 是 4 级 tier 渐进:
+策略不是 "能不能上线" 的二元判断, 是 4 级 Live-Tier 渐进:
 
-- **Tier 0** (paper-only): no lookahead + 回测 sharpe_net > 0 + 30 天 paper smoke
-- **Tier 1** (1-5% NAV): + backtest sharpe_net > 0.5 + 全 OOS 切片不 FAIL_IC_FLIP + 30 天 paper green
-- **Tier 2** (5-25% NAV): + 60 天 Tier-1 live sharpe > 0.8 + DSR > 0.85 + 全 切片 0 FAIL + capacity ¥50万
-- **Tier 3** (25-100% / 外部资金): + 6 月 Tier-2 live sharpe > 1.0 + DSR > 0.95 + 全切片 sharpe > 0.8 + cross-regime invariant
+- **Live-Tier 0** (paper-only): no lookahead + 回测 sharpe_net > 0 + 30 天 paper smoke
+- **Live-Tier 1** (1-5% NAV): + backtest sharpe_net > 0.5 (with 双边 0.5% cost) + 全 OOS 切片不 FAIL_IC_FLIP + 30 天 paper green
+- **Live-Tier 2** (5-25% NAV): + 60 天 Live-Tier-1 live sharpe > 0.8 + DSR > 0.85 + 全切片 0 FAIL + capacity ¥50万
+- **Live-Tier 3** (25-100% / 外部资金): + 12 月 Live-Tier-2 live sharpe > 1.0 + DSR > 0.95 + 全切片 sharpe > 0.8 + cross-regime invariant + 经历至少一次 regime transition
 
-详见 `journal/eval_framework_v1_proposal_20260429.md` (full 推导)
+详见 `journal/eval_framework_v1_proposal_20260429.md` (含 first-principles 推导 + 已知约定值标注).
 
 升级 always 需要 live 证据. 降级不需要新证据. spec v4 历史拒绝结论不变.
 ```
 
-### ROADMAP.md (替换当前 "策略评审" 那一节, 如果有):
+### (2) WORKFLOW.md "策略评审 Checklist" 段 (line **85-103**) 的 `**绩效标准（最低门槛）**` 子段改写为:
 
 ```markdown
-## Strategy Tier 状态
+**绩效标准 (按 Live-Tier 入门门槛, 详见 `journal/eval_framework_v1_proposal_20260429.md`)**
 
-- Tier 3: 无
-- Tier 2: 无
-- Tier 1: 无
-- Tier 0: roe_stability (待 jialong 批准启动 paper smoke 30 天)
+进 paper-trade (Live-Tier 0) 前自检:
+- [ ] no lookahead / no fwd-leak (HARD red line, 全 tier 适用)
+- [ ] cost-aware sharpe_net > 0 over 3+ year, 双边 0.5% cost
+
+进 1-5% 实盘 (Live-Tier 1) 前自检:
+- [ ] backtest sharpe_net > 0.5 / IC HAC t > 2
+- [ ] OOS 切片无 FAIL_IC_FLIP, 至多 1 个 FAIL_NEG_SHARPE 且失败窗 net_ann × 仓位 < 0.3% NAV
+- [ ] Live-Tier 0 paper-trade 30 天 green light
+
+(Live-Tier 2/3 进入条件参见 framework doc, 不能跳过 Tier 1)
 ```
+
+### (3) ROADMAP.md 加新一节 "Live-Tier 实盘状态" (位置: 在 `## Phase 8: Real-Money Readiness（远期，当前暂缓）` 段之后, 与 ROADMAP 现有的研究 "Tier 1a/1b/2/3" 区分开) :
+
+```markdown
+## Live-Tier 实盘状态 (v1, 2026-04-29 框架启用)
+
+(注: 这是 LIVE-MONEY tier, 跟本 ROADMAP 上文 Space-C 的研究 "Tier 1a/1b/2/3" 不是
+同一概念. 详见 `journal/eval_framework_v1_proposal_20260429.md`)
+
+- Live-Tier 3: 无
+- Live-Tier 2: 无
+- Live-Tier 1: 无
+- Live-Tier 0: roe_stability 单腿 (待 jialong 批准启动 paper smoke 30 天)
+- 历史 deprecated ops smoke runner: v16 (Live-Tier 0 内, 不算 strategy)
+```
+
+### (4) `pipeline/risk_gate.py` `DEFAULT_RULES` (line **32-50**) **必须改**, 否则代码层继续按老门拒掉 Tier 0/1 候选:
+
+```python
+# 当前硬编码的 sharpe>0.8 / ann_return>0.15 / mdd<0.30 适用 Live-Tier 2/3.
+# Live-Tier 0/1 的入门门有 strategy-tier 维度, DEFAULT_RULES 不能 one-size-fit-all.
+
+# 建议改造方向 (二选一, 由 jialong 拍板):
+#  A) DEFAULT_RULES 改成 dict[str, dict] 按 tier 分: TIER_RULES = {0: {...}, 1: {...}, 2: ..., 3: ...}.
+#     gate 调用方传 tier= 参数, 默认 tier=2 (保持当前严格度向后兼容).
+#  B) DEFAULT_RULES 仅作为 Tier 2 用; 加 LIVE_TIER_0_RULES / LIVE_TIER_1_RULES 字典.
+#     调用方显式选门, 不设默认.
+
+# 注释里 "默认门槛来自 CLAUDE.md「策略评审门槛」" 那一行也要更新成
+# "默认门槛 = Live-Tier 2 (其他 tier 见 ...)".
+```
+
+### 不改的文件 (确认过 grep)
+- `journal/paper_trade_spec_v4_*` — 历史决定文档, 不改.
+- 其他 journal entries — 历史快照, 引用旧门是历史事实.
 
 ---
 
-## 待 jialong 决策的 5 个开放问题
+## 待 jialong 决策的 7 个开放问题 (rev 2 加了 6 + 7)
 
-1. **roe_stability 进 Tier 0 paper smoke 是否批准?**
+1. **roe_stability 进 Live-Tier 0 paper smoke 是否批准?**
    现状是 v16 (deprecated) 在跑 ops smoke. roe_stability 是当前 5/7 切片 PASS
    的最干净候选. 不批准的话 Tier 0 永远空着也是问题.
 
@@ -265,14 +330,25 @@ strategy alpha, 是 friction measurement.
    按账户具体规模. 如果 NAV 是 ¥20 万, 5% = ¥1 万, 可能太小手续费占比高.
    如果 NAV 是 ¥200 万, 5% = ¥10 万, 合适. 需要 jialong 报具体 anchor.
 
-4. **是否允许 Tier 1 ≤ 1 个 FAIL_NEG_SHARPE 切片?**
+4. **是否允许 Live-Tier 1 ≤ 1 个 FAIL_NEG_SHARPE 切片?**
    roe_stability T4 是这种情况. 严格不允许 = roe_stability 也卡 Tier 1 门外.
-   宽松允许 (按 net_ann × 仓位 × 0.5 < 0.3% NAV) = roe_stability 可进.
+   宽松允许 (按 net_ann × 仓位 < 0.3% NAV) = roe_stability 可进.
    推荐 (a) 宽松, 因为 Tier-1 目标本来就是 friction measurement, 不是 alpha 验证.
 
 5. **Tier 2 需要 60 天 live 还是 90 天 live?**
-   60 天 = 3 月 ≈ 12 周, 信息量够计算 sharpe CI ≈ ±0.5 (可决定升级).
-   90 天 = 4.5 月, 信息量更稳. 推荐 60 天 (够用 + 不拖).
+   60 天 = 3 月 ≈ 12 周, 信息量小 (sharpe SE 约 1.0 年化, CI 不显著).
+   90 天 略宽. 推荐 60 天: 不是统计显著门, 是 "策略没崩 + tracking error 健康"
+   的 governance 证据. 拖到 90 天信息增量小. 见 §反例 3.
+
+6. **Tier 2 DSR 调成 0.80 / 0.85 / 0.90 哪个?**
+   提案默认 0.85 (working choice, 见 §Tier 2 derivation). 0.80 更宽松 (适合先有
+   live evidence 再调高); 0.90 更严. 这个数字纯政策性, 没"对"的答案.
+
+7. **`pipeline/risk_gate.py` 改造选 A 还是 B?**
+   A = DEFAULT_RULES 改 dict by tier, 调用方传 tier= (默认 tier=2 兼容旧调用).
+   B = DEFAULT_RULES 留作 Tier 2, 加平行 LIVE_TIER_0_RULES / LIVE_TIER_1_RULES, 调用方
+   显式选门, 不设默认.
+   推荐 A (向后兼容, 老调用不破). B 更显式但需要扫所有 caller 改 import.
 
 ---
 
@@ -288,15 +364,25 @@ strategy alpha, 是 friction measurement.
 ## 风险与反例
 
 ### 反例 1: "Tier 1 0.5 sharpe 是不是太松了"
-回应: Tier 1 的 risk budget 是 1.5% NAV worst-case DD. 用 0.8 sharpe 是把
-Tier 2/3 标准下移, 没 anchor 到实际 risk capacity. 0.5 sharpe 在 60 天观测
-窗下的实测下界估计是 ~0, 保护机制是 "rolling 30 天 sharpe ≤ -0.3 即降回 Tier 0",
-这才是真实 stop loss 不是 backtest 门.
+回应: 0.5 是约定值不是 CI 推出的 (60 天观测窗 sharpe SE ≈ 2.2, 大到 pin 不了
+任何门 — 见 §Tier 1 门 "0.5 sharpe 不是 CI 推出的"). 经济解释: backtest sharpe < 0.5
+策略在 5% 仓位 + 0.5% cost 假设下期望真钱回报负, 不值得为收 friction data
+而 deploy. 真实 stop loss 是 "rolling 30 天 sharpe ≤ -0.3 → 降回 Tier 0",
+不是 backtest 门. 用 0.8 是把 Tier 2 标准下移, 没 anchor 到 Tier 1 risk capacity.
 
 ### 反例 2: "DSR 0.85 vs 0.95 差 0.10 看起来小但实际差很多"
-回应: 同意 DSR 是非线性的. 但 0.85 + 60 天 live confirm 的总后验证据强度,
-比 0.95 但 0 live 的强 (因为 live 直接证伪了选择偏差). 文献依据: López de
-Prado 自己在 production deployment 例子里用 0.85, 0.95 是 publication 门槛.
+回应: 同意 DSR 是非线性的. 0.85 是 working choice 不是 LdP 论文里直接 copy
+的 production threshold (rev 1 误称, 已撤). 推理: backtest DSR 0.85 + 60 天
+live sharpe > 0.8 联合后验, 在合理先验下大致等价于单看 backtest DSR 0.95.
+具体后验依赖 prior 和 noise model, 不是严格 Bayesian 推导. jialong 可调 0.80
+或 0.90, 这是政策性数字.
+
+### 反例 3: "Tier 1 升 Tier 2 60 天 live, 60 天能验出什么"
+回应: 60 天 ≈ 12 周 ≈ 60 trading days 的 sharpe estimate SE ≈ 2.2 (Lo 2002).
+60 天 live sharpe > 0.8 不是统计显著性证明 (CI 远超 ±0.8), 是 "策略没在 Tier 1
+真实仓位下崩盘" 的 governance 证据 + tracking error < 200bp/月 这个独立指标 (这个
+有信号意义因为它是 backtest-vs-live 偏差, 不依赖 sharpe 估计精度). 真正
+统计显著的 sharpe 估计需要 N 年级别样本; Tier 3 的 12 月 + DSR 0.95 是这个目的.
 
 ### 反例 3: "Tier 0 → 1 需不需要回测 IC > 0.02?"
 回应: 不加. Tier 0 → 1 已经有 (a) backtest sharpe > 0.5, (b) 30 天 paper green,
