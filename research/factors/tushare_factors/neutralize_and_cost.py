@@ -19,6 +19,7 @@
 import sys
 import warnings
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -31,9 +32,11 @@ from research.factors.tushare_factors.factor_research import (  # noqa: E402
     build_nb_ratio_chg,
     build_roe_stability,
     build_cfoni_precise,
+    compute_forward_returns,
 )
 from utils.factor_analysis import (  # noqa: E402
     compute_ic_series,
+    cross_section_rank,
     ic_summary,
     neutralize_factor,
 )
@@ -46,7 +49,11 @@ OUT = ROOT / "research" / "factors" / "tushare_factors"
 
 # 双边总 cost 0.3% (单边 0.15%); 多空 = 多腿 + 空腿, 各按周转率扣
 COST_PER_SIDE = 0.0015
-HORIZON = 21  # 月频前向收益
+HORIZON = 21               # 月频前向收益
+MIN_STOCKS_PER_GROUP = 5   # qcut 单档最少股票数 (low → 用 utils.factor_analysis 默认 30)
+MIN_STOCKS_FOR_IC = 30     # compute_ic_series 截面最少股票数
+
+Direction = Literal["Q1_minus_Qn", "Qn_minus_Q1"]
 
 
 # ─────────────────────────────────────────────────────────────
@@ -102,14 +109,32 @@ def build_size_panel(stocks: list[str], dates: pd.DatetimeIndex) -> pd.DataFrame
     return panel
 
 
-def compute_forward_returns(price_wide: pd.DataFrame, horizon: int = HORIZON) -> pd.DataFrame:
-    """horizon 日前向对数收益 (每日观测, 用于 IC; 月频抽样另算)."""
-    return np.log(price_wide).diff(horizon).shift(-horizon)
-
-
 # ─────────────────────────────────────────────────────────────
-# 2. 中性化输入: df_info 长表 (trade_date, symbol, ind_code, mv_float)
+# 2. 股票池 + 中性化输入 (df_info 长表)
 # ─────────────────────────────────────────────────────────────
+
+def resolve_stock_pools() -> dict[str, list[str]]:
+    """从 SSD parquet 文件名反推 4 类股票池, 与 4 个因子对应.
+
+    返回 dict, keys: core / quality / cfoni / nb. 改文件命名 (例如
+    fina_indicator_ rename) 时只需要改这一处.
+    """
+    mf = {f.stem for f in (DATA / "moneyflow").glob("*.parquet")}
+    db = {f.stem for f in (DATA / "daily_basic").glob("*.parquet")}
+    fi = {f.stem.replace("fina_indicator_", "")
+          for f in (DATA / "financial").glob("fina_indicator_*.parquet")}
+    cf = {f.stem.replace("cashflow_", "")
+          for f in (DATA / "financial").glob("cashflow_*.parquet")}
+    inc = {f.stem.replace("income_", "")
+           for f in (DATA / "financial").glob("income_*.parquet")}
+    nb = {f.stem for f in (DATA / "northbound").glob("*.parquet")}
+    return {
+        "core":    sorted(mf & db),
+        "quality": sorted(mf & db & fi),
+        "cfoni":   sorted(cf & inc & db),
+        "nb":      sorted(nb & db),
+    }
+
 
 def load_industry_l1() -> pd.Series:
     """申万一级行业 (industry_code 前 2 位).
@@ -141,24 +166,17 @@ def monthly_rebalance_dates(dates: pd.DatetimeIndex, step: int = HORIZON) -> pd.
     return dates[::step]
 
 
-def cost_aware_long_short(
+def long_short_periods(
     factor_wide: pd.DataFrame,
     fwd_ret_wide: pd.DataFrame,
-    long_short: str,
+    long_short: Direction,
     n_groups: int = 5,
     cost_per_side: float = COST_PER_SIDE,
-) -> dict:
-    """月频抽样多空回测 + 周转率 × cost_per_side 扣减.
+) -> pd.DataFrame:
+    """月频抽样的逐 rebal 多空 DataFrame (date 索引, 列 gross/net/cost/turn_long/turn_short).
 
-    流程:
-        1. 抽样每 HORIZON 天的 rebalance 日.
-        2. 当日按因子分 n_groups 档, Q1 多 / Qn 空 (long_short 决定方向).
-        3. 期间收益 = 每只 fwd_ret_wide 的 horizon 日收益均值.
-        4. 周转率 = |new △ old| / |new|, 双腿分别算; cost = (turn_long + turn_short) * cost_per_side.
-        5. 净期间收益 = 总收益 − cost.
-        6. 年化按 12 期 (月频) 估.
-
-    返回字典: gross_ann / net_ann / sharpe_gross / sharpe_net / avg_turnover / n_periods.
+    给 cost_aware_long_short (年化汇总) + stacking_analysis (gross 序列 corr) 共用.
+    空结果返回空 DataFrame, 列名一致.
     """
     common_dates = factor_wide.index.intersection(fwd_ret_wide.index)
     common_stocks = factor_wide.columns.intersection(fwd_ret_wide.columns)
@@ -175,7 +193,7 @@ def cost_aware_long_short(
         f_vals = fac.loc[date].dropna()
         r_vals = ret.loc[date].dropna()
         idx = f_vals.index.intersection(r_vals.index)
-        if len(idx) < n_groups * 5:
+        if len(idx) < n_groups * MIN_STOCKS_PER_GROUP:
             continue
 
         labels = pd.qcut(f_vals[idx], q=n_groups, labels=False, duplicates="drop")
@@ -196,7 +214,11 @@ def cost_aware_long_short(
         short_ret = r_vals.loc[list(short_set)].mean()
         gross = long_ret - short_ret
 
-        # 周转率 (新组合中需要新建仓的比例)
+        # 周转率 = 新组合中需要新建仓的比例 (= |new \ old| / |new|).
+        # 与 utils/ls_costs.leg_turnover 的 0.5*Σ|Δw| 公式不等价: ls_costs 是
+        # 日频 + 等权权重差 L1, 这里是月频 rebal + 集合差比例. 等权且双腿同
+        # 大小时两公式数值接近; A 股 quintile 名单稳定时差异 < 5%. 故意保
+        # 留集合差版本以便跟 spec v3/v4 历史 turnover 数字直接对得上.
         turn_long = len(long_set - prev_long) / len(long_set) if prev_long else 1.0
         turn_short = len(short_set - prev_short) / len(short_set) if prev_short else 1.0
         cost = (turn_long + turn_short) * cost_per_side
@@ -213,27 +235,48 @@ def cost_aware_long_short(
         prev_long, prev_short = long_set, short_set
 
     if not period_rows:
+        return pd.DataFrame(columns=["date", "gross", "net", "cost", "turn_long", "turn_short"]).set_index("date")
+    return pd.DataFrame(period_rows).set_index("date")
+
+
+def cost_aware_long_short(
+    factor_wide: pd.DataFrame,
+    fwd_ret_wide: pd.DataFrame,
+    long_short: Direction,
+    n_groups: int = 5,
+    cost_per_side: float = COST_PER_SIDE,
+) -> dict:
+    """月频抽样多空回测 + 周转率 × cost_per_side 扣减, 返回年化汇总字典.
+
+    流程:
+        1. 抽样每 HORIZON 天的 rebalance 日, 按因子分 n_groups 档, 多空两腿等权.
+        2. 期间收益 = fwd_ret_wide 的 horizon 日收益均值.
+        3. 周转率 = |new \ old| / |new|, 双腿分别算; cost = (tl + ts) * cost_per_side.
+        4. 净期间收益 = gross − cost; 年化按 252/HORIZON 期估.
+
+    与 `utils/ls_costs.tradable_ls_pnl` 的关键差异:
+        - 月频 rebal 而非日频 (因子是 21d 前向收益评估的, 日频 cost 会过度扣).
+        - 不算融券年化 borrow drag (8% 那条) — 跟 spec v3/v4 评估一致, 不在
+          中段引入新 baseline; 真要 go-live 再单算.
+    返回字典: gross_ann / net_ann / sharpe_gross / sharpe_net / avg_turnover / n_periods.
+    """
+    df = long_short_periods(factor_wide, fwd_ret_wide, long_short, n_groups, cost_per_side)
+    if df.empty:
         return {"gross_ann": np.nan, "net_ann": np.nan, "sharpe_gross": np.nan,
-                "sharpe_net": np.nan, "avg_turnover": np.nan, "n_periods": 0}
+                "sharpe_net": np.nan, "avg_turnover": np.nan, "n_periods": 0,
+                "ann_cost_drag": np.nan}
 
-    df = pd.DataFrame(period_rows).set_index("date")
-    n = len(df)
-    # horizon 日 ≈ 一个月; 一年 ≈ 12 期
     periods_per_year = 252 / HORIZON
-    gross_ann = df["gross"].mean() * periods_per_year
-    net_ann = df["net"].mean() * periods_per_year
-    sharpe_gross = (df["gross"].mean() / df["gross"].std() * np.sqrt(periods_per_year)) if df["gross"].std() > 0 else np.nan
-    sharpe_net = (df["net"].mean() / df["net"].std() * np.sqrt(periods_per_year)) if df["net"].std() > 0 else np.nan
-    avg_turnover = ((df["turn_long"] + df["turn_short"]) / 2).mean()
-
+    gross_mean, gross_std = df["gross"].mean(), df["gross"].std()
+    net_mean, net_std = df["net"].mean(), df["net"].std()
     return {
-        "gross_ann": gross_ann,
-        "net_ann": net_ann,
-        "sharpe_gross": sharpe_gross,
-        "sharpe_net": sharpe_net,
-        "avg_turnover": avg_turnover,
-        "n_periods": n,
-        "ann_cost_drag": gross_ann - net_ann,
+        "gross_ann": gross_mean * periods_per_year,
+        "net_ann": net_mean * periods_per_year,
+        "sharpe_gross": gross_mean / gross_std * np.sqrt(periods_per_year) if gross_std > 0 else np.nan,
+        "sharpe_net": net_mean / net_std * np.sqrt(periods_per_year) if net_std > 0 else np.nan,
+        "avg_turnover": ((df["turn_long"] + df["turn_short"]) / 2).mean(),
+        "n_periods": len(df),
+        "ann_cost_drag": (gross_mean - net_mean) * periods_per_year,
     }
 
 
@@ -247,17 +290,9 @@ def run() -> tuple[pd.DataFrame, pd.DataFrame]:
     print("=" * 72)
 
     # 4.1 股票池
-    mf_stocks = {f.stem for f in (DATA / "moneyflow").glob("*.parquet")}
-    db_stocks = {f.stem for f in (DATA / "daily_basic").glob("*.parquet")}
-    fi_stocks = {f.stem.replace("fina_indicator_", "") for f in (DATA / "financial").glob("fina_indicator_*.parquet")}
-    cf_stocks = {f.stem.replace("cashflow_", "") for f in (DATA / "financial").glob("cashflow_*.parquet")}
-    ic_stocks = {f.stem.replace("income_", "") for f in (DATA / "financial").glob("income_*.parquet")}
-    nb_stocks = {f.stem for f in (DATA / "northbound").glob("*.parquet")}
-
-    core_stocks = sorted(mf_stocks & db_stocks)
-    quality_stocks = sorted(mf_stocks & db_stocks & fi_stocks)
-    cfoni_stocks = sorted(cf_stocks & ic_stocks & db_stocks)
-    nb_core = sorted(nb_stocks & db_stocks)
+    pools = resolve_stock_pools()
+    core_stocks, quality_stocks = pools["core"], pools["quality"]
+    cfoni_stocks, nb_core = pools["cfoni"], pools["nb"]
     print(f"\n股票池: core={len(core_stocks)} quality={len(quality_stocks)} "
           f"cfoni={len(cfoni_stocks)} nb={len(nb_core)}")
 
@@ -303,15 +338,14 @@ def run() -> tuple[pd.DataFrame, pd.DataFrame]:
         print(f"\n  ─── {name} ───")
         fac_aligned = fac.reindex(index=price_idx)
 
-        # raw IC (做截面 rank 标准化)
-        ranked_raw = fac_aligned.rank(axis=1, pct=True)
-        ic_raw = compute_ic_series(ranked_raw, fwd_ret, method="spearman", min_stocks=30)
+        ranked_raw = cross_section_rank(fac_aligned)
+        ic_raw = compute_ic_series(ranked_raw, fwd_ret, method="spearman", min_stocks=MIN_STOCKS_FOR_IC)
         s_raw = ic_summary(ic_raw, name=f"{name}_raw", fwd_days=HORIZON, verbose=False)
 
-        # 中性化 (在原始量纲上做; 再 rank)
+        # 中性化在原始量纲上做, 再 rank — size 系数在原始量纲上估计更稳
         fac_neutral = neutralize_factor(fac_aligned, df_info, n_sigma=3.0)
-        ranked_n = fac_neutral.rank(axis=1, pct=True)
-        ic_n = compute_ic_series(ranked_n, fwd_ret, method="spearman", min_stocks=30)
+        ranked_n = cross_section_rank(fac_neutral)
+        ic_n = compute_ic_series(ranked_n, fwd_ret, method="spearman", min_stocks=MIN_STOCKS_FOR_IC)
         s_n = ic_summary(ic_n, name=f"{name}_neutral", fwd_days=HORIZON, verbose=False)
 
         neutral_cache[name] = ranked_n
