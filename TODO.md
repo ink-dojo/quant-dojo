@@ -232,8 +232,15 @@ Issue 主线: #25
       18k events, 信号方向跟假设反 — 大解禁 T+10 net **-9.15% (t -12.9)** / T+15 **-15.2% (t -16.7)**
       (经典 supply pressure 效应, 不是反弹). Reverse direction 是真 alpha 但
       借券极难不可执行. **杀方向**, 转 A 路第 4 候选 (机构调研突变).
-- [ ] **A 路第 4 候选: 机构调研频次突变 (新 issue)**
-      数据 tushare stk_surv. 假设: 30日内调研家数 0→10+ 的突变 → T+5~T+20 alpha
+- [x] **A 路第 4 候选: 机构调研频次 (Issue #59)** — 杀
+      `journal/stk_surv_event_study_20260429.md`
+      28k events, 全样本 gross 接近零 cost 后明显负, T+20 -1.46%. framework_pass=0.
+- [x] **A 路最终总结 (final): 4/4 候选全死**
+      `journal/a_route_final_summary_20260430.md`
+      LHB / 回购 / 解禁 / 调研 全部 framework_pass=0. utils framework 抽出可复用.
+      转 C (质量改进 roe_stability) + D (paper-trade infra Issue #51) 并行.
+- [ ] **C: roe_stability 加 regime overlay (HS300 RSRS) — 看是否能补 T4 FAIL 切片**
+- [ ] **D: 启动 Issue #51 (Tier 0 paper smoke 30 天) — 后台 nightly 跑**
 - [ ] **评估范式 v1 (Tier 0/1/2/3 分级门) — Issue #50, awaiting jialong 决策**
       `journal/eval_framework_v1_proposal_20260429.md`
       4 个 tier 由 risk capacity 反推门; spec v4 拒绝结论不变;
