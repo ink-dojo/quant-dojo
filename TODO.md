@@ -227,8 +227,13 @@ Issue 主线: #25
       `journal/repurchase_event_study_20260429.md`
       11.5k events, 全样本 T+5 net **-0.37%** (cost 1% 把 0.6% gross 吃光),
       Top 10% extreme 反而恶化 (T3 T+5 -1.34%). framework_pass=0. **杀回购方向**.
-- [ ] **A 路第 3 候选: 大股东减持冷静期反弹 (新 issue)**
-      数据 tushare share_float / 减持数据. 假设: 减持公告后 5-15 日反向 (洗盘后反弹).
+- [x] **A 路第 3 候选: 限售解禁 event study (Issue #58)**
+      `journal/share_float_event_study_20260429.md`
+      18k events, 信号方向跟假设反 — 大解禁 T+10 net **-9.15% (t -12.9)** / T+15 **-15.2% (t -16.7)**
+      (经典 supply pressure 效应, 不是反弹). Reverse direction 是真 alpha 但
+      借券极难不可执行. **杀方向**, 转 A 路第 4 候选 (机构调研突变).
+- [ ] **A 路第 4 候选: 机构调研频次突变 (新 issue)**
+      数据 tushare stk_surv. 假设: 30日内调研家数 0→10+ 的突变 → T+5~T+20 alpha
 - [ ] **评估范式 v1 (Tier 0/1/2/3 分级门) — Issue #50, awaiting jialong 决策**
       `journal/eval_framework_v1_proposal_20260429.md`
       4 个 tier 由 risk capacity 反推门; spec v4 拒绝结论不变;
