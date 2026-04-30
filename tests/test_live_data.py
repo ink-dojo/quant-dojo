@@ -9,7 +9,7 @@ test_live_data.py — 实时数据层测试
 """
 import sys
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 for _pkg in ("akshare",):
     if _pkg not in sys.modules:
@@ -18,6 +18,40 @@ for _pkg in ("akshare",):
 
 class TestSinaProvider(unittest.TestCase):
     """测试新浪实时行情 Provider"""
+
+    def setUp(self):
+        self.urlopen_patch = patch("providers.sina_provider.urlopen")
+        self.mock_urlopen = self.urlopen_patch.start()
+        self.mock_urlopen.side_effect = self._fake_urlopen
+
+    def tearDown(self):
+        self.urlopen_patch.stop()
+
+    @staticmethod
+    def _fake_urlopen(req, timeout=None):
+        url = req.full_url
+        lines = []
+        fixtures = {
+            "sh600000": ("浦发银行", "10.06"),
+            "sz000001": ("平安银行", "11.20"),
+            "sh600519": ("贵州茅台", "1700.00"),
+        }
+        for code, (name, price) in fixtures.items():
+            if code not in url:
+                continue
+            parts = [
+                name, "10.00", "9.95", price, "10.20", "9.90",
+                "0", "0", "1000000", "10060000",
+                "0", "0", "0", "0", "0",
+                "0", "0", "0", "0", "0",
+                "0", "0", "0", "0", "0",
+                "0", "0", "0", "0", "0",
+                "2026-04-24", "15:00:00", "00",
+            ]
+            lines.append(f'var hq_str_{code}="{",".join(parts)}";')
+        resp = MagicMock()
+        resp.read.return_value = "\n".join(lines).encode("gbk")
+        return resp
 
     def test_fetch_returns_dict(self):
         """fetch_realtime_quotes 返回 dict"""

@@ -2,7 +2,39 @@
 牛熊辩论快速测试
 用极坐标价量因子（IC均值 -0.031，ICIR -0.28）作为 context 跑一次辩论
 """
-from agents import LLMClient, BullBearDebate, debate_factor
+from agents import debate_factor
+
+
+class FakeLLM:
+    """Deterministic test double; default pytest must not call external LLMs."""
+
+    def complete_json(self, prompt: str) -> dict:
+        if "bull_arguments" in prompt and "bear_arguments" not in prompt:
+            return {
+                "bull_arguments": [
+                    "IC 为负且 t 统计显著，可作为反转方向使用",
+                    "IC>0 占比低说明方向稳定，适合取反后入库",
+                    "与价量行为相关，可能补充传统基本面因子",
+                ]
+            }
+        if "bear_arguments" in prompt:
+            return {
+                "rebuttals": [
+                    "负 IC 不等于可交易收益，成本可能吞噬边际",
+                    "ICIR 偏低，单因子稳定性不足",
+                    "需要检验行业和市值中性化后的残余有效性",
+                ],
+                "bear_arguments": [
+                    "ICIR 只有 -0.28，独立入模质量有限",
+                    "若换手较高，真实滑点会放大衰减",
+                    "缺少样本外和 regime 分层验证",
+                ],
+            }
+        return {
+            "conclusion": "偏空原始方向，但可作为反转候选继续验证",
+            "confidence": 0.72,
+            "key_factors": ["负 IC 显著性", "交易成本敏感性"],
+        }
 
 
 def test_debate():
@@ -23,8 +55,8 @@ def test_debate():
     print("=" * 60)
     print()
 
-    # 用 debate_factor 便捷函数
-    result = debate_factor("极坐标价量因子", ic_data)
+    # 用 debate_factor 便捷函数；传入 fake LLM，避免默认测试依赖 claude/Ollama。
+    result = debate_factor("极坐标价量因子", ic_data, llm=FakeLLM())
 
     # 打印结果
     print("【做多方观点】")
