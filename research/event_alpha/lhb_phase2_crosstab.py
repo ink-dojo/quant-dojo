@@ -46,12 +46,10 @@ from research.event_alpha.lhb_t1_event_study import (  # noqa: E402
     EVENTS_DIR,
     OUT_DIR,
 )
+from utils.event_alpha_pipeline import run_3variant_pipeline  # noqa: E402
 from utils.event_study import (  # noqa: E402
-    cell_verdict,
     compute_event_abn_returns,
-    framework_strict_decision,
     load_event_parquets,
-    quintile_spread,
     t1_limit_mask,
 )
 from utils.local_data_loader import load_adj_price_wide  # noqa: E402
@@ -85,65 +83,7 @@ TIME_SLICES: list[tuple[str, str, str]] = [
 
 
 # ─────────────────────────────────────────────────────────────
-# 2. cross-tab — cell_verdict + framework_strict_decision 已下沉到 utils.event_study
-# ─────────────────────────────────────────────────────────────
-
-
-def crosstab(long_df: pd.DataFrame, label: str) -> dict:
-    """对 long_df 跑 5 subgroup × 3 slice × 3 horizon = 45 cells."""
-    print(f"\n  ── {label} ──")
-    out: dict[str, dict[str, dict[int, dict]]] = {}
-    for sg in SUBGROUPS:
-        sub_sg = long_df[long_df["reason_cat"] == sg]
-        if len(sub_sg) == 0:
-            continue
-        out[sg] = {}
-        for slabel, s, e in TIME_SLICES:
-            mask = ((sub_sg["event_date"] >= pd.Timestamp(s))
-                    & (sub_sg["event_date"] <= pd.Timestamp(e)))
-            sub = sub_sg[mask]
-            sl = quintile_spread(sub, signal_col="net_rate", horizons=HORIZONS,
-                                 cost_per_side=COST_PER_SIDE, n_legs=2,
-                                 skip_overnight_gap=True)
-            out[sg][slabel] = sl
-    # 打印
-    print(f"  {'subgroup':<16} {'slice':<14} | {'T+1 net':>9} {'t':>5} | "
-          f"{'T+5 net':>9} {'t':>5} | {'T+10 net':>9} {'t':>5} | verdict_T+5")
-    print("  " + "─" * 95)
-    for sg in SUBGROUPS:
-        if sg not in out:
-            continue
-        for slabel, _, _ in TIME_SLICES:
-            cells = out[sg][slabel]
-            row = f"  {sg:<16} {slabel:<14} |"
-            for h in HORIZONS:
-                m = cells[h]
-                if m["spread_gross"] is None:
-                    row += f" {'—':>9} {'—':>5} |"
-                else:
-                    row += f" {m['spread_net']*100:>+8.2f}% {m['t_stat']:>+5.1f} |"
-            v5 = cells[5]
-            verdict = cell_verdict(v5["spread_net"], v5["t_stat"])
-            row += f" {verdict}"
-            print(row)
-    return out
-
-
-# ─────────────────────────────────────────────────────────────
-# 3. magnitude filter variant
-# ─────────────────────────────────────────────────────────────
-
-def filter_extreme_net_rate(long_df: pd.DataFrame, top_pct: float = 0.10) -> pd.DataFrame:
-    """只保留 net_rate 绝对值 top_pct 的事件."""
-    ev_rate = long_df.groupby(["symbol", "event_date"])["net_rate"].first()
-    threshold = ev_rate.abs().quantile(1 - top_pct)
-    extreme_keys = set(ev_rate[ev_rate.abs() >= threshold].index)
-    keep_mask = long_df.set_index(["symbol", "event_date"]).index.isin(extreme_keys)
-    return long_df[keep_mask].copy()
-
-
-# ─────────────────────────────────────────────────────────────
-# 4. 主流程
+# 2. 主流程 — cross-tab + framework decision 由 utils.event_alpha_pipeline 跑
 # ─────────────────────────────────────────────────────────────
 
 def run() -> dict:
@@ -192,56 +132,23 @@ def run() -> dict:
     n_events = long_df.groupby(["symbol", "event_date"]).ngroups
     print(f"  unique events: {n_events:,}")
 
-    # 4.4 cross-tab variant A: 全部事件 (含 T+1 涨跌停)
-    print("\n[Step 4a] CROSS-TAB A: 全部事件 (no limit filter, baseline)")
-    out_a = crosstab(long_df, "全部事件 (含 T+1 涨跌停, 不可交易上界)")
-
-    # 4.5 cross-tab variant B: 排除 T+1 涨跌停
-    print("\n[Step 4b] CROSS-TAB B: 排除 T+1 涨跌停 (tradeable 子集)")
-    long_b = long_df[~long_df["t1_limit"]].copy()
-    out_b = crosstab(long_b, "排除 T+1 涨跌停")
-
-    # 4.6 cross-tab variant C: 排除涨跌停 + magnitude top 10%
-    print("\n[Step 4c] CROSS-TAB C: 排除涨跌停 + |net_rate| top 10%")
-    long_c = filter_extreme_net_rate(long_b, top_pct=0.10)
-    print(f"  filtered to top 10% extreme: {long_c.groupby(['symbol','event_date']).ngroups:,} events")
-    out_c = crosstab(long_c, "排除涨跌停 + |net_rate| top 10%")
-
-    # 4.7 LHB 方向死活判定 — 严格按 framework Live-Tier 1 全切片门
-    print("\n" + "=" * 100)
-    print("LHB 方向死活判定 (framework Live-Tier 1 严格门)")
-    print("=" * 100)
-    # framework 严格判定**仅对 tradeable variants** (B/C). A_all 含涨跌停板, 是
-    # 不可执行的上界, 入选 framework_pass 等于把"仅在涨停板里的 alpha"包装成
-    # 真候选, 误读危险. 只把 B + C 喂给严格判定.
-    decision = framework_strict_decision(
-        {"B_no_limit": out_b, "C_extreme_no_limit": out_c},
+    # 4.4 3-variant cross-tab + framework decision (orchestrator)
+    pipeline = run_3variant_pipeline(
+        long_df,
+        signal_col="net_rate",
+        limit_col="t1_limit",
         horizons=HORIZONS,
-        oos_slice_label="T3_2024_2026",
-        is_slice_labels=("T1_2015_2019", "T2_2020_2023"),
+        time_slices=TIME_SLICES,
+        subgroup_col="reason_cat",
+        subgroups=SUBGROUPS,
+        cost_per_side=COST_PER_SIDE, n_legs=2,
+        candidate_name="LHB",
+        next_candidate="A 路下一个候选 (回购公告 / 减持冷静期 / 调研突变)",
     )
-    print(f"\n  OOS (T3) PASS cell 数: {len(decision['oos_pass_cells'])} (loose 判定, 仅参考)")
-    for w in decision["oos_pass_cells"][:5]:
-        print(f"    [loose] {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
-              f"net {w['oos_net']*100:+.2f}% t={w['oos_t']:+.2f} n={w['n_events']:,}")
-    print(f"\n  Framework PASS (T3 PASS + IS slice 不 FAIL 或失败窗 < 0.3% NAV): "
-          f"{len(decision['framework_pass'])}")
-    if decision["framework_pass"]:
-        print("\n  ✅ 有 framework PASS 候选, 继续 Phase 3 写 spec:")
-        for w in decision["framework_pass"]:
-            print(f"    {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
-                  f"T3 net {w['oos_net']*100:+.2f}% t={w['oos_t']:+.2f} n={w['n_events']:,} "
-                  f"worst slice drag {w['worst_drag_nav']*100:.3f}% NAV/yr")
-    else:
-        print("\n  ❌ 无 framework PASS 候选 (T3 PASS 都被 T1/T2 FAIL 拖累超预算).")
-        print("  **杀 LHB 方向**, 转 A 路下一个候选 (回购公告 / 减持冷静期 / 调研突变).")
-        if decision["framework_rejected"]:
-            print("\n  Top 3 rejected (按 T3 net 排) — 离 framework PASS 最近的:")
-            for w in decision["framework_rejected"][:3]:
-                print(f"    {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
-                      f"T3 net {w['oos_net']*100:+.2f}% / "
-                      f"failed slices {[f'{s}:{n*100:+.2f}%' for s, n in w['fail_slices_net_ann']]} / "
-                      f"worst drag {w['worst_drag_nav']*100:.3f}% NAV/yr")
+    out_a = pipeline["variant_A_all"]
+    out_b = pipeline["variant_B_no_limit"]
+    out_c = pipeline["variant_C_extreme_no_limit"]
+    decision = pipeline["decision"]
 
     # 4.8 落盘
     payload = {
@@ -257,9 +164,9 @@ def run() -> dict:
         "variant_B_no_limit": out_b,
         "variant_C_extreme_no_limit": out_c,
         "decision": decision,
-        # 旧字段 alias 兼容曾经读 any_t3_pass 的 caller
-        "decision_legacy": {"any_t3_pass": bool(decision["t3_pass_cells"]),
-                            "winners": decision["t3_pass_cells"]},
+        # 旧字段 alias 兼容曾经读 any_t3_pass 的 caller (字段名 oos_pass_cells, alias 留)
+        "decision_legacy": {"any_t3_pass": bool(decision["oos_pass_cells"]),
+                            "winners": decision["oos_pass_cells"]},
     }
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
