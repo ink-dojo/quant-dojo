@@ -50,6 +50,7 @@ from utils.event_study import (  # noqa: E402
     compute_event_abn_returns,
     load_event_parquets,
     quintile_spread,
+    t1_limit_mask,
 )
 from utils.local_data_loader import load_adj_price_wide  # noqa: E402
 
@@ -77,41 +78,8 @@ TIME_SLICES: list[tuple[str, str, str]] = [
 
 
 # ─────────────────────────────────────────────────────────────
-# 1. 涨跌停 next-day mask
+# 1. 涨跌停 next-day mask — 已下沉到 utils.event_study.t1_limit_mask (vectorized)
 # ─────────────────────────────────────────────────────────────
-
-def add_t1_limit_mask(events: pd.DataFrame, prices: pd.DataFrame,
-                      threshold: float = LIMIT_THRESHOLD) -> pd.Series:
-    """对每事件查 T+1 raw return. 返回 bool Series (与 events 对齐), True = T+1 涨跌停 → 应剔.
-
-    nolimit subgroup (reason_cat='nolimit') 不应用此过滤 (本无板).
-    """
-    td_arr = prices.index.values
-    n_dates = len(td_arr)
-    col_idx = {c: i for i, c in enumerate(prices.columns)}
-    p_vals = prices.values
-
-    ev_dates = pd.to_datetime(events["trade_date"]).values.astype("datetime64[ns]")
-    ev_syms = events["symbol"].values
-    ev_cat = events["reason_cat"].values
-
-    i0 = np.searchsorted(td_arr, ev_dates, side="left")
-    sym_idx = np.array([col_idx.get(s, -1) for s in ev_syms])
-
-    is_limit = np.zeros(len(events), dtype=bool)
-    for i in range(len(events)):
-        if ev_cat[i] == "nolimit":
-            continue  # 无涨跌停板, 不过滤
-        if sym_idx[i] < 0 or i0[i] >= n_dates - 1 or td_arr[i0[i]] != ev_dates[i]:
-            continue
-        p_t = p_vals[i0[i], sym_idx[i]]
-        p_t1 = p_vals[i0[i] + 1, sym_idx[i]]
-        if pd.isna(p_t) or pd.isna(p_t1) or p_t == 0:
-            continue
-        ret_t1 = p_t1 / p_t - 1
-        if abs(ret_t1) >= threshold:
-            is_limit[i] = True
-    return pd.Series(is_limit, index=events.index, name="t1_limit")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -119,6 +87,12 @@ def add_t1_limit_mask(events: pd.DataFrame, prices: pd.DataFrame,
 # ─────────────────────────────────────────────────────────────
 
 def cell_verdict(net: float, t_stat: float) -> str:
+    """Per-cell PASS/MARGINAL/FAIL. PASS = net > 0.5% per event AND |t| > 2.
+
+    注意: 这个 PASS 跟 framework Live-Tier 1 的 'sharpe>0.5' 不是同一量纲
+    (per-event spread vs annualized sharpe). 完整 framework 严格门见
+    framework_strict_decision().
+    """
     if net is None or t_stat is None or pd.isna(net) or pd.isna(t_stat):
         return "N/A"
     if net <= 0:
@@ -126,6 +100,70 @@ def cell_verdict(net: float, t_stat: float) -> str:
     if net > 0.005 and abs(t_stat) > 2:
         return "PASS"
     return "MARGINAL"
+
+
+def framework_strict_decision(
+    variant_outputs: dict,
+    tier1_position: float = 0.05,
+    tier1_fail_nav_budget: float = 0.003,
+    td_per_year: int = 250,
+) -> dict:
+    """完整 Live-Tier 1 入门门: T3 PASS + 至多 1 失败 OOS slice + 失败 slice 的
+    年化 NAV drag < 0.3% NAV (按 5% 仓位).
+
+    单 slice 年化 drag = |spread_net| × periods_per_year × position
+    ≈ |spread_net| × (250 / horizon) × 0.05
+
+    返回 dict:
+      t3_pass_cells: 仅看 T3 cell PASS 的 (loose 判定, 跟旧逻辑一致)
+      framework_pass: 通过严格门的 (T3 PASS + 全 OOS slice budget OK)
+      framework_rejected: T3 PASS 但被 T1/T2 拖累的 (按 T3 net 排)
+    """
+    t3_pass = []
+    fw_pass = []
+    fw_reject = []
+    for variant_name, out in variant_outputs.items():
+        for sg, by_slice in out.items():
+            for h in HORIZONS:
+                t1 = by_slice.get("T1_2015_2019", {}).get(h, {})
+                t2 = by_slice.get("T2_2020_2023", {}).get(h, {})
+                t3 = by_slice.get("T3_2024_2026", {}).get(h, {})
+                if any(c.get("spread_gross") is None for c in (t1, t2, t3)):
+                    continue
+                if cell_verdict(t3["spread_net"], t3["t_stat"]) != "PASS":
+                    continue
+
+                cell_info = {
+                    "variant": variant_name, "subgroup": sg, "horizon": h,
+                    "t3_net": t3["spread_net"], "t3_t": t3["t_stat"],
+                    "n_events": t3["n_events"],
+                }
+                t3_pass.append(cell_info)
+
+                # 检 T1/T2 失败 slice 的年化 drag
+                periods_per_year = td_per_year / h
+                fail_slices = []
+                for slabel, cell in [("T1", t1), ("T2", t2)]:
+                    if cell["spread_net"] <= 0:
+                        net_ann = cell["spread_net"] * periods_per_year
+                        fail_slices.append((slabel, net_ann))
+                worst_drag_nav = max(
+                    (abs(na) * tier1_position for _, na in fail_slices), default=0
+                )
+                cell_info["fail_slices_net_ann"] = fail_slices
+                cell_info["worst_drag_nav"] = worst_drag_nav
+
+                if len(fail_slices) <= 1 and worst_drag_nav < tier1_fail_nav_budget:
+                    fw_pass.append(cell_info)
+                else:
+                    fw_reject.append(cell_info)
+
+    fw_reject.sort(key=lambda x: -x["t3_net"])
+    return {
+        "t3_pass_cells": t3_pass,
+        "framework_pass": fw_pass,
+        "framework_rejected": fw_reject,
+    }
 
 
 def crosstab(long_df: pd.DataFrame, label: str) -> dict:
@@ -205,9 +243,9 @@ def run() -> dict:
     prices = load_adj_price_wide(universe, str(start_date), str(end_date))
     print(f"  prices shape: {prices.shape}")
 
-    # 4.2 涨跌停 filter
+    # 4.2 涨跌停 filter (vectorized 自 utils.event_study)
     print("\n[Step 2] T+1 涨跌停 filter")
-    main["t1_limit"] = add_t1_limit_mask(main, prices, threshold=LIMIT_THRESHOLD)
+    main["t1_limit"] = t1_limit_mask(main, prices, threshold=LIMIT_THRESHOLD)
     n_total = len(main)
     n_limit = main["t1_limit"].sum()
     print(f"  total {n_total:,} events, T+1 涨跌停 {n_limit:,} ({n_limit/n_total:.1%}) — 将被过滤")
@@ -246,33 +284,38 @@ def run() -> dict:
     print(f"  filtered to top 10% extreme: {long_c.groupby(['symbol','event_date']).ngroups:,} events")
     out_c = crosstab(long_c, "排除涨跌停 + |net_rate| top 10%")
 
-    # 4.7 LHB 方向死活判定
+    # 4.7 LHB 方向死活判定 — 严格按 framework Live-Tier 1 全切片门
     print("\n" + "=" * 100)
-    print("LHB 方向死活判定: 任一 subgroup × T3 PASS → 继续 Phase 3; 否则杀")
+    print("LHB 方向死活判定 (framework Live-Tier 1 严格门)")
     print("=" * 100)
-    decision = {"any_t3_pass": False, "winners": []}
-    for variant_name, out in [("A_all", out_a), ("B_no_limit", out_b), ("C_extreme_no_limit", out_c)]:
-        for sg in SUBGROUPS:
-            if sg not in out: continue
-            cells_t3 = out[sg].get("T3_2024_2026", {})
-            for h in HORIZONS:
-                m = cells_t3.get(h, {})
-                if m.get("spread_gross") is None: continue
-                v = cell_verdict(m["spread_net"], m["t_stat"])
-                if v == "PASS":
-                    decision["any_t3_pass"] = True
-                    decision["winners"].append({
-                        "variant": variant_name, "subgroup": sg, "horizon": h,
-                        "net_spread": m["spread_net"], "t_stat": m["t_stat"],
-                        "n_events": m["n_events"],
-                    })
-    if decision["any_t3_pass"]:
-        print("\n  ✅ T3 还有 PASS cell, 继续 Phase 3 写 spec:")
-        for w in decision["winners"]:
+    # framework 严格判定**仅对 tradeable variants** (B/C). A_all 含涨跌停板, 是
+    # 不可执行的上界, 入选 framework_pass 等于把"仅在涨停板里的 alpha"包装成
+    # 真候选, 误读危险. 只把 B + C 喂给严格判定.
+    decision = framework_strict_decision(
+        {"B_no_limit": out_b, "C_extreme_no_limit": out_c},
+    )
+    print(f"\n  T3 自身 PASS cell 数: {len(decision['t3_pass_cells'])} (loose 判定, 仅参考)")
+    for w in decision["t3_pass_cells"][:5]:
+        print(f"    [loose] {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
+              f"net {w['t3_net']*100:+.2f}% t={w['t3_t']:+.2f} n={w['n_events']:,}")
+    print(f"\n  Framework PASS (T3 PASS + T1/T2 不 FAIL_NEG_SHARPE 或失败窗 < 0.3% NAV): "
+          f"{len(decision['framework_pass'])}")
+    if decision["framework_pass"]:
+        print("\n  ✅ 有 framework PASS 候选, 继续 Phase 3 写 spec:")
+        for w in decision["framework_pass"]:
             print(f"    {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
-                  f"net {w['net_spread']*100:+.2f}% t={w['t_stat']:+.2f} n={w['n_events']:,}")
+                  f"T3 net {w['t3_net']*100:+.2f}% t={w['t3_t']:+.2f} n={w['n_events']:,} "
+                  f"worst slice drag {w['worst_drag_nav']*100:.3f}% NAV/yr")
     else:
-        print("\n  ❌ T3 全 cell FAIL/MARGINAL, **杀 LHB 方向**, 转 A 路下一个候选 (回购公告)")
+        print("\n  ❌ 无 framework PASS 候选 (T3 PASS 都被 T1/T2 FAIL 拖累超预算).")
+        print("  **杀 LHB 方向**, 转 A 路下一个候选 (回购公告 / 减持冷静期 / 调研突变).")
+        if decision["framework_rejected"]:
+            print("\n  Top 3 rejected (按 T3 net 排) — 离 framework PASS 最近的:")
+            for w in decision["framework_rejected"][:3]:
+                print(f"    {w['variant']:<22} {w['subgroup']:<16} T+{w['horizon']:<2}  "
+                      f"T3 net {w['t3_net']*100:+.2f}% / "
+                      f"failed slices {[f'{s}:{n*100:+.2f}%' for s, n in w['fail_slices_net_ann']]} / "
+                      f"worst drag {w['worst_drag_nav']*100:.3f}% NAV/yr")
 
     # 4.8 落盘
     payload = {
@@ -288,6 +331,9 @@ def run() -> dict:
         "variant_B_no_limit": out_b,
         "variant_C_extreme_no_limit": out_c,
         "decision": decision,
+        # 旧字段 alias 兼容曾经读 any_t3_pass 的 caller
+        "decision_legacy": {"any_t3_pass": bool(decision["t3_pass_cells"]),
+                            "winners": decision["t3_pass_cells"]},
     }
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
