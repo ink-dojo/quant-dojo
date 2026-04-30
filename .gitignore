@@ -104,3 +104,4 @@ data/cache
 .vercel
 research/qlib_baseline/.venv/
 research/qlib_baseline/runs/
+mlruns/
