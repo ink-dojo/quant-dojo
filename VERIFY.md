@@ -23,7 +23,8 @@
 
 ## 单元测试
 
-- ✅ `python -m pytest tests/ -q` 676 passed, 0 failed
+- ✅ `pytest -q` 677 passed, 0 failed (2026-04-25 local)
+- ✅ `make health` covers imports, offline LLM/live-data tests, Phase 8 Tier 1 tests, and `quant_dojo doctor`
 - ✅ 无回归：`tests/test_phase5_regression.py` 全绿
 - ✅ 无回归：`tests/test_control_plane.py` 全绿
 - ✅ 无回归：`tests/test_risk_gate.py` 全绿
@@ -66,3 +67,8 @@
 - ⚠ = 已知限制（如需要本地数据才能完整运行）
 - ❌ = 检查失败，需要修复
 - ⬜ = 未检查
+
+## 已知环境噪音
+
+- ⚠ `requests` dependency warning: urllib3 / charset_normalizer 版本组合与
+  requests 声明不完全匹配；当前不影响 pytest 或 `quant_dojo doctor`。

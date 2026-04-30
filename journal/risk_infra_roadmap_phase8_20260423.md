@@ -734,10 +734,13 @@ Month 4+ (scaling):
 ## 验收 checklist (打勾即可上线)
 
 ### Tier 1 (4 项, must-have)
-- [ ] 1.1 Vol Targeting — `pipeline/vol_targeting.py` + 单元 + 集成 + DD 减 20%
-- [ ] 1.2 Capacity Monitoring — `pipeline/capacity_monitor.py` + ¥1000 万 AUM 无 blocked
-- [ ] 1.3 Stress Test — `scripts/stress_test.py` + 单日 < 8% / 单周 < 15%
-- [ ] 1.4 Live vs Backtest 强化 — daily zscore + 3σ alert + kill 联动
+- [x] 1.1 Vol Targeting — `pipeline/vol_targeting.py` + unit tests 已落地; 历史 DD 验收需随候选策略重跑
+- [x] 1.2 Capacity Monitoring — `pipeline/capacity_monitor.py` + unit/integration tests 已落地; AUM 验收随 active spec 重跑
+- [x] 1.3 Stress Test — `scripts/stress_test.py` + stress event calendar + 报告生成已落地
+- [x] 1.4 Live vs Backtest 强化 — daily zscore + 3σ alert + kill switch external trigger 已落地
+
+> 2026-04-25 校准: Tier 1 代码与测试已完成, 但 spec v4 不上线; 后续任何新 active spec
+> 必须重新跑 DD/capacity/stress/live-vs-backtest 验收, 不能复用 spec v4 的上线结论.
 
 ### Tier 2 (3 项, should-have)
 - [ ] 2.1 Cross-sectional Dispersion — 2018-02/2020-03/2024-02 提前 1-3 日预警
