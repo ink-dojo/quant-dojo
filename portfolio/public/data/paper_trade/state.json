@@ -14,8 +14,8 @@
     "bb": 1.0,
     "pv": 0.0
   },
-  "last_run_ts": "2026-04-27T21:34:05.805320+08:00",
-  "last_trading_day": "2026-04-27",
+  "last_run_ts": "2026-05-06T21:31:43.681659+08:00",
+  "last_trading_day": "2026-05-06",
   "nav_series": [
     {
       "date": "2026-04-17",
@@ -44,70 +44,51 @@
     {
       "date": "2026-04-27",
       "nav": 996964.3363354222
+    },
+    {
+      "date": "2026-05-06",
+      "nav": 991309.7792702338
     }
   ],
-  "last_nav": 996964.3363354222,
-  "cum_return": -0.003035663664577748,
-  "pnl_today": -158.3203611469362,
+  "last_nav": 991309.7792702338,
+  "cum_return": -0.008690220729766218,
+  "pnl_today": -5654.557065188419,
   "daily_summary": {
-    "n_buys": 1,
+    "n_buys": 0,
     "n_sells": 1,
-    "turnover": 0.2647,
-    "gross_weight": 0.1323,
-    "cash_after": 865091.84,
-    "nav_after": 996964.34,
+    "turnover": 0.1275,
+    "gross_weight": 0.0,
+    "cash_after": 991309.78,
+    "nav_after": 991309.78,
     "skipped_buys": [],
-    "dropped_no_price": [],
+    "dropped_no_price": [
+      "600636"
+    ],
     "duplicate_skipped": []
   },
   "today_trades": [
     {
-      "symbol": "000650",
+      "symbol": "002959",
       "action": "sell",
-      "shares": 1075,
-      "price": 122.95335984333158,
-      "cost": 198.2622927473722
-    },
-    {
-      "symbol": "002959",
-      "action": "buy",
       "shares": 723,
-      "price": 182.39625883361873,
-      "cost": 197.8087427050595
+      "price": 174.83755103127442,
+      "cost": 189.61132409341712
     }
   ],
-  "positions": [
-    {
-      "symbol": "002959",
-      "shares": 723,
-      "cost_price": 182.39625883361873,
-      "current_price": 182.39625883361873,
-      "pnl_pct": 0.0
-    }
-  ],
-  "open_entries_count": 1,
-  "open_entries": [
-    {
-      "symbol": "002959",
-      "leg": "bb",
-      "entry_date": "2026-04-27",
-      "exit_date": "",
-      "unit_weight": 0.13234077750206782,
-      "signal": 1.480870078775,
-      "entry_price": 182.39625883361873
-    }
-  ],
+  "positions": [],
+  "open_entries_count": 0,
+  "open_entries": [],
   "kill": {
     "action": "warn",
     "position_scale": 1.0,
     "rolling_sr_30d": null,
-    "live_sharpe": -7.519772980247266,
-    "cum_drawdown": -0.003035663664577748,
-    "monthly_mdd": -0.003035663664577748,
-    "running_days": 6,
+    "live_sharpe": -9.048764490324475,
+    "cum_drawdown": -0.008690220729766218,
+    "monthly_mdd": null,
+    "running_days": 7,
     "reasons": [],
     "warnings": [
-      "当日持仓只数 1 < 3"
+      "当日持仓只数 0 < 3"
     ]
   }
 }
