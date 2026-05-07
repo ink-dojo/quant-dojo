@@ -261,16 +261,10 @@ class TestWeeklyReport(unittest.TestCase):
         from pipeline.weekly_report import generate_weekly_report
 
         with tempfile.TemporaryDirectory() as tmp:
-            journal_dir = Path(tmp) / "journal" / "weekly"
-            with patch("pipeline.weekly_report.Path") as mock_path:
-                # 让 Path(__file__).parent.parent 返回 tmp 所在的上级目录
-                mock_path.return_value.parent.parent = Path(tmp)
-                # 直接调用，会在 tmp 中创建 journal/weekly 目录
-                result = generate_weekly_report(week="2026-W12")
+            result = generate_weekly_report(week="2026-W12", base_dir=Path(tmp))
 
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0, "返回的周报字符串应非空")
-        # 验证包含周报标识
         self.assertTrue(
             "周报" in result or "2026-W12" in result,
             f"返回的周报应包含 '周报' 或 '2026-W12'，实际内容：{result[:200]}"
@@ -281,36 +275,10 @@ class TestWeeklyReport(unittest.TestCase):
         from pipeline.weekly_report import generate_weekly_report
 
         with tempfile.TemporaryDirectory() as tmp:
-            # 创建空的数据目录结构，确保 generate_weekly_report 不会因为目录缺失而崩溃
-            signals_dir = Path(tmp) / "live" / "signals"
-            signals_dir.mkdir(parents=True, exist_ok=True)
-            snapshot_dir = Path(tmp) / "live" / "factor_snapshot"
-            snapshot_dir.mkdir(parents=True, exist_ok=True)
-            journal_dir = Path(tmp) / "journal" / "weekly"
-
-            with patch("pipeline.weekly_report.Path") as mock_path_class:
-                # 构造 mock 的 Path 对象
-                mock_path_instance = MagicMock()
-                mock_path_instance.parent.parent = Path(tmp)
-                mock_path_class.return_value = mock_path_instance
-
-                # 也要 patch 直接创建 Path 对象时的行为
-                def _path_side_effect(p):
-                    if isinstance(p, str) and "factor_snapshot" in p:
-                        return snapshot_dir
-                    elif isinstance(p, str) and "signals" in p:
-                        return signals_dir
-                    elif isinstance(p, str) and "journal" in p:
-                        return journal_dir
-                    return Path(p)
-
-                mock_path_class.side_effect = _path_side_effect
-
-                # 调用应不抛异常
-                try:
-                    result = generate_weekly_report(week="2026-W13")
-                except Exception as e:
-                    self.fail(f"generate_weekly_report 无数据时不应抛异常，但得到: {e}")
+            try:
+                result = generate_weekly_report(week="2026-W13", base_dir=Path(tmp))
+            except Exception as e:
+                self.fail(f"generate_weekly_report 无数据时不应抛异常，但得到: {e}")
 
         self.assertIsInstance(result, str, "即使无数据，也应返回字符串")
         self.assertGreater(len(result), 0, "返回的占位报告应非空")

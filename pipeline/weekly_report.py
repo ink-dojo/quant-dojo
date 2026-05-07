@@ -680,7 +680,7 @@ def _render_todo_section() -> str:
 # 主入口
 # ---------------------------------------------------------------------------
 
-def generate_weekly_report(week: Optional[str] = None) -> str:
+def generate_weekly_report(week: Optional[str] = None, base_dir: Optional["Path"] = None) -> str:
     """
     生成指定周的量化策略周报（结构化审计文档）。
 
@@ -694,6 +694,7 @@ def generate_weekly_report(week: Optional[str] = None) -> str:
 
     参数：
         week: ISO 周字符串，如 "2026-W13"。默认为当前周。
+        base_dir: 项目根目录。测试时传入 tmp_path，生产用默认值 None（自动解析）。
 
     返回：
         Markdown 格式的周报字符串，同时保存到 journal/weekly/{week}.md。
@@ -705,7 +706,7 @@ def generate_weekly_report(week: Optional[str] = None) -> str:
         week = f"{iso_cal[0]}-W{iso_cal[1]:02d}"
 
     # 路径配置
-    base_dir = Path(__file__).parent.parent
+    base_dir = base_dir if base_dir is not None else Path(__file__).parent.parent
     portfolio_dir = base_dir / "live" / "portfolio"
     trades_path = portfolio_dir / "trades.json"
     positions_path = portfolio_dir / "positions.json"

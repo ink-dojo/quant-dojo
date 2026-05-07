@@ -129,20 +129,7 @@ class TestE2ERechain(unittest.TestCase):
             self.assertIsInstance(alerts, list)
 
             # ── 5. 周报生成 ───────────────────────────────────────────────
-            # patch base_dir 使 generate_weekly_report 指向 tmp_path
-            with patch("pipeline.weekly_report.Path") as mock_path_cls:
-                mock_file_path = MagicMock()
-                mock_file_path.parent.parent = tmp_path
-                mock_path_cls.return_value = mock_file_path
-
-                original_path = Path
-                def _path_side_effect(*args, **kwargs):
-                    if not args:
-                        return mock_file_path
-                    return original_path(*args, **kwargs)
-                mock_path_cls.side_effect = _path_side_effect
-
-                report = generate_weekly_report(week="2026-W12")
+            report = generate_weekly_report(week="2026-W12", base_dir=tmp_path)
 
             self.assertIsInstance(report, str)
             self.assertGreater(len(report), 0)
